@@ -1,0 +1,15 @@
+chain;rpc;oldest vault;vault address;create trx;last tested trx;can fetch all events through rpc
+fantom;https://rpc.ankr.com/fantom;boo-ftm-usdc;0x41D44B276904561Ac51855159516FD4cB2c90968;0x54e27499be2f8284f59343e0b411f7cafacede6047190e8be4f7721b2ea85931;0x80460fb380355d6711d4d24240e73168ca2192696806af2264f4b50029f92c41;YES
+bsc;https://bsc-dataseed2.defibit.io/;TODO;TODO;TODO;TODO;
+heco;https://http-mainnet-node.huobichain.com;TODO;TODO;TODO;TODO;
+avax;https://rpc.ankr.com/avalanche;TODO;TODO;TODO;TODO;
+polygon;https://polygon-rpc.com/;TODO;TODO;TODO;TODO;
+one;https://api.s0.t.hmny.io/;TODO;TODO;TODO;TODO;
+arbitrum;https://arb1.arbitrum.io/rpc;TODO;TODO;TODO;TODO;
+moonriver;https://rpc.moonriver.moonbeam.network;TODO;TODO;TODO;TODO;
+celo;https://forno.celo.org;TODO;TODO;TODO;TODO;
+cronos;https://cronosrpc-1.xstaking.sg/;TODO;TODO;TODO;TODO;
+aurora;https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek;TODO;TODO;TODO;TODO;
+fuse;https://rpc.fuse.io;TODO;TODO;TODO;TODO;
+metis;https://andromeda.metis.io/?owner=1088;TODO;TODO;TODO;TODO;
+moonbeam;https://rpc.api.moonbeam.network;TODO;TODO;TODO;TODO;
