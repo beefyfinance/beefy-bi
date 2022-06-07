@@ -61,6 +61,7 @@ services:
       - ./grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
       - timescaledb
+      - influxdb
     networks:
       - backend
       - frontend

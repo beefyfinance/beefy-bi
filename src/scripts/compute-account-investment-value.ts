@@ -20,10 +20,10 @@ async function main() {
   const chain = "fantom";
   const mintBurnAddr = "0x0000000000000000000000000000000000000000";
 
-  //const contractAddress = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
-  //const priceOracleId = "tomb-usdc-fusdt";
-  const contractAddress = "0x41D44B276904561Ac51855159516FD4cB2c90968";
-  const priceOracleId = "boo-ftm-usdc";
+  const contractAddress = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
+  const priceOracleId = "tomb-usdc-fusdt";
+  //const contractAddress = "0x41D44B276904561Ac51855159516FD4cB2c90968";
+  //const priceOracleId = "boo-ftm-usdc";
   const underlyingTokenDecimals = 18;
   const vaultTokenDecimals = 18;
 
@@ -118,7 +118,7 @@ async function main() {
         .tag("account_addr", addr)
         .floatField("usd_value", usdValue.toNumber())
         .timestamp(priceRow.time.getTime());
-      //writeApi.writePoint(point);
+      writeApi.writePoint(point);
       totalPoints++;
     }
 
@@ -173,6 +173,7 @@ async function main() {
       });*/
     }
   }
+  logger.verbose(`Flushing influxdb`);
   await writeApi.flush();
 }
 
