@@ -45,7 +45,6 @@ async function migrate() {
           value text not null
       ) PARTITION BY LIST (contract_address);
 
-
       CREATE TABLE IF NOT EXISTS token_price_ts (
         time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
         chain text NOT NULL,
@@ -55,6 +54,17 @@ async function migrate() {
       SELECT create_hypertable('token_price_ts', 'time', chunk_time_interval => INTERVAL '30 day', if_not_exists => true);
       SELECT add_dimension('token_price_ts', 'chain', number_partitions => 15, if_not_exists => true);
       SELECT add_dimension('token_price_ts', 'contract_address', number_partitions => 500, if_not_exists => true);
+
+      create index if not exists idx_token_price_contract_address on token_price_ts(chain, contract_address);
+
+      
+      CREATE TABLE IF NOT EXISTS vault_token_to_underlying_rate (
+        chain text NOT NULL,
+        contract_address text NOT NULL,
+        time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        block_number INTEGER NOT NULL,
+        rate text not null
+    ) PARTITION BY LIST (contract_address);
   `);
 }
 
@@ -65,6 +75,19 @@ export async function prepareInsertErc20TransferBatch(
   return db_query(
     `
     CREATE TABLE IF NOT EXISTS partitions."erc20_transfer_%s" PARTITION OF erc20_transfer
+    FOR VALUES IN (%L);
+  `,
+    [contractAddress, contractAddress]
+  );
+}
+
+export async function prepareInsertVaultRateBatch(
+  _: Chain,
+  contractAddress: string
+) {
+  return db_query(
+    `
+    CREATE TABLE IF NOT EXISTS partitions."vault_token_to_underlying_rate_%s" PARTITION OF vault_token_to_underlying_rate
     FOR VALUES IN (%L);
   `,
     [contractAddress, contractAddress]
@@ -109,6 +132,40 @@ export async function insertErc20TransferBatch(
   );
 }
 
+export async function* streamLocalERC20Transfer(
+  chain: Chain,
+  contractAddress: string
+) {
+  const res = await db_query<{
+    time: Date;
+    from_address: string;
+    to_address: string;
+    value: string;
+  }>(
+    `
+    SELECT 
+      time at time zone 'utc' as time,
+      from_address,
+      to_address,
+      value 
+    FROM erc20_transfer
+    WHERE chain = %L AND contract_address = %L
+    order by time asc
+  `,
+    [chain, contractAddress]
+  );
+
+  for (const row of res) {
+    const data: { time: Date; from: string; to: string; value: BigInt } = {
+      from: row.from_address,
+      to: row.to_address,
+      value: BigInt(row.value),
+      time: new Date(row.time),
+    };
+    yield data;
+  }
+}
+
 export async function insertTokenPriceBatch(
   values: {
     chain: string;
@@ -132,6 +189,40 @@ export async function insertTokenPriceBatch(
       time,
       price
     ) VALUES %L
+  `,
+    [valueArr]
+  );
+}
+
+export async function insertVaultTokenRateBatch(
+  values: {
+    chain: string;
+    contract_address: string;
+    time: string;
+    block_number: number;
+    rate: string;
+  }[]
+) {
+  logger.verbose(
+    `[DB] Inserting ${values.length} rows into vault_token_to_underlying_rate`
+  );
+  const valueArr = values.map((val) => [
+    val.chain,
+    val.contract_address,
+    val.time,
+    val.block_number,
+    val.rate,
+  ]);
+  return db_query(
+    `
+    INSERT INTO vault_token_to_underlying_rate (
+      chain,
+      contract_address,
+      time,
+      block_number,
+      rate
+    ) VALUES %L
+    ON CONFLICT DO NOTHING
   `,
     [valueArr]
   );
