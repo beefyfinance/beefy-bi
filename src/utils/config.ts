@@ -7,6 +7,9 @@ export const DB_URL =
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
+export const BEEFY_DATA_URL =
+  process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
+
 export const RPC_URLS: { [chain in Chain]: string } = {
   bsc: process.env.BSC_RPC || "https://bsc-dataseed.binance.org",
   heco: process.env.HECO_RPC || "https://http-mainnet.hecochain.com",

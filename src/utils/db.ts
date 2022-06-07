@@ -33,6 +33,8 @@ export async function db_query_one<RowType>(
 
 async function migrate() {
   return db_query(`
+      CREATE SCHEMA IF NOT EXISTS partitions;
+
       CREATE TABLE IF NOT EXISTS erc20_transfer (
           chain text NOT NULL,
           contract_address text NOT NULL,
@@ -43,7 +45,16 @@ async function migrate() {
           value text not null
       ) PARTITION BY LIST (contract_address);
 
-      CREATE SCHEMA IF NOT EXISTS partitions;
+
+      CREATE TABLE IF NOT EXISTS token_price_ts (
+        time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        chain text NOT NULL,
+        contract_address text NOT NULL,
+        price double precision not null
+      );
+      SELECT create_hypertable('token_price_ts', 'time', chunk_time_interval => INTERVAL '30 day', if_not_exists => true);
+      SELECT add_dimension('token_price_ts', 'chain', number_partitions => 15, if_not_exists => true);
+      SELECT add_dimension('token_price_ts', 'contract_address', number_partitions => 500, if_not_exists => true);
   `);
 }
 
@@ -93,6 +104,34 @@ export async function insertErc20TransferBatch(
       value
     ) VALUES %L
     ON CONFLICT DO NOTHING
+  `,
+    [valueArr]
+  );
+}
+
+export async function insertTokenPriceBatch(
+  values: {
+    chain: string;
+    contract_address: string;
+    time: string;
+    price: number;
+  }[]
+) {
+  logger.verbose(`[DB] Inserting ${values.length} rows into token_price_ts`);
+  const valueArr = values.map((val) => [
+    val.chain,
+    val.contract_address,
+    val.time,
+    val.price,
+  ]);
+  return db_query(
+    `
+    INSERT INTO token_price_ts (
+      chain,
+      contract_address,
+      time,
+      price
+    ) VALUES %L
   `,
     [valueArr]
   );
