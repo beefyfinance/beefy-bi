@@ -1,0 +1,40 @@
+import { logger } from "../utils/logger";
+import { streamERC20TransferEvents } from "../lib/streamERC20Transfers";
+import {
+  insertErc20TransferBatch,
+  prepareInsertErc20TransferBatch,
+} from "../utils/db";
+import { batchAsyncStream } from "../utils/batch";
+
+async function main() {
+  const chain = "fantom";
+  const contractAddress = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
+  //const contractAddress = "0x41D44B276904561Ac51855159516FD4cB2c90968";
+
+  await prepareInsertErc20TransferBatch(chain, contractAddress);
+
+  const stream = streamERC20TransferEvents(chain, contractAddress);
+
+  for await (const eventBatch of batchAsyncStream(stream, 100)) {
+    await insertErc20TransferBatch(
+      eventBatch.map((event) => ({
+        block_number: event.blockNumber,
+        chain: chain,
+        contract_address: contractAddress,
+        from_address: event.from,
+        to_address: event.to,
+        time: event.datetime.toISOString(),
+        value: event.value.toString(),
+      }))
+    );
+  }
+}
+
+main()
+  .then(() => {
+    logger.info("Done");
+  })
+  .catch((e) => {
+    logger.error(e);
+    process.exit(1);
+  });

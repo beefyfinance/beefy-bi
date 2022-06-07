@@ -1,5 +1,12 @@
 {
   "name": "hardhat-project",
+  "scripts": {
+    "infra:start": "cd ./infra && docker compose up",
+    "grafana:open": "open http://localhost:3000",
+    "pg:console": "docker exec -it infra-timescaledb-1 psql -U beefy",
+    "redis:console": "docker exec -it infra-redis-1 redis-cli",
+    "redis:clear": "docker exec -it infra-redis-1 redis-cli flushall"
+  },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-etherscan": "^3.0.4",
@@ -11,6 +18,8 @@
     "@types/lodash": "^4.14.182",
     "@types/mocha": "^9.1.1",
     "@types/node": "^12.20.54",
+    "@types/pg": "^8.6.5",
+    "@types/pg-format": "^1.0.2",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "chai": "^4.3.6",
@@ -36,7 +45,15 @@
     "web3": "^1.7.3"
   },
   "dependencies": {
+    "@influxdata/influxdb-client": "^1.26.0",
+    "axios": "^0.27.2",
     "bignumber.js": "^9.0.2",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "node-cache": "^5.1.2",
+    "pg": "^8.7.3",
+    "pg-connection-string": "^2.5.0",
+    "pg-format": "^1.0.4",
+    "redis": "^4.1.0",
+    "winston": "^3.7.2"
   }
 }

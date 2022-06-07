@@ -79,7 +79,7 @@ This project will be split in 3 parts:
 - Moo token history amount per address
   - Result of proof of concept: can be fetched efficiently from the vault ERC20 transfer event
   - We use ERC20 transfers because most vault do not trigger an event when a deposit is made, it seems to be the strategy role to do so, so we avoid using those events (see above op req)
-  - Doing so is compatible with EIP4626
+  - Doing so is compatible with EIP-4626
 - Moo token price in "want"
   - Result of proof of concept: can be fetched at regular interval in the past by passing a block number to the contract call "pricePerFullShare()"
   - Might require a special RPC node for older vaults (archive node)
@@ -97,22 +97,78 @@ This project will be split in 3 parts:
     - Assumption: no custom event is reliably used enough to be used as a source of truth for fees
     - TODO
 
-## Implementation solutions
+In the future, we could derive APR and APY from this data, but it's not the goal of the first version.
 
-- Monolythic approach
-  - Everything intergated in the same project, exposing a single REST API
-  - Pros:
-    - Easy to implement and iterate on new features
-  - Cons:
-    - Can quickly become a tangled mess of code, will have to be strict about modules
-    - More difficult to transform into an asset for other projects as we don't expose raw data
-- Split in 2 projects: the indexer / raw data archive + the aggregated api
-  - Pros:
-    - Having a raw data archive is a good way to include other projects and having
-  - Cons:
-    - Can introduce latency
-    -
-- Something else?
+## Logical data flow
+
+```mermaid
+
+flowchart TB
+    subgraph blockchain
+        direction TB
+        subgraph beefy
+            Vault1 -- ... --> VaultN
+        end
+        subgraph chainlink
+            Oracle1 -- ... --> OracleN
+        end
+    end
+    subgraph external
+        direction LR
+        CoingeckoAPI
+        BeefyAPI
+        external_etc(...)
+    end
+    subgraph prices
+        direction TB
+        subgraph token_prices
+            FTM_price_feed --> token_prices_etc(...) --> BNB_price_feed
+        end
+        subgraph lp_prices
+            FTMUSDT_price_feed --> lp_prices_etc(...) --> BNBUSDT_prices_feed
+
+        end
+        subgraph moo_token_price
+            mooCakeBNBUSDT_prices --> moo_token_price_etc(...) --> mooSpookyFTMUSDT_prices
+        end
+        moo_token_price ---> lp_prices
+        moo_token_price ---> token_prices
+        lp_prices ---> token_prices
+    end
+    prices ----> blockchain
+    prices ----> external
+
+    subgraph account_balance
+        Vault1_balance_history --> account_balance_etc(...) --> VaultN_balance_history
+        Boost1_balance_history --> account_balance_boost_etc(...) --> BoostN_balance_history
+    end
+    account_balance --> transfer_event("ERC20TransferEvent") --> blockchain
+    account_balance --> balanceOf_call_event("balanceOf(addr).call({}, blockNumber)") --> blockchain
+
+    subgraph portfolio_history
+        User1_history --> portfolio_history_etc(...) --> UserN_history
+    end
+    portfolio_history ---> account_balance
+    portfolio_history ---> prices
+
+
+    subgraph apy_history
+        Vault1_apy_history --> apy_history_etc(...) --> VaultN_apy_history
+    end
+    apy_history ---> prices
+
+    subgraph clients
+        WebUI
+        BeefyAPI?
+    end
+    clients ---> portfolio_history
+    clients ---> prices
+    clients ---> apy_history
+
+    subgraph missing_from_this_chart
+        Harvest
+    end
+```
 
 ```mermaid
 flowchart RL
@@ -160,6 +216,54 @@ TODO
 
 - evaluate the graph maybe
 - can we reuse the vault registry or do we need a new one? (maybe we need oracle addresses, some additional config etc)
+
+```mermaid
+flowchart RL
+    subgraph blockchain
+        direction TB
+        VaultRegistry
+        Vault1 --Triggers--> EventTransferERC20
+        VaultRegistry --Knows about--> Vault1
+        VaultRegistry --Knows about--> Vault2
+        VaultRegistry --Knows about--> Oracles
+        subgraph "Vault 1"
+            direction LR
+            Vault1 --> Strategy1_1
+            Vault1 --> Strategy1_2
+        end
+        subgraph "Vault 2"
+            direction RL
+            Vault2 --> Strategy2_1
+            Vault2 --> Strategy2_2
+        end
+        subgraph "Events"
+            EventTransferERC20[ERC20 Transfer]
+        end
+        subgraph "Oracles"
+            direction LR
+            NativePrice
+            LPPrice1
+            LPPrice2
+            LPPrice3
+        end
+    end
+    subgraph project
+        Indexer  --> DataStore[(Data Store)]
+        API --> DataStore
+    end
+    subgraph clients
+        WebUI
+    end
+
+    Indexer -.2. Listen to and fetches.-> EventTransferERC20
+    Indexer -."3. pricePerFullShare.call(blockNumber)".-> Vault1
+    Indexer -."3. balance.call(blockNumber)".-> Vault1
+    Indexer -."3. price.call(blockNumber)".-> Oracles
+
+    Indexer --1. Get config from---> VaultRegistry
+    clients ---> API
+
+```
 
 ## Data store
 

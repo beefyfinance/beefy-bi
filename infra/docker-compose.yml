@@ -1,0 +1,53 @@
+version: "3.9" # optional since v1.27.0
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/pgdata
+    environment:
+      POSTGRES_USER: beefy
+      POSTGRES_PASSWORD: beefy
+      POSTGRES_DB: beefy
+      PGDATA: /pgdata
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana:8.5.4
+    ports:
+      - "3000:3000"
+    environment:
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: beefy
+      POSTGRES_PASSWORD: beefy
+      POSTGRES_DB: beefy
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
+    depends_on:
+      - timescaledb
+    networks:
+      - backend
+      - frontend
+
+volumes:
+  timescaledb_data: {}
+  grafana_data: {}
+  redis_data: {}
+
+networks:
+  frontend: {}
+  backend: {}

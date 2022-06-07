@@ -1,0 +1,18 @@
+# config file version
+apiVersion: 1
+
+datasources:
+  - name: Beefy
+    type: postgres
+    access: proxy
+    url: ${POSTGRES_HOST}:${POSTGRES_PORT}
+    user: ${POSTGRES_USER}
+    database: ${POSTGRES_DB}
+    isDefault: true
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1400
+      timescaledb: true
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD}
+    editable: false
