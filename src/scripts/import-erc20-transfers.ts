@@ -1,10 +1,10 @@
 import { logger } from "../utils/logger";
-import { streamERC20TransferEvents } from "../lib/streamERC20Transfers";
 import {
   insertErc20TransferBatch,
   prepareInsertErc20TransferBatch,
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
+import { streamERC20TransferEvents } from "../lib/streamContractEvents";
 
 async function main() {
   const chain = "fantom";
@@ -21,10 +21,10 @@ async function main() {
         block_number: event.blockNumber,
         chain: chain,
         contract_address: contractAddress,
-        from_address: event.from,
-        to_address: event.to,
+        from_address: event.data.from,
+        to_address: event.data.to,
         time: event.datetime.toISOString(),
-        value: event.value.toString(),
+        value: event.data.value.toString(),
       }))
     );
   }

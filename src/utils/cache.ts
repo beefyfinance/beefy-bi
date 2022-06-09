@@ -56,7 +56,7 @@ export function cacheAsyncResult<TArgs extends any[], TReturn extends object>(
     // @ts-ignore
     const key = fn.name + ":" + options.getKey(...args);
     if (await cache.has(key)) {
-      logger.debug(`[REDIS] Cache hit for ${key}`);
+      //logger.debug(`[REDIS] Cache hit for ${key}`);
       const obj = await cache.getJSON<TReturn>(key);
       for (const field of dateFields) {
         // @ts-ignore

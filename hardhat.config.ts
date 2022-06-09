@@ -14,7 +14,6 @@ import "solidity-coverage";
 import * as fs from "fs";
 import lodash from "lodash";
 import { BigNumber } from "bignumber.js";
-import { streamERC20TransferEvents } from "./src/lib/streamERC20Transfers";
 
 const BeefyVaultV6_abi = JSON.parse(
   fs.readFileSync(
@@ -32,18 +31,6 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 
   for (const account of accounts) {
     console.log(account.address);
-  }
-});
-
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("test", "testing", async () => {
-  const stream = streamERC20TransferEvents(
-    "fantom",
-    "0x95EA2284111960c748edF4795cb3530e5E423b8c"
-  );
-  for await (const event of stream) {
-    console.log(event);
   }
 });
 

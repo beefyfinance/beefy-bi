@@ -36,19 +36,19 @@ async function migrate() {
       CREATE SCHEMA IF NOT EXISTS partitions;
 
       CREATE TABLE IF NOT EXISTS erc20_transfer (
-          chain text NOT NULL,
-          contract_address text NOT NULL,
+          chain varchar(10) NOT NULL,
+          contract_address varchar(42) NOT NULL,
           time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
           block_number INTEGER NOT NULL,
-          from_address text not null,
-          to_address text not null,
+          from_address varchar(42) not null,
+          to_address varchar(42) not null,
           value text not null
       ) PARTITION BY LIST (contract_address);
 
       CREATE TABLE IF NOT EXISTS token_price_ts (
         time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-        chain text NOT NULL,
-        contract_address text NOT NULL,
+        chain varchar(10) NOT NULL,
+        contract_address varchar(42) NOT NULL,
         price double precision not null
       );
       SELECT create_hypertable('token_price_ts', 'time', chunk_time_interval => INTERVAL '30 day', if_not_exists => true);
@@ -59,12 +59,23 @@ async function migrate() {
 
       
       CREATE TABLE IF NOT EXISTS vault_token_to_underlying_rate (
-        chain text NOT NULL,
-        contract_address text NOT NULL,
+        chain varchar(10) NOT NULL,
+        contract_address varchar(42) NOT NULL,
         time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
         block_number INTEGER NOT NULL,
         rate text not null
     ) PARTITION BY LIST (contract_address);
+
+
+      
+    CREATE TABLE IF NOT EXISTS vault_strategy (
+        chain varchar(10) NOT NULL,
+        contract_address varchar(42) NOT NULL,
+        time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+        block_number INTEGER NOT NULL,
+        strategy_address varchar(42) NOT NULL
+    );
+    CREATE unique index if not exists idx_vault_strategy_fk on vault_strategy(chain, contract_address, strategy_address);
   `);
 }
 
@@ -221,6 +232,38 @@ export async function insertVaultTokenRateBatch(
       time,
       block_number,
       rate
+    ) VALUES %L
+    ON CONFLICT DO NOTHING
+  `,
+    [valueArr]
+  );
+}
+
+export async function insertVaulStrategyBatch(
+  values: {
+    chain: string;
+    contract_address: string;
+    time: string;
+    block_number: number;
+    strategy_address: string;
+  }[]
+) {
+  logger.verbose(`[DB] Inserting ${values.length} rows into vault_strategy`);
+  const valueArr = values.map((val) => [
+    val.chain,
+    val.contract_address,
+    val.time,
+    val.block_number,
+    val.strategy_address,
+  ]);
+  return db_query(
+    `
+    INSERT INTO vault_strategy (
+      chain,
+      contract_address,
+      time,
+      block_number,
+      strategy_address
     ) VALUES %L
     ON CONFLICT DO NOTHING
   `,
