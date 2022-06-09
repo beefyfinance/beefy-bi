@@ -70,6 +70,7 @@ async function* streamContractEvents<TEventArgs>(
 
     const blockFrom = await getBlockDate(chain, blockRange.fromBlock);
     const blockTo = await getBlockDate(chain, blockRange.toBlock);
+
     if (events.length > 0) {
       logger.verbose(
         `[EVENT_STREAM] Got ${events.length} events for range ${rangeIdx}/${
@@ -84,20 +85,14 @@ async function* streamContractEvents<TEventArgs>(
       );
     }
 
-    let blockNum = 0;
-    let blockDate = new Date();
     for (const rawEvent of events) {
       if (!rawEvent.args) {
         throw new Error(`No event args in event ${rawEvent}`);
       }
-      if (blockNum !== rawEvent.blockNumber) {
-        blockNum = rawEvent.blockNumber;
-        const block = await rawEvent.getBlock();
-        blockDate = new Date(block.timestamp * 1000);
-      }
+      const blockDate = await getBlockDate(chain, rawEvent.blockNumber);
       const mappedEvent = {
         blockNumber: rawEvent.blockNumber,
-        datetime: blockDate,
+        datetime: blockDate.datetime,
         data: mapArgs(rawEvent.args),
       };
       yield mappedEvent;
@@ -111,6 +106,10 @@ export const streamERC20TransferEvents = (
   options?: {
     from?: string;
     to?: string;
+    startBlock?: number;
+    endBlock?: number;
+    blockBatchSize?: number;
+    timeOrder?: "timeline" | "reverse";
   }
 ) => {
   logger.debug(
@@ -140,6 +139,10 @@ export const streamERC20TransferEvents = (
         to: args.to,
         value: args.value,
       }),
+      startBlock: options?.startBlock,
+      endBlock: options?.endBlock,
+      blockBatchSize: options?.blockBatchSize,
+      timeOrder: options?.timeOrder,
     }
   );
 };

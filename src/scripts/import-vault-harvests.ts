@@ -6,6 +6,10 @@ import {
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
 import { streamERC20TransferEvents } from "../lib/streamContractEvents";
+import {
+  getFirstTransactionInfos,
+  getLastTransactionInfos,
+} from "../lib/contract-transaction-infos";
 
 async function main() {
   const chain = "fantom";
@@ -29,10 +33,22 @@ async function main() {
       chain,
       strategyAddressRow.strategy_address
     );
+    const { blockNumber: startBlock } = await getFirstTransactionInfos(
+      chain,
+      strategyAddressRow.strategy_address
+    );
+    const { blockNumber: endBlock } = await getLastTransactionInfos(
+      chain,
+      strategyAddressRow.strategy_address
+    );
 
     // get wnative transfers from this address
     const stream = streamERC20TransferEvents(chain, wnativeContractAddress, {
       from: strategyAddressRow.strategy_address,
+      startBlock,
+      endBlock,
+      //blockBatchSize: 100, // too many logs to process on wnative token, so reduce the block range
+      timeOrder: "reverse", // we are more interested in the recent history
     });
 
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
