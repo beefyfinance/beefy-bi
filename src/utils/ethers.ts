@@ -26,3 +26,7 @@ export const getBlockDate = cacheAsyncResult(
     dateFields: ["datetime"],
   }
 );
+
+export function normalizeAddress(address: string) {
+  return ethers.utils.getAddress(address);
+}

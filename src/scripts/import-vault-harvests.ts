@@ -10,6 +10,7 @@ import {
   getFirstTransactionInfos,
   getLastTransactionInfos,
 } from "../lib/contract-transaction-infos";
+import { getBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
@@ -52,17 +53,20 @@ async function main() {
     });
 
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      await insertErc20TransferBatch(
-        eventBatch.map((event) => ({
+      const events = await Promise.all(
+        eventBatch.map(async (event) => ({
           block_number: event.blockNumber,
           chain: chain,
           contract_address: contractAddress,
           from_address: event.data.from,
           to_address: event.data.to,
-          time: event.datetime.toISOString(),
+          time: (
+            await getBlockDate(chain, event.blockNumber)
+          ).datetime.toISOString(),
           value: event.data.value.toString(),
         }))
       );
+      await insertErc20TransferBatch(events);
     }
   }
 }

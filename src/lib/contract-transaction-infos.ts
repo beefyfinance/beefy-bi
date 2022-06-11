@@ -5,6 +5,7 @@ import { Chain } from "../types/chain";
 import * as ethers from "ethers";
 import { EXPLORER_URLS } from "../utils/config";
 import * as lodash from "lodash";
+import { sleep } from "../utils/async";
 
 interface ContractCreationInfo {
   chain: Chain;
@@ -14,7 +15,10 @@ interface ContractCreationInfo {
   datetime: Date;
 }
 
-async function fetchContractFirstLastTrx(
+let lastCallDate = new Date(0);
+let callMaxEvery = 1000 * 5.5; // 1 req per 5 sec max
+
+export async function _fetchContractFirstLastTrx(
   chain: Chain,
   contractAddress: string,
   type: "first" | "last"
@@ -25,7 +29,18 @@ async function fetchContractFirstLastTrx(
   var url =
     explorerUrl +
     `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=99999999&page=1&offset=1&sort=${sort}&limit=1`;
+
+  // avoid hitting the explorer too often
+  if (new Date().getTime() - lastCallDate.getTime() < callMaxEvery) {
+    const sleepFor = Math.min(
+      callMaxEvery,
+      callMaxEvery - (new Date().getTime() - lastCallDate.getTime())
+    );
+    logger.verbose(`Sleeping for ${sleepFor}ms`);
+    await sleep(sleepFor);
+  }
   const resp = await axios.get(url);
+  lastCallDate = new Date();
 
   const creationRes = resp.data?.result;
   if (!creationRes || !lodash.isArray(creationRes) || !creationRes.length) {
@@ -53,7 +68,7 @@ async function fetchContractFirstLastTrx(
 
 export const getFirstTransactionInfos = cacheAsyncResult(
   function fetchFirstTrxInfos(chain: Chain, contractAddress: string) {
-    return fetchContractFirstLastTrx(chain, contractAddress, "first");
+    return _fetchContractFirstLastTrx(chain, contractAddress, "first");
   },
   {
     getKey: (chain, contractAddress) => `${chain}:${contractAddress}:first`,
@@ -63,7 +78,7 @@ export const getFirstTransactionInfos = cacheAsyncResult(
 
 export const getLastTransactionInfos = cacheAsyncResult(
   function fetchFirstTrxInfos(chain: Chain, contractAddress: string) {
-    return fetchContractFirstLastTrx(chain, contractAddress, "last");
+    return _fetchContractFirstLastTrx(chain, contractAddress, "last");
   },
   {
     getKey: (chain, contractAddress) => `${chain}:${contractAddress}:last`,

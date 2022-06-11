@@ -29,18 +29,23 @@ class RedisCache {
   }
 }
 
-const client = redis.createClient({ url: REDIS_URL });
-client.on("error", (error) => {
-  if (error) {
-    logger.error("[REDIS] client error", error);
-  } else {
-    logger.info("[REDIS] client connected");
+let cache: RedisCache | null = null;
+async function getCache() {
+  if (cache === null) {
+    const client = redis.createClient({ url: REDIS_URL });
+    client.on("error", (error) => {
+      if (error) {
+        logger.error("[REDIS] client error", error);
+      } else {
+        logger.info("[REDIS] client connected");
+      }
+    });
+    await client.connect();
+    // @ts-ignore idk why typescript is screaming here
+    cache = new RedisCache(client);
   }
-});
-client.connect();
-
-// @ts-ignore idk why typescript is screaming here
-const cache = new RedisCache(client);
+  return cache;
+}
 
 export function cacheAsyncResult<TArgs extends any[], TReturn extends object>(
   fn: (...parameters: TArgs) => Promise<TReturn>,
@@ -52,7 +57,9 @@ export function cacheAsyncResult<TArgs extends any[], TReturn extends object>(
 ): (...parameters: TArgs) => Promise<TReturn> {
   const dateFields = options?.dateFields || [];
   const ttl_sec = options?.ttl_sec || undefined;
+
   const cachedFn = async function (...args: any[]): Promise<TReturn> {
+    const cache = await getCache();
     // @ts-ignore
     const key = fn.name + ":" + options.getKey(...args);
     if (await cache.has(key)) {

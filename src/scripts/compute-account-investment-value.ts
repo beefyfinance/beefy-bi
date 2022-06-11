@@ -283,7 +283,3 @@ function generateTimeTs(min_date: Date, max_date: Date, snapshotDelta: number) {
     (_, i) => new Date(min_time + i * snapshotDelta)
   );
 }
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

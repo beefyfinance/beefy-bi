@@ -2,6 +2,7 @@ import { logger } from "../utils/logger";
 import { insertVaulStrategyBatch } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
 import { streamBifiVaultUpgradeStratEvents } from "../lib/streamContractEvents";
+import { getBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
@@ -11,15 +12,18 @@ async function main() {
   const stream = streamBifiVaultUpgradeStratEvents(chain, contractAddress);
 
   for await (const eventBatch of batchAsyncStream(stream, 100)) {
-    await insertVaulStrategyBatch(
-      eventBatch.map((event) => ({
+    const events = await Promise.all(
+      eventBatch.map(async (event) => ({
         block_number: event.blockNumber,
-        time: event.datetime.toISOString(),
+        time: (
+          await getBlockDate(chain, event.blockNumber)
+        ).datetime.toISOString(),
         chain: chain,
         contract_address: contractAddress,
         strategy_address: event.data.implementation,
       }))
     );
+    await insertVaulStrategyBatch(events);
   }
 }
 

@@ -3,12 +3,12 @@ import {
   getFirstTransactionInfos,
   getLastTransactionInfos,
 } from "./contract-transaction-infos";
-import { getBlockDate, getContract } from "../utils/ethers";
+import { getContract } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import { BaseContract, ethers } from "ethers";
+import { ethers } from "ethers";
 
 async function* streamContractEvents<TEventArgs>(
   chain: Chain,
@@ -26,17 +26,22 @@ async function* streamContractEvents<TEventArgs>(
     timeOrder?: "timeline" | "reverse";
   }
 ) {
-  const { blockNumber: createBlock } = await getFirstTransactionInfos(
-    chain,
-    contractAddress
-  );
-  const { blockNumber: lastBlock } = await getLastTransactionInfos(
-    chain,
-    contractAddress
-  );
-
-  const startBlock = options?.startBlock || createBlock;
-  const endBlock = options?.endBlock || lastBlock;
+  let startBlock = options?.startBlock;
+  if (!startBlock) {
+    const { blockNumber } = await getFirstTransactionInfos(
+      chain,
+      contractAddress
+    );
+    startBlock = blockNumber;
+  }
+  let endBlock = options?.endBlock;
+  if (!endBlock) {
+    const { blockNumber } = await getLastTransactionInfos(
+      chain,
+      contractAddress
+    );
+    endBlock = blockNumber;
+  }
 
   // we will need to call the contract to get the ppfs at some point
   const contract = getContract(chain, abi, contractAddress);
@@ -68,20 +73,13 @@ async function* streamContractEvents<TEventArgs>(
       blockRange.toBlock
     );
 
-    const blockFrom = await getBlockDate(chain, blockRange.fromBlock);
-    const blockTo = await getBlockDate(chain, blockRange.toBlock);
-
     if (events.length > 0) {
       logger.verbose(
-        `[EVENT_STREAM] Got ${events.length} events for range ${rangeIdx}/${
-          ranges.length
-        } (${blockFrom.datetime.toISOString()} -> ${blockTo.datetime.toISOString()})`
+        `[EVENT_STREAM] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
       );
     } else {
       logger.debug(
-        `[EVENT_STREAM] Got ${events.length} events for range ${rangeIdx}/${
-          ranges.length
-        } (${blockFrom.datetime.toISOString()} -> ${blockTo.datetime.toISOString()})`
+        `[EVENT_STREAM] No events for range ${rangeIdx}/${ranges.length}`
       );
     }
 
@@ -89,10 +87,8 @@ async function* streamContractEvents<TEventArgs>(
       if (!rawEvent.args) {
         throw new Error(`No event args in event ${rawEvent}`);
       }
-      const blockDate = await getBlockDate(chain, rawEvent.blockNumber);
       const mappedEvent = {
         blockNumber: rawEvent.blockNumber,
-        datetime: blockDate.datetime,
         data: mapArgs(rawEvent.args),
       };
       yield mappedEvent;
@@ -137,7 +133,7 @@ export const streamERC20TransferEvents = (
       mapArgs: (args) => ({
         from: args.from,
         to: args.to,
-        value: args.value,
+        value: args.value.toString(),
       }),
       startBlock: options?.startBlock,
       endBlock: options?.endBlock,

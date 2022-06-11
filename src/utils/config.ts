@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { Chain } from "../types/chain";
+import * as path from "path";
 dotenv.config();
 
 export const DB_URL =
@@ -50,3 +51,15 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   sys: "https://explorer.syscoin.org/",
   emerald: "https://explorer.oasis.dev/",
 };
+
+export const DATA_DIRECTORY =
+  process.env.DATA_DIRECTORY ||
+  path.join(__dirname, "..", "..", "data", "indexed");
+
+const log_level = process.env.LOG_LEVEL || "info";
+if (!["info", "debug", "verbose", "warn", "error"].includes(log_level)) {
+  throw new Error(`Invalid log level ${log_level}`);
+}
+
+export const LOG_LEVEL: "info" | "debug" | "verbose" | "warn" | "error" =
+  log_level as any as "info" | "debug" | "verbose" | "warn" | "error";

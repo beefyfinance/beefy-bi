@@ -5,6 +5,7 @@ import {
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
 import { streamERC20TransferEvents } from "../lib/streamContractEvents";
+import { getBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
@@ -16,17 +17,20 @@ async function main() {
   const stream = streamERC20TransferEvents(chain, contractAddress);
 
   for await (const eventBatch of batchAsyncStream(stream, 100)) {
-    await insertErc20TransferBatch(
-      eventBatch.map((event) => ({
+    const events = await Promise.all(
+      eventBatch.map(async (event) => ({
         block_number: event.blockNumber,
         chain: chain,
         contract_address: contractAddress,
         from_address: event.data.from,
         to_address: event.data.to,
-        time: event.datetime.toISOString(),
+        time: (
+          await getBlockDate(chain, event.blockNumber)
+        ).datetime.toISOString(),
         value: event.data.value.toString(),
       }))
     );
+    await insertErc20TransferBatch(events);
   }
 }
 

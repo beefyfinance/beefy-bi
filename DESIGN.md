@@ -19,6 +19,12 @@ We prioritize fulfilling the requirements while optimising for operational effic
   - bifi staker revenue <= IDK HOW THIS IS COMPUTED
   - historical buyback amount?
 
+Questions to answer:
+
+- the effectiveness of marketing activities on vault tvl
+- the effect of launchpools, also does the tvl stay after the launchpool ends
+- harvests -> purely profit, how much are we earning from stable vaults, how much are degen vaults generating, precise amount of - monthly treasury inflow? -> this then enables us to run new scenarios, if fees were modified to X, Y and Z, how would the impact on bifi stakers and treasury revenue be?
+
 ## Feature 2: Detailed tracking of individual user investments
 
 - Display user investments history (per address)
@@ -95,9 +101,78 @@ This project will be split in 3 parts:
   - Harvest fees:
     - Assumption: harvests convert all to native before splitting between harvester, strategist and treasury
     - Assumption: no custom event is reliably used enough to be used as a source of truth for fees
-    - TODO
+    - Result of proof of concept: we can use ERC20 transfer events to get the harvest details
 
 In the future, we could derive APR and APY from this data, but it's not the goal of the first version.
+
+## Data store capacity analysis
+
+Data Sizing:
+
+```
+- Vaults to track: ~2000, design for ~5000
+- Accounts per vault: ~500, design for ~1000. Note: popular vaults can have 10k~30k accounts
+- Time sampling: 4h (>1y), 1h (>1m), 15min (<1m) timestep -> 30*24*4 + 11*30*24 + 365*6 -> 13k data points
+- Data to store:
+    - Deposit/withdraw:
+        - ERC20 transfers from/to vaults:
+            - With from/to (feat2)
+                - 10~30 / account / vault -> 1000*5000*30 -> 150M data points
+                - values: from/to (address 160 bit) + value (256 bit) + timestamp (64 bit)
+                - dimensions: vault address (160 bit) + chain (8 bit)
+                - 150M*480bit -> 9 gigabytes + dimensions
+            - Without from/to (feat1)
+                - 5000 vaults \* ~2000 deposit/withdraws -> ~10M data points
+                - values: value (256 bit) + timestamp (64 bit)
+                - dimensions: vault address (160 bit) + chain (8 bit)
+                - 10M*320bit -> 400 megabytes + dimensions
+    - PPFS: 1 / vault / ts point
+        - values: price per full share (256 bit) + timestamp (64 bit)
+        - dimensions: vault address (160 bit) + chain (8 bit)
+        - 5000 * 13k -> 65M data points -> 65M*320bit -> 2.6 gigabytes + dimensions
+    - Vault strat list
+        - Negligible, max 5 / vault -> 25k
+    - Prices:
+        - ~3/vault (lp + underlying 1 + underlying 2), but many overlap
+        - values: price approx usd (32 bit) + price approx native (32 bit) + timestamp (64 bit)
+        - dimensions: chain (8 bit)
+        - 3000 (5k - overlap) * 3 * 13k -> 117M data points -> 117M*128bit -> 1.8 gigabytes + dimensions
+    - Harvests:
+        - 1 / vault / ts point (aggregate if needed)
+        - values: harvest approx usd (32 bit) + harvest approx native (32 bit) + split strategist/harvester/treasury 3 * 32 bit + timestamp (64 bit)
+        - dimensions: chain (8 bit) + vault address (160 bit)
+        - 5000 * 13k -> 65M data points -> 65M*224bit -> 1.8 gigabytes + dimensions
+- Total (uncompressed):
+    - Deposit/withdraws counts (feat1): ~500Mb
+    - PPFS: ~3Gb
+    - Prices: ~2Gb
+    - Harvests: ~2Gb
+```
+
+## cloud vs on prem
+
+```
+- on prem:
+    (+): cheaper to run ($100~$200 / month)
+    (+): more decentralized (no dependency on specific cloud provider service -> anyone can spin an instance)
+    (-): access control is more error prone
+    (-): more exensive to maintain (dev time), need upgrades
+    (-): need to test and maintain timeserie databases
+    (~): forces us to produce more efficient code
+- cloud:
+    (-): more expensive to run ($300~$1000 / month) and c
+    (-): less decentralized (dependency on specific cloud provider service)
+    (+): access control is less error prone (revokable access)
+    (+): less expensive to maintain (dev time), automatic upgrades upgrades
+    (+): included timeserie / big data tools
+    (~): let us produce sloppy code that have an impact on infrastructure cost
+```
+
+###############################################################################################
+###############################################################################################
+########################### WIP ###########################
+###############################################################################################
+###############################################################################################
 
 ## Logical data flow
 
@@ -195,12 +270,6 @@ flowchart RL
     indexer ---> blockchain
     clients ---> API
 ```
-
-###############################################################################################
-###############################################################################################
-########################### WIP ###########################
-###############################################################################################
-###############################################################################################
 
 # Component design
 
