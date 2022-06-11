@@ -13,6 +13,7 @@ import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
+import { sleep } from "../utils/async";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -30,6 +31,9 @@ async function main() {
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
     const contractAddress = normalizeAddress(vault.token_address);
+    if (contractAddress !== "0x37A8b016EF27fBCF73F73Fb9Dc1C09C47A5d7E48") {
+      continue;
+    }
     logger.info(`Processing ${chain}:${vault.id} (${contractAddress})`);
 
     let startBlock = await getLastImportedERC20TransferBlockNumber(
@@ -69,7 +73,7 @@ async function main() {
     );
     const stream = streamERC20TransferEvents(chain, contractAddress, {
       startBlock,
-      endBlock: endBlock + 1,
+      endBlock,
       timeOrder: "timeline",
     });
     const { writeBatch } = await getERC20TransferStorageWriteStream(
@@ -89,6 +93,9 @@ async function main() {
       );
     }
   }
+
+  logger.info(`Done importing ${chain} ERC20 transfer events, sleeping 1h`);
+  await sleep(1000 * 60 * 60);
 }
 
 main()

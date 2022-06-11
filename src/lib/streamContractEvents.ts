@@ -52,6 +52,7 @@ async function* streamContractEvents<TEventArgs>(
   const rangeSize =
     options?.blockBatchSize || CHAIN_RPC_MAX_QUERY_BLOCKS[chain]; // big to speed up, not to big to avoid rpc limitations
   const flat_range = lodash.range(startBlock, endBlock + 1, rangeSize);
+  flat_range.push(endBlock + 1); // to make sure we get the last block
   let ranges: { fromBlock: number; toBlock: number }[] = [];
   for (let i = 0; i < flat_range.length - 1; i++) {
     ranges.push({
