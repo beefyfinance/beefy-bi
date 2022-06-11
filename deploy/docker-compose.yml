@@ -1,13 +1,15 @@
 version: "3.9" # optional since v1.27.0
 
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data/indexed --opt o=bind beefy_data_directory
+# docker compose -p beefy -f deploy/docker-compose.yml build
+# docker compose -p beefy -f deploy/docker-compose.yml up
+
 x-importer: &importer
   build:
     context: ../
     dockerfile: ./deploy/Dockerfile
   restart: always
   command: ["npx", "ts-node", "$$WORK_SCRIPT", "--chain", "$$WORK_CHAIN"]
-  environment:
-    DATA_DIRECTORY: /data
   volumes:
     - data_directory:/data
   networks:
@@ -31,7 +33,94 @@ services:
       <<: *importer-env
       WORK_CHAIN: cronos
 
-# docker volume create --driver local --opt type=none --opt device=${PWD}/data --opt o=bind beefy_data_directory
+  import-vault-transfers-bsc:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: bsc
+
+  import-vault-transfers-polygon:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: polygon
+
+  import-vault-transfers-heco:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: heco
+
+  import-vault-transfers-avax:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: avax
+
+  import-vault-transfers-moonbeam:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: moonbeam
+
+  import-vault-transfers-celo:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: celo
+
+  import-vault-transfers-moonriver:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: moonriver
+
+  import-vault-transfers-arbitrum:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: arbitrum
+
+  import-vault-transfers-aurora:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: aurora
+
+  # disabled because explorer api is different
+  #import-vault-transfers-metis:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CHAIN: metis
+
+  # disabled because explorer api is different
+  #import-vault-transfers-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CHAIN: harmony
+
+  import-vault-transfers-fuse:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: fuse
+
+  # no beefy vault list for now
+  #import-vault-transfers-syscoin:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CHAIN: syscoin
+
+  # disabled because explorer api is different
+  #import-vault-transfers-emerald:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CHAIN: emerald
+
 volumes:
   data_directory:
     external: true

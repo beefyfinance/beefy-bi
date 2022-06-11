@@ -677,7 +677,7 @@ const config: HardhatUserConfig = {
       chainId: 250,
       accounts,
     },
-    one: {
+    harmony: {
       url: "https://api.s0.t.hmny.io/",
       chainId: 1666600000,
       accounts,

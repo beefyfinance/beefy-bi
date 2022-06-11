@@ -31,6 +31,7 @@ interface RawBeefyVault {
   earnContractAddress: string;
   earnedToken: string;
   isGovVault?: boolean;
+  status?: string;
 }
 interface BeefyVault {
   id: string;
@@ -46,6 +47,7 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
     const rawData: RawBeefyVault[] = res.data;
     const data: BeefyVault[] = rawData
       .filter((vault) => !(vault.isGovVault === true))
+      .filter((vault) => !(vault.status === "eol"))
       .map((vault) => ({
         id: vault.id,
         token_name: vault.earnedToken,
@@ -54,7 +56,7 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
       }));
     return data;
   },
-  (chain: Chain) => path.join(DATA_DIRECTORY, "beefy", chain, "vaults.json")
+  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.json")
 );
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(

@@ -9,6 +9,7 @@ import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
 
 async function* streamContractEvents<TEventArgs>(
   chain: Chain,
@@ -48,7 +49,8 @@ async function* streamContractEvents<TEventArgs>(
   const mapArgs = options?.mapArgs || ((x) => x as any as TEventArgs);
 
   // iterate through block ranges
-  const rangeSize = options?.blockBatchSize || 3000; // big to speed up, not to big to avoid rpc limitations
+  const rangeSize =
+    options?.blockBatchSize || CHAIN_RPC_MAX_QUERY_BLOCKS[chain]; // big to speed up, not to big to avoid rpc limitations
   const flat_range = lodash.range(startBlock, endBlock + 1, rangeSize);
   let ranges: { fromBlock: number; toBlock: number }[] = [];
   for (let i = 0; i < flat_range.length - 1; i++) {

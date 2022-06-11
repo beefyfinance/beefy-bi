@@ -11,9 +11,9 @@ export type Chain =
   | "arbitrum"
   | "aurora"
   | "metis"
-  | "one"
+  | "harmony"
   | "fuse"
-  | "sys"
+  | "syscoin"
   | "emerald";
 
 export const allChainIds: Chain[] = [
@@ -29,8 +29,8 @@ export const allChainIds: Chain[] = [
   "arbitrum",
   "aurora",
   "metis",
-  "one",
+  "harmony",
   "fuse",
-  "sys",
+  "syscoin",
   "emerald",
 ];

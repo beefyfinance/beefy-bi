@@ -6,6 +6,7 @@ import * as ethers from "ethers";
 import { EXPLORER_URLS } from "../utils/config";
 import * as lodash from "lodash";
 import { sleep } from "../utils/async";
+import { off } from "process";
 
 interface ContractCreationInfo {
   chain: Chain;
@@ -26,9 +27,9 @@ export async function _fetchContractFirstLastTrx(
   logger.debug(`Fetching ${type} trx for ${chain}:${contractAddress}`);
   const explorerUrl = EXPLORER_URLS[chain];
   const sort = type === "first" ? "asc" : "desc";
-  var url =
+  const url =
     explorerUrl +
-    `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=99999999&page=1&offset=1&sort=${sort}&limit=1`;
+    `?module=account&action=txlist&address=${contractAddress}&sort=${sort}&limit=1`;
 
   // avoid hitting the explorer too often
   if (new Date().getTime() - lastCallDate.getTime() < callMaxEvery) {

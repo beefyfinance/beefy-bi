@@ -17,7 +17,7 @@ export const RPC_URLS: { [chain in Chain]: string } = {
   avax: process.env.AVAX_RPC || "https://api.avax.network/ext/bc/C/rpc",
   polygon: process.env.POLYGON_RPC || "https://polygon-rpc.com/",
   fantom: process.env.FANTOM_RPC || "https://rpc.ftm.tools",
-  one: process.env.ONE_RPC || "https://api.harmony.one/",
+  harmony: process.env.HARMONY_RPC || "https://api.harmony.one/",
   arbitrum: process.env.ARBITRUM_RPC || "https://arb1.arbitrum.io/rpc",
   celo: process.env.CELO_RPC || "https://forno.celo.org",
   moonriver:
@@ -29,7 +29,7 @@ export const RPC_URLS: { [chain in Chain]: string } = {
   fuse: process.env.FUSE_RPC || "https://rpc.fuse.io",
   metis: process.env.METIS_RPC || "https://andromeda.metis.io/?owner=1088",
   moonbeam: process.env.MOONBEAM_RPC || "https://rpc.api.moonbeam.network",
-  sys: process.env.SYS_RPC || "https://rpc.syscoin.org/",
+  syscoin: process.env.SYSCOIN_RPC || "https://rpc.syscoin.org/",
   emerald: process.env.EMERALD_RPC || "https://emerald.oasis.dev",
 };
 
@@ -41,17 +41,35 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   heco: "https://api.hecoinfo.com/api",
   avax: "https://api.snowtrace.io//api",
   moonbeam: "https://api-moonbeam.moonscan.io/api",
-  celo: "https://explorer.celo.org/",
+  celo: "https://api.celoscan.xyz/api", // "https://explorer.celo.org/",
   moonriver: "https://api-moonriver.moonscan.io/api",
   arbitrum: "https://api.arbiscan.io/api",
-  aurora: "https://explorer.mainnet.aurora.dev/",
-  metis: "https://andromeda-explorer.metis.io/",
-  one: "https://explorer.harmony.one/",
-  fuse: "https://explorer.fuse.io/",
-  sys: "https://explorer.syscoin.org/",
+  aurora: "https://api.aurorascan.dev/api", //"https://explorer.mainnet.aurora.dev/",
+  metis: "https://stardust-explorer.metis.io/api", //"https://andromeda-explorer.metis.io/",
+  harmony: "https://explorer.harmony.one/api",
+  fuse: "https://explorer.fuse.io/api",
+  syscoin: "https://explorer.syscoin.org/api",
   emerald: "https://explorer.oasis.dev/",
 };
 
+export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
+  cronos: 3000,
+  bsc: 3000,
+  polygon: 3000,
+  fantom: 3000,
+  heco: 3000,
+  avax: 2048, // requested too many blocks from 3052900 to 3055899, maximum is set to 2048
+  moonbeam: 3000,
+  celo: 3000,
+  moonriver: 3000,
+  arbitrum: 3000,
+  aurora: 3000,
+  metis: 3000,
+  harmony: 3000,
+  fuse: 3000,
+  syscoin: 3000,
+  emerald: 3000,
+};
 export const DATA_DIRECTORY =
   process.env.DATA_DIRECTORY ||
   path.join(__dirname, "..", "..", "data", "indexed");
