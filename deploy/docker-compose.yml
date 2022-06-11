@@ -4,6 +4,7 @@ version: "3.9" # optional since v1.27.0
 # docker compose -p beefy -f deploy/docker-compose.yml build
 # docker compose -p beefy -f deploy/docker-compose.yml up -d
 # docker compose -p beefy -f deploy/docker-compose.yml logs -f
+# docker compose -p beefy -f deploy/docker-compose.yml down
 
 x-importer: &importer
   build:

@@ -69,7 +69,7 @@ async function main() {
     );
     const stream = streamERC20TransferEvents(chain, contractAddress, {
       startBlock,
-      endBlock,
+      endBlock: endBlock + 1,
       timeOrder: "timeline",
     });
     const { writeBatch } = await getERC20TransferStorageWriteStream(
