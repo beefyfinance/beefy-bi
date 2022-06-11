@@ -31,9 +31,6 @@ async function main() {
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
     const contractAddress = normalizeAddress(vault.token_address);
-    if (contractAddress !== "0x37A8b016EF27fBCF73F73Fb9Dc1C09C47A5d7E48") {
-      continue;
-    }
     logger.info(`Processing ${chain}:${vault.id} (${contractAddress})`);
 
     let startBlock = await getLastImportedERC20TransferBlockNumber(
