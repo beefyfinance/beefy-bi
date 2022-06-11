@@ -1,0 +1,42 @@
+version: "3.9" # optional since v1.27.0
+
+x-importer: &importer
+  build:
+    context: ../
+    dockerfile: ./deploy/Dockerfile
+  restart: always
+  command: ["npx", "ts-node", "$$WORK_SCRIPT", "--chain", "$$WORK_CHAIN"]
+  environment:
+    DATA_DIRECTORY: /data
+  volumes:
+    - data_directory:/data
+  networks:
+    - backend
+
+x-importer-env: &importer-env
+  LOG_LEVEL: "verbose"
+  DATA_DIRECTORY: /data
+  WORK_SCRIPT: ./src/import/import-vault-transfers.ts
+
+services:
+  import-vault-transfers-fantom:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: fantom
+
+  import-vault-transfers-cronos:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CHAIN: cronos
+
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data --opt o=bind beefy_data_directory
+volumes:
+  data_directory:
+    external: true
+    name: beefy_data_directory
+
+networks:
+  frontend: {}
+  backend: {}

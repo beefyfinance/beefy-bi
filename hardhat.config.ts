@@ -1,4 +1,8 @@
 import * as dotenv from "dotenv";
+import { InfluxDB, Point, HttpError } from "@influxdata/influxdb-client";
+import * as pgcs from "pg-connection-string";
+import { Pool, PoolConfig } from "pg";
+import pgf from "pg-format";
 
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
@@ -13,7 +17,7 @@ import { BigNumber } from "bignumber.js";
 
 const BeefyVaultV6_abi = JSON.parse(
   fs.readFileSync(
-    __dirname + "/lib/beefy-interfaces/BeefyVaultV6/BeefyVaultV6.json",
+    __dirname + "/src/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json",
     "utf8"
   )
 );
@@ -214,6 +218,431 @@ task("vault-stats", "Get Historical vault stats", async (_, { web3 }) => {
   fs.writeFileSync(`${__dirname}/out/output${vaultAddr}.csv`, csv);
 });
 
+task(
+  "vault-stats-influx",
+  "Get Historical vault stats",
+  async (_, { web3 }) => {
+    const org = "beefy";
+    const bucket = "beefy";
+    const url = "http://localhost:8086";
+    const token =
+      "7P9r68AB3CSTmT_-OacAZPGwq-Drn7DiU1UmzRReKljvNVizf9gUj_9c7vnyKrMduqEr1uAq4-orR4lDzAVHLA==";
+    const writeApi = new InfluxDB({ url, token }).getWriteApi(
+      org,
+      bucket,
+      "ms"
+    );
+
+    //const vaultAddr = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
+    //const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+    //  "0x252603beb7b216bacc3b60cfb352496d53879d700e194aa4d7ea8f2f915f6aad";
+    //const lastTxHash = // could be found using explorer api
+    //  "0x3a2a600ad6d6df1638a584a273d887556dca170b6cd2696b3b9164fc191bc619";
+
+    const vaultAddr = "0x41D44B276904561Ac51855159516FD4cB2c90968";
+    const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+      "0x54e27499be2f8284f59343e0b411f7cafacede6047190e8be4f7721b2ea85931";
+    const lastTxHash = // could be found using explorer api
+      "0x80460fb380355d6711d4d24240e73168ca2192696806af2264f4b50029f92c41";
+
+    const BIG_ZERO = new BigNumber(0);
+    const mintBurnAddr = "0x0000000000000000000000000000000000000000";
+    const mintBurnAddrLower = mintBurnAddr.toLocaleLowerCase();
+
+    const firstTx = await web3.eth.getTransaction(firstTxHash);
+    const firstBlockNum = firstTx.blockNumber || 0;
+    const lastTx = await web3.eth.getTransaction(lastTxHash);
+    const lastBlockNum = lastTx.blockNumber || 0;
+
+    // we will need to call the contract to get the ppfs at some point
+    const vault = new web3.eth.Contract(BeefyVaultV6_abi, vaultAddr);
+
+    // iterate through block ranges
+    const rangeSize = 3000; // big to speed up, not to big to avoid rpc limitations
+    const flat_range = lodash.range(firstBlockNum, lastBlockNum + 1, rangeSize);
+    const ranges: { fromBlock: number; toBlock: number }[] = [];
+    for (let i = 0; i < flat_range.length - 1; i++) {
+      ranges.push({
+        fromBlock: flat_range[i],
+        toBlock: flat_range[i + 1] - 1,
+      });
+    }
+    console.log({ ranges: ranges.length });
+
+    type UserBalances = { [userAddr: string]: BigNumber };
+    const currentUserBalance: UserBalances = {};
+    const history: {
+      [blockNumber: number]: { ppfs: BigNumber; balances: UserBalances };
+    } = {};
+
+    for (const blockRange of ranges) {
+      const events = await vault.getPastEvents("Transfer", blockRange);
+      console.log(blockRange, events.length);
+
+      // we could also use the RPC to call balanceOf({}, blockRange.toBlock)
+      // but this is much faster. Using the RPC is more flexible though.
+      // as it allows us to ignore contract logic
+      for (const event of events) {
+        const from = event.returnValues.from.toLocaleLowerCase();
+        const to = event.returnValues.to.toLocaleLowerCase();
+        const value = new BigNumber(event.returnValues.value);
+
+        if (currentUserBalance[to] === undefined) {
+          currentUserBalance[to] = BIG_ZERO;
+        }
+        if (currentUserBalance[from] === undefined) {
+          currentUserBalance[from] = BIG_ZERO;
+        }
+
+        // mint
+        if (from === mintBurnAddrLower) {
+          currentUserBalance[to] = currentUserBalance[to].plus(value);
+          // burn
+        } else if (to === mintBurnAddrLower) {
+          currentUserBalance[from] = currentUserBalance[from].minus(value);
+          // transfer
+        } else {
+          currentUserBalance[from] = currentUserBalance[from].minus(value);
+          currentUserBalance[to] = currentUserBalance[to].plus(value);
+        }
+      }
+
+      const block = await web3.eth.getBlock(blockRange.toBlock);
+      const blockDate = new Date((block.timestamp as any) * 1000);
+
+      const ppfs = new BigNumber(
+        await vault.methods.getPricePerFullShare().call({}, blockRange.toBlock)
+      );
+      // write ppfs
+
+      writeApi.writePoint(
+        new Point("price_per_full_share")
+          .tag("chain", "fantom")
+          .tag("vault", vaultAddr)
+          .uintField("value_uint", ppfs.toNumber())
+          .timestamp(blockDate.getTime())
+      );
+
+      // write all user balances
+      for (const userAddr of Object.keys(currentUserBalance)) {
+        const userBalance = currentUserBalance[userAddr];
+        writeApi.writePoint(
+          new Point("erc20_balance")
+            .tag("chain", "fantom")
+            .tag("token_addr", vaultAddr)
+            .uintField("value_uint", userBalance.toNumber())
+            .timestamp(blockDate.getTime())
+        );
+      }
+      await writeApi.flush();
+    }
+  }
+);
+
+task(
+  "vault-stats-timescale",
+  "Get Historical vault stats",
+  async (_, { web3 }) => {
+    const config = pgcs.parse("postgres://beefy:beefy@localhost:5432/beefy");
+    const pool = new Pool(config as PoolConfig);
+
+    //const vaultAddr = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
+    //const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+    //  "0x252603beb7b216bacc3b60cfb352496d53879d700e194aa4d7ea8f2f915f6aad";
+    //const lastTxHash = // could be found using explorer api
+    //  "0x3a2a600ad6d6df1638a584a273d887556dca170b6cd2696b3b9164fc191bc619";
+
+    const vaultAddr = "0x41D44B276904561Ac51855159516FD4cB2c90968";
+    const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+      "0x54e27499be2f8284f59343e0b411f7cafacede6047190e8be4f7721b2ea85931";
+    const lastTxHash = // could be found using explorer api
+      "0x80460fb380355d6711d4d24240e73168ca2192696806af2264f4b50029f92c41";
+
+    // can be found easily
+    const vaultDecimals = 18;
+    const wantDecimals = 18;
+    const vaultTicker = "mooBooFTM-USDC";
+
+    const BIG_ZERO = new BigNumber(0);
+    const mintBurnAddr = "0x0000000000000000000000000000000000000000";
+    const mintBurnAddrLower = mintBurnAddr.toLocaleLowerCase();
+
+    const firstTx = await web3.eth.getTransaction(firstTxHash);
+    const firstBlockNum = firstTx.blockNumber || 0;
+    const lastTx = await web3.eth.getTransaction(lastTxHash);
+    const lastBlockNum = lastTx.blockNumber || 0;
+
+    // we will need to call the contract to get the ppfs at some point
+    const vault = new web3.eth.Contract(BeefyVaultV6_abi, vaultAddr);
+
+    // iterate through block ranges
+    const rangeSize = 3000; // big to speed up, not to big to avoid rpc limitations
+    const flat_range = lodash.range(firstBlockNum, lastBlockNum + 1, rangeSize);
+    const ranges: { fromBlock: number; toBlock: number }[] = [];
+    for (let i = 0; i < flat_range.length - 1; i++) {
+      ranges.push({
+        fromBlock: flat_range[i],
+        toBlock: flat_range[i + 1] - 1,
+      });
+    }
+    console.log({ ranges: ranges.length });
+
+    type UserBalances = { [userAddr: string]: BigNumber };
+    const currentUserBalance: UserBalances = {};
+
+    // get chain_id
+    const chain_res = await pool.query(
+      pgf(
+        `insert into "chain" (name) values (%L) 
+        on conflict (name) do update set name = excluded.name 
+        returning id;`,
+        "fantom"
+      )
+    );
+    const chain_id = chain_res.rows[0].id;
+
+    // get token_id for vault
+    const vault_token_res = await pool.query(
+      pgf(
+        `insert into "token" (ticker, chain_id, address) values (%L, %L, lower(%L)) 
+        on conflict (chain_id, address) do update set address = excluded.address 
+        returning id;`,
+        vaultTicker,
+        chain_id,
+        vaultAddr
+      )
+    );
+    const vault_token_id = vault_token_res.rows[0].id;
+
+    const account_id_map: { [accountAddr: string]: number } = {};
+    async function upsertAccount(accountAddr: string) {
+      accountAddr = accountAddr.toLocaleLowerCase();
+      if (account_id_map[accountAddr] === undefined) {
+        const account_res = await pool.query(
+          pgf(
+            `insert into "account" (address) values (lower(%L)) 
+            on conflict (address) do update set address = excluded.address 
+            returning id;`,
+            accountAddr
+          )
+        );
+        account_id_map[accountAddr] = account_res.rows[0].id;
+      }
+      return account_id_map[accountAddr];
+    }
+
+    for (const blockRange of ranges) {
+      const events = await vault.getPastEvents("Transfer", blockRange);
+      console.log(blockRange, events.length);
+
+      // we could also use the RPC to call balanceOf({}, blockRange.toBlock)
+      // but this is much faster. Using the RPC is more flexible though.
+      // as it allows us to ignore contract logic
+      for (const event of events) {
+        const from = event.returnValues.from.toLocaleLowerCase();
+        const to = event.returnValues.to.toLocaleLowerCase();
+        const value = new BigNumber(event.returnValues.value).shiftedBy(
+          -vaultDecimals
+        );
+
+        if (currentUserBalance[to] === undefined) {
+          currentUserBalance[to] = BIG_ZERO;
+        }
+        if (currentUserBalance[from] === undefined) {
+          currentUserBalance[from] = BIG_ZERO;
+        }
+
+        // mint
+        if (from === mintBurnAddrLower) {
+          currentUserBalance[to] = currentUserBalance[to].plus(value);
+          // burn
+        } else if (to === mintBurnAddrLower) {
+          currentUserBalance[from] = currentUserBalance[from].minus(value);
+          // transfer
+        } else {
+          currentUserBalance[from] = currentUserBalance[from].minus(value);
+          currentUserBalance[to] = currentUserBalance[to].plus(value);
+        }
+      }
+
+      const block = await web3.eth.getBlock(blockRange.toBlock);
+      const blockDate = new Date((block.timestamp as any) * 1000);
+
+      const ppfs = new BigNumber(
+        await vault.methods.getPricePerFullShare().call({}, blockRange.toBlock)
+      );
+
+      // write all user balances
+      const values: any = [];
+      for (const userAddr of Object.keys(currentUserBalance)) {
+        const user_id = await upsertAccount(userAddr);
+
+        const userBalance = currentUserBalance[userAddr];
+        if (userBalance.isZero()) {
+          continue;
+        }
+        const wantBalance = mooAmountToOracleAmount(
+          vaultDecimals,
+          wantDecimals,
+          ppfs,
+          userBalance
+        );
+        // TODO: batch write
+        await pool.query(
+          pgf(
+            `insert into "account_balance" (
+              time,
+              chain_id,
+              token_id,
+              account_id,
+              block_number,
+              balance
+            ) values (
+              %L, %L, %L, %L, %L, %L
+            )
+            on conflict do nothing`,
+            blockDate.toISOString(),
+            chain_id,
+            vault_token_id,
+            user_id,
+            blockRange.toBlock,
+            userBalance.toString(10)
+          )
+        );
+        /*
+        writeApi.writePoint(
+          new Point("erc20_balance")
+            .tag("chain", "fantom")
+            .tag("token_addr", vaultAddr)
+            .uintField("value_uint", userBalance.toNumber())
+            .timestamp(blockDate.getTime())
+        );*/
+      }
+    }
+  }
+);
+
+task(
+  "vault-stats-timescale-change",
+  "Get Historical vault stats",
+  async (_, { web3 }) => {
+    const config = pgcs.parse("postgres://beefy:beefy@localhost:5432/beefy");
+    const pool = new Pool(config as PoolConfig);
+
+    //const vaultAddr = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
+    //const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+    //  "0x252603beb7b216bacc3b60cfb352496d53879d700e194aa4d7ea8f2f915f6aad";
+    //const lastTxHash = // could be found using explorer api
+    //  "0x3a2a600ad6d6df1638a584a273d887556dca170b6cd2696b3b9164fc191bc619";
+
+    const vaultAddr = "0x41D44B276904561Ac51855159516FD4cB2c90968";
+    const firstTxHash = // this can be found using getPoolCreationTimestamp.js
+      "0x54e27499be2f8284f59343e0b411f7cafacede6047190e8be4f7721b2ea85931";
+    const lastTxHash = // could be found using explorer api
+      "0x80460fb380355d6711d4d24240e73168ca2192696806af2264f4b50029f92c41";
+
+    // can be found easily
+    const vaultDecimals = 18;
+    const wantDecimals = 18;
+    const vaultTicker = "mooBooFTM-USDC";
+
+    const BIG_ZERO = new BigNumber(0);
+    const mintBurnAddr = "0x0000000000000000000000000000000000000000";
+    const mintBurnAddrLower = mintBurnAddr.toLocaleLowerCase();
+
+    const firstTx = await web3.eth.getTransaction(firstTxHash);
+    const firstBlockNum = firstTx.blockNumber || 0;
+    const lastTx = await web3.eth.getTransaction(lastTxHash);
+    const lastBlockNum = lastTx.blockNumber || 0;
+
+    // we will need to call the contract to get the ppfs at some point
+    const vault = new web3.eth.Contract(BeefyVaultV6_abi, vaultAddr);
+
+    // iterate through block ranges
+    const rangeSize = 3000; // big to speed up, not to big to avoid rpc limitations
+    const flat_range = lodash.range(firstBlockNum, lastBlockNum + 1, rangeSize);
+    const ranges: { fromBlock: number; toBlock: number }[] = [];
+    for (let i = 0; i < flat_range.length - 1; i++) {
+      ranges.push({
+        fromBlock: flat_range[i],
+        toBlock: flat_range[i + 1] - 1,
+      });
+    }
+    console.log({ ranges: ranges.length });
+
+    // get chain_id
+    const chain_res = await pool.query(
+      pgf(
+        `insert into "chain" (name) values (%L) 
+        on conflict (name) do update set name = excluded.name 
+        returning id;`,
+        "fantom"
+      )
+    );
+    const chain_id = chain_res.rows[0].id;
+
+    function insert_balance_delta(
+      date: Date,
+      accountAddr: string,
+      value: BigNumber
+    ) {
+      return pool.query(
+        pgf(
+          `insert into "erc20_balance_delta" (
+            time,
+            chain_id,
+            token_address,
+            account_address,
+            balance_delta 
+          ) values (
+            %L, %L, lower(%L), lower(%L), %L
+          )
+          on conflict do nothing`,
+          date.toISOString(),
+          chain_id,
+          vaultAddr,
+          accountAddr,
+          value.toString(10)
+        )
+      );
+    }
+
+    const blockDates: { [blockNumber: number]: Date } = {};
+    async function getBlockDate(blockNumber: number) {
+      if (!blockDates[blockNumber]) {
+        const block = await web3.eth.getBlock(blockNumber);
+        const blockDate = new Date((block.timestamp as any) * 1000);
+        blockDates[blockNumber] = blockDate;
+      }
+      return blockDates[blockNumber];
+    }
+
+    for (const blockRange of ranges) {
+      const events = await vault.getPastEvents("Transfer", blockRange);
+      console.log(blockRange, events.length);
+
+      // we could also use the RPC to call balanceOf({}, blockRange.toBlock)
+      // but this is much faster. Using the RPC is more flexible though.
+      // as it allows us to ignore contract logic
+      for (const event of events) {
+        const from = event.returnValues.from.toLocaleLowerCase();
+        const to = event.returnValues.to.toLocaleLowerCase();
+        const value = new BigNumber(event.returnValues.value).shiftedBy(
+          -vaultDecimals
+        );
+        const blockDate = await getBlockDate(event.blockNumber);
+
+        if (from !== mintBurnAddrLower) {
+          await insert_balance_delta(blockDate, from, value.negated());
+        }
+
+        if (to !== mintBurnAddrLower) {
+          await insert_balance_delta(blockDate, from, value);
+        }
+      }
+    }
+  }
+);
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -334,3 +763,24 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
+function mooAmountToOracleAmount(
+  mooTokenDecimals: number,
+  depositTokenDecimals: number,
+  ppfs: BigNumber,
+  mooTokenAmount: BigNumber
+) {
+  // go to chain representation
+  const mooChainAmount = mooTokenAmount.shiftedBy(mooTokenDecimals);
+
+  // convert to oracle amount in chain representation
+  const oracleChainAmount = mooChainAmount.multipliedBy(ppfs);
+
+  // go to math representation
+  // but we can't return a number with more precision than the oracle precision
+  const oracleAmount = oracleChainAmount
+    .shiftedBy(-depositTokenDecimals)
+    .decimalPlaces(depositTokenDecimals);
+
+  return oracleAmount;
+}
