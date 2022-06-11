@@ -17,7 +17,7 @@ x-importer: &importer
     - backend
 
 x-importer-env: &importer-env
-  LOG_LEVEL: "verbose"
+  LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-vault-transfers.ts
 
