@@ -2,7 +2,8 @@ version: "3.9" # optional since v1.27.0
 
 # docker volume create --driver local --opt type=none --opt device=${PWD}/data/indexed --opt o=bind beefy_data_directory
 # docker compose -p beefy -f deploy/docker-compose.yml build
-# docker compose -p beefy -f deploy/docker-compose.yml up
+# docker compose -p beefy -f deploy/docker-compose.yml up -d
+# docker compose -p beefy -f deploy/docker-compose.yml logs -f
 
 x-importer: &importer
   build:
