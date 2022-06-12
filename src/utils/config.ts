@@ -49,7 +49,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     : ["https://rpc.ftm.tools"],
   harmony: process.env.HARMONY_RPC
     ? [process.env.HARMONY_RPC]
-    : ["https://api.harmony.one/", "https://api.s0.t.hmny.io"],
+    : ["https://api.harmony.one/" /*, "https://api.s0.t.hmny.io"*/],
   arbitrum: process.env.ARBITRUM_RPC
     ? [process.env.ARBITRUM_RPC]
     : ["https://arb1.arbitrum.io/rpc"],
