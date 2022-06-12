@@ -1,6 +1,7 @@
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
+import * as lodash from "lodash";
 import { normalizeAddress } from "../utils/ethers";
 import {
   allSamplingPeriods,
@@ -22,6 +23,7 @@ import {
 } from "../lib/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
 import { LOG_LEVEL } from "../utils/config";
+import { ethers } from "ethers";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -72,27 +74,37 @@ async function main() {
       samplingPeriod
     );
 
-    for await (const blockDataBatch of batchAsyncStream(
-      blockSampleStream,
-      10
-    )) {
-      logger.verbose(
-        `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`
-      );
-      const vaultData: BeefyVaultV6PPFSData[] = [];
-      for (const blockData of blockDataBatch) {
-        vaultData.push({
-          blockNumber: blockData.blockNumber,
-          pricePerFullShare: (
-            await getBeefyPPFSAtBlockWithRetry(
-              chain,
-              contractAddress,
-              blockData.blockNumber
-            )
-          ).toString(),
-        });
+    try {
+      for await (const blockDataBatch of batchAsyncStream(
+        blockSampleStream,
+        10
+      )) {
+        logger.verbose(
+          `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`
+        );
+        const vaultData: BeefyVaultV6PPFSData[] = [];
+        for (const blockData of blockDataBatch) {
+          const ppfs = await getBeefyPPFSAtBlockWithRetry(
+            chain,
+            contractAddress,
+            blockData.blockNumber
+          );
+
+          vaultData.push({
+            blockNumber: blockData.blockNumber,
+            pricePerFullShare: ppfs.toString(),
+          });
+        }
+        writeBatch(vaultData);
       }
-      writeBatch(vaultData);
+    } catch (error) {
+      if (error instanceof ArchiveNodeNeededError) {
+        logger.info(
+          `Skipping ${chain}:${vault.id} because an archive node is needed`
+        );
+        continue;
+      }
+      throw error;
     }
   }
   logger.info(
@@ -111,21 +123,45 @@ async function getBeefyPPFSAtBlockWithRetry(
 ) {
   return backOff(
     async () => {
-      const now = new Date();
-      if (now.getTime() - lastCall.getTime() < minMsBetweenCalls) {
-        await sleep(minMsBetweenCalls - (now.getTime() - lastCall.getTime()));
+      try {
+        const now = new Date();
+        if (now.getTime() - lastCall.getTime() < minMsBetweenCalls) {
+          await sleep(minMsBetweenCalls - (now.getTime() - lastCall.getTime()));
+        }
+        const data = await fetchBeefyPPFS(chain, contractAddress, blockNumber);
+        lastCall = new Date();
+        return data;
+      } catch (error) {
+        const errorRpcBody = lodash.get(error, "error.body");
+        if (errorRpcBody && lodash.isString(errorRpcBody)) {
+          const rpcBodyError = JSON.parse(errorRpcBody);
+          const errorCode = lodash.get(rpcBodyError, "error.code");
+          if (errorCode === -32000) {
+            logger.error(
+              `Archive node needed for ${chain}:${contractAddress}:${blockNumber}`
+            );
+            throw new ArchiveNodeNeededError(
+              chain,
+              contractAddress,
+              blockNumber,
+              error
+            );
+          }
+        }
+        throw error;
       }
-      const data = fetchBeefyPPFS(chain, contractAddress, blockNumber);
-      lastCall = new Date();
-      return data;
     },
     {
       retry: async (error, attemptNumber) => {
         logger.error(
-          `[BLOCKS] Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
+          `[BLOCKS] Error on attempt ${attemptNumber} fetching ppfs data of ${chain}:${blockNumber}: ${error}`
         );
         if (LOG_LEVEL === "trace") {
           console.error(error);
+        }
+        // some errors are not recoverable
+        if (error instanceof ArchiveNodeNeededError) {
+          return false;
         }
         return true;
       },
@@ -134,6 +170,17 @@ async function getBeefyPPFSAtBlockWithRetry(
       delayFirstAttempt: true,
     }
   );
+}
+
+class ArchiveNodeNeededError extends Error {
+  constructor(
+    public readonly chain: Chain,
+    public readonly contractAddress: string,
+    public readonly blockNumber: number,
+    public readonly error: any
+  ) {
+    super(`Archive node needed for ${chain}:${contractAddress}:${blockNumber}`);
+  }
 }
 
 main()
