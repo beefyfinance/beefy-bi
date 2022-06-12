@@ -6,6 +6,8 @@ import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
 import { _fetchContractFirstLastTrx } from "./contract-transaction-infos";
+import { backOff } from "exponential-backoff";
+import { logger } from "../utils/logger";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
@@ -61,12 +63,20 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(
   async (chain: Chain, contractAddress: string) => {
-    const res = await _fetchContractFirstLastTrx(
-      chain,
-      contractAddress,
-      "first"
+    return backOff(
+      () => _fetchContractFirstLastTrx(chain, contractAddress, "first"),
+      {
+        retry: async (error, attemptNumber) => {
+          logger.info(
+            `[BLOCKS] Error on attempt ${attemptNumber} fetching first transaction of ${chain}:${contractAddress}: ${error}`
+          );
+          console.error(error);
+          return true;
+        },
+        numOfAttempts: 5,
+        startingDelay: 5000,
+      }
     );
-    return res;
   },
   (chain: Chain, contractAddress: string) =>
     path.join(

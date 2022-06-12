@@ -1,4 +1,3 @@
-import { _fetchContractFirstLastTrx } from "../lib/contract-transaction-infos";
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
