@@ -28,7 +28,7 @@ async function main() {
     .usage("Usage: $0 [options]")
     .options({
       chain: { choices: allChainIds, alias: "c", demand: true },
-      period: { choices: allSamplingPeriods, alias: "p", default: "15min" },
+      period: { choices: allSamplingPeriods, alias: "p", default: "4hour" },
     }).argv;
 
   const chain = argv.chain as Chain;
