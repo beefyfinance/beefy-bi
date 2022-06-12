@@ -1,5 +1,6 @@
 version: "3.9" # optional since v1.27.0
 
+# docker build -t beefy-data-importer -f ./deploy/Dockerfile ./
 # docker volume create --driver local --opt type=none --opt device=${PWD}/data/indexed --opt o=bind beefy_data_directory
 # docker compose -p beefy -f deploy/docker-compose.yml build
 # docker compose -p beefy -f deploy/docker-compose.yml up -d
@@ -7,9 +8,7 @@ version: "3.9" # optional since v1.27.0
 # docker compose -p beefy -f deploy/docker-compose.yml down
 
 x-importer: &importer
-  build:
-    context: ../
-    dockerfile: ./deploy/Dockerfile
+  image: beefy-data-importer
   restart: always
   command: ["npx", "ts-node", "$$WORK_SCRIPT", "--chain", "$$WORK_CHAIN"]
   volumes:
