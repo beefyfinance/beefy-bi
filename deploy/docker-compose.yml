@@ -10,7 +10,16 @@ version: "3.9" # optional since v1.27.0
 x-importer: &importer
   image: beefy-data-importer
   restart: always
-  command: ["npx", "ts-node", "$$WORK_SCRIPT", "--chain", "$$WORK_CHAIN"]
+  command:
+    [
+      "npx",
+      "ts-node",
+      "$$WORK_SCRIPT",
+      "--chain",
+      "$$WORK_CHAIN",
+      "--source",
+      $$WORK_SOURCE,
+    ]
   volumes:
     - data_directory:/data
   networks:
@@ -41,48 +50,56 @@ services:
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: fantom
+      WORK_SOURCE: explorer
 
   import-vault-transfers-cronos:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: cronos
+      WORK_SOURCE: explorer
 
   import-vault-transfers-bsc:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: bsc
+      WORK_SOURCE: explorer
 
   import-vault-transfers-polygon:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: polygon
+      WORK_SOURCE: explorer
 
   import-vault-transfers-heco:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: heco
+      WORK_SOURCE: explorer
 
   import-vault-transfers-avax:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: avax
+      WORK_SOURCE: explorer
 
   import-vault-transfers-moonbeam:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: moonbeam
+      WORK_SOURCE: explorer
 
   import-vault-transfers-celo:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: celo
+      WORK_SOURCE: explorer
 
   import-vault-transfers-moonriver:
     <<: *importer
@@ -95,12 +112,14 @@ services:
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: arbitrum
+      WORK_SOURCE: explorer
 
   import-vault-transfers-aurora:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: aurora
+      WORK_SOURCE: explorer
 
   # disabled because explorer api is different
   #import-vault-transfers-metis:
@@ -108,6 +127,7 @@ services:
   #  environment:
   #    <<: *vault-importer-env
   #    WORK_CHAIN: metis
+  #    WORK_SOURCE: rpc
 
   # disabled because explorer api is different
   #import-vault-transfers-harmony:
@@ -115,12 +135,14 @@ services:
   #  environment:
   #    <<: *vault-importer-env
   #    WORK_CHAIN: harmony
+  #    WORK_SOURCE: rpc
 
   import-vault-transfers-fuse:
     <<: *importer
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: fuse
+      WORK_SOURCE: rpc # explorer requires toBlock to be set
 
   # no beefy vault list for now
   #import-vault-transfers-syscoin:
@@ -135,6 +157,7 @@ services:
   #  environment:
   #    <<: *vault-importer-env
   #    WORK_CHAIN: emerald
+  #    WORK_SOURCE: rpc
 
   #############################################################################
   #############################################################################

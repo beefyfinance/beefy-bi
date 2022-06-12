@@ -5,12 +5,12 @@ import {
   prepareInsertErc20TransferBatch,
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
-import { streamERC20TransferEvents } from "../lib/streamContractEvents";
+import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import {
   getFirstTransactionInfos,
   getLastTransactionInfos,
 } from "../lib/contract-transaction-infos";
-import { getBlockDate } from "../utils/ethers";
+import { getRedisCachedBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
@@ -44,13 +44,17 @@ async function main() {
     );
 
     // get wnative transfers from this address
-    const stream = streamERC20TransferEvents(chain, wnativeContractAddress, {
-      from: strategyAddressRow.strategy_address,
-      startBlock,
-      endBlock,
-      //blockBatchSize: 100, // too many logs to process on wnative token, so reduce the block range
-      timeOrder: "reverse", // we are more interested in the recent history
-    });
+    const stream = streamERC20TransferEventsFromRpc(
+      chain,
+      wnativeContractAddress,
+      {
+        from: strategyAddressRow.strategy_address,
+        startBlock,
+        endBlock,
+        //blockBatchSize: 100, // too many logs to process on wnative token, so reduce the block range
+        timeOrder: "reverse", // we are more interested in the recent history
+      }
+    );
 
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
       const events = await Promise.all(
@@ -61,7 +65,7 @@ async function main() {
           from_address: event.data.from,
           to_address: event.data.to,
           time: (
-            await getBlockDate(chain, event.blockNumber)
+            await getRedisCachedBlockDate(chain, event.blockNumber)
           ).datetime.toISOString(),
           value: event.data.value.toString(),
         }))

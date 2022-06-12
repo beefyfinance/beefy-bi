@@ -10,7 +10,7 @@ import { makeDataDirRecursive } from "./make-data-dir-recursive";
 
 const CSV_SEPARATOR = ",";
 
-interface ERC20EventData {
+export interface ERC20EventData {
   blockNumber: number;
   from: string;
   to: string;

@@ -12,7 +12,7 @@ import { ethers } from "ethers";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
 import { backOff } from "exponential-backoff";
 
-async function* streamContractEvents<TEventArgs>(
+async function* streamContractEventsFromRpc<TEventArgs>(
   chain: Chain,
   contractAddress: string,
   abi: ethers.ContractInterface,
@@ -64,7 +64,7 @@ async function* streamContractEvents<TEventArgs>(
     ranges = ranges.reverse();
   }
   logger.verbose(
-    `[EVENT_STREAM] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
+    `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
   for (const [rangeIdx, blockRange] of ranges.entries()) {
     const events = await backOff(
@@ -83,23 +83,24 @@ async function* streamContractEvents<TEventArgs>(
       {
         retry: async (error, attemptNumber) => {
           logger.info(
-            `[EVENT_STREAM] Error on attempt ${attemptNumber} for ${chain}:${contractAddress}:${eventName} (${blockRange.fromBlock}->${blockRange.toBlock}) : ${error}`
+            `[ERC20.T.RPC] Error on attempt ${attemptNumber} for ${chain}:${contractAddress}:${eventName} (${blockRange.fromBlock}->${blockRange.toBlock}) : ${error}`
           );
           console.error(error);
           return true;
         },
         numOfAttempts: 10,
         startingDelay: 1000,
+        delayFirstAttempt: true,
       }
     );
 
     if (events.length > 0) {
       logger.verbose(
-        `[EVENT_STREAM] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
+        `[ERC20.T.RPC] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
       );
     } else {
       logger.debug(
-        `[EVENT_STREAM] No events for range ${rangeIdx}/${ranges.length}`
+        `[ERC20.T.RPC] No events for range ${rangeIdx}/${ranges.length}`
       );
     }
 
@@ -116,7 +117,7 @@ async function* streamContractEvents<TEventArgs>(
   }
 }
 
-export const streamERC20TransferEvents = (
+export const streamERC20TransferEventsFromRpc = (
   chain: Chain,
   contractAddress: string,
   options?: {
@@ -129,41 +130,39 @@ export const streamERC20TransferEvents = (
   }
 ) => {
   logger.debug(
-    `[EVENT_STREAM] Streaming ERC20 transfer events for ${chain}:${contractAddress} ${JSON.stringify(
+    `[ERC20.T.RPC] Streaming ERC20 transfer events for ${chain}:${contractAddress} ${JSON.stringify(
       options
     )}`
   );
-  return streamContractEvents<{ from: string; to: string; value: string }>(
-    chain,
-    contractAddress,
-    ERC20Abi,
-    "Transfer",
-    {
-      getEventFilters: (filters) => {
-        if (options?.from && options?.to) {
-          return filters.Transfer(options.from, options.to);
-        } else if (options?.from) {
-          return filters.Transfer(options.from, null);
-        } else if (options?.to) {
-          return filters.Transfer(null, options.to);
-        } else {
-          return filters.Transfer();
-        }
-      },
-      mapArgs: (args) => ({
-        from: args.from,
-        to: args.to,
-        value: args.value.toString(),
-      }),
-      startBlock: options?.startBlock,
-      endBlock: options?.endBlock,
-      blockBatchSize: options?.blockBatchSize,
-      timeOrder: options?.timeOrder,
-    }
-  );
+  return streamContractEventsFromRpc<{
+    from: string;
+    to: string;
+    value: string;
+  }>(chain, contractAddress, ERC20Abi, "Transfer", {
+    getEventFilters: (filters) => {
+      if (options?.from && options?.to) {
+        return filters.Transfer(options.from, options.to);
+      } else if (options?.from) {
+        return filters.Transfer(options.from, null);
+      } else if (options?.to) {
+        return filters.Transfer(null, options.to);
+      } else {
+        return filters.Transfer();
+      }
+    },
+    mapArgs: (args) => ({
+      from: args.from,
+      to: args.to,
+      value: args.value.toString(),
+    }),
+    startBlock: options?.startBlock,
+    endBlock: options?.endBlock,
+    blockBatchSize: options?.blockBatchSize,
+    timeOrder: options?.timeOrder,
+  });
 };
 
-export async function* streamBifiVaultUpgradeStratEvents(
+export async function* streamBifiVaultUpgradeStratEventsFromRpc(
   chain: Chain,
   contractAddress: string
 ) {
@@ -183,12 +182,12 @@ export async function* streamBifiVaultUpgradeStratEvents(
   const currentStrategyRes = await contract.functions.strategy();
   if (firstStrategyRes[0] === currentStrategyRes[0]) {
     logger.verbose(
-      `[EVENT_STREAM] Shortcut: no strategy change events for ${chain}:${contractAddress}`
+      `[ERC20.T.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
     );
     return;
   }
 
-  const eventStream = streamContractEvents<{ implementation: string }>(
+  const eventStream = streamContractEventsFromRpc<{ implementation: string }>(
     chain,
     contractAddress,
     BeefyVaultV6Abi,
@@ -199,7 +198,6 @@ export async function* streamBifiVaultUpgradeStratEvents(
       }),
     }
   );
-  for await (const event of eventStream) {
-    yield event;
-  }
+  // just iteration to the event stream
+  yield* eventStream;
 }

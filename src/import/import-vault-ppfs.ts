@@ -128,6 +128,7 @@ async function getBeefyPPFSAtBlockWithRetry(
       },
       numOfAttempts: 10,
       startingDelay: 1000,
+      delayFirstAttempt: true,
     }
   );
 }

@@ -7,7 +7,7 @@ import {
   fetchBeefyVaultAddresses,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
-import { streamERC20TransferEvents } from "../lib/streamContractEvents";
+import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
@@ -15,12 +15,18 @@ import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { backOff } from "exponential-backoff";
+import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")
     .options({
       chain: { choices: allChainIds, alias: "c", demand: true },
+      source: {
+        choices: ["rpc", "explorer"],
+        alias: "s",
+        demand: true,
+      },
     }).argv;
 
   const chain = argv.chain;
@@ -72,6 +78,7 @@ async function main() {
           },
           numOfAttempts: 10,
           startingDelay: 5000,
+          delayFirstAttempt: true,
         }
       )
     ).blockNumber;
@@ -84,26 +91,45 @@ async function main() {
     logger.info(
       `[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
     );
-    const stream = streamERC20TransferEvents(chain, contractAddress, {
-      startBlock,
-      endBlock,
-      timeOrder: "timeline",
-    });
     const { writeBatch } = await getERC20TransferStorageWriteStream(
       chain,
       contractAddress
     );
 
-    for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      logger.verbose("[ERC20.T] Writing batch");
-      await writeBatch(
-        eventBatch.map((event) => ({
-          blockNumber: event.blockNumber,
-          from: event.data.from,
-          to: event.data.to,
-          value: event.data.value,
-        }))
+    if (argv.source === "explorer") {
+      const stream = streamERC20TransferEventsFromExplorer(
+        chain,
+        contractAddress,
+        startBlock
       );
+      for await (const eventBatch of batchAsyncStream(stream, 1000)) {
+        logger.verbose("[ERC20.T] Writing batch");
+        await writeBatch(
+          eventBatch.map((event) => ({
+            blockNumber: event.blockNumber,
+            from: event.from,
+            to: event.to,
+            value: event.value,
+          }))
+        );
+      }
+    } else {
+      const stream = streamERC20TransferEventsFromRpc(chain, contractAddress, {
+        startBlock,
+        endBlock,
+        timeOrder: "timeline",
+      });
+      for await (const eventBatch of batchAsyncStream(stream, 100)) {
+        logger.verbose("[ERC20.T] Writing batch");
+        await writeBatch(
+          eventBatch.map((event) => ({
+            blockNumber: event.blockNumber,
+            from: event.data.from,
+            to: event.data.to,
+            value: event.data.value,
+          }))
+        );
+      }
     }
   }
 

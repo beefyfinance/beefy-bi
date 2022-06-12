@@ -217,6 +217,7 @@ async function fetchBlockDateTimeWithRetry(
       },
       numOfAttempts: 10,
       startingDelay: 1000,
+      delayFirstAttempt: true,
     }
   );
 }

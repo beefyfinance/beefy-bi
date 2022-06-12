@@ -75,6 +75,7 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
         },
         numOfAttempts: 5,
         startingDelay: 5000,
+        delayFirstAttempt: true,
       }
     );
   },

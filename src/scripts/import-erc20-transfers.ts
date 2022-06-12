@@ -5,7 +5,7 @@ import {
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
 import { streamERC20TransferEvents } from "../lib/streamContractEvents";
-import { getBlockDate } from "../utils/ethers";
+import { getRedisCachedBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
@@ -25,7 +25,7 @@ async function main() {
         from_address: event.data.from,
         to_address: event.data.to,
         time: (
-          await getBlockDate(chain, event.blockNumber)
+          await getRedisCachedBlockDate(chain, event.blockNumber)
         ).datetime.toISOString(),
         value: event.data.value.toString(),
       }))
