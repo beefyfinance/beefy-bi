@@ -17,111 +17,221 @@ x-importer: &importer
   networks:
     - backend
 
-x-importer-env: &importer-env
+x-vault-importer-env: &vault-importer-env
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-vault-transfers.ts
 
+x-block-samples-importer-env: &block-samples-importer-env
+  LOG_LEVEL: "info"
+  DATA_DIRECTORY: /data
+  WORK_SCRIPT: ./src/import/import-block-samples.ts
+
 services:
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
   import-vault-transfers-fantom:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: fantom
 
   import-vault-transfers-cronos:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: cronos
 
   import-vault-transfers-bsc:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: bsc
 
   import-vault-transfers-polygon:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: polygon
 
   import-vault-transfers-heco:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: heco
 
   import-vault-transfers-avax:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: avax
 
   import-vault-transfers-moonbeam:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: moonbeam
 
   import-vault-transfers-celo:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: celo
 
   import-vault-transfers-moonriver:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: moonriver
 
   import-vault-transfers-arbitrum:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: arbitrum
 
   import-vault-transfers-aurora:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: aurora
 
   # disabled because explorer api is different
   #import-vault-transfers-metis:
   #  <<: *importer
   #  environment:
-  #    <<: *importer-env
+  #    <<: *vault-importer-env
   #    WORK_CHAIN: metis
 
   # disabled because explorer api is different
   #import-vault-transfers-harmony:
   #  <<: *importer
   #  environment:
-  #    <<: *importer-env
+  #    <<: *vault-importer-env
   #    WORK_CHAIN: harmony
 
   import-vault-transfers-fuse:
     <<: *importer
     environment:
-      <<: *importer-env
+      <<: *vault-importer-env
       WORK_CHAIN: fuse
 
   # no beefy vault list for now
   #import-vault-transfers-syscoin:
   #  <<: *importer
   #  environment:
-  #    <<: *importer-env
+  #    <<: *vault-importer-env
   #    WORK_CHAIN: syscoin
 
   # disabled because explorer api is different
   #import-vault-transfers-emerald:
   #  <<: *importer
   #  environment:
-  #    <<: *importer-env
+  #    <<: *vault-importer-env
   #    WORK_CHAIN: emerald
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  import-block-samples-fantom:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: fantom
+
+  import-block-samples-cronos:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: cronos
+
+  import-block-samples-bsc:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: bsc
+
+  import-block-samples-polygon:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: polygon
+
+  import-block-samples-heco:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: heco
+
+  import-block-samples-avax:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: avax
+
+  import-block-samples-moonbeam:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: moonbeam
+
+  # disabled because script needs to be adapted
+  #import-block-samples-celo:
+  #  <<: *importer
+  #  environment:
+  #    <<: *block-samples-importer-env
+  #    WORK_CHAIN: celo
+
+  import-block-samples-moonriver:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: moonriver
+
+  import-block-samples-arbitrum:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: arbitrum
+
+  import-block-samples-aurora:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: aurora
+
+  import-block-samples-metis:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: metis
+
+  import-block-samples-harmony:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: harmony
+
+  import-block-samples-fuse:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: fuse
+
+  import-block-samples-syscoin:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: syscoin
+
+  import-block-samples-emerald:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: emerald
 
 volumes:
   data_directory:

@@ -46,7 +46,6 @@ async function* streamContractEvents<TEventArgs>(
   }
 
   // we will need to call the contract to get the ppfs at some point
-  const contract = getContract(chain, abi, contractAddress);
   const mapArgs = options?.mapArgs || ((x) => x as any as TEventArgs);
 
   // iterate through block ranges
@@ -67,17 +66,20 @@ async function* streamContractEvents<TEventArgs>(
   logger.verbose(
     `[EVENT_STREAM] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
-  const eventFilter = options?.getEventFilters
-    ? options?.getEventFilters(contract.filters)
-    : contract.filters[eventName]();
   for (const [rangeIdx, blockRange] of ranges.entries()) {
     const events = await backOff(
-      () =>
-        contract.queryFilter(
+      () => {
+        // instanciate contract late to shuffle rpcs on error
+        const contract = getContract(chain, abi, contractAddress);
+        const eventFilter = options?.getEventFilters
+          ? options?.getEventFilters(contract.filters)
+          : contract.filters[eventName]();
+        return contract.queryFilter(
           eventFilter,
           blockRange.fromBlock,
           blockRange.toBlock
-        ),
+        );
+      },
       {
         retry: async (error, attemptNumber) => {
           logger.info(
