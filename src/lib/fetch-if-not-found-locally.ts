@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import { Chain } from "../types/chain";
-import { DATA_DIRECTORY } from "../utils/config";
+import { DATA_DIRECTORY, LOG_LEVEL } from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
@@ -67,10 +67,12 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
       () => _fetchContractFirstLastTrx(chain, contractAddress, "first"),
       {
         retry: async (error, attemptNumber) => {
-          logger.info(
+          logger.error(
             `[BLOCKS] Error on attempt ${attemptNumber} fetching first transaction of ${chain}:${contractAddress}: ${error}`
           );
-          console.error(error);
+          if (LOG_LEVEL === "trace") {
+            console.error(error);
+          }
           return true;
         },
         numOfAttempts: 5,

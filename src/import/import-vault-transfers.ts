@@ -16,6 +16,7 @@ import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { backOff } from "exponential-backoff";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
+import { LOG_LEVEL } from "../utils/config";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -70,10 +71,12 @@ async function main() {
         () => _fetchContractFirstLastTrx(chain, contractAddress, "last"),
         {
           retry: async (error, attemptNumber) => {
-            logger.info(
+            logger.error(
               `[ERC20.T] Error on attempt ${attemptNumber} fetching last trx of ${chain}:${contractAddress}: ${error}`
             );
-            console.error(error);
+            if (LOG_LEVEL === "trace") {
+              console.error(error);
+            }
             return true;
           },
           numOfAttempts: 10,

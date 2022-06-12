@@ -11,7 +11,7 @@ import {
 } from "../lib/csv-block-samples";
 import { backOff } from "exponential-backoff";
 import * as ethers from "ethers";
-import { MS_PER_BLOCK_ESTIMATE } from "../utils/config";
+import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 
 async function main() {
@@ -209,10 +209,12 @@ async function fetchBlockDateTimeWithRetry(
     },
     {
       retry: async (error, attemptNumber) => {
-        logger.info(
+        logger.error(
           `[BLOCKS] Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
         );
-        console.error(error);
+        if (LOG_LEVEL === "trace") {
+          console.error(error);
+        }
         return true;
       },
       numOfAttempts: 10,

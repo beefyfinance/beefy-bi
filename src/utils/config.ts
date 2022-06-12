@@ -153,5 +153,16 @@ if (!["info", "debug", "verbose", "warn", "error"].includes(log_level)) {
   throw new Error(`Invalid log level ${log_level}`);
 }
 
-export const LOG_LEVEL: "info" | "debug" | "verbose" | "warn" | "error" =
-  log_level as any as "info" | "debug" | "verbose" | "warn" | "error";
+export const LOG_LEVEL:
+  | "info"
+  | "debug"
+  | "verbose"
+  | "trace"
+  | "warn"
+  | "error" = log_level as any as
+  | "info"
+  | "debug"
+  | "verbose"
+  | "trace"
+  | "warn"
+  | "error";

@@ -123,6 +123,7 @@ services:
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: moonriver
+      WORK_SOURCE: explorer
 
   import-vault-transfers-arbitrum:
     <<: *importer

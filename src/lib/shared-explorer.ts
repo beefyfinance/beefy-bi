@@ -6,6 +6,7 @@ import { Chain } from "../types/chain";
 import { sleep } from "../utils/async";
 import {
   EXPLORER_URLS,
+  LOG_LEVEL,
   MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS,
   REDIS_URL,
 } from "../utils/config";
@@ -96,8 +97,17 @@ export async function callLockProtectedExplorerUrl<TRes>(
         await client.set(lastCallCacheKey, now.toISOString());
 
         const res = await axios.get<
-          { status: "0"; result: string } | { status: "1"; result: TRes }
+          | { status: "0"; message: string; result: string }
+          | { status: "0"; message: "No records found"; result: [] }
+          | { status: "1"; result: TRes }
         >(url);
+
+        if (
+          res.data.status === "0" &&
+          res.data.message === "No records found"
+        ) {
+          return res.data.result;
+        }
 
         if (res.data.status === "0") {
           logger.error(
@@ -115,10 +125,12 @@ export async function callLockProtectedExplorerUrl<TRes>(
       maxDelay: 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        logger.info(
+        logger.error(
           `[EXPLORER] Error on attempt ${attemptNumber} calling explorer for ${explorerUrl}: ${error.message}`
         );
-        console.error(error);
+        if (LOG_LEVEL === "trace") {
+          console.error(error);
+        }
         return true;
       },
       startingDelay: MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS,

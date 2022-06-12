@@ -21,6 +21,7 @@ import {
   getLastImportedBeefyVaultV6PPFSBlockNumber,
 } from "../lib/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
+import { LOG_LEVEL } from "../utils/config";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -120,10 +121,12 @@ async function getBeefyPPFSAtBlockWithRetry(
     },
     {
       retry: async (error, attemptNumber) => {
-        logger.info(
+        logger.error(
           `[BLOCKS] Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
         );
-        console.error(error);
+        if (LOG_LEVEL === "trace") {
+          console.error(error);
+        }
         return true;
       },
       numOfAttempts: 10,

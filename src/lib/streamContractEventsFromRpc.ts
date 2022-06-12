@@ -9,7 +9,7 @@ import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, LOG_LEVEL } from "../utils/config";
 import { backOff } from "exponential-backoff";
 
 async function* streamContractEventsFromRpc<TEventArgs>(
@@ -82,10 +82,12 @@ async function* streamContractEventsFromRpc<TEventArgs>(
       },
       {
         retry: async (error, attemptNumber) => {
-          logger.info(
+          logger.error(
             `[ERC20.T.RPC] Error on attempt ${attemptNumber} for ${chain}:${contractAddress}:${eventName} (${blockRange.fromBlock}->${blockRange.toBlock}) : ${error}`
           );
-          console.error(error);
+          if (LOG_LEVEL === "trace") {
+            console.error(error);
+          }
           return true;
         },
         numOfAttempts: 10,
