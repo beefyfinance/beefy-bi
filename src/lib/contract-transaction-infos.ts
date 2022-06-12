@@ -1,12 +1,8 @@
-import axios from "axios";
 import { logger } from "../utils/logger";
 import { cacheAsyncResult } from "../utils/cache";
 import { Chain } from "../types/chain";
 import * as ethers from "ethers";
-import { EXPLORER_URLS } from "../utils/config";
-import * as lodash from "lodash";
-import { sleep } from "../utils/async";
-import { off } from "process";
+import { callLockProtectedExplorerUrl } from "./shared-explorer";
 
 interface ContractCreationInfo {
   chain: Chain;
@@ -16,39 +12,21 @@ interface ContractCreationInfo {
   datetime: Date;
 }
 
-let lastCallDate = new Date(0);
-let callMaxEvery = 1000 * 5.5; // 1 req per 5 sec max
-
 export async function _fetchContractFirstLastTrx(
   chain: Chain,
   contractAddress: string,
   type: "first" | "last"
 ): Promise<ContractCreationInfo> {
   logger.debug(`Fetching ${type} trx for ${chain}:${contractAddress}`);
-  const explorerUrl = EXPLORER_URLS[chain];
   const sort = type === "first" ? "asc" : "desc";
-  const url =
-    explorerUrl +
-    `?module=account&action=txlist&address=${contractAddress}&sort=${sort}&limit=1`;
 
-  // avoid hitting the explorer too often
-  if (new Date().getTime() - lastCallDate.getTime() < callMaxEvery) {
-    const sleepFor = Math.min(
-      callMaxEvery,
-      callMaxEvery - (new Date().getTime() - lastCallDate.getTime())
-    );
-    logger.verbose(`Sleeping for ${sleepFor}ms`);
-    await sleep(sleepFor);
-  }
-  const resp = await axios.get(url);
-  lastCallDate = new Date();
-
-  const creationRes = resp.data?.result;
-  if (!creationRes || !lodash.isArray(creationRes) || !creationRes.length) {
-    throw new Error(
-      `${type} trx for ${chain}:${contractAddress} not found: ${resp.data?.result}`
-    );
-  }
+  const creationRes = await callLockProtectedExplorerUrl<any>(chain, {
+    module: "account",
+    action: "txlist",
+    address: contractAddress,
+    sort: sort,
+    limit: "1",
+  });
 
   const trxInfos = creationRes[0];
   const block = parseInt(trxInfos.blockNumber);

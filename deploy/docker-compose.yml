@@ -24,23 +24,40 @@ x-importer: &importer
     - data_directory:/data
   networks:
     - backend
+  depends_on:
+    - redis
 
 x-vault-importer-env: &vault-importer-env
+  REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-vault-transfers.ts
 
 x-block-samples-importer-env: &block-samples-importer-env
+  REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-block-samples.ts
 
 x-ppfs-importer-env: &ppfs-importer-env
+  REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-vault-ppfs.ts
 
 services:
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
   #############################################################################
   #############################################################################
   #############################################################################
