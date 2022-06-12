@@ -10,6 +10,7 @@ import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
+import { backOff } from "exponential-backoff";
 
 async function* streamContractEvents<TEventArgs>(
   chain: Chain,
@@ -70,10 +71,24 @@ async function* streamContractEvents<TEventArgs>(
     ? options?.getEventFilters(contract.filters)
     : contract.filters[eventName]();
   for (const [rangeIdx, blockRange] of ranges.entries()) {
-    const events = await contract.queryFilter(
-      eventFilter,
-      blockRange.fromBlock,
-      blockRange.toBlock
+    const events = await backOff(
+      () =>
+        contract.queryFilter(
+          eventFilter,
+          blockRange.fromBlock,
+          blockRange.toBlock
+        ),
+      {
+        retry: async (error, attemptNumber) => {
+          logger.info(
+            `[EVENT_STREAM] Error on attempt ${attemptNumber} for ${chain}:${contractAddress}:${eventName} (${blockRange.fromBlock}->${blockRange.toBlock}) : ${error}`
+          );
+          console.error(error);
+          return true;
+        },
+        numOfAttempts: 10,
+        startingDelay: 1000,
+      }
     );
 
     if (events.length > 0) {

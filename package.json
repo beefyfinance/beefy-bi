@@ -52,6 +52,7 @@
     "csv": "^6.1.0",
     "csv-parse": "^5.1.0",
     "csv-stringify": "^6.1.0",
+    "exponential-backoff": "^3.1.0",
     "lodash": "^4.17.21",
     "node-cache": "^5.1.2",
     "pg": "^8.7.3",

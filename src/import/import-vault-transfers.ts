@@ -14,6 +14,7 @@ import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
+import { backOff } from "exponential-backoff";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -57,7 +58,20 @@ async function main() {
     }
 
     const endBlock = (
-      await _fetchContractFirstLastTrx(chain, contractAddress, "last")
+      await backOff(
+        () => _fetchContractFirstLastTrx(chain, contractAddress, "last"),
+        {
+          retry: async (error, attemptNumber) => {
+            logger.info(
+              `Error on attempt ${attemptNumber} fetching last trx of ${chain}:${contractAddress}: ${error}`
+            );
+            console.error(error);
+            return true;
+          },
+          numOfAttempts: 10,
+          startingDelay: 5000,
+        }
+      )
     ).blockNumber;
 
     if (startBlock >= endBlock) {
