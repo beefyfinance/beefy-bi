@@ -1,0 +1,98 @@
+import * as fs from "fs";
+import * as path from "path";
+import * as readLastLines from "read-last-lines";
+import { parse as syncParser } from "csv-parse/sync";
+import { stringify as stringifySync } from "csv-stringify/sync";
+import { Chain } from "../types/chain";
+import { DATA_DIRECTORY } from "../utils/config";
+import { getContract, normalizeAddress } from "../utils/ethers";
+import { makeDataDirRecursive } from "./make-data-dir-recursive";
+import { SamplingPeriod } from "./csv-block-samples";
+import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
+import { ethers } from "ethers";
+
+const CSV_SEPARATOR = ",";
+
+export interface BeefyVaultV6PPFSData {
+  blockNumber: number;
+  pricePerFullShare: string;
+}
+const beefyVaultPPFSColumns = ["blockNumber", "pricePerFullShare"];
+
+function getBeefyVaultV6PPFSFilePath(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): string {
+  return path.join(
+    DATA_DIRECTORY,
+    chain,
+    "contracts",
+    normalizeAddress(contractAddress),
+    "BeefyVaultV6",
+    `ppfs_${samplingPeriod}.csv`
+  );
+}
+
+export async function getBeefyVaultV6PPFSWriteStream(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): Promise<{ writeBatch: (events: BeefyVaultV6PPFSData[]) => Promise<void> }> {
+  const filePath = getBeefyVaultV6PPFSFilePath(
+    chain,
+    contractAddress,
+    samplingPeriod
+  );
+  await makeDataDirRecursive(filePath);
+  const writeStream = fs.createWriteStream(filePath, { flags: "a" });
+  return {
+    writeBatch: async (events) => {
+      const csvData = stringifySync(events, {
+        delimiter: CSV_SEPARATOR,
+      });
+      writeStream.write(csvData);
+    },
+  };
+}
+
+export async function getLastImportedBeefyVaultV6PPFSBlockNumber(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): Promise<number | null> {
+  const filePath = getBeefyVaultV6PPFSFilePath(
+    chain,
+    contractAddress,
+    samplingPeriod
+  );
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const lastImportedCSVRows = await readLastLines.read(filePath, 5);
+  const data = syncParser(lastImportedCSVRows, {
+    columns: beefyVaultPPFSColumns,
+  });
+  if (data.length === 0) {
+    return null;
+  }
+  data.reverse();
+
+  return parseInt(data[0].blockNumber);
+}
+
+export async function fetchBeefyPPFS(
+  chain: Chain,
+  contractAddress: string,
+  blockNumber: number
+) {
+  const contract = await getContract(chain, BeefyVaultV6Abi, contractAddress);
+  const ppfs: [ethers.BigNumber] =
+    await contract.functions.getPricePerFullShare({
+      // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
+      // note that many backends do not support this, or may require paid plans to access as the node
+      // database storage and processing requirements are much higher
+      blockTag: blockNumber,
+    });
+  return ppfs[0];
+}

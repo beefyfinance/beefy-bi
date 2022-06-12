@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as readLastLines from "read-last-lines";
 import { parse as syncParser } from "csv-parse/sync";
+import { parse as asyncParser } from "csv-parse";
 import { stringify as stringifySync } from "csv-stringify/sync";
 import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
@@ -54,6 +55,29 @@ export async function getBlockSamplesStorageWriteStream(
   };
 }
 
+export async function* streamBlockSamplesFrom(
+  chain: Chain,
+  samplingPeriod: SamplingPeriod,
+  fromBlock: number
+) {
+  const filePath = getBlockSamplesFilePath(chain, samplingPeriod);
+  const readStream: AsyncIterable<BlockSampleData> = fs
+    .createReadStream(filePath)
+    .pipe(
+      asyncParser({
+        delimiter: CSV_SEPARATOR,
+        columns: blockSamplesColumns,
+        cast: true,
+        cast_date: true,
+      })
+    );
+  for await (const record of readStream) {
+    if (record.blockNumber >= fromBlock) {
+      yield record;
+    }
+  }
+}
+
 export async function getLastImportedSampleBlockData(
   chain: Chain,
   samplingPeriod: SamplingPeriod
@@ -64,6 +88,7 @@ export async function getLastImportedSampleBlockData(
   }
   const lastImportedCSVRows = await readLastLines.read(filePath, 5);
   const data = syncParser(lastImportedCSVRows, {
+    delimiter: CSV_SEPARATOR,
     columns: blockSamplesColumns,
     cast: true,
     cast_date: true,

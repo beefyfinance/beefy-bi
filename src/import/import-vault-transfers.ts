@@ -25,14 +25,16 @@ async function main() {
 
   const chain = argv.chain;
 
-  logger.info(`Importing ${chain} ERC20 transfer events...`);
+  logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
   // find out which vaults we need to parse
   const vaults = await fetchBeefyVaultAddresses(chain);
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
     const contractAddress = normalizeAddress(vault.token_address);
-    logger.info(`Processing ${chain}:${vault.id} (${contractAddress})`);
+    logger.info(
+      `[ERC20.T] Processing ${chain}:${vault.id} (${contractAddress})`
+    );
 
     let startBlock = await getLastImportedERC20TransferBlockNumber(
       chain,
@@ -40,7 +42,7 @@ async function main() {
     );
     if (startBlock === null) {
       logger.debug(
-        `No local data for ${chain}:${vault.id}, fetching contract creation info`
+        `[ERC20.T] No local data for ${chain}:${vault.id}, fetching contract creation info`
       );
 
       const { blockNumber } = await fetchContractCreationInfos(
@@ -50,7 +52,7 @@ async function main() {
       startBlock = blockNumber;
     } else {
       logger.debug(
-        `Found local data for ${chain}:${
+        `[ERC20.T] Found local data for ${chain}:${
           vault.id
         }, fetching data starting from block ${startBlock + 1}`
       );
@@ -63,7 +65,7 @@ async function main() {
         {
           retry: async (error, attemptNumber) => {
             logger.info(
-              `Error on attempt ${attemptNumber} fetching last trx of ${chain}:${contractAddress}: ${error}`
+              `[ERC20.T] Error on attempt ${attemptNumber} fetching last trx of ${chain}:${contractAddress}: ${error}`
             );
             console.error(error);
             return true;
@@ -75,12 +77,12 @@ async function main() {
     ).blockNumber;
 
     if (startBlock >= endBlock) {
-      logger.info(`All data imported for ${contractAddress}`);
+      logger.info(`[ERC20.T] All data imported for ${contractAddress}`);
       continue;
     }
 
     logger.info(
-      `Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
+      `[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
     );
     const stream = streamERC20TransferEvents(chain, contractAddress, {
       startBlock,
@@ -93,7 +95,7 @@ async function main() {
     );
 
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      logger.verbose("Writing batch");
+      logger.verbose("[ERC20.T] Writing batch");
       await writeBatch(
         eventBatch.map((event) => ({
           blockNumber: event.blockNumber,
@@ -105,13 +107,15 @@ async function main() {
     }
   }
 
-  logger.info(`Done importing ${chain} ERC20 transfer events, sleeping 1h`);
+  logger.info(
+    `[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 1h`
+  );
   await sleep(1000 * 60 * 60);
 }
 
 main()
   .then(() => {
-    logger.info("Done");
+    logger.info("[ERC20.T] Done");
     process.exit(0);
   })
   .catch((e) => {

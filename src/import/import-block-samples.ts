@@ -1,4 +1,3 @@
-import { _fetchContractFirstLastTrx } from "../lib/contract-transaction-infos";
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
@@ -27,7 +26,7 @@ async function main() {
   const samplingPeriod = argv.period as SamplingPeriod;
 
   logger.info(
-    `Importing ${chain} block samples with period ${samplingPeriod}.`
+    `[BLOCKS] Importing ${chain} block samples with period ${samplingPeriod}.`
   );
 
   const { writeBatch } = await getBlockSamplesStorageWriteStream(
@@ -68,7 +67,7 @@ async function main() {
       )
     );
     logger.verbose(
-      `Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`
+      `[BLOCKS] Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`
     );
     const innerBlocks = await fillBlockGaps(
       chain,
@@ -87,7 +86,7 @@ async function main() {
         innerBlocks.length < 10 ? 4 : innerBlocks.length < 30 ? 2 : 1.5;
       const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
       logger.debug(
-        `Too few blocks imported (${innerBlocks.length}), increasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
+        `[BLOCKS] Too few blocks imported (${innerBlocks.length}), increasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
       );
       blockCountToFill = newBlockCountToFill;
     } else if (innerBlocks.length > 120) {
@@ -95,7 +94,7 @@ async function main() {
         innerBlocks.length > 200 ? 0.5 : innerBlocks.length > 150 ? 0.65 : 0.8;
       const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
       logger.debug(
-        `Too many blocks imported (${innerBlocks.length}), decreasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
+        `[BLOCKS] Too many blocks imported (${innerBlocks.length}), decreasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
       );
       blockCountToFill = newBlockCountToFill;
     }
@@ -109,7 +108,7 @@ async function main() {
   }
 
   logger.info(
-    `Done importing ${chain} block samples with period ${samplingPeriod}. Sleeping for a bit`
+    `[BLOCKS] Done importing ${chain} block samples with period ${samplingPeriod}. Sleeping for a bit`
   );
   await sleep(10 * ms);
 }
@@ -211,7 +210,7 @@ async function fetchBlockDateTimeWithRetry(
     {
       retry: async (error, attemptNumber) => {
         logger.info(
-          `Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
+          `[BLOCKS] Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
         );
         console.error(error);
         return true;
@@ -224,7 +223,7 @@ async function fetchBlockDateTimeWithRetry(
 
 main()
   .then(() => {
-    logger.info("Done");
+    logger.info("[BLOCKS] Done");
     process.exit(0);
   })
   .catch((e) => {
