@@ -106,7 +106,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
           res.data.status === "0" &&
           res.data.message === "No records found"
         ) {
-          return res.data.result;
+          return [];
         }
 
         if (res.data.status === "0") {
