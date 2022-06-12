@@ -33,7 +33,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     ? [process.env.HECO_RPC]
     : [
         "https://http-mainnet.hecochain.com",
-        "https://http-mainnet-node.huobichain.com",
+        /*"https://http-mainnet-node.huobichain.com",*/
       ],
   avax: process.env.AVAX_RPC
     ? [process.env.AVAX_RPC]
@@ -60,11 +60,12 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     ? [process.env.MOONRIVER_RPC]
     : [
         "https://moonriver.api.onfinality.io/public",
-        "https://rpc.api.moonriver.moonbeam.network/",
+        /*"https://rpc.api.moonriver.moonbeam.network/"*/
+        ,
       ],
   cronos: process.env.CRONOS_RPC
     ? [process.env.CRONOS_RPC]
-    : ["https://rpc.vvs.finance", "https://evm.cronos.org"],
+    : ["https://rpc.vvs.finance" /*, "https://evm.cronos.org"*/],
   aurora: process.env.AURORA_RPC
     ? [process.env.AURORA_RPC]
     : [
