@@ -26,6 +26,11 @@ x-block-samples-importer-env: &block-samples-importer-env
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-block-samples.ts
 
+x-ppfs-importer-env: &ppfs-importer-env
+  LOG_LEVEL: "info"
+  DATA_DIRECTORY: /data
+  WORK_SCRIPT: ./src/import/import-vault-ppfs.ts
+
 services:
   #############################################################################
   #############################################################################
@@ -231,6 +236,111 @@ services:
     environment:
       <<: *block-samples-importer-env
       WORK_CHAIN: emerald
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  import-vault-ppfs-fantom:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: fantom
+
+  import-vault-ppfs-cronos:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: cronos
+
+  import-vault-ppfs-bsc:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: bsc
+
+  import-vault-ppfs-polygon:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: polygon
+
+  import-vault-ppfs-heco:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: heco
+
+  import-vault-ppfs-avax:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: avax
+
+  import-vault-ppfs-moonbeam:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: moonbeam
+
+  # disabled because block script is disabled for celo
+  #import-vault-ppfs-celo:
+  #  <<: *importer
+  #  environment:
+  #    <<: *ppfs-importer-env
+  #    WORK_CHAIN: celo
+
+  import-vault-ppfs-moonriver:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: moonriver
+
+  import-vault-ppfs-arbitrum:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: arbitrum
+
+  import-vault-ppfs-aurora:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: aurora
+
+  # disabled because explorer api is different
+  #import-vault-ppfs-metis:
+  #  <<: *importer
+  #  environment:
+  #    <<: *ppfs-importer-env
+  #    WORK_CHAIN: metis
+
+  # disabled because explorer api is different
+  #import-vault-ppfs-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *ppfs-importer-env
+  #    WORK_CHAIN: harmony
+
+  import-vault-ppfs-fuse:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: fuse
+
+  # no beefy vault list for now
+  #import-vault-ppfs-syscoin:
+  #  <<: *importer
+  #  environment:
+  #    <<: *ppfs-importer-env
+  #    WORK_CHAIN: syscoin
+
+  # disabled because explorer api is different
+  #import-vault-ppfs-emerald:
+  #  <<: *importer
+  #  environment:
+  #    <<: *ppfs-importer-env
+  #    WORK_CHAIN: emerald
 
 volumes:
   data_directory:
