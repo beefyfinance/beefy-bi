@@ -103,8 +103,25 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   syscoin: "https://explorer.syscoin.org/api",
   emerald: "https://explorer.oasis.dev/",
 };
-export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS =
-  5000 + 1000; /* add a 1s margin just to be nice to explorers */
+export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS: { [chain in Chain]: number } =
+  {
+    cronos: 10_000,
+    bsc: 10_000,
+    polygon: 10_000,
+    fantom: 10_000,
+    heco: 6_000,
+    avax: 6_000,
+    moonbeam: 6_000,
+    celo: 6_000,
+    moonriver: 6_000,
+    arbitrum: 6_000,
+    aurora: 6_000,
+    metis: 6_000,
+    harmony: 6_000,
+    fuse: 6_000,
+    syscoin: 6_000,
+    emerald: 6_000,
+  };
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   cronos: 3000,

@@ -47,7 +47,7 @@ async function getRedlock() {
 
         // The minimum remaining time on a lock before an extension is automatically
         // attempted with the `using` API.
-        automaticExtensionThreshold: MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS, // time in ms
+        automaticExtensionThreshold: 10_000, // time in ms
       }
     );
   }
@@ -63,6 +63,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
   // first, try to acquire a lock as there could be only one call at any time per explorer on the whole system
   const explorerResourceId = `${chain}:explorer:lock`;
   const explorerUrl = EXPLORER_URLS[chain];
+  const delayBetweenCalls = MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS[chain];
 
   logger.debug(`[EXPLORER] Trying to acquire lock for ${explorerResourceId}`);
   // do multiple tries as well
@@ -82,14 +83,11 @@ export async function callLockProtectedExplorerUrl<TRes>(
         const now = new Date();
 
         // wait a bit before calling the explorer again
-        if (
-          now.getTime() - lastCallDate.getTime() <
-          MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS
-        ) {
+        if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
           logger.debug(
             `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
           );
-          await sleep(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS);
+          await sleep(delayBetweenCalls);
         }
         const url = explorerUrl + "?" + new URLSearchParams(params).toString();
 
@@ -133,7 +131,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
         }
         return true;
       },
-      startingDelay: MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS,
+      startingDelay: delayBetweenCalls,
       timeMultiple: 2,
     }
   );
