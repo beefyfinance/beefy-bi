@@ -112,6 +112,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
       }
       const mappedEvent = {
         blockNumber: rawEvent.blockNumber,
+        datetime: new Date((await rawEvent.getBlock()).timestamp),
         data: mapArgs(rawEvent.args),
       };
       yield mappedEvent;

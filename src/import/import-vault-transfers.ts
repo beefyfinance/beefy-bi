@@ -110,6 +110,7 @@ async function main() {
         await writeBatch(
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
+            datetime: event.datetime,
             from: event.from,
             to: event.to,
             value: event.value,
@@ -127,6 +128,7 @@ async function main() {
         await writeBatch(
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
+            datetime: event.datetime,
             from: event.data.from,
             to: event.data.to,
             value: event.data.value,

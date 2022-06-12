@@ -38,16 +38,16 @@ async function getRedlock() {
         retryCount: 10,
 
         // the time in ms between attempts
-        retryDelay: 1000, // time in ms
+        retryDelay: 3000, // time in ms
 
         // the max time in ms randomly added to retries
         // to improve performance under high contention
         // see https://www.awsarchitectureblog.com/2015/03/backoff.html
-        retryJitter: 200, // time in ms
+        retryJitter: 1000, // time in ms
 
         // The minimum remaining time on a lock before an extension is automatically
         // attempted with the `using` API.
-        automaticExtensionThreshold: 10_000, // time in ms
+        automaticExtensionThreshold: 60_000, // time in ms
       }
     );
   }
@@ -68,59 +68,85 @@ export async function callLockProtectedExplorerUrl<TRes>(
   logger.debug(`[EXPLORER] Trying to acquire lock for ${explorerResourceId}`);
   // do multiple tries as well
   return backOff(
-    () =>
-      redlock.using([explorerResourceId], 60 * 1000, async () => {
-        logger.verbose(`[EXPLORER] Acquired lock for ${explorerResourceId}`);
-        // now, we are the only one running this code
-        // find out the last time we called this explorer
-        const lastCallCacheKey = `${chain}:explorer:last-call-date`;
-        const lastCallStr = await client.get(lastCallCacheKey);
-        const lastCallDate =
-          lastCallStr && lastCallStr !== ""
-            ? new Date(lastCallStr)
-            : new Date(0);
+    async () => {
+      try {
+        const res = await redlock.using(
+          [explorerResourceId],
+          2 * 60 * 1000,
+          async () => {
+            logger.verbose(
+              `[EXPLORER] Acquired lock for ${explorerResourceId}`
+            );
+            // now, we are the only one running this code
+            // find out the last time we called this explorer
+            const lastCallCacheKey = `${chain}:explorer:last-call-date`;
+            const lastCallStr = await client.get(lastCallCacheKey);
+            const lastCallDate =
+              lastCallStr && lastCallStr !== ""
+                ? new Date(lastCallStr)
+                : new Date(0);
 
-        const now = new Date();
+            const now = new Date();
+            logger.debug(
+              `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
+            );
 
-        // wait a bit before calling the explorer again
-        if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-          logger.debug(
-            `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
-          );
-          await sleep(delayBetweenCalls);
-        }
-        const url = explorerUrl + "?" + new URLSearchParams(params).toString();
+            // wait a bit before calling the explorer again
+            if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+              logger.debug(
+                `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
+              );
+              await sleep(delayBetweenCalls);
+              logger.debug(`[EXPLORER] Resuming call to ${explorerUrl}`);
+            }
+            const url =
+              explorerUrl + "?" + new URLSearchParams(params).toString();
 
-        // now we are going to call, so set the last call date
-        await client.set(lastCallCacheKey, now.toISOString());
+            // now we are going to call, so set the last call date
+            await client.set(lastCallCacheKey, new Date().toISOString());
 
-        const res = await axios.get<
-          | { status: "0"; message: string; result: string }
-          | { status: "0"; message: "No records found"; result: [] }
-          | { status: "1"; result: TRes }
-        >(url);
+            const res = await axios.get<
+              | { status: "0"; message: string; result: string }
+              | { status: "0"; message: "No records found"; result: [] }
+              | { status: "1"; result: TRes }
+            >(url);
 
-        if (
-          res.data.status === "0" &&
-          res.data.message === "No records found"
-        ) {
-          return [];
-        }
+            // reset the last call date if the call succeeded
+            // just in case rate limiting is accounted by explorers at the end of requests
+            await client.set(lastCallCacheKey, new Date().toISOString());
 
-        if (res.data.status === "0") {
-          logger.error(
-            `[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(
-              res.data
-            )}`
-          );
-          throw new Error(`[EXPLORER] Explorer call failed: ${explorerUrl}`);
-        }
-        return res.data.result;
-      }),
+            if (
+              res.data.status === "0" &&
+              res.data.message === "No records found"
+            ) {
+              return [];
+            }
+
+            if (res.data.status === "0") {
+              logger.error(
+                `[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(
+                  res.data
+                )}`
+              );
+              throw new Error(
+                `[EXPLORER] Explorer call failed: ${explorerUrl}`
+              );
+            }
+            return res.data.result;
+          }
+        );
+        return res;
+      } catch (e) {
+        logger.error(
+          `[EXPLORER] During lock operation of explorer ${explorerUrl}: ${e}`
+        );
+        throw e;
+      }
+    },
     {
       delayFirstAttempt: false,
       jitter: "full",
-      maxDelay: 60 * 1000,
+      maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
         logger.error(

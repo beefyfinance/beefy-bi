@@ -105,10 +105,10 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
 };
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS: { [chain in Chain]: number } =
   {
-    cronos: 10_000,
-    bsc: 10_000,
-    polygon: 10_000,
-    fantom: 10_000,
+    cronos: 6_000,
+    bsc: 6_000,
+    polygon: 6_000,
+    fantom: 6_000,
     heco: 6_000,
     avax: 6_000,
     moonbeam: 6_000,

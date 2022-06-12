@@ -116,8 +116,12 @@ function explorerLogToERC20TransferEvent(event: ExplorerLog): ERC20EventData {
     getEventTypesFromJsonAbi(ERC20Abi, "Transfer"),
     data
   );
+  const datetime = new Date(
+    ethers.BigNumber.from(event.timeStamp).toNumber() * 1000
+  );
   return {
     blockNumber,
+    datetime,
     from,
     to,
     value: value.toString(),

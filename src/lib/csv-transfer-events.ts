@@ -12,11 +12,12 @@ const CSV_SEPARATOR = ",";
 
 export interface ERC20EventData {
   blockNumber: number;
+  datetime: Date;
   from: string;
   to: string;
   value: string;
 }
-const erc20TransferColumns = ["blockNumber", "from", "to", "value"];
+const erc20TransferColumns = ["blockNumber", "datetime", "from", "to", "value"];
 
 function getContractERC20TransfersFilePath(
   chain: Chain,
@@ -43,6 +44,9 @@ export async function getERC20TransferStorageWriteStream(
     writeBatch: async (events) => {
       const csvData = stringifySync(events, {
         delimiter: CSV_SEPARATOR,
+        cast: {
+          date: (date) => date.toISOString(),
+        },
       });
       writeStream.write(csvData);
     },
@@ -59,7 +63,10 @@ export async function getLastImportedERC20TransferBlockNumber(
   }
   const lastImportedCSVRows = await readLastLines.read(filePath, 5);
   const data = syncParser(lastImportedCSVRows, {
+    delimiter: CSV_SEPARATOR,
     columns: erc20TransferColumns,
+    cast: true,
+    cast_date: true,
   });
   if (data.length === 0) {
     return null;

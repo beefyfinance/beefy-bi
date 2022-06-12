@@ -4,7 +4,7 @@ import {
   prepareInsertErc20TransferBatch,
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
-import { streamERC20TransferEvents } from "../lib/streamContractEvents";
+import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { getRedisCachedBlockDate } from "../utils/ethers";
 
 async function main() {
@@ -14,7 +14,7 @@ async function main() {
 
   await prepareInsertErc20TransferBatch(chain, contractAddress);
 
-  const stream = streamERC20TransferEvents(chain, contractAddress);
+  const stream = streamERC20TransferEventsFromRpc(chain, contractAddress);
 
   for await (const eventBatch of batchAsyncStream(stream, 100)) {
     const events = await Promise.all(
