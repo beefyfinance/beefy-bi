@@ -56,4 +56,33 @@ describe("test archive node needed error parsing", () => {
       })
     ).toBe(true);
   });
+
+  it("should detect missing errors as matching", () => {
+    // this one is not the exact same error, I just replaced the error body
+    expect(
+      isErrorDueToMissingDataFromNode({
+        reason:
+          "missing revert data in call exception; Transaction reverted without a reason string",
+        code: "CALL_EXCEPTION",
+        data: "0x",
+        transaction: {
+          to: "0x2C43DBef81ABa6b95799FD2aEc738Cd721ba77f3",
+          data: "0x77c7b8fc",
+          accessList: null,
+        },
+        error: {
+          reason: "processing response error",
+          code: "SERVER_ERROR",
+          body: '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"missing trie node 0000000000000000000000000000000000000000000000000000000000000000 (path )"}}',
+          error: {
+            code: -32000,
+          },
+          requestBody:
+            '{"method":"eth_call","params":[{"to":"0x2c43dbef81aba6b95799fd2aec738cd721ba77f3","data":"0x77c7b8fc"},"0xe38ee4"],"id":44,"jsonrpc":"2.0"}',
+          requestMethod: "POST",
+          url: "https://rpc.fuse.io",
+        },
+      })
+    ).toBe(true);
+  });
 });

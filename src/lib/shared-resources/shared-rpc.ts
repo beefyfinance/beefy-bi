@@ -115,7 +115,10 @@ export function isErrorDueToMissingDataFromNode(error: any) {
     if (
       errorCode === -32000 &&
       lodash.isString(errorMessage) &&
-      errorMessage.includes("Run with --pruning=archive")
+      (errorMessage.includes("Run with --pruning=archive") ||
+        errorMessage.startsWith(
+          "missing trie node 0000000000000000000000000000000000000000000000000000000000000000"
+        ))
     ) {
       return true;
     }
