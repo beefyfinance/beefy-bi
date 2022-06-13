@@ -15,25 +15,27 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   bsc: process.env.BSC_RPC
     ? [process.env.BSC_RPC]
     : [
-        "https://bsc-dataseed.binance.org",
-        "https://bsc-dataseed1.defibit.io",
-        "https://bsc-dataseed2.defibit.io",
-        "https://bsc-dataseed1.ninicoin.io",
-        "https://bsc-dataseed3.defibit.io",
-        "https://bsc-dataseed4.defibit.io",
-        "https://bsc-dataseed2.ninicoin.io",
-        "https://bsc-dataseed3.ninicoin.io",
-        "https://bsc-dataseed4.ninicoin.io",
-        "https://bsc-dataseed1.binance.org",
-        "https://bsc-dataseed2.binance.org",
-        "https://bsc-dataseed3.binance.org",
-        "https://bsc-dataseed4.binance.org",
+        // only ankr has a full node
+        "https://rpc.ankr.com/bsc",
+        //"https://bsc-dataseed.binance.org",
+        //"https://bsc-dataseed1.defibit.io",
+        //"https://bsc-dataseed2.defibit.io",
+        //"https://bsc-dataseed1.ninicoin.io",
+        //"https://bsc-dataseed3.defibit.io",
+        //"https://bsc-dataseed4.defibit.io",
+        //"https://bsc-dataseed2.ninicoin.io",
+        //"https://bsc-dataseed3.ninicoin.io",
+        //"https://bsc-dataseed4.ninicoin.io",
+        //"https://bsc-dataseed1.binance.org",
+        //"https://bsc-dataseed2.binance.org",
+        //"https://bsc-dataseed3.binance.org",
+        //"https://bsc-dataseed4.binance.org",
       ],
   heco: process.env.HECO_RPC
     ? [process.env.HECO_RPC]
     : [
         "https://http-mainnet.hecochain.com",
-        /*"https://http-mainnet-node.huobichain.com",*/
+        //"https://http-mainnet-node.huobichain.com",
       ],
   avax: process.env.AVAX_RPC
     ? [process.env.AVAX_RPC]
@@ -46,13 +48,17 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     : ["https://polygon-rpc.com/"],
   fantom: process.env.FANTOM_RPC
     ? [process.env.FANTOM_RPC]
-    : ["https://rpc.ftm.tools"],
+    : ["https://rpc.ftm.tools", "https://rpcapi.fantom.network"],
   harmony: process.env.HARMONY_RPC
     ? [process.env.HARMONY_RPC]
     : ["https://api.harmony.one/" /*, "https://api.s0.t.hmny.io"*/],
   arbitrum: process.env.ARBITRUM_RPC
     ? [process.env.ARBITRUM_RPC]
-    : ["https://arb1.arbitrum.io/rpc"],
+    : [
+        // only ankr has a full node
+        "https://rpc.ankr.com/arbitrum",
+        //"https://arb1.arbitrum.io/rpc"
+      ],
   celo: process.env.CELO_RPC
     ? [process.env.CELO_RPC]
     : ["https://rpc.ankr.com/celo"],
@@ -60,7 +66,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     ? [process.env.MOONRIVER_RPC]
     : [
         "https://moonriver.api.onfinality.io/public",
-        /*"https://rpc.api.moonriver.moonbeam.network/",*/
+        //"https://rpc.api.moonriver.moonbeam.network/",
       ],
   cronos: process.env.CRONOS_RPC
     ? [process.env.CRONOS_RPC]
@@ -104,7 +110,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   emerald: "https://explorer.oasis.dev/",
 };
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 6000;
-export const MIN_DELAY_BETWEEN_RPC_CALLS_MS = 200;
+export const MIN_DELAY_BETWEEN_RPC_CALLS_MS = 500;
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   cronos: 3000,

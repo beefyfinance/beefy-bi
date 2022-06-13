@@ -63,26 +63,8 @@ export async function callLockProtectedRpc<TRes>(
         try {
           res = await work(provider);
         } catch (error) {
-          const errorRpcBody = lodash.get(error, "error.body");
-          if (errorRpcBody && lodash.isString(errorRpcBody)) {
-            const blockNumber = 0;
-            const rpcBodyError = JSON.parse(errorRpcBody);
-            const errorCode = lodash.get(rpcBodyError, "error.code");
-            const errorMessage = lodash.get(rpcBodyError, "error.message");
-            const errorReason = lodash.get(error, "reason");
-            if (
-              errorCode === -32000 &&
-              ((lodash.isString(errorMessage) &&
-                errorMessage.startsWith(
-                  "missing revert data in call exception"
-                )) ||
-                (lodash.isString(errorReason) &&
-                  errorReason.startsWith(
-                    "missing revert data in call exception;"
-                  )))
-            ) {
-              throw new ArchiveNodeNeededError(chain, blockNumber, error);
-            }
+          if (isErrorDueToMissingDataFromNode(error)) {
+            throw new ArchiveNodeNeededError(chain, error);
           }
           throw error;
         }
@@ -118,11 +100,25 @@ export async function callLockProtectedRpc<TRes>(
 }
 
 export class ArchiveNodeNeededError extends Error {
-  constructor(
-    public readonly chain: Chain,
-    public readonly blockNumber: number,
-    public readonly error: any
-  ) {
-    super(`Archive node needed for ${chain}:${blockNumber}`);
+  constructor(public readonly chain: Chain, public readonly error: any) {
+    super(`Archive node needed for ${chain}`);
   }
+}
+
+export function isErrorDueToMissingDataFromNode(error: any) {
+  const errorRpcBody = lodash.get(error, "error.body");
+  if (errorRpcBody && lodash.isString(errorRpcBody)) {
+    const rpcBodyError = JSON.parse(errorRpcBody);
+    const errorCode = lodash.get(rpcBodyError, "error.code");
+    const errorMessage = lodash.get(rpcBodyError, "error.message");
+
+    if (
+      errorCode === -32000 &&
+      lodash.isString(errorMessage) &&
+      errorMessage.includes("Run with --pruning=archive")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
