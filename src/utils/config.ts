@@ -55,7 +55,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     : ["https://arb1.arbitrum.io/rpc"],
   celo: process.env.CELO_RPC
     ? [process.env.CELO_RPC]
-    : ["https://forno.celo.org"],
+    : ["https://rpc.ankr.com/celo"],
   moonriver: process.env.MOONRIVER_RPC
     ? [process.env.MOONRIVER_RPC]
     : [

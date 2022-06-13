@@ -9,9 +9,7 @@ import {
   SamplingPeriod,
   samplingPeriodMs,
 } from "../lib/csv-block-samples";
-import { backOff } from "exponential-backoff";
-import * as ethers from "ethers";
-import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
+import { MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 
 async function main() {
@@ -43,14 +41,14 @@ async function main() {
     // add special case for aurora to speed things up
     // all blocks before that are set to timestamp 0
     if (chain === "aurora") {
-      firstBlock = await fetchBlockDateTimeWithRetry(chain, 9820889);
+      firstBlock = await fetchBlockData(chain, 9820889);
     }
     await writeBatch([firstBlock]);
     lastImported = firstBlock;
   }
 
   const ms = samplingPeriodMs[samplingPeriod];
-  const latestBlock = await fetchBlockDateTimeWithRetry(chain, "latest");
+  const latestBlock = await fetchBlockData(chain, "latest");
 
   let blockCountToFill = Math.round(
     samplingPeriodMs[samplingPeriod] / MS_PER_BLOCK_ESTIMATE[chain]
@@ -59,7 +57,7 @@ async function main() {
     latestBlock.datetime.getTime() - lastImported.datetime.getTime() >
     ms
   ) {
-    const upperBound = await fetchBlockDateTimeWithRetry(
+    const upperBound = await fetchBlockData(
       chain,
       Math.min(
         lastImported.blockNumber + blockCountToFill,
@@ -142,10 +140,7 @@ async function fillBlockGaps(
   ) {
     throw "NOPE";
   }
-  const midPointBlockInfos = await fetchBlockDateTimeWithRetry(
-    chain,
-    midpointBlockNumber
-  );
+  const midPointBlockInfos = await fetchBlockData(chain, midpointBlockNumber);
   const beforeFill = await fillBlockGaps(
     chain,
     samplingPeriod,
@@ -173,7 +168,7 @@ async function fillBlockGaps(
 
 async function estimateMsPerBlock(chain: Chain) {
   const firstBlock = await getFirstBlock(chain);
-  const latestBlock = await fetchBlockDateTimeWithRetry(chain, "latest");
+  const latestBlock = await fetchBlockData(chain, "latest");
   console.log(firstBlock, latestBlock);
   const msPerBlockEstimate = Math.floor(
     (latestBlock.datetime.getTime() - firstBlock.datetime.getTime()) /
@@ -183,45 +178,11 @@ async function estimateMsPerBlock(chain: Chain) {
 }
 
 async function getFirstBlock(chain: Chain) {
-  let firstBlock = await fetchBlockDateTimeWithRetry(chain, 0);
+  let firstBlock = await fetchBlockData(chain, 0);
   if (firstBlock.datetime.getTime() === 0) {
-    firstBlock = await fetchBlockDateTimeWithRetry(chain, 1);
+    firstBlock = await fetchBlockData(chain, 1);
   }
   return firstBlock;
-}
-
-// be nice to rpcs or you'll get banned
-const minMsBetweenCalls = 200;
-let lastCall = new Date(0);
-async function fetchBlockDateTimeWithRetry(
-  chain: Chain,
-  blockNumber: ethers.ethers.providers.BlockTag
-): Promise<{ blockNumber: number; datetime: Date }> {
-  return backOff(
-    async () => {
-      const now = new Date();
-      if (now.getTime() - lastCall.getTime() < minMsBetweenCalls) {
-        await sleep(minMsBetweenCalls - (now.getTime() - lastCall.getTime()));
-      }
-      const data = fetchBlockData(chain, blockNumber);
-      lastCall = new Date();
-      return data;
-    },
-    {
-      retry: async (error, attemptNumber) => {
-        logger.error(
-          `[BLOCKS] Error on attempt ${attemptNumber} fetching block data of ${chain}:${blockNumber}: ${error}`
-        );
-        if (LOG_LEVEL === "trace") {
-          console.error(error);
-        }
-        return true;
-      },
-      numOfAttempts: 10,
-      startingDelay: 1000,
-      delayFirstAttempt: true,
-    }
-  );
 }
 
 main()

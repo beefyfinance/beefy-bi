@@ -11,6 +11,7 @@ import { SamplingPeriod } from "./csv-block-samples";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import { logger } from "../utils/logger";
 
 const CSV_SEPARATOR = ",";
 
@@ -87,6 +88,9 @@ export async function fetchBeefyPPFS(
   contractAddress: string,
   blockNumber: number
 ) {
+  logger.debug(
+    `[PPFS] Fetching PPFS for ${chain}:${contractAddress}:${blockNumber}`
+  );
   return callLockProtectedRpc(chain, async (provider) => {
     const contract = new ethers.Contract(
       contractAddress,

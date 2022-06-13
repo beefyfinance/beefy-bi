@@ -27,83 +27,72 @@ export async function callLockProtectedRpc<TRes>(
   );
   // do multiple tries as well
   return backOff(
-    async () => {
-      try {
-        const res = await redlock.using(
-          [resourceId],
-          2 * 60 * 1000,
-          async () => {
-            logger.verbose(
-              `[EXPLORER] Acquired lock for ${resourceId} (${rpcUrl})`
-            );
-            // now, we are the only one running this code
-            // find out the last time we called this explorer
-            const lastCallCacheKey = `${chain}:rpc:${rpcIndex}:last-call-date`;
-            const lastCallStr = await client.get(lastCallCacheKey);
-            const lastCallDate =
-              lastCallStr && lastCallStr !== ""
-                ? new Date(lastCallStr)
-                : new Date(0);
-
-            const now = new Date();
-            logger.debug(
-              `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
-            );
-
-            // wait a bit before calling the explorer again
-            if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-              logger.debug(
-                `[EXPLORER] Last call too close for ${rpcUrl}, sleeping a bit`
-              );
-              await sleep(delayBetweenCalls);
-              logger.debug(`[EXPLORER] Resuming call to ${rpcUrl}`);
-            }
-            // now we are going to call, so set the last call date
-            await client.set(lastCallCacheKey, new Date().toISOString());
-
-            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-
-            let res: TRes | null = null;
-            try {
-              res = await work(provider);
-            } catch (error) {
-              const errorRpcBody = lodash.get(error, "error.body");
-              if (errorRpcBody && lodash.isString(errorRpcBody)) {
-                const blockNumber = 0;
-                const rpcBodyError = JSON.parse(errorRpcBody);
-                const errorCode = lodash.get(rpcBodyError, "error.code");
-                const errorMessage = lodash.get(rpcBodyError, "error.message");
-                const errorReason = lodash.get(error, "reason");
-                if (
-                  errorCode === -32000 &&
-                  ((lodash.isString(errorMessage) &&
-                    errorMessage.startsWith(
-                      "missing revert data in call exception"
-                    )) ||
-                    (lodash.isString(errorReason) &&
-                      errorReason.startsWith(
-                        "missing revert data in call exception;"
-                      )))
-                ) {
-                  throw new ArchiveNodeNeededError(chain, blockNumber, error);
-                }
-              }
-              throw error;
-            }
-
-            // reset the last call date if the call succeeded
-            // just in case rate limiting is accounted by explorers at the end of requests
-            await client.set(lastCallCacheKey, new Date().toISOString());
-
-            return res;
-          }
+    () =>
+      redlock.using([resourceId], 2 * 60 * 1000, async () => {
+        logger.verbose(
+          `[EXPLORER] Acquired lock for ${resourceId} (${rpcUrl})`
         );
+        // now, we are the only one running this code
+        // find out the last time we called this explorer
+        const lastCallCacheKey = `${chain}:rpc:${rpcIndex}:last-call-date`;
+        const lastCallStr = await client.get(lastCallCacheKey);
+        const lastCallDate =
+          lastCallStr && lastCallStr !== ""
+            ? new Date(lastCallStr)
+            : new Date(0);
+
+        const now = new Date();
+        logger.debug(
+          `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
+        );
+
+        // wait a bit before calling the explorer again
+        if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+          logger.debug(
+            `[EXPLORER] Last call too close for ${rpcUrl}, sleeping a bit`
+          );
+          await sleep(delayBetweenCalls);
+          logger.debug(`[EXPLORER] Resuming call to ${rpcUrl}`);
+        }
+        // now we are going to call, so set the last call date
+        await client.set(lastCallCacheKey, new Date().toISOString());
+
+        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+
+        let res: TRes | null = null;
+        try {
+          res = await work(provider);
+        } catch (error) {
+          const errorRpcBody = lodash.get(error, "error.body");
+          if (errorRpcBody && lodash.isString(errorRpcBody)) {
+            const blockNumber = 0;
+            const rpcBodyError = JSON.parse(errorRpcBody);
+            const errorCode = lodash.get(rpcBodyError, "error.code");
+            const errorMessage = lodash.get(rpcBodyError, "error.message");
+            const errorReason = lodash.get(error, "reason");
+            if (
+              errorCode === -32000 &&
+              ((lodash.isString(errorMessage) &&
+                errorMessage.startsWith(
+                  "missing revert data in call exception"
+                )) ||
+                (lodash.isString(errorReason) &&
+                  errorReason.startsWith(
+                    "missing revert data in call exception;"
+                  )))
+            ) {
+              throw new ArchiveNodeNeededError(chain, blockNumber, error);
+            }
+          }
+          throw error;
+        }
+
+        // reset the last call date if the call succeeded
+        // just in case rate limiting is accounted by explorers at the end of requests
+        await client.set(lastCallCacheKey, new Date().toISOString());
+
         return res;
-      } catch (e) {
-        logger.error(`[EXPLORER] During lock operation of rpc ${rpcUrl}: ${e}`);
-        throw e;
-      }
-    },
+      }),
     {
       delayFirstAttempt: false,
       jitter: "full",

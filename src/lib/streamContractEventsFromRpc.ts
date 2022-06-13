@@ -66,6 +66,9 @@ async function* streamContractEventsFromRpc<TEventArgs>(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
   for (const [rangeIdx, blockRange] of ranges.entries()) {
+    logger.debug(
+      `[ERC20.T.RPC] Fetching ERC20 event batch for ${chain}:${contractAddress} (${blockRange.fromBlock} -> ${blockRange.toBlock})`
+    );
     const events = await callLockProtectedRpc(chain, async (provider) => {
       // instanciate contract late to shuffle rpcs on error
       const contract = new ethers.Contract(contractAddress, abi, provider);
@@ -155,7 +158,9 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
   // add a fake event for the contract creation
   const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
     await fetchContractCreationInfos(chain, contractAddress);
-
+  logger.debug(
+    `[BV6.VU.RPC] Fetching BeefyVaultV6 deploy strategy ${chain}:${contractAddress}:${deployBlockNumber}`
+  );
   const firstStrategyRes = await callLockProtectedRpc(
     chain,
     async (provider) => {
@@ -175,6 +180,9 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
     data: { implementation: firstStrategyRes[0] as string },
   };
   // add a shortcut if the strategy never changed
+  logger.debug(
+    `[BV6.VU.RPC] Fetching BeefyVaultV6 current strategy ${chain}:${contractAddress}`
+  );
   const currentStrategyRes = await await callLockProtectedRpc(
     chain,
     async (provider) => {
@@ -188,7 +196,7 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
   );
   if (firstStrategyRes[0] === currentStrategyRes[0]) {
     logger.verbose(
-      `[ERC20.T.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
+      `[BV6.VU.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
     );
     return;
   }

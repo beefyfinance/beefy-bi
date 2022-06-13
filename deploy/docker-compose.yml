@@ -240,12 +240,11 @@ services:
       <<: *block-samples-importer-env
       WORK_CHAIN: moonbeam
 
-  # disabled because script needs to be adapted
-  #import-block-samples-celo:
-  #  <<: *importer
-  #  environment:
-  #    <<: *block-samples-importer-env
-  #    WORK_CHAIN: celo
+  import-block-samples-celo:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: celo
 
   import-block-samples-moonriver:
     <<: *importer

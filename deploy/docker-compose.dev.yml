@@ -4,5 +4,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis-dev
+    command: redis-server --save "" --appendonly no --maxmemory 314572800
     ports:
       - "6379:6379"

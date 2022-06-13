@@ -60,6 +60,9 @@ async function getCreationTimestampHarmonyRpc(
   contractAddress: string,
   type: "first" | "last"
 ): Promise<ContractCreationInfo> {
+  logger.debug(
+    `Fetching harmony timestamp ${chain}:${contractAddress}:${type}`
+  );
   const resp = await callLockProtectedRpc(chain, async (provider) => {
     const url = provider.connection.url;
     return await axios.post(url, {

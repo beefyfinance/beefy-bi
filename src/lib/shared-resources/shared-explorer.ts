@@ -24,82 +24,64 @@ export async function callLockProtectedExplorerUrl<TRes>(
   logger.debug(`[EXPLORER] Trying to acquire lock for ${explorerResourceId}`);
   // do multiple tries as well
   return backOff(
-    async () => {
-      try {
-        const res = await redlock.using(
-          [explorerResourceId],
-          2 * 60 * 1000,
-          async () => {
-            logger.verbose(
-              `[EXPLORER] Acquired lock for ${explorerResourceId}`
-            );
-            // now, we are the only one running this code
-            // find out the last time we called this explorer
-            const lastCallCacheKey = `${chain}:explorer:last-call-date`;
-            const lastCallStr = await client.get(lastCallCacheKey);
-            const lastCallDate =
-              lastCallStr && lastCallStr !== ""
-                ? new Date(lastCallStr)
-                : new Date(0);
+    () =>
+      redlock.using([explorerResourceId], 2 * 60 * 1000, async () => {
+        logger.verbose(`[EXPLORER] Acquired lock for ${explorerResourceId}`);
+        // now, we are the only one running this code
+        // find out the last time we called this explorer
+        const lastCallCacheKey = `${chain}:explorer:last-call-date`;
+        const lastCallStr = await client.get(lastCallCacheKey);
+        const lastCallDate =
+          lastCallStr && lastCallStr !== ""
+            ? new Date(lastCallStr)
+            : new Date(0);
 
-            const now = new Date();
-            logger.debug(
-              `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
-            );
-
-            // wait a bit before calling the explorer again
-            if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-              logger.debug(
-                `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
-              );
-              await sleep(delayBetweenCalls);
-              logger.debug(`[EXPLORER] Resuming call to ${explorerUrl}`);
-            }
-            const url =
-              explorerUrl + "?" + new URLSearchParams(params).toString();
-            logger.debug(`[EXPLORER] Calling ${url}`);
-
-            // now we are going to call, so set the last call date
-            await client.set(lastCallCacheKey, new Date().toISOString());
-
-            const res = await axios.get<
-              | { status: "0"; message: string; result: string }
-              | { status: "0"; message: "No records found"; result: [] }
-              | { status: "1"; result: TRes }
-            >(url);
-
-            // reset the last call date if the call succeeded
-            // just in case rate limiting is accounted by explorers at the end of requests
-            await client.set(lastCallCacheKey, new Date().toISOString());
-
-            if (
-              res.data.status === "0" &&
-              res.data.message === "No records found"
-            ) {
-              return [];
-            }
-
-            if (res.data.status === "0") {
-              logger.error(
-                `[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(
-                  res.data
-                )}`
-              );
-              throw new Error(
-                `[EXPLORER] Explorer call failed: ${explorerUrl}`
-              );
-            }
-            return res.data.result;
-          }
+        const now = new Date();
+        logger.debug(
+          `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
         );
-        return res;
-      } catch (e) {
-        logger.error(
-          `[EXPLORER] During lock operation of explorer ${explorerUrl}: ${e}`
-        );
-        throw e;
-      }
-    },
+
+        // wait a bit before calling the explorer again
+        if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+          logger.debug(
+            `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
+          );
+          await sleep(delayBetweenCalls);
+          logger.debug(`[EXPLORER] Resuming call to ${explorerUrl}`);
+        }
+        const url = explorerUrl + "?" + new URLSearchParams(params).toString();
+        logger.debug(`[EXPLORER] Calling ${url}`);
+
+        // now we are going to call, so set the last call date
+        await client.set(lastCallCacheKey, new Date().toISOString());
+
+        const res = await axios.get<
+          | { status: "0"; message: string; result: string }
+          | { status: "0"; message: "No records found"; result: [] }
+          | { status: "1"; result: TRes }
+        >(url);
+
+        // reset the last call date if the call succeeded
+        // just in case rate limiting is accounted by explorers at the end of requests
+        await client.set(lastCallCacheKey, new Date().toISOString());
+
+        if (
+          res.data.status === "0" &&
+          res.data.message === "No records found"
+        ) {
+          return [];
+        }
+
+        if (res.data.status === "0") {
+          logger.error(
+            `[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(
+              res.data
+            )}`
+          );
+          throw new Error(`[EXPLORER] Explorer call failed: ${explorerUrl}`);
+        }
+        return res.data.result;
+      }),
     {
       delayFirstAttempt: false,
       jitter: "full",
