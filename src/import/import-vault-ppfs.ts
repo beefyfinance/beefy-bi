@@ -71,11 +71,11 @@ async function main() {
       samplingPeriod
     );
 
-    for await (const blockDataBatch of batchAsyncStream(
-      blockSampleStream,
-      10
-    )) {
-      try {
+    try {
+      for await (const blockDataBatch of batchAsyncStream(
+        blockSampleStream,
+        10
+      )) {
         logger.verbose(
           `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`
         );
@@ -93,15 +93,13 @@ async function main() {
           });
         }
         writeBatch(vaultData);
-      } catch (e) {
-        if (e instanceof ArchiveNodeNeededError) {
-          logger.error(
-            `[PPFS] Archive node needed, skipping vault ${vault.id}`
-          );
-          continue;
-        }
-        throw e;
       }
+    } catch (e) {
+      if (e instanceof ArchiveNodeNeededError) {
+        logger.error(`[PPFS] Archive node needed, skipping vault ${vault.id}`);
+        continue;
+      }
+      throw e;
     }
   }
   logger.info(
