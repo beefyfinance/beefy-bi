@@ -89,6 +89,7 @@ async function main() {
 
           vaultData.push({
             blockNumber: blockData.blockNumber,
+            datetime: blockData.datetime,
             pricePerFullShare: ppfs.toString(),
           });
         }

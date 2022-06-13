@@ -17,9 +17,10 @@ const CSV_SEPARATOR = ",";
 
 export interface BeefyVaultV6PPFSData {
   blockNumber: number;
+  datetime: Date;
   pricePerFullShare: string;
 }
-const beefyVaultPPFSColumns = ["blockNumber", "pricePerFullShare"];
+const beefyVaultPPFSColumns = ["blockNumber", "datetime", "pricePerFullShare"];
 
 function getBeefyVaultV6PPFSFilePath(
   chain: Chain,
@@ -52,6 +53,9 @@ export async function getBeefyVaultV6PPFSWriteStream(
     writeBatch: async (events) => {
       const csvData = stringifySync(events, {
         delimiter: CSV_SEPARATOR,
+        cast: {
+          date: (date) => date.toISOString(),
+        },
       });
       writeStream.write(csvData);
     },
@@ -74,6 +78,9 @@ export async function getLastImportedBeefyVaultV6PPFSBlockNumber(
   const lastImportedCSVRows = await readLastLines.read(filePath, 5);
   const data = syncParser(lastImportedCSVRows, {
     columns: beefyVaultPPFSColumns,
+    delimiter: CSV_SEPARATOR,
+    cast: true,
+    cast_date: true,
   });
   if (data.length === 0) {
     return null;
