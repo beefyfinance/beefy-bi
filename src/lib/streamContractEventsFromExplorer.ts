@@ -1,12 +1,16 @@
 import { logger } from "../utils/logger";
 import _ERC20Abi from "../../data/interfaces/standard/ERC20.json";
+import _BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import { ERC20EventData } from "../lib/csv-transfer-events";
 import * as lodash from "lodash";
 import { Chain } from "../types/chain";
-import { callLockProtectedExplorerUrl } from "./shared-explorer";
+import { callLockProtectedExplorerUrl } from "./shared-resources/shared-explorer";
+import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import { fetchContractCreationInfos } from "./fetch-if-not-found-locally";
 
 const ERC20Abi = _ERC20Abi as any as JsonAbi;
+const BeefyVaultV6Abi = _BeefyVaultV6Abi as any as JsonAbi;
 
 type JsonAbi = {
   inputs?: {
@@ -150,4 +154,105 @@ export async function* streamERC20TransferEventsFromExplorer(
     mayHaveMore = pageRes.mayHaveMore;
     fromBlock = pageRes.logs[pageRes.logs.length - 1].blockNumber + 1;
   }
+}
+interface BeefyVaultV6StrategyUpgradeEvent {
+  blockNumber: number;
+  datetime: Date;
+  data: { implementation: string };
+}
+
+function explorerLogToBeefyVaultV6UpgradeStratEvent(
+  event: ExplorerLog
+): BeefyVaultV6StrategyUpgradeEvent {
+  const blockNumber = parseInt(
+    ethers.BigNumber.from(event.blockNumber).toString()
+  );
+  const data =
+    "0x" +
+    event.topics
+      .slice(1)
+      .concat([event.data])
+      .map((hexData: string) => hexData.slice(2))
+      .join("");
+  const [implementation] = ethers.utils.defaultAbiCoder.decode(
+    getEventTypesFromJsonAbi(ERC20Abi, "Transfer"),
+    data
+  );
+  const datetime = new Date(
+    ethers.BigNumber.from(event.timeStamp).toNumber() * 1000
+  );
+  return {
+    blockNumber,
+    datetime,
+    data: {
+      implementation,
+    },
+  };
+}
+
+export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
+  chain: Chain,
+  contractAddress: string,
+  startBlock: number
+) {
+  const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
+    await fetchContractCreationInfos(chain, contractAddress);
+
+  // first, get all strategy upgrade events
+  // it is very unlikely that there are more than 1000 events
+  let allStrategyEvents: BeefyVaultV6StrategyUpgradeEvent[] = [];
+  let mayHaveMore = true;
+  let fromBlock =
+    startBlock > deployBlockNumber ? startBlock : deployBlockNumber;
+  while (mayHaveMore) {
+    const pageRes = await fetchExplorerLogsPage(
+      chain,
+      contractAddress,
+      BeefyVaultV6Abi,
+      "UpgradeStrat",
+      fromBlock,
+      explorerLogToBeefyVaultV6UpgradeStratEvent
+    );
+    allStrategyEvents = allStrategyEvents.concat(pageRes.logs);
+    mayHaveMore = pageRes.mayHaveMore;
+    if (pageRes.logs.length > 0) {
+      fromBlock = pageRes.logs[pageRes.logs.length - 1].blockNumber + 1;
+    } else {
+      break;
+    }
+  }
+
+  // now, we want to yield a fake event for the strategy on deploy
+  // if the stragegy has never been upgraded, yield the current strategy at the deploy block time
+  // if the stragegy has been upgraded, yield the strategy at the block preceeding the first upgrade block time
+
+  let callOptions: { blockTag: number } | undefined = undefined;
+  if (allStrategyEvents.length === 0) {
+    callOptions = undefined;
+  } else {
+    const firstUpgradeBlockNumber = allStrategyEvents[0].blockNumber;
+    callOptions = { blockTag: firstUpgradeBlockNumber - 1 };
+  }
+  const strategyImplem = await callLockProtectedRpc(chain, async (provider) => {
+    const contract = new ethers.Contract(
+      contractAddress,
+      BeefyVaultV6Abi,
+      provider
+    );
+    const [stragegy] =
+      callOptions === undefined
+        ? await contract.functions.strategy()
+        : await contract.functions.strategy(callOptions);
+    return stragegy;
+  });
+  // yield the strategy at the deploy block time
+  yield {
+    blockNumber: deployBlockNumber,
+    datetime: deployBlockDatetime,
+    data: {
+      implementation: strategyImplem,
+    },
+  };
+  // then yield the rest of our data
+  yield* allStrategyEvents;
 }

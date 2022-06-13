@@ -5,11 +5,12 @@ import { parse as syncParser } from "csv-parse/sync";
 import { stringify as stringifySync } from "csv-stringify/sync";
 import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
-import { getContract, normalizeAddress } from "../utils/ethers";
+import { normalizeAddress } from "../utils/ethers";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { SamplingPeriod } from "./csv-block-samples";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
+import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 
 const CSV_SEPARATOR = ",";
 
@@ -86,13 +87,19 @@ export async function fetchBeefyPPFS(
   contractAddress: string,
   blockNumber: number
 ) {
-  const contract = await getContract(chain, BeefyVaultV6Abi, contractAddress);
-  const ppfs: [ethers.BigNumber] =
-    await contract.functions.getPricePerFullShare({
-      // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
-      // note that many backends do not support this, or may require paid plans to access as the node
-      // database storage and processing requirements are much higher
-      blockTag: blockNumber,
-    });
-  return ppfs[0];
+  return callLockProtectedRpc(chain, async (provider) => {
+    const contract = new ethers.Contract(
+      contractAddress,
+      BeefyVaultV6Abi,
+      provider
+    );
+    const ppfs: [ethers.BigNumber] =
+      await contract.functions.getPricePerFullShare({
+        // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
+        // note that many backends do not support this, or may require paid plans to access as the node
+        // database storage and processing requirements are much higher
+        blockTag: blockNumber,
+      });
+    return ppfs[0];
+  });
 }

@@ -6,11 +6,11 @@ import {
 } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
-import {
-  getFirstTransactionInfos,
-  getLastTransactionInfos,
-} from "../lib/contract-transaction-infos";
 import { getRedisCachedBlockDate } from "../utils/ethers";
+import {
+  fetchCachedContractLastTransaction,
+  fetchContractCreationInfos,
+} from "../lib/fetch-if-not-found-locally";
 
 async function main() {
   const chain = "fantom";
@@ -34,11 +34,11 @@ async function main() {
       chain,
       strategyAddressRow.strategy_address
     );
-    const { blockNumber: startBlock } = await getFirstTransactionInfos(
+    const { blockNumber: startBlock } = await fetchContractCreationInfos(
       chain,
       strategyAddressRow.strategy_address
     );
-    const { blockNumber: endBlock } = await getLastTransactionInfos(
+    const { blockNumber: endBlock } = await fetchCachedContractLastTransaction(
       chain,
       strategyAddressRow.strategy_address
     );

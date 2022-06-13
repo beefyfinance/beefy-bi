@@ -1,11 +1,11 @@
 import { logger } from "../utils/logger";
-import { cacheAsyncResult } from "../utils/cache";
 import { Chain } from "../types/chain";
 import * as ethers from "ethers";
-import { callLockProtectedExplorerUrl } from "./shared-explorer";
+import { callLockProtectedExplorerUrl } from "./shared-resources/shared-explorer";
 import * as lodash from "lodash";
 import { RPC_URLS } from "../utils/config";
 import axios from "axios";
+import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 
 interface ContractCreationInfo {
   chain: Chain;
@@ -15,7 +15,7 @@ interface ContractCreationInfo {
   datetime: Date;
 }
 
-export async function _fetchContractFirstLastTrx(
+export async function fetchContractFirstLastTrxFromExplorer(
   chain: Chain,
   contractAddress: string,
   type: "first" | "last"
@@ -33,7 +33,9 @@ export async function _fetchContractFirstLastTrx(
     action: "txlist",
     address: contractAddress,
     sort: sort,
-    limit: "1",
+    page: "1",
+    offset: "1",
+    limit: "1", // mostly ignored, but just in case
   });
 
   const trxInfos = creationRes[0];
@@ -53,47 +55,28 @@ export async function _fetchContractFirstLastTrx(
   };
 }
 
-export const getFirstTransactionInfos = cacheAsyncResult(
-  function fetchFirstTrxInfos(chain: Chain, contractAddress: string) {
-    return _fetchContractFirstLastTrx(chain, contractAddress, "first");
-  },
-  {
-    getKey: (chain, contractAddress) => `${chain}:${contractAddress}:first`,
-    dateFields: ["datetime"],
-  }
-);
-
-export const getLastTransactionInfos = cacheAsyncResult(
-  function fetchFirstTrxInfos(chain: Chain, contractAddress: string) {
-    return _fetchContractFirstLastTrx(chain, contractAddress, "last");
-  },
-  {
-    getKey: (chain, contractAddress) => `${chain}:${contractAddress}:last`,
-    dateFields: ["datetime"],
-    ttl_sec: 60 * 60, // 1h
-  }
-);
-
 async function getCreationTimestampHarmonyRpc(
   chain: Chain,
   contractAddress: string,
   type: "first" | "last"
 ): Promise<ContractCreationInfo> {
-  const url = lodash.sample(RPC_URLS[chain]) as string;
-  const resp = await axios.post(url, {
-    jsonrpc: "2.0",
-    method: "hmyv2_getTransactionsHistory",
-    params: [
-      {
-        address: contractAddress,
-        pageIndex: 0,
-        pageSize: 1,
-        fullTx: true,
-        txType: "ALL",
-        order: type === "first" ? "ASC" : "DESC",
-      },
-    ],
-    id: 1,
+  const resp = await callLockProtectedRpc(chain, async (provider) => {
+    const url = provider.connection.url;
+    return await axios.post(url, {
+      jsonrpc: "2.0",
+      method: "hmyv2_getTransactionsHistory",
+      params: [
+        {
+          address: contractAddress,
+          pageIndex: 0,
+          pageSize: 1,
+          fullTx: true,
+          txType: "ALL",
+          order: type === "first" ? "ASC" : "DESC",
+        },
+      ],
+      id: 1,
+    });
   });
   const transaction = lodash.get(resp, "data.result.transactions[0]") as
     | undefined

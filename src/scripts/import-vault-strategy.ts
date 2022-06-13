@@ -1,22 +1,25 @@
 import { logger } from "../utils/logger";
 import { insertVaulStrategyBatch } from "../utils/db";
 import { batchAsyncStream } from "../utils/batch";
-import { streamBifiVaultUpgradeStratEvents } from "../lib/streamContractEvents";
-import { getBlockDate } from "../utils/ethers";
+import { streamBifiVaultUpgradeStratEventsFromRpc } from "../lib/streamContractEventsFromRpc";
+import { getRedisCachedBlockDate } from "../utils/ethers";
 
 async function main() {
   const chain = "fantom";
   //const contractAddress = "0x95EA2284111960c748edF4795cb3530e5E423b8c";
   const contractAddress = "0x41D44B276904561Ac51855159516FD4cB2c90968";
 
-  const stream = streamBifiVaultUpgradeStratEvents(chain, contractAddress);
+  const stream = streamBifiVaultUpgradeStratEventsFromRpc(
+    chain,
+    contractAddress
+  );
 
   for await (const eventBatch of batchAsyncStream(stream, 100)) {
     const events = await Promise.all(
       eventBatch.map(async (event) => ({
         block_number: event.blockNumber,
         time: (
-          await getBlockDate(chain, event.blockNumber)
+          await getRedisCachedBlockDate(chain, event.blockNumber)
         ).datetime.toISOString(),
         chain: chain,
         contract_address: contractAddress,

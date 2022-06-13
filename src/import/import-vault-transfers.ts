@@ -1,10 +1,10 @@
-import { _fetchContractFirstLastTrx } from "../lib/contract-transaction-infos";
 import {
   getERC20TransferStorageWriteStream,
   getLastImportedERC20TransferBlockNumber,
 } from "../lib/csv-transfer-events";
 import {
   fetchBeefyVaultAddresses,
+  fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
@@ -14,9 +14,7 @@ import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
-import { backOff } from "exponential-backoff";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import { LOG_LEVEL } from "../utils/config";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -67,23 +65,7 @@ async function main() {
     }
 
     const endBlock = (
-      await backOff(
-        async () => _fetchContractFirstLastTrx(chain, contractAddress, "last"),
-        {
-          retry: async (error, attemptNumber) => {
-            logger.error(
-              `[ERC20.T] Error on attempt ${attemptNumber} fetching last trx of ${chain}:${contractAddress}: ${error}`
-            );
-            if (LOG_LEVEL === "trace") {
-              console.error(error);
-            }
-            return true;
-          },
-          numOfAttempts: 10,
-          startingDelay: 5000,
-          delayFirstAttempt: true,
-        }
-      )
+      await fetchCachedContractLastTransaction(chain, contractAddress)
     ).blockNumber;
 
     if (startBlock >= endBlock) {

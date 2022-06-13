@@ -1,13 +1,5 @@
 import { Chain } from "../types/chain";
-import {
-  getFirstTransactionInfos,
-  getLastTransactionInfos,
-} from "./contract-transaction-infos";
-import { getContract } from "../utils/ethers";
 import { logger } from "../utils/logger";
-import * as lodash from "lodash";
-import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
-import { ethers } from "ethers";
 import axios from "axios";
 import { BEEFY_DATA_URL } from "../utils/config";
 

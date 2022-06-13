@@ -47,7 +47,10 @@ async function getCache() {
   return cache;
 }
 
-export function cacheAsyncResult<TArgs extends any[], TReturn extends object>(
+export function cacheAsyncResultInRedis<
+  TArgs extends any[],
+  TReturn extends object
+>(
   fn: (...parameters: TArgs) => Promise<TReturn>,
   options: {
     getKey: (...params: TArgs) => string;

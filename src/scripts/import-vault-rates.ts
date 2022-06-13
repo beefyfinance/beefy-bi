@@ -4,9 +4,8 @@ import {
   insertVaultTokenRateBatch,
   prepareInsertVaultRateBatch,
 } from "../utils/db";
-import { getContract } from "../utils/ethers";
-import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import * as lodash from "lodash";
+import { fetchBeefyPPFS } from "../lib/csv-vault-ppfs";
 
 async function main() {
   const chain = "fantom";
@@ -30,7 +29,6 @@ async function main() {
   `,
     [chain, contractAddress, chain, contractAddress]
   );
-  const contract = getContract(chain, BeefyVaultV6Abi, contractAddress);
 
   logger.info(`Processing ${blockRows.length} blocks`);
 
@@ -42,12 +40,11 @@ async function main() {
     const data: { ppfs: string; block_number: number; time: Date }[] = [];
     for (const blockRow of blockRowBatch) {
       try {
-        const ppfs = await contract.functions.getPricePerFullShare({
-          // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
-          //note that many backends do not support this, or may require paid plans to access as the node
-          // database storage and processing requirements are much higher
-          blockTag: blockRow.block_number,
-        });
+        const ppfs = await fetchBeefyPPFS(
+          chain,
+          contractAddress,
+          blockRow.block_number
+        );
         data.push({
           ppfs: ppfs.toString(),
           block_number: blockRow.block_number,

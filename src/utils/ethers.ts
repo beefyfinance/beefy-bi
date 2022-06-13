@@ -1,20 +1,20 @@
 import { RPC_URLS } from "./config";
 import { Chain } from "../types/chain";
 import * as ethers from "ethers";
-import { cacheAsyncResult } from "./cache";
+import { cacheAsyncResultInRedis } from "./cache";
 import * as lodash from "lodash";
 
 function getProvider(chain: Chain) {
   return new ethers.providers.JsonRpcProvider(lodash.sample(RPC_URLS[chain]));
 }
-
+/*
 export function getContract(
   chain: Chain,
   abi: ethers.ContractInterface,
   address: string
 ) {
   return new ethers.Contract(address, abi, getProvider(chain));
-}
+}*/
 
 export interface BlockDateInfos {
   blockNumber: number;
@@ -33,7 +33,7 @@ export async function fetchBlockData(
   };
 }
 
-export const getRedisCachedBlockDate = cacheAsyncResult(fetchBlockData, {
+export const getRedisCachedBlockDate = cacheAsyncResultInRedis(fetchBlockData, {
   getKey: (chain, blockNumber) => `${chain}:${blockNumber}`,
   dateFields: ["datetime"],
 });

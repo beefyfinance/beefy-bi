@@ -45,6 +45,14 @@ x-ppfs-importer-env: &ppfs-importer-env
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./src/import/import-vault-ppfs.ts
 
+x-strategy-importer-env: &strategy-importer-env
+  REDIS_URL: redis://redis:6379
+  LOG_LEVEL: "info"
+  DATA_DIRECTORY: /data
+  WORK_SCRIPT: ./src/import/import-vault-strategies.ts
+  WORK_CHAIN: all
+  WORK_SOURCE: all
+
 services:
   #############################################################################
   #############################################################################
@@ -57,6 +65,15 @@ services:
       - "6379:6379"
     networks:
       - backend
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  import-vault-strategies-all-chains:
+    <<: *importer
+    environment:
+      <<: *strategy-importer-env
 
   #############################################################################
   #############################################################################
@@ -167,6 +184,7 @@ services:
   #  environment:
   #    <<: *vault-importer-env
   #    WORK_CHAIN: syscoin
+  #    WORK_SOURCE: ???
 
   # disabled because explorer api is different
   #import-vault-transfers-emerald:

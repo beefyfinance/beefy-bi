@@ -1,7 +1,6 @@
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
-import * as lodash from "lodash";
 import { normalizeAddress } from "../utils/ethers";
 import {
   allSamplingPeriods,
@@ -9,7 +8,6 @@ import {
   samplingPeriodMs,
   streamBlockSamplesFrom,
 } from "../lib/csv-block-samples";
-import { backOff } from "exponential-backoff";
 import { sleep } from "../utils/async";
 import {
   fetchBeefyVaultAddresses,
@@ -22,8 +20,7 @@ import {
   getLastImportedBeefyVaultV6PPFSBlockNumber,
 } from "../lib/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
-import { LOG_LEVEL } from "../utils/config";
-import { ethers } from "ethers";
+import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -74,17 +71,17 @@ async function main() {
       samplingPeriod
     );
 
-    try {
-      for await (const blockDataBatch of batchAsyncStream(
-        blockSampleStream,
-        10
-      )) {
+    for await (const blockDataBatch of batchAsyncStream(
+      blockSampleStream,
+      10
+    )) {
+      try {
         logger.verbose(
           `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`
         );
         const vaultData: BeefyVaultV6PPFSData[] = [];
         for (const blockData of blockDataBatch) {
-          const ppfs = await getBeefyPPFSAtBlockWithRetry(
+          const ppfs = await fetchBeefyPPFS(
             chain,
             contractAddress,
             blockData.blockNumber
@@ -96,91 +93,21 @@ async function main() {
           });
         }
         writeBatch(vaultData);
+      } catch (e) {
+        if (e instanceof ArchiveNodeNeededError) {
+          logger.error(
+            `[PPFS] Archive node needed, skipping vault ${vault.id}`
+          );
+          continue;
+        }
+        throw e;
       }
-    } catch (error) {
-      if (error instanceof ArchiveNodeNeededError) {
-        logger.info(
-          `Skipping ${chain}:${vault.id} because an archive node is needed`
-        );
-        continue;
-      }
-      throw error;
     }
   }
   logger.info(
     `[PPFS] Finished importing ppfs for ${chain}. Sleeping for a bit`
   );
   await sleep(samplingPeriodMs[samplingPeriod] * 10);
-}
-
-// be nice to rpcs or you'll get banned
-const minMsBetweenCalls = 1000;
-let lastCall = new Date(0);
-async function getBeefyPPFSAtBlockWithRetry(
-  chain: Chain,
-  contractAddress: string,
-  blockNumber: number
-) {
-  return backOff(
-    async () => {
-      try {
-        const now = new Date();
-        if (now.getTime() - lastCall.getTime() < minMsBetweenCalls) {
-          await sleep(minMsBetweenCalls - (now.getTime() - lastCall.getTime()));
-        }
-        const data = await fetchBeefyPPFS(chain, contractAddress, blockNumber);
-        lastCall = new Date();
-        return data;
-      } catch (error) {
-        const errorRpcBody = lodash.get(error, "error.body");
-        if (errorRpcBody && lodash.isString(errorRpcBody)) {
-          const rpcBodyError = JSON.parse(errorRpcBody);
-          const errorCode = lodash.get(rpcBodyError, "error.code");
-          if (errorCode === -32000) {
-            logger.error(
-              `Archive node needed for ${chain}:${contractAddress}:${blockNumber}`
-            );
-            throw new ArchiveNodeNeededError(
-              chain,
-              contractAddress,
-              blockNumber,
-              error
-            );
-          }
-        }
-        throw error;
-      }
-    },
-    {
-      retry: async (error, attemptNumber) => {
-        logger.error(
-          `[BLOCKS] Error on attempt ${attemptNumber} fetching ppfs data of ${chain}:${blockNumber}: ${error}`
-        );
-        if (LOG_LEVEL === "trace") {
-          console.error(error);
-        }
-        // some errors are not recoverable
-        if (error instanceof ArchiveNodeNeededError) {
-          return false;
-        }
-        return true;
-      },
-      numOfAttempts: 10,
-      startingDelay: 1000,
-      delayFirstAttempt: true,
-    }
-  );
-}
-
-class ArchiveNodeNeededError extends Error {
-  constructor(
-    public readonly chain: Chain,
-    public readonly contractAddress: string,
-    public readonly blockNumber: number,
-    public readonly error: any
-  ) {
-    super(`Archive node needed for ${chain}:${contractAddress}:${blockNumber}`);
-  }
 }
 
 main()

@@ -1,13 +1,12 @@
 import axios from "axios";
 import * as fs from "fs";
 import { Chain } from "../types/chain";
-import { DATA_DIRECTORY, LOG_LEVEL } from "../utils/config";
+import { DATA_DIRECTORY } from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
-import { _fetchContractFirstLastTrx } from "./contract-transaction-infos";
-import { backOff } from "exponential-backoff";
-import { logger } from "../utils/logger";
+import { fetchContractFirstLastTrxFromExplorer } from "./contract-transaction-infos";
+import { cacheAsyncResultInRedis } from "../utils/cache";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
@@ -63,22 +62,10 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(
   async (chain: Chain, contractAddress: string) => {
-    return backOff(
-      () => _fetchContractFirstLastTrx(chain, contractAddress, "first"),
-      {
-        retry: async (error, attemptNumber) => {
-          logger.error(
-            `[BLOCKS] Error on attempt ${attemptNumber} fetching first transaction of ${chain}:${contractAddress}: ${error}`
-          );
-          if (LOG_LEVEL === "trace") {
-            console.error(error);
-          }
-          return true;
-        },
-        numOfAttempts: 5,
-        startingDelay: 5000,
-        delayFirstAttempt: true,
-      }
+    return fetchContractFirstLastTrxFromExplorer(
+      chain,
+      contractAddress,
+      "first"
     );
   },
   (chain: Chain, contractAddress: string) =>
@@ -89,4 +76,20 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
       normalizeAddress(contractAddress),
       "creation_date.json"
     )
+);
+
+export const fetchCachedContractLastTransaction = cacheAsyncResultInRedis(
+  async (chain: Chain, contractAddress: string) => {
+    return fetchContractFirstLastTrxFromExplorer(
+      chain,
+      contractAddress,
+      "first"
+    );
+  },
+  {
+    getKey: (chain: Chain, contractAddress: string) =>
+      `${chain}:${contractAddress}:last-trx`,
+    dateFields: ["datetime"],
+    ttl_sec: 60 * 60,
+  }
 );

@@ -1,16 +1,15 @@
 import { Chain } from "../types/chain";
-import {
-  getFirstTransactionInfos,
-  getLastTransactionInfos,
-} from "./contract-transaction-infos";
-import { getContract } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, LOG_LEVEL } from "../utils/config";
-import { backOff } from "exponential-backoff";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
+import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import {
+  fetchCachedContractLastTransaction,
+  fetchContractCreationInfos,
+} from "./fetch-if-not-found-locally";
 
 async function* streamContractEventsFromRpc<TEventArgs>(
   chain: Chain,
@@ -30,7 +29,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
 ) {
   let startBlock = options?.startBlock;
   if (!startBlock) {
-    const { blockNumber } = await getFirstTransactionInfos(
+    const { blockNumber } = await fetchContractCreationInfos(
       chain,
       contractAddress
     );
@@ -38,7 +37,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   }
   let endBlock = options?.endBlock;
   if (!endBlock) {
-    const { blockNumber } = await getLastTransactionInfos(
+    const { blockNumber } = await fetchCachedContractLastTransaction(
       chain,
       contractAddress
     );
@@ -67,34 +66,18 @@ async function* streamContractEventsFromRpc<TEventArgs>(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
   for (const [rangeIdx, blockRange] of ranges.entries()) {
-    const events = await backOff(
-      () => {
-        // instanciate contract late to shuffle rpcs on error
-        const contract = getContract(chain, abi, contractAddress);
-        const eventFilter = options?.getEventFilters
-          ? options?.getEventFilters(contract.filters)
-          : contract.filters[eventName]();
-        return contract.queryFilter(
-          eventFilter,
-          blockRange.fromBlock,
-          blockRange.toBlock
-        );
-      },
-      {
-        retry: async (error, attemptNumber) => {
-          logger.error(
-            `[ERC20.T.RPC] Error on attempt ${attemptNumber} for ${chain}:${contractAddress}:${eventName} (${blockRange.fromBlock}->${blockRange.toBlock}) : ${error}`
-          );
-          if (LOG_LEVEL === "trace") {
-            console.error(error);
-          }
-          return true;
-        },
-        numOfAttempts: 10,
-        startingDelay: 1000,
-        delayFirstAttempt: true,
-      }
-    );
+    const events = await callLockProtectedRpc(chain, async (provider) => {
+      // instanciate contract late to shuffle rpcs on error
+      const contract = new ethers.Contract(contractAddress, abi, provider);
+      const eventFilter = options?.getEventFilters
+        ? options?.getEventFilters(contract.filters)
+        : contract.filters[eventName]();
+      return contract.queryFilter(
+        eventFilter,
+        blockRange.fromBlock,
+        blockRange.toBlock
+      );
+    });
 
     if (events.length > 0) {
       logger.verbose(
@@ -171,18 +154,38 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
 ) {
   // add a fake event for the contract creation
   const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
-    await getFirstTransactionInfos(chain, contractAddress);
-  const contract = getContract(chain, BeefyVaultV6Abi, contractAddress);
-  const firstStrategyRes = await contract.functions.strategy({
-    blockTag: deployBlockNumber,
-  });
+    await fetchContractCreationInfos(chain, contractAddress);
+
+  const firstStrategyRes = await callLockProtectedRpc(
+    chain,
+    async (provider) => {
+      const contract = new ethers.Contract(
+        contractAddress,
+        BeefyVaultV6Abi,
+        provider
+      );
+      return contract.functions.strategy({
+        blockTag: deployBlockNumber,
+      });
+    }
+  );
   yield {
     blockNumber: deployBlockNumber,
     datetime: deployBlockDatetime,
     data: { implementation: firstStrategyRes[0] as string },
   };
   // add a shortcut if the strategy never changed
-  const currentStrategyRes = await contract.functions.strategy();
+  const currentStrategyRes = await await callLockProtectedRpc(
+    chain,
+    async (provider) => {
+      const contract = new ethers.Contract(
+        contractAddress,
+        BeefyVaultV6Abi,
+        provider
+      );
+      return contract.functions.strategy();
+    }
+  );
   if (firstStrategyRes[0] === currentStrategyRes[0]) {
     logger.verbose(
       `[ERC20.T.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
