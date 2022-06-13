@@ -147,13 +147,12 @@ services:
   #    WORK_CHAIN: metis
   #    WORK_SOURCE: rpc
 
-  # disabled because explorer api is different
-  #import-vault-transfers-harmony:
-  #  <<: *importer
-  #  environment:
-  #    <<: *vault-importer-env
-  #    WORK_CHAIN: harmony
-  #    WORK_SOURCE: rpc
+  import-vault-transfers-harmony:
+    <<: *importer
+    environment:
+      <<: *vault-importer-env
+      WORK_CHAIN: harmony
+      WORK_SOURCE: rpc # no ethscan-compatible for harmony yet
 
   import-vault-transfers-fuse:
     <<: *importer
@@ -356,12 +355,11 @@ services:
   #    <<: *ppfs-importer-env
   #    WORK_CHAIN: metis
 
-  # disabled because explorer api is different
-  #import-vault-ppfs-harmony:
-  #  <<: *importer
-  #  environment:
-  #    <<: *ppfs-importer-env
-  #    WORK_CHAIN: harmony
+  import-vault-ppfs-harmony:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: harmony
 
   import-vault-ppfs-fuse:
     <<: *importer

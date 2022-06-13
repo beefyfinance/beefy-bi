@@ -8,7 +8,7 @@ import {
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
-import { allChainIds, Chain } from "../types/chain";
+import { allChainIds } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
@@ -68,7 +68,7 @@ async function main() {
 
     const endBlock = (
       await backOff(
-        () => _fetchContractFirstLastTrx(chain, contractAddress, "last"),
+        async () => _fetchContractFirstLastTrx(chain, contractAddress, "last"),
         {
           retry: async (error, attemptNumber) => {
             logger.error(

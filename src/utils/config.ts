@@ -136,7 +136,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   arbitrum: 3000,
   aurora: 3000,
   metis: 3000,
-  harmony: 3000,
+  harmony: 1024, // GetLogs query must be smaller than size 1024
   fuse: 3000,
   syscoin: 3000,
   emerald: 3000,
