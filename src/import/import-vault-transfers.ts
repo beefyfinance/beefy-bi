@@ -15,6 +15,7 @@ import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
+import { shuffle } from "lodash";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -32,7 +33,7 @@ async function main() {
 
   logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
   // find out which vaults we need to parse
-  const vaults = await fetchBeefyVaultAddresses(chain);
+  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
@@ -105,7 +106,7 @@ async function main() {
         endBlock,
         timeOrder: "timeline",
       });
-      for await (const eventBatch of batchAsyncStream(stream, 100)) {
+      for await (const eventBatch of batchAsyncStream(stream, 10)) {
         logger.verbose("[ERC20.T] Writing batch");
         await writeBatch(
           eventBatch.map((event) => ({

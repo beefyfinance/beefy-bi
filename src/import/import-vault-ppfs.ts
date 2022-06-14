@@ -21,6 +21,7 @@ import {
 } from "../lib/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
+import { shuffle } from "lodash";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -35,7 +36,7 @@ async function main() {
 
   logger.info(`[PPFS] Importing ${chain} ppfs with period ${samplingPeriod}.`);
   // find out which vaults we need to parse
-  const vaults = await fetchBeefyVaultAddresses(chain);
+  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
   for (const vault of vaults) {
     logger.info(`[PPFS] Importing ppfs for ${chain}:${vault.id}`);
 

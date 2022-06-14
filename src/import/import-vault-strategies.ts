@@ -14,6 +14,7 @@ import {
   getBeefyVaultV6StrategiesWriteStream,
   getLastImportedBeefyVaultV6StrategiesBlockNumber,
 } from "../lib/csv-vault-strategy";
+import { shuffle } from "lodash";
 
 async function main() {
   const useExplorerFor: Chain[] = [
@@ -29,7 +30,7 @@ async function main() {
     "arbitrum",
     "aurora",
   ];
-  for (const chain of allChainIds) {
+  for (const chain of shuffle(allChainIds)) {
     try {
       const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
       await importChain(chain, source);
@@ -48,7 +49,7 @@ async function main() {
 async function importChain(chain: Chain, source: "rpc" | "explorer") {
   logger.info(`[STRATS] Importing ${chain} vault strategies...`);
   // find out which vaults we need to parse
-  const vaults = await fetchBeefyVaultAddresses(chain);
+  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
