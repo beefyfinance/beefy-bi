@@ -83,7 +83,7 @@ export const fetchCachedContractLastTransaction = cacheAsyncResultInRedis(
     return fetchContractFirstLastTrxFromExplorer(
       chain,
       contractAddress,
-      "first"
+      "last"
     );
   },
   {

@@ -79,7 +79,15 @@ export async function getLastImportedBeefyVaultV6PPFSBlockNumber(
   const data = syncParser(lastImportedCSVRows, {
     columns: beefyVaultPPFSColumns,
     delimiter: CSV_SEPARATOR,
-    cast: true,
+    cast: (value, context) => {
+      if (context.index === 0) {
+        return parseInt(value);
+      } else if (context.index === 1) {
+        return new Date(value);
+      } else {
+        return value;
+      }
+    },
     cast_date: true,
   });
   if (data.length === 0) {

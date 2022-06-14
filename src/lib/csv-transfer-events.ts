@@ -65,7 +65,15 @@ export async function getLastImportedERC20TransferBlockNumber(
   const data = syncParser(lastImportedCSVRows, {
     delimiter: CSV_SEPARATOR,
     columns: erc20TransferColumns,
-    cast: true,
+    cast: (value, context) => {
+      if (context.index === 0) {
+        return parseInt(value);
+      } else if (context.index === 1) {
+        return new Date(value);
+      } else {
+        return value;
+      }
+    },
     cast_date: true,
   });
   if (data.length === 0) {

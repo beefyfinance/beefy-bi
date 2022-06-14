@@ -70,7 +70,15 @@ export async function* streamBlockSamplesFrom(
       asyncParser({
         delimiter: CSV_SEPARATOR,
         columns: blockSamplesColumns,
-        cast: true,
+        cast: (value, context) => {
+          if (context.index === 0) {
+            return parseInt(value);
+          } else if (context.index === 1) {
+            return new Date(value);
+          } else {
+            return value;
+          }
+        },
         cast_date: true,
       })
     );

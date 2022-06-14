@@ -3,6 +3,7 @@ import {
   fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
+import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
@@ -12,14 +13,16 @@ import { streamBifiVaultUpgradeStratEventsFromExplorer } from "../lib/streamCont
 import { LOG_LEVEL } from "../utils/config";
 import {
   getBeefyVaultV6StrategiesWriteStream,
-  getLastImportedBeefyVaultV6StrategiesBlockNumber,
+  getLastImportedBeefyVaultV6Strategy,
 } from "../lib/csv-vault-strategy";
 import { shuffle } from "lodash";
+import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
+import { ethers } from "ethers";
 
 async function main() {
   const useExplorerFor: Chain[] = [
     "fantom",
-    //"cronos", // explorer is buggy
+    "cronos",
     "bsc",
     "polygon",
     "heco",
@@ -58,10 +61,11 @@ async function importChain(chain: Chain, source: "rpc" | "explorer") {
       `[STRATS] Processing ${chain}:${vault.id} (${contractAddress})`
     );
 
-    let startBlock = await getLastImportedBeefyVaultV6StrategiesBlockNumber(
+    const lastImported = await getLastImportedBeefyVaultV6Strategy(
       chain,
       contractAddress
     );
+    let startBlock: number | null = lastImported?.blockNumber || null;
     if (startBlock === null) {
       logger.debug(
         `[STRATS] No local data for ${chain}:${vault.id}, fetching contract creation info`
@@ -79,6 +83,26 @@ async function importChain(chain: Chain, source: "rpc" | "explorer") {
         }, fetching data starting from block ${startBlock + 1}`
       );
       startBlock = startBlock + 1;
+
+      // add a shortcut hitting the rpc (it's faster)
+      const latestStrat = await callLockProtectedRpc(
+        chain,
+        async (provider) => {
+          const contract = new ethers.Contract(
+            contractAddress,
+            BeefyVaultV6Abi,
+            provider
+          );
+          const [stragegy] = await contract.functions.strategy();
+          return normalizeAddress(stragegy);
+        }
+      );
+      if (latestStrat === lastImported?.implementation) {
+        logger.info(
+          `[STRATS] ${chain}:${vault.id} already up to date, skipping`
+        );
+        continue;
+      }
     }
 
     const endBlock = (

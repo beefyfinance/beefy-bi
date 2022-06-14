@@ -57,10 +57,10 @@ export async function getBeefyVaultV6StrategiesWriteStream(
   };
 }
 
-export async function getLastImportedBeefyVaultV6StrategiesBlockNumber(
+export async function getLastImportedBeefyVaultV6Strategy(
   chain: Chain,
   contractAddress: string
-): Promise<number | null> {
+): Promise<BeefyVaultV6StrategiesData | null> {
   const filePath = getBeefyVaultV6StrategiesFilePath(chain, contractAddress);
   if (!fs.existsSync(filePath)) {
     return null;
@@ -69,7 +69,15 @@ export async function getLastImportedBeefyVaultV6StrategiesBlockNumber(
   const data = syncParser(lastImportedCSVRows, {
     columns: beefyVaultStrategiesColumns,
     delimiter: CSV_SEPARATOR,
-    cast: true,
+    cast: (value, context) => {
+      if (context.index === 0) {
+        return parseInt(value);
+      } else if (context.index === 1) {
+        return new Date(value);
+      } else {
+        return value;
+      }
+    },
     cast_date: true,
   });
   if (data.length === 0) {
@@ -77,5 +85,5 @@ export async function getLastImportedBeefyVaultV6StrategiesBlockNumber(
   }
   data.reverse();
 
-  return parseInt(data[0].blockNumber);
+  return data[0];
 }
