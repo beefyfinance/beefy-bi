@@ -110,7 +110,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   emerald: "https://explorer.oasis.dev/",
 };
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 6000;
-export const MIN_DELAY_BETWEEN_RPC_CALLS_MS = 500;
+export const MIN_DELAY_BETWEEN_RPC_CALLS_MS = 1000;
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   cronos: 3000,

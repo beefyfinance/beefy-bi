@@ -64,7 +64,7 @@ export function cacheAsyncResultInRedis<
   const cachedFn = async function (...args: any[]): Promise<TReturn> {
     const cache = await getCache();
     // @ts-ignore
-    const key = fn.name + ":" + options.getKey(...args);
+    const key = options.getKey(...args);
     if (await cache.has(key)) {
       //logger.debug(`[REDIS] Cache hit for ${key}`);
       const obj = await cache.getJSON<TReturn>(key);
