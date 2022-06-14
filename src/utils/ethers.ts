@@ -28,6 +28,7 @@ export async function fetchBlockData(
       // FIXES: invalid argument 0: hex number with leading zero digits
       if (blockParam.startsWith("0x0")) {
         blockParam = blockParam.replace(/^0x0+/, "0x");
+        blockParam = blockParam === "0x" ? "0x0" : blockParam;
       }
       const res = await axios.post<{
         result: { timestamp: string; number: string };
