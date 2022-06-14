@@ -81,9 +81,12 @@ export async function callLockProtectedRpc<TRes>(
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        logger.error(
-          `[EXPLORER] Error on attempt ${attemptNumber} calling rpc for ${rpcUrl}: ${error.message}`
-        );
+        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling rpc for ${rpcUrl}: ${error.message}`;
+        if (attemptNumber < 3) logger.verbose(message);
+        else if (attemptNumber < 5) logger.info(message);
+        else if (attemptNumber < 8) logger.warn(message);
+        else logger.error(message);
+
         if (LOG_LEVEL === "trace") {
           console.error(error);
         }

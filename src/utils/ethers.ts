@@ -38,6 +38,13 @@ export async function fetchBlockData(
         jsonrpc: "2.0",
       });
       const blockRes = res.data.result;
+      if (!blockRes || blockRes?.number === undefined) {
+        throw new Error(
+          `Invalid block result for celo ${chain}:${blockNumber} ${JSON.stringify(
+            res.data
+          )}`
+        );
+      }
       const blocknum = ethers.BigNumber.from(blockRes.number).toNumber();
 
       const datetime = new Date(
