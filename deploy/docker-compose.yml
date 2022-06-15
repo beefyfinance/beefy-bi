@@ -79,6 +79,16 @@ services:
   #############################################################################
   #############################################################################
 
+  import-block-samples-all-chains:
+    <<: *importer
+    environment:
+      <<: *block-samples-importer-env
+      WORK_CHAIN: all
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
   import-vault-transfers-fantom:
     <<: *importer
     environment:
@@ -171,12 +181,13 @@ services:
       WORK_CHAIN: harmony
       WORK_SOURCE: rpc # no ethscan-compatible for harmony yet
 
-  import-vault-transfers-fuse:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: fuse
-      WORK_SOURCE: rpc # explorer requires toBlock to be set
+  # disabled because explorer is buggy
+  #import-vault-transfers-fuse:
+  #  <<: *importer
+  #  environment:
+  #    <<: *vault-importer-env
+  #    WORK_CHAIN: fuse
+  #    WORK_SOURCE: rpc # explorer requires toBlock to be set
 
   # no beefy vault list for now
   #import-vault-transfers-syscoin:
@@ -193,106 +204,6 @@ services:
   #    <<: *vault-importer-env
   #    WORK_CHAIN: emerald
   #    WORK_SOURCE: rpc
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  import-block-samples-fantom:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: fantom
-
-  import-block-samples-cronos:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: cronos
-
-  import-block-samples-bsc:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: bsc
-
-  import-block-samples-polygon:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: polygon
-
-  import-block-samples-heco:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: heco
-
-  import-block-samples-avax:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: avax
-
-  import-block-samples-moonbeam:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: moonbeam
-
-  import-block-samples-celo:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: celo
-
-  import-block-samples-moonriver:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: moonriver
-
-  import-block-samples-arbitrum:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: arbitrum
-
-  import-block-samples-aurora:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: aurora
-
-  import-block-samples-metis:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: metis
-
-  import-block-samples-harmony:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: harmony
-
-  import-block-samples-fuse:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: fuse
-
-  import-block-samples-syscoin:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: syscoin
-
-  import-block-samples-emerald:
-    <<: *importer
-    environment:
-      <<: *block-samples-importer-env
-      WORK_CHAIN: emerald
 
   #############################################################################
   #############################################################################
@@ -340,12 +251,11 @@ services:
       <<: *ppfs-importer-env
       WORK_CHAIN: moonbeam
 
-  # disabled because block script is disabled for celo
-  #import-vault-ppfs-celo:
-  #  <<: *importer
-  #  environment:
-  #    <<: *ppfs-importer-env
-  #    WORK_CHAIN: celo
+  import-vault-ppfs-celo:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: celo
 
   import-vault-ppfs-moonriver:
     <<: *importer

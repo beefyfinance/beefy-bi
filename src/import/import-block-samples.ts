@@ -9,20 +9,47 @@ import {
   SamplingPeriod,
   samplingPeriodMs,
 } from "../lib/csv-block-samples";
-import { MS_PER_BLOCK_ESTIMATE } from "../utils/config";
+import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
+import * as lodash from "lodash";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")
     .options({
-      chain: { choices: allChainIds, alias: "c", demand: true },
+      chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
       period: { choices: allSamplingPeriods, alias: "p", default: "4hour" },
     }).argv;
 
-  const chain = argv.chain as Chain;
+  const chain = argv.chain as Chain | "all";
   const samplingPeriod = argv.period as SamplingPeriod;
 
+  const chainsToImport = chain === "all" ? allChainIds : [chain];
+  const allPromises = lodash.shuffle(chainsToImport).map(async (chain) => {
+    try {
+      await importChainBlockSamples(chain, samplingPeriod);
+    } catch (e) {
+      logger.error(
+        `[BLOCKS] Error importing ${chain} block samples. Skipping. ${e}`
+      );
+      if (LOG_LEVEL === "trace") {
+        console.log(e);
+      }
+    }
+  });
+  await Promise.allSettled(allPromises);
+
+  logger.info(
+    `[BLOCKS] Done importing ${chain} block samples with period ${samplingPeriod}. Sleeping for 10 * ${samplingPeriod}`
+  );
+  const ms = samplingPeriodMs[samplingPeriod];
+  await sleep(10 * ms);
+}
+
+async function importChainBlockSamples(
+  chain: Chain,
+  samplingPeriod: SamplingPeriod
+) {
   logger.info(
     `[BLOCKS] Importing ${chain} block samples with period ${samplingPeriod}.`
   );
@@ -104,11 +131,6 @@ async function main() {
       blockCountToFill
     );
   }
-
-  logger.info(
-    `[BLOCKS] Done importing ${chain} block samples with period ${samplingPeriod}. Sleeping for a bit`
-  );
-  await sleep(10 * ms);
 }
 
 async function fillBlockGaps(

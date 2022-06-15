@@ -122,9 +122,9 @@ async function main() {
   }
 
   logger.info(
-    `[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 1h`
+    `[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 4h`
   );
-  await sleep(1000 * 60 * 60);
+  await sleep(1000 * 60 * 60 * 4);
 }
 
 main()
