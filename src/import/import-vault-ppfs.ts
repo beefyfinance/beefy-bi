@@ -22,6 +22,7 @@ import {
 import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { shuffle } from "lodash";
+import { onExit } from "../utils/process";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -121,7 +122,7 @@ main()
     process.exit(1);
   });
 
-process.on("SIGINT", async () => {
+onExit(async () => {
   logger.verbose(
     `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
   );

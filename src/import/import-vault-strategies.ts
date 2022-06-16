@@ -18,6 +18,7 @@ import {
 import { shuffle } from "lodash";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
+import { onExit } from "../utils/process";
 
 async function main() {
   const useExplorerFor: Chain[] = [
@@ -169,7 +170,7 @@ main()
     process.exit(1);
   });
 
-process.on("SIGINT", async () => {
+onExit(async () => {
   logger.verbose(
     `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
   );

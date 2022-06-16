@@ -8,6 +8,7 @@ import { DATA_DIRECTORY } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "../utils/logger";
+import { onExit } from "../utils/process";
 
 const CSV_SEPARATOR = ",";
 
@@ -47,7 +48,7 @@ export async function getBeefyVaultV6StrategiesWriteStream(
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
 
   let closed = false;
-  process.on("SIGINT", function () {
+  onExit(async () => {
     logger.info(`[VAULT.S.STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();

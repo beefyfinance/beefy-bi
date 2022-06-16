@@ -12,6 +12,7 @@ import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVault
 import { ethers } from "ethers";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 import { logger } from "../utils/logger";
+import { onExit } from "../utils/process";
 
 const CSV_SEPARATOR = ",";
 
@@ -51,7 +52,7 @@ export async function getBeefyVaultV6PPFSWriteStream(
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
 
   let closed = false;
-  process.on("SIGINT", function () {
+  onExit(async () => {
     logger.info(`[VAULT.PPFS.STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();

@@ -16,6 +16,7 @@ import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { shuffle } from "lodash";
+import { onExit } from "../utils/process";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -138,7 +139,7 @@ main()
     process.exit(1);
   });
 
-process.on("SIGINT", async () => {
+onExit(async () => {
   logger.verbose(
     `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
   );

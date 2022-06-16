@@ -12,6 +12,7 @@ import {
 import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 import * as lodash from "lodash";
+import { onExit } from "../utils/process";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -218,11 +219,11 @@ main()
     process.exit(1);
   });
 
-process.on("SIGINT", async () => {
+onExit(async () => {
   logger.verbose(
-    `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
+    `[BLOCKS] exiting, waiting for write streams to close and exiting`
   );
   await sleep(1000);
-  logger.info(`[BLOCKS] SIGINT, exiting`);
+  logger.info(`[BLOCKS] exiting`);
   process.exit(0);
 });

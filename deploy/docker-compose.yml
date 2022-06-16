@@ -11,14 +11,7 @@ x-importer: &importer
   image: beefy-data-importer
   restart: always
   command:
-    [
-      "node",
-      "$$WORK_SCRIPT",
-      "--chain",
-      "$$WORK_CHAIN",
-      "--source",
-      $$WORK_SOURCE,
-    ]
+    ["$$WORK_SCRIPT", "--chain", "$$WORK_CHAIN", "--source", $$WORK_SOURCE]
   volumes:
     - data_directory:/data
   networks:
