@@ -68,4 +68,6 @@ COPY --from=build /opt/build/dist /opt/app/dist
 WORKDIR /opt/app
 
 # Run the application using node
-CMD [ "node", "dist/index.js" ]
+ENTRYPOINT []
+COPY deploy/run.sh .
+CMD ["./run.sh"]
