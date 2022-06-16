@@ -68,9 +68,4 @@ COPY --from=build /opt/build/dist /opt/app/dist
 WORKDIR /opt/app
 
 # Run the application using node
-ENTRYPOINT [ "node" ]
-CMD [ "dist/index.js" ]
-
-# Alternatively: Run your application using Forever (ensure this is installed as a dependency first)
-# See: https://github.com/foreversd/forever
-# ENTRYPOINT [ "./node_modules/.bin/forever", "./dist/index.js" ]
+CMD [ "node", "dist/index.js" ]
