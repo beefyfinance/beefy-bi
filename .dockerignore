@@ -11,3 +11,4 @@ artifacts
 data/indexed
 data2
 out/*
+dist

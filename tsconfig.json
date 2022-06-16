@@ -1,19 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2022",
     "module": "commonjs",
     "strict": true,
     "esModuleInterop": true,
     "outDir": "dist",
     "declaration": true,
     "resolveJsonModule": true,
-    "types": ["jest"]
+    "types": ["jest"],
+    "sourceMap": true
   },
-  "include": [
-    "./scripts",
-    "./test",
-    "./typechain",
-    "src/lib/streamERC20Transfers.ts"
-  ],
-  "files": ["./hardhat.config.ts"]
+  "include": ["./src/main.ts", "./data/interfaces/**/*.json"]
 }

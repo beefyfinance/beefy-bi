@@ -7,6 +7,7 @@ import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
+import { logger } from "../utils/logger";
 
 const CSV_SEPARATOR = ",";
 
@@ -40,8 +41,20 @@ export async function getERC20TransferStorageWriteStream(
   const filePath = getContractERC20TransfersFilePath(chain, contractAddress);
   await makeDataDirRecursive(filePath);
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
+
+  let closed = false;
+  process.on("SIGINT", function () {
+    logger.info(`[ERC20.T.STORE] SIGINT, closing write stream`);
+    closed = true;
+    writeStream.close();
+  });
+
   return {
     writeBatch: async (events) => {
+      if (closed) {
+        logger.debug(`[ERC20.T.STORE] stream closed, ignoring batch`);
+        return;
+      }
       const csvData = stringifySync(events, {
         delimiter: CSV_SEPARATOR,
         cast: {

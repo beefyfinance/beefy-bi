@@ -137,3 +137,12 @@ main()
     logger.error(e);
     process.exit(1);
   });
+
+process.on("SIGINT", async () => {
+  logger.verbose(
+    `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
+  );
+  await sleep(1000);
+  logger.info(`[BLOCKS] SIGINT, exiting`);
+  process.exit(0);
+});

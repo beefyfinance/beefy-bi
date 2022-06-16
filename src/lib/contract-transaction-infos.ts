@@ -7,7 +7,7 @@ import { RPC_URLS } from "../utils/config";
 import axios from "axios";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 
-interface ContractCreationInfo {
+export interface ContractCreationInfo {
   chain: Chain;
   contractAddress: string;
   transactionHash: string;

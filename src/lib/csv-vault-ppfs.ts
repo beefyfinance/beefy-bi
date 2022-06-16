@@ -49,8 +49,20 @@ export async function getBeefyVaultV6PPFSWriteStream(
   );
   await makeDataDirRecursive(filePath);
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
+
+  let closed = false;
+  process.on("SIGINT", function () {
+    logger.info(`[VAULT.PPFS.STORE] SIGINT, closing write stream`);
+    closed = true;
+    writeStream.close();
+  });
+
   return {
     writeBatch: async (events) => {
+      if (closed) {
+        logger.debug(`[VAULT.PPFS.STORE] stream closed, ignoring batch`);
+        return;
+      }
       const csvData = stringifySync(events, {
         delimiter: CSV_SEPARATOR,
         cast: {

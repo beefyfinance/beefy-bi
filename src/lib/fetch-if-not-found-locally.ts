@@ -5,7 +5,10 @@ import { DATA_DIRECTORY } from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
-import { fetchContractFirstLastTrxFromExplorer } from "./contract-transaction-infos";
+import {
+  ContractCreationInfo,
+  fetchContractFirstLastTrxFromExplorer,
+} from "./contract-transaction-infos";
 import { cacheAsyncResultInRedis } from "../utils/cache";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
@@ -61,7 +64,10 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
 );
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(
-  async (chain: Chain, contractAddress: string) => {
+  async (
+    chain: Chain,
+    contractAddress: string
+  ): Promise<ContractCreationInfo> => {
     return fetchContractFirstLastTrxFromExplorer(
       chain,
       contractAddress,
@@ -79,7 +85,10 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
 );
 
 export const fetchCachedContractLastTransaction = cacheAsyncResultInRedis(
-  async (chain: Chain, contractAddress: string) => {
+  async (
+    chain: Chain,
+    contractAddress: string
+  ): Promise<ContractCreationInfo> => {
     return fetchContractFirstLastTrxFromExplorer(
       chain,
       contractAddress,
