@@ -12,7 +12,7 @@ import {
 import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 import * as lodash from "lodash";
-import { onExit } from "../utils/process";
+import { runMain } from "../utils/process";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -208,22 +208,4 @@ async function getFirstBlock(chain: Chain) {
   return firstBlock;
 }
 
-main()
-  .then(() => {
-    logger.info("[BLOCKS] Done");
-    process.exit(0);
-  })
-  .catch((e) => {
-    console.log(e);
-    logger.error(e);
-    process.exit(1);
-  });
-
-onExit(async () => {
-  logger.verbose(
-    `[BLOCKS] exiting, waiting for write streams to close and exiting`
-  );
-  await sleep(1000);
-  logger.info(`[BLOCKS] exiting`);
-  process.exit(0);
-});
+runMain(main);

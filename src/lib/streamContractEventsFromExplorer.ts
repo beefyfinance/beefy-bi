@@ -50,24 +50,33 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
   abi: JsonAbi,
   eventName: string,
   fromBlock: number,
-  formatEvent: (event: ExplorerLog) => TRes
+  formatEvent: (event: ExplorerLog) => TRes,
+  fromAddress?: string
 ) {
   logger.debug(
-    `[ERC20.T.EX] Fetching ${eventName} events from ${fromBlock} for ${chain}:${contractAddress}`
+    `[ERC20.T.EX] Fetching ${eventName} events from ${fromBlock} for ${chain}:${contractAddress}:${fromAddress}`
   );
   const eventTopic = getEventTopicFromJsonAbi(abi, eventName);
-  const rawLogs = await callLockProtectedExplorerUrl<ExplorerLog[]>(chain, {
+  const params: Record<string, string> = {
     module: "logs",
     action: "getLogs",
     address: contractAddress,
     topic0: eventTopic,
     fromBlock: fromBlock.toString(),
-  });
+  };
+  if (fromAddress) {
+    params.topic1 =
+      "0x000000000000000000000000" + fromAddress.slice(2) /** remove "0x" */;
+  }
+  const rawLogs = await callLockProtectedExplorerUrl<ExplorerLog[]>(
+    chain,
+    params
+  );
   let logs = rawLogs.map(formatEvent);
   const mayHaveMore = logs.length === 1000;
 
   logger.verbose(
-    `[ERC20.T.EX] Got ${logs.length} ${eventName} events for ${chain}:${contractAddress}, mayHaveMore: ${mayHaveMore}`
+    `[ERC20.T.EX] Got ${logs.length} ${eventName} events for ${chain}:${contractAddress}:${fromAddress}, mayHaveMore: ${mayHaveMore}`
   );
   // remove last block data as the explorer may have truncated results
   // in the middle of a block
@@ -135,7 +144,8 @@ function explorerLogToERC20TransferEvent(event: ExplorerLog): ERC20EventData {
 export async function* streamERC20TransferEventsFromExplorer(
   chain: Chain,
   contractAddress: string,
-  fromBlock: number
+  fromBlock: number,
+  fromAddress?: string
 ) {
   let mayHaveMore = true;
   while (mayHaveMore) {
@@ -145,7 +155,8 @@ export async function* streamERC20TransferEventsFromExplorer(
       ERC20Abi,
       "Transfer",
       fromBlock,
-      explorerLogToERC20TransferEvent
+      explorerLogToERC20TransferEvent,
+      fromAddress
     );
     if (pageRes.logs.length === 0) {
       return;
@@ -155,6 +166,7 @@ export async function* streamERC20TransferEventsFromExplorer(
     fromBlock = pageRes.logs[pageRes.logs.length - 1].blockNumber + 1;
   }
 }
+
 interface BeefyVaultV6StrategyUpgradeEvent {
   blockNumber: number;
   datetime: Date;

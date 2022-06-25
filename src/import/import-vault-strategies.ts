@@ -18,7 +18,7 @@ import {
 import { shuffle } from "lodash";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
-import { onExit } from "../utils/process";
+import { runMain } from "../utils/process";
 
 async function main() {
   const useExplorerFor: Chain[] = [
@@ -159,22 +159,4 @@ async function importChain(chain: Chain, source: "rpc" | "explorer") {
   }
 }
 
-main()
-  .then(() => {
-    logger.info("[STRATS] Done");
-    process.exit(0);
-  })
-  .catch((e) => {
-    console.log(e);
-    logger.error(e);
-    process.exit(1);
-  });
-
-onExit(async () => {
-  logger.verbose(
-    `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
-  );
-  await sleep(1000);
-  logger.info(`[BLOCKS] SIGINT, exiting`);
-  process.exit(0);
-});
+runMain(main);

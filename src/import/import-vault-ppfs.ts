@@ -22,7 +22,7 @@ import {
 import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { shuffle } from "lodash";
-import { onExit } from "../utils/process";
+import { runMain } from "../utils/process";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -111,22 +111,4 @@ async function main() {
   await sleep(samplingPeriodMs[samplingPeriod] * 10);
 }
 
-main()
-  .then(() => {
-    logger.info("Done");
-    process.exit(0);
-  })
-  .catch((e) => {
-    console.log(e);
-    logger.error(e);
-    process.exit(1);
-  });
-
-onExit(async () => {
-  logger.verbose(
-    `[BLOCKS] SIGINT, waiting for write streams to close and exiting`
-  );
-  await sleep(1000);
-  logger.info(`[BLOCKS] SIGINT, exiting`);
-  process.exit(0);
-});
+runMain(main);

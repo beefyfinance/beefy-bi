@@ -43,6 +43,14 @@ x-strategy-importer-env: &strategy-importer-env
   WORK_CHAIN: all
   WORK_SOURCE: all
 
+x-native-transfer-from-strategy-env: &native-transfer-from-strategy-env
+  REDIS_URL: redis://redis:6379
+  LOG_LEVEL: "info"
+  DATA_DIRECTORY: /data
+  WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.ts
+  WORK_CHAIN: all
+  WORK_SOURCE: all
+
 services:
   #############################################################################
   #############################################################################
@@ -74,6 +82,16 @@ services:
     <<: *importer
     environment:
       <<: *block-samples-importer-env
+      WORK_CHAIN: all
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
+  import-native-transfers-from-strategies:
+    <<: *importer
+    environment:
+      <<: *native-transfer-from-strategy-env
       WORK_CHAIN: all
 
   #############################################################################

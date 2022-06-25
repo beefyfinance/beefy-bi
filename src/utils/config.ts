@@ -172,3 +172,24 @@ export const LOG_LEVEL:
   | "trace"
   | "warn"
   | "error";
+
+// todo: use those from beefy addressbook package
+export const WNATIVE_ADDRESS: { [chain in Chain]: string } = {
+  // those are checksumed addressed
+  arbitrum: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+  aurora: "0xC9BdeEd33CD01541e1eeD10f90519d2C06Fe3feB",
+  avax: "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7",
+  bsc: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+  celo: "0x471EcE3750Da237f93B8E339c536989b8978a438",
+  cronos: "0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23",
+  emerald: "0x21C718C22D52d0F3a789b752D4c2fD5908a8A733",
+  fantom: "0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83",
+  fuse: "0x0BE9e53fd7EDaC9F859882AfdDa116645287C629",
+  harmony: "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a",
+  heco: "0x5545153CCFcA01fbd7Dd11C0b23ba694D9509A6F",
+  metis: "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000",
+  moonbeam: "0xAcc15dC74880C9944775448304B263D191c6077F",
+  moonriver: "0x98878B06940aE243284CA214f92Bb71a2b032B8A",
+  polygon: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+  syscoin: "0xd3e822f3ef011Ca5f17D82C956D952D8d7C3A1BB",
+};
