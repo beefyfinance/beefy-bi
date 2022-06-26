@@ -13,6 +13,7 @@ import { ethers } from "ethers";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
+import axios from "axios";
 
 const CSV_SEPARATOR = ",";
 
@@ -115,7 +116,12 @@ export async function fetchBeefyPPFS(
   chain: Chain,
   contractAddress: string,
   blockNumber: number
-) {
+): Promise<ethers.BigNumber> {
+  // it looks like ethers doesn't yet support harmony's special format or smth
+  if (chain === "harmony") {
+    return fetchBeefyPPFSHarmonyRPC(chain, contractAddress, blockNumber);
+  }
+
   logger.debug(
     `[PPFS] Fetching PPFS for ${chain}:${contractAddress}:${blockNumber}`
   );
@@ -132,6 +138,41 @@ export async function fetchBeefyPPFS(
         // database storage and processing requirements are much higher
         blockTag: blockNumber,
       });
+    return ppfs[0];
+  });
+}
+
+async function fetchBeefyPPFSHarmonyRPC(
+  chain: Chain,
+  contractAddress: string,
+  blockNumber: number
+): Promise<ethers.BigNumber> {
+  logger.debug(
+    `[PPFS] Fetching PPFS for ${chain}:${contractAddress}:${blockNumber}`
+  );
+  return callLockProtectedRpc(chain, async (provider) => {
+    const url = provider.connection.url;
+
+    const abi = ["function getPricePerFullShare()"];
+    const iface = new ethers.utils.Interface(abi);
+    const callData = iface.encodeFunctionData("getPricePerFullShare");
+    const res = await axios.post(url, {
+      method: "eth_call",
+      params: [
+        {
+          from: null,
+          to: contractAddress,
+          data: callData,
+        },
+        blockNumber,
+      ],
+      id: 1,
+      jsonrpc: "2.0",
+    });
+    const ppfs = ethers.utils.defaultAbiCoder.decode(
+      ["uint256"],
+      res.data.result
+    ) as any as [ethers.BigNumber];
     return ppfs[0];
   });
 }

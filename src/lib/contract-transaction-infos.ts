@@ -27,8 +27,7 @@ export async function fetchContractFirstLastTrxFromExplorer(
   }
 
   const sort = type === "first" ? "asc" : "desc";
-
-  const creationRes = await callLockProtectedExplorerUrl<any>(chain, {
+  const params: Record<string, string> = {
     module: "account",
     action: "txlist",
     address: contractAddress,
@@ -36,7 +35,14 @@ export async function fetchContractFirstLastTrxFromExplorer(
     page: "1",
     offset: "1",
     limit: "1", // mostly ignored, but just in case
-  });
+  };
+  // for some reason, fuse rpc explorer fails with too small pages
+  // KO (504): https://explorer.fuse.io/api?module=account&action=txlist&address=0x641Ec255eD35C7bf520745b6E40E6f3d989D0ff2&sort=asc&page=1&offset=1&limit=1
+  // OK : https://explorer.fuse.io/api?module=account&action=txlist&address=0x641Ec255eD35C7bf520745b6E40E6f3d989D0ff2&sort=asc&page=1&offset=100&limit=1
+  if (chain === "fuse") {
+    params.offset = "100";
+  }
+  const creationRes = await callLockProtectedExplorerUrl<any>(chain, params);
 
   const trxInfos = creationRes[0];
   const block = parseInt(trxInfos.blockNumber);

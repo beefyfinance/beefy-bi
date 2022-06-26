@@ -30,15 +30,22 @@ async function main() {
     .options({
       chain: { choices: allChainIds, alias: "c", demand: true },
       period: { choices: allSamplingPeriods, alias: "p", default: "4hour" },
+      vaultId: { alias: "v", demand: false, string: true },
     }).argv;
 
   const chain = argv.chain as Chain;
   const samplingPeriod = argv.period as SamplingPeriod;
+  const vaultId = argv.vaultId;
 
   logger.info(`[PPFS] Importing ${chain} ppfs with period ${samplingPeriod}.`);
   // find out which vaults we need to parse
   const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
   for (const vault of vaults) {
+    if (vaultId && vault.id !== vaultId) {
+      logger.debug(`[PPFS] Skipping vault ${vault.id}`);
+      continue;
+    }
+
     logger.info(`[PPFS] Importing ppfs for ${chain}:${vault.id}`);
 
     const contractAddress = normalizeAddress(vault.token_address);

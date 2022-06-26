@@ -8,3 +8,5 @@ typechain
 cache
 artifacts
 dist
+
+*.log
