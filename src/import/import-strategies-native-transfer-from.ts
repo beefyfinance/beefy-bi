@@ -1,6 +1,6 @@
 import {
   getERC20TransferFromStorageWriteStream,
-  getLastImportedERC20TransferFromBlockNumber,
+  getLastImportedERC20TransferFromEvent,
 } from "../lib/csv-transfer-from-events";
 import {
   fetchCachedContractLastTransaction,
@@ -83,11 +83,14 @@ async function importStrategyWNativeFrom(
 
   logger.info(`[ERC20.N.ST] Processing ${chain}:${strategy.implementation}`);
 
-  let startBlock = await getLastImportedERC20TransferFromBlockNumber(
-    chain,
-    contractAddress,
-    nativeAddress
-  );
+  let startBlock =
+    (
+      await getLastImportedERC20TransferFromEvent(
+        chain,
+        contractAddress,
+        nativeAddress
+      )
+    )?.blockNumber || null;
   if (startBlock === null) {
     logger.debug(
       `[ERC20.N.ST] No local data for ${chain}:${strategy.implementation}, fetching contract creation info`

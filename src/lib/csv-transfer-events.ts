@@ -67,10 +67,10 @@ export async function getERC20TransferStorageWriteStream(
   };
 }
 
-export async function getLastImportedERC20TransferBlockNumber(
+export async function getLastImportedERC20TransferEvent(
   chain: Chain,
   contractAddress: string
-): Promise<number | null> {
+): Promise<ERC20EventData | null> {
   const filePath = getContractERC20TransfersFilePath(chain, contractAddress);
   if (!fs.existsSync(filePath)) {
     return null;
@@ -95,5 +95,5 @@ export async function getLastImportedERC20TransferBlockNumber(
   }
   data.reverse();
 
-  return parseInt(data[0].blockNumber);
+  return data[0];
 }

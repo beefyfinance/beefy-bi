@@ -75,11 +75,11 @@ export async function getBeefyVaultV6PPFSWriteStream(
   };
 }
 
-export async function getLastImportedBeefyVaultV6PPFSBlockNumber(
+export async function getLastImportedBeefyVaultV6PPFSData(
   chain: Chain,
   contractAddress: string,
   samplingPeriod: SamplingPeriod
-): Promise<number | null> {
+): Promise<BeefyVaultV6PPFSData | null> {
   const filePath = getBeefyVaultV6PPFSFilePath(
     chain,
     contractAddress,
@@ -108,7 +108,7 @@ export async function getLastImportedBeefyVaultV6PPFSBlockNumber(
   }
   data.reverse();
 
-  return parseInt(data[0].blockNumber);
+  return data[0];
 }
 
 export async function fetchBeefyPPFS(

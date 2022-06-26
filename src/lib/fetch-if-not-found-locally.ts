@@ -37,7 +37,7 @@ interface RawBeefyVault {
   isGovVault?: boolean;
   status?: string;
 }
-interface BeefyVault {
+export interface BeefyVault {
   id: string;
   token_name: string;
   token_decimals: number;

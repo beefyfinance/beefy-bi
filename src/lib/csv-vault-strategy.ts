@@ -104,6 +104,35 @@ export async function getLastImportedBeefyVaultV6Strategy(
   return data[0];
 }
 
+export async function* streamVaultStrategies(
+  chain: Chain,
+  contractAddress: string
+) {
+  const filePath = getBeefyVaultV6StrategiesFilePath(chain, contractAddress);
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const readStream: AsyncIterable<BeefyVaultV6StrategiesData> = fs
+    .createReadStream(filePath)
+    .pipe(
+      asyncParser({
+        delimiter: CSV_SEPARATOR,
+        columns: beefyVaultStrategiesColumns,
+        cast: (value, context) => {
+          if (context.index === 0) {
+            return parseInt(value);
+          } else if (context.index === 1) {
+            return new Date(value);
+          } else {
+            return value;
+          }
+        },
+        cast_date: true,
+      })
+    );
+  yield* readStream;
+}
+
 export async function* getAllStrategyAddresses(chain: Chain) {
   const filePaths = await new Promise<string[]>((resolve, reject) => {
     const globPath = path.join(

@@ -1,6 +1,6 @@
 import {
   getERC20TransferStorageWriteStream,
-  getLastImportedERC20TransferBlockNumber,
+  getLastImportedERC20TransferEvent,
 } from "../lib/csv-transfer-events";
 import {
   fetchBeefyVaultAddresses,
@@ -43,10 +43,9 @@ async function main() {
       `[ERC20.T] Processing ${chain}:${vault.id} (${contractAddress})`
     );
 
-    let startBlock = await getLastImportedERC20TransferBlockNumber(
-      chain,
-      contractAddress
-    );
+    let startBlock =
+      (await getLastImportedERC20TransferEvent(chain, contractAddress))
+        ?.blockNumber || null;
     if (startBlock === null) {
       logger.debug(
         `[ERC20.T] No local data for ${chain}:${vault.id}, fetching contract creation info`

@@ -17,7 +17,7 @@ import {
   BeefyVaultV6PPFSData,
   fetchBeefyPPFS,
   getBeefyVaultV6PPFSWriteStream,
-  getLastImportedBeefyVaultV6PPFSBlockNumber,
+  getLastImportedBeefyVaultV6PPFSData,
 } from "../lib/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
@@ -44,11 +44,14 @@ async function main() {
     const contractAddress = normalizeAddress(vault.token_address);
 
     // find out the vault creation block or last imported ppfs
-    let lastImportedBlock = await getLastImportedBeefyVaultV6PPFSBlockNumber(
-      chain,
-      contractAddress,
-      samplingPeriod
-    );
+    let lastImportedBlock =
+      (
+        await getLastImportedBeefyVaultV6PPFSData(
+          chain,
+          contractAddress,
+          samplingPeriod
+        )
+      )?.blockNumber || null;
     if (lastImportedBlock === null) {
       // get creation block of the contract
       const { blockNumber } = await fetchContractCreationInfos(
