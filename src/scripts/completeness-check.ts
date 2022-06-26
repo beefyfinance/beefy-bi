@@ -53,16 +53,16 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   );
   if (latestTransfer === null) {
     logger.error(
-      `[CC] No ERC20 moo token transfer events found for vault ${contractAddress}`
+      `[CC] No ERC20 moo token transfer events found for vault ${chain}:${contractAddress}`
     );
   } else if (now.getTime() - latestTransfer.datetime.getTime() > oneDay) {
     logger.warn(
-      `[CC] ERC20 last transfer is too old for vault ${contractAddress}: ${JSON.stringify(
+      `[CC] ERC20 last transfer is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(
         latestTransfer
       )}`
     );
   } else {
-    logger.debug(`[CC] Vault transfers are OK for ${contractAddress}`);
+    logger.debug(`[CC] Vault transfers are OK for ${chain}:${contractAddress}`);
   }
 
   // check we get a recent ppfs
@@ -74,16 +74,16 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   );
   if (latestPPFS === null) {
     logger.error(
-      `[CC] No PPFS found for vault ${contractAddress} and sampling ${sampling}`
+      `[CC] No PPFS found for vault ${chain}:${contractAddress} and sampling ${sampling}`
     );
   } else if (now.getTime() - latestPPFS.datetime.getTime() > oneDay) {
     logger.warn(
-      `[CC] PPFS is too old for vault ${contractAddress}: ${JSON.stringify(
+      `[CC] PPFS is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(
         latestPPFS
       )}`
     );
   } else {
-    logger.debug(`[CC] Vault PPFS are OK for ${contractAddress}`);
+    logger.debug(`[CC] Vault PPFS are OK for ${chain}:${contractAddress}`);
   }
 
   // check we got the vault strategies
@@ -92,9 +92,13 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     contractAddress
   );
   if (latestStrat === null) {
-    logger.error(`[CC] No Strategies found for vault ${contractAddress}`);
+    logger.error(
+      `[CC] No Strategies found for vault ${chain}:${contractAddress}`
+    );
   } else {
-    logger.debug(`[CC] Found some strategies for vault ${contractAddress}`);
+    logger.debug(
+      `[CC] Found some strategies for vault ${chain}:${contractAddress}`
+    );
   }
 
   // for each strategy, check we got transfer froms
@@ -109,16 +113,16 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     );
     if (lastTransferFrom === null) {
       logger.error(
-        `[CC] No TransferFrom events found for vault ${contractAddress}}`
+        `[CC] No TransferFrom events found for vault ${chain}:${fromAddress}}`
       );
     } else if (now.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
       logger.warn(
-        `[CC] TransferFrom events too old for vault ${contractAddress}: ${JSON.stringify(
+        `[CC] TransferFrom events too old for vault ${chain}:${fromAddress}: ${JSON.stringify(
           lastTransferFrom
         )}`
       );
     } else {
-      logger.debug(`[CC] TransferFrom events ok for ${contractAddress}`);
+      logger.debug(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
     }
   }
 }
