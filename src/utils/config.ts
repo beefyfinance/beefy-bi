@@ -62,7 +62,10 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
       ],
   celo: process.env.CELO_RPC
     ? [process.env.CELO_RPC]
-    : ["https://rpc.ankr.com/celo"],
+    : [
+        "https://celo.snapshot.org",
+        //"https://rpc.ankr.com/celo"
+      ],
   moonriver: process.env.MOONRIVER_RPC
     ? [process.env.MOONRIVER_RPC]
     : [
@@ -77,7 +80,12 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     : [
         "https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek",
       ],
-  fuse: process.env.FUSE_RPC ? [process.env.FUSE_RPC] : ["https://rpc.fuse.io"],
+  fuse: process.env.FUSE_RPC
+    ? [process.env.FUSE_RPC]
+    : [
+        "https://explorer-node.fuse.io/",
+        //"https://rpc.fuse.io",
+      ],
   metis: process.env.METIS_RPC
     ? [process.env.METIS_RPC]
     : ["https://andromeda.metis.io/?owner=1088"],
