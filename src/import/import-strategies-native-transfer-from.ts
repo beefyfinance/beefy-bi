@@ -130,10 +130,15 @@ async function importStrategyWNativeFrom(
   );
 
   if (source === "explorer") {
+    // Fuse and metis explorer requires an end block to be set
+    // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+    // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+    const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
     const stream = streamERC20TransferEventsFromExplorer(
       chain,
       nativeAddress,
       startBlock,
+      stopBlock,
       contractAddress
     );
     for await (const eventBatch of batchAsyncStream(stream, 1000)) {

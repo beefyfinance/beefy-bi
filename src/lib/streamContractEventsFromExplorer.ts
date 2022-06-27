@@ -32,15 +32,15 @@ type JsonAbi = {
 
 interface ExplorerLog {
   address: string;
-  topics: string[];
+  topics: (string | null)[];
   data: string;
-  blockNumber: number;
-  timeStamp: number;
-  gasPrice: number;
-  gasUsed: number;
-  logIndex: number;
+  blockNumber: number | string;
+  timeStamp: number | string;
+  gasPrice: number | string;
+  gasUsed: number | string;
+  logIndex: number | string;
   transactionHash: string;
-  transactionIndex: number;
+  transactionIndex: number | string;
 }
 
 // be nice to explorers or you'll get banned
@@ -118,16 +118,19 @@ const getEventTypesFromJsonAbi = lodash.memoize(
   }
 );
 
-function explorerLogToERC20TransferEvent(event: ExplorerLog): ERC20EventData {
+export function explorerLogToERC20TransferEvent(
+  event: ExplorerLog
+): ERC20EventData {
   const blockNumber = parseInt(
     ethers.BigNumber.from(event.blockNumber).toString()
   );
+  console.log(event);
   const data =
     "0x" +
     event.topics
       .slice(1)
       .concat([event.data])
-      .map((hexData: string) => hexData.slice(2))
+      .map((hexData: string | null) => (hexData ? hexData.slice(2) : hexData))
       .join("");
   const [from, to, value] = ethers.utils.defaultAbiCoder.decode(
     getEventTypesFromJsonAbi(ERC20Abi, "Transfer"),
@@ -149,6 +152,7 @@ export async function* streamERC20TransferEventsFromExplorer(
   chain: Chain,
   contractAddress: string,
   fromBlock: number,
+  toBlock: number | null,
   fromAddress?: string
 ) {
   let mayHaveMore = true;
@@ -159,7 +163,7 @@ export async function* streamERC20TransferEventsFromExplorer(
       ERC20Abi,
       "Transfer",
       fromBlock,
-      null,
+      toBlock,
       explorerLogToERC20TransferEvent,
       fromAddress
     );
@@ -189,7 +193,7 @@ function explorerLogToBeefyVaultV6UpgradeStratEvent(
     event.topics
       .slice(1)
       .concat([event.data])
-      .map((hexData: string) => hexData.slice(2))
+      .map((hexData: string | null) => (hexData ? hexData.slice(2) : hexData))
       .join("");
   const [implementation] = ethers.utils.defaultAbiCoder.decode(
     getEventTypesFromJsonAbi(BeefyVaultV6Abi, "UpgradeStrat"),
