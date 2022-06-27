@@ -11,7 +11,7 @@ import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
-import yargs from "yargs";
+import yargs, { string } from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
@@ -40,9 +40,13 @@ async function main() {
     .usage("Usage: $0 [options]")
     .options({
       chain: { choices: ["all"].concat(allChainIds), alias: "c", demand: true },
+      strategyAddress: { type: "string", alias: "s", demand: false },
     }).argv;
 
   const chain = argv.chain as Chain | "all";
+  const strategyAddress = argv.strategyAddress
+    ? normalizeAddress(argv.strategyAddress)
+    : null;
 
   logger.info(`[ERC20.N.ST] Importing ${chain} ERC20 transfer events...`);
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
@@ -51,7 +55,7 @@ async function main() {
   const chainPromises = chains.map(async (chain) => {
     try {
       const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
-      await importChain(chain, source);
+      await importChain(chain, source, strategyAddress);
     } catch (error) {
       logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
@@ -67,10 +71,19 @@ async function main() {
   await sleep(1000 * 60 * 60 * 4);
 }
 
-async function importChain(chain: Chain, source: "rpc" | "explorer") {
+async function importChain(
+  chain: Chain,
+  source: "rpc" | "explorer",
+  strategyAddress: string | null
+) {
   try {
     const strategies = getAllStrategyAddresses(chain);
     for await (const strategy of strategies) {
+      if (strategyAddress && strategy.implementation !== strategyAddress) {
+        logger.debug(`[STRAT] Skipping strategy ${strategy.implementation}`);
+        continue;
+      }
+
       try {
         await importStrategyWNativeFrom(chain, source, strategy);
       } catch (e) {

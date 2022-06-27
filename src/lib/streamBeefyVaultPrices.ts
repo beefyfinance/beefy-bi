@@ -9,7 +9,7 @@ interface PriceSnapshot {
   value: number;
 }
 
-export async function* streamBeefyVaultPrices(
+export async function* streamBeefyPrices(
   chain: Chain,
   oracleId: string,
   options?: {

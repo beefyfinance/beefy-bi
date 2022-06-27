@@ -81,6 +81,12 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     params.topic1 =
       "0x000000000000000000000000" + fromAddress.slice(2) /** remove "0x" */;
   }
+  if (chain === "metis") {
+    // https://andromeda-explorer.metis.io/api-docs
+    // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: topic0_1_opr","result":null,"status":"0"}
+    // we use "or" because there is no topic 1
+    params.topic0_1_opr = "or";
+  }
   const rawLogs = await callLockProtectedExplorerUrl<ExplorerLog[]>(
     chain,
     params
