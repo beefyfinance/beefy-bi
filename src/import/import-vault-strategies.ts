@@ -53,6 +53,7 @@ async function main() {
     "arbitrum",
     "aurora",
     "fuse",
+    "metis",
   ];
   for (const chain of shuffle(chains)) {
     try {
@@ -90,9 +91,9 @@ async function importChain(
       await importVault(chain, source, vault);
     } catch (error) {
       logger.error(
-        `[STRATS] Error importing ${chain}:${vault} strategies: ${JSON.stringify(
-          error
-        )}`
+        `[STRATS] Error importing ${chain}:${
+          vault.id
+        } strategies: ${JSON.stringify(error)}`
       );
       if (LOG_LEVEL === "trace") {
         console.log(error);

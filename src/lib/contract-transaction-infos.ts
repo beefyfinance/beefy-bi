@@ -43,7 +43,6 @@ export async function fetchContractFirstLastTrxFromExplorer(
     params.offset = "100";
   }
   const creationRes = await callLockProtectedExplorerUrl<any>(chain, params);
-
   const trxInfos = creationRes[0];
   const block = parseInt(trxInfos.blockNumber);
   const timestamp = trxInfos.timeStamp;

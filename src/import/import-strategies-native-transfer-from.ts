@@ -32,6 +32,7 @@ async function main() {
     "moonriver",
     "arbitrum",
     "aurora",
+    "metis",
   ];
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")

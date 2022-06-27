@@ -112,7 +112,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   moonriver: "https://api-moonriver.moonscan.io/api",
   arbitrum: "https://api.arbiscan.io/api",
   aurora: "https://api.aurorascan.dev/api", //"https://explorer.mainnet.aurora.dev/",
-  metis: "https://stardust-explorer.metis.io/api", //"https://andromeda-explorer.metis.io/",
+  metis: "https://andromeda-explorer.metis.io/api", //"https://stardust-explorer.metis.io/api"
   harmony: "https://explorer.harmony.one/api",
   fuse: "https://explorer.fuse.io/api",
   syscoin: "https://explorer.syscoin.org/api",
