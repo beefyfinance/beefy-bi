@@ -37,7 +37,7 @@ async function main() {
     }).argv;
 
   const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
+  const chains = chain === "all" ? shuffle(allChainIds) : [chain];
   const vaultId = argv.vaultId || null;
 
   const useExplorerFor: Chain[] = [
@@ -55,7 +55,9 @@ async function main() {
     "fuse",
     "metis",
   ];
-  for (const chain of shuffle(chains)) {
+
+  const chainPromises = chains.map(async (chain) => {
+    const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
     try {
       const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
       await importChain(chain, source, vaultId);
@@ -65,7 +67,8 @@ async function main() {
         console.log(error);
       }
     }
-  }
+  });
+  await Promise.allSettled(chainPromises);
 
   logger.info(`[STRATS] Done importing vault strategies, sleeping 24h`);
   await sleep(1000 * 60 * 60 * 24);

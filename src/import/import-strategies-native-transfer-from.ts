@@ -15,7 +15,7 @@ import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
-import { WNATIVE_ADDRESS } from "../utils/config";
+import { LOG_LEVEL, WNATIVE_ADDRESS } from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
 
@@ -45,33 +45,45 @@ async function main() {
   logger.info(`[ERC20.N.ST] Importing ${chain} ERC20 transfer events...`);
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
 
-  // find out which strategy we need data from
-  for (const chain of chains) {
-    const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
+  // fetch all chains in parallel
+  const chainPromises = chains.map(async (chain) => {
     try {
-      const strategies = getAllStrategyAddresses(chain);
-      for await (const strategy of strategies) {
-        try {
-          await importStrategyWNativeFrom(chain, source, strategy);
-        } catch (e) {
-          logger.error(
-            `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${strategy}`
-          );
-          logger.error(e);
-        }
+      const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
+      await importChain(chain, source);
+    } catch (error) {
+      logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
+      if (LOG_LEVEL === "trace") {
+        console.log(error);
       }
-    } catch (e) {
-      logger.error(
-        `[ERC20.N.ST] Error importing chain from ${source}. Skipping ${chain}`
-      );
-      logger.error(e);
     }
-  }
+  });
+  await Promise.allSettled(chainPromises);
 
   logger.info(
     `[ERC20.N.ST] Done importing ${chain} ERC20 transfer events, sleeping 4h`
   );
   await sleep(1000 * 60 * 60 * 4);
+}
+
+async function importChain(chain: Chain, source: "rpc" | "explorer") {
+  try {
+    const strategies = getAllStrategyAddresses(chain);
+    for await (const strategy of strategies) {
+      try {
+        await importStrategyWNativeFrom(chain, source, strategy);
+      } catch (e) {
+        logger.error(
+          `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${strategy}`
+        );
+        logger.error(e);
+      }
+    }
+  } catch (e) {
+    logger.error(
+      `[ERC20.N.ST] Error importing chain from ${source}. Skipping ${chain}`
+    );
+    logger.error(e);
+  }
 }
 
 async function importStrategyWNativeFrom(
