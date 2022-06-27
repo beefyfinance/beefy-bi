@@ -1,5 +1,5 @@
 IMPORTANT:
-[ ] periodically refresh vault list
+[x] periodically refresh vault list
 [ ] fetch token and want prices from beefy api
 [ ] fix completeness checks for vault transaction date
 
@@ -11,7 +11,7 @@ NICE TO HAVE:
 [ ] have a task scheduler with a dependency graph (apache smth?) that understand when to retry immediately or not (archive node needed, quorum errors, etc)
 
 BONUS:
-[ ] remove hardhat
+[x] remove hardhat
 [ ] configure which chain has a proper explorer instead of hardcoding it
 [ ] configure which chain requires manual rpc calls instead of hardcoding it
 [ ] create a store class that regroup similar csv stores code

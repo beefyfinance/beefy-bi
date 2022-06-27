@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import { Chain } from "../types/chain";
-import { DATA_DIRECTORY } from "../utils/config";
+import { DATA_DIRECTORY, LOG_LEVEL } from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
@@ -10,22 +10,93 @@ import {
   fetchContractFirstLastTrxFromExplorer,
 } from "./contract-transaction-infos";
 import { cacheAsyncResultInRedis } from "../utils/cache";
+import { getRedlock } from "./shared-resources/shared-lock";
+import { backOff } from "exponential-backoff";
+import { logger } from "../utils/logger";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
-  getLocalPath: (...parameters: TArgs) => string
+  getLocalPath: (...parameters: TArgs) => string,
+  options?: {
+    ttl_ms: number;
+    cache_key: (...parameters: TArgs) => string;
+  }
 ) {
+  const ttl = options?.ttl_ms || null;
   return async function (...parameters: TArgs): Promise<TRes> {
     const localPath = getLocalPath(...parameters);
+
     if (fs.existsSync(localPath)) {
-      const content = await fs.promises.readFile(localPath, "utf8");
-      const data = JSON.parse(content);
-      return data;
+      // resolve ttl
+      let shouldServeCache = true;
+      if (ttl !== null) {
+        const now = new Date();
+        const localStat = await fs.promises.stat(localPath);
+        const lastModifiedDate = localStat.mtime;
+        if (now.getTime() - lastModifiedDate.getTime() > ttl) {
+          shouldServeCache = false;
+        }
+      }
+
+      if (shouldServeCache) {
+        logger.debug(
+          `[FETCH] Local cache file exists and is not expired, returning it's content`
+        );
+        const content = await fs.promises.readFile(localPath, "utf8");
+        const data = JSON.parse(content);
+        return data;
+      } else {
+        logger.debug(`[FETCH] Local cache file exists but is expired`);
+      }
     }
-    const data = await doFetch(...parameters);
-    await makeDataDirRecursive(localPath);
-    await fs.promises.writeFile(localPath, JSON.stringify(data));
-    return data;
+
+    const redlock = await getRedlock();
+    const resourceId =
+      "fetch:" +
+      (options?.cache_key(...parameters) ||
+        "fetchIfNotFoundLocally:" + Math.random().toString());
+    try {
+      const data = await backOff(
+        () =>
+          redlock.using([resourceId], 2 * 60 * 1000, async () =>
+            doFetch(...parameters)
+          ),
+        {
+          delayFirstAttempt: false,
+          jitter: "full",
+          maxDelay: 5 * 60 * 1000,
+          numOfAttempts: 10,
+          retry: (error, attemptNumber) => {
+            const message = `[FETCH] Error on attempt ${attemptNumber} fetching ${resourceId}: ${error.message}`;
+            if (attemptNumber < 3) logger.verbose(message);
+            else if (attemptNumber < 5) logger.info(message);
+            else if (attemptNumber < 8) logger.warn(message);
+            else logger.error(message);
+
+            if (LOG_LEVEL === "trace") {
+              console.error(error);
+            }
+            return true;
+          },
+          startingDelay: 200,
+          timeMultiple: 2,
+        }
+      );
+      logger.debug(
+        `[FETCH] Got new data for ${resourceId}, writing it and returning it`
+      );
+      await makeDataDirRecursive(localPath);
+      await fs.promises.writeFile(localPath, JSON.stringify(data));
+      return data;
+    } catch (error) {
+      if (fs.existsSync(localPath)) {
+        const content = await fs.promises.readFile(localPath, "utf8");
+        const data = JSON.parse(content);
+        return data;
+      } else {
+        throw error;
+      }
+    }
   };
 }
 
@@ -45,6 +116,7 @@ export interface BeefyVault {
 }
 export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
   async (chain: Chain) => {
+    logger.info(`[FETCH] Fetching updated vault list for ${chain}`);
     const res = await axios.get<RawBeefyVault[]>(
       `https://raw.githubusercontent.com/beefyfinance/beefy-v2/main/src/config/vault/${chain}.json`
     );
@@ -60,7 +132,11 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
       }));
     return data;
   },
-  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.json")
+  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.json"),
+  {
+    ttl_ms: 1000 * 60 * 60 * 24,
+    cache_key: (chain: Chain) => `vault-list:${chain}`,
+  }
 );
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(
