@@ -109,10 +109,16 @@ async function main() {
       }
     } catch (e) {
       if (e instanceof ArchiveNodeNeededError) {
-        logger.error(`[PPFS] Archive node needed, skipping vault ${vault.id}`);
+        logger.error(
+          `[PPFS] Archive node needed, skipping vault ${chain}:${vault.id}`
+        );
+        continue;
+      } else {
+        logger.error(
+          `[PPFS] Error fetching ppfs, skipping vault ${chain}:${vault.id}`
+        );
         continue;
       }
-      throw e;
     }
   }
   logger.info(
