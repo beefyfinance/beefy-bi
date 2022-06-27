@@ -90,7 +90,9 @@ async function importChain(
       await importVault(chain, source, vault);
     } catch (error) {
       logger.error(
-        `[STRATS] Error importing ${chain}:${vault} strategies: ${error}`
+        `[STRATS] Error importing ${chain}:${vault} strategies: ${JSON.stringify(
+          error
+        )}`
       );
       if (LOG_LEVEL === "trace") {
         console.log(error);

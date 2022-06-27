@@ -192,7 +192,7 @@ function explorerLogToBeefyVaultV6UpgradeStratEvent(
       .map((hexData: string) => hexData.slice(2))
       .join("");
   const [implementation] = ethers.utils.defaultAbiCoder.decode(
-    getEventTypesFromJsonAbi(ERC20Abi, "Transfer"),
+    getEventTypesFromJsonAbi(BeefyVaultV6Abi, "UpgradeStrat"),
     data
   );
   const datetime = new Date(
