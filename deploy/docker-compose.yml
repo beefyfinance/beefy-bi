@@ -175,13 +175,12 @@ services:
       WORK_CHAIN: aurora
       WORK_SOURCE: explorer
 
-  # disabled because explorer api is different
-  #import-vault-transfers-metis:
-  #  <<: *importer
-  #  environment:
-  #    <<: *vault-importer-env
-  #    WORK_CHAIN: metis
-  #    WORK_SOURCE: rpc
+  import-vault-transfers-metis:
+    <<: *importer
+    environment:
+      <<: *vault-importer-env
+      WORK_CHAIN: metis
+      WORK_SOURCE: explorer
 
   import-vault-transfers-harmony:
     <<: *importer
@@ -284,12 +283,11 @@ services:
       <<: *ppfs-importer-env
       WORK_CHAIN: aurora
 
-  # disabled because explorer api is different
-  #import-vault-ppfs-metis:
-  #  <<: *importer
-  #  environment:
-  #    <<: *ppfs-importer-env
-  #    WORK_CHAIN: metis
+  import-vault-ppfs-metis:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: metis
 
   import-vault-ppfs-harmony:
     <<: *importer
