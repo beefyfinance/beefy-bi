@@ -73,16 +73,18 @@ async function importChain(chain: Chain, source: "rpc" | "explorer") {
         await importStrategyWNativeFrom(chain, source, strategy);
       } catch (e) {
         logger.error(
-          `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${strategy.implementation}`
+          `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${
+            strategy.implementation
+          }. ${JSON.stringify(e)}`
         );
-        logger.error(e);
       }
     }
   } catch (e) {
     logger.error(
-      `[ERC20.N.ST] Error importing chain from ${source}. Skipping ${chain}`
+      `[ERC20.N.ST] Error importing chain from ${source}. Skipping ${chain}. ${JSON.stringify(
+        e
+      )}`
     );
-    logger.error(e);
   }
 }
 
