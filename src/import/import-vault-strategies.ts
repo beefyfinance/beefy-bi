@@ -54,6 +54,7 @@ async function main() {
     "aurora",
     "fuse",
     "metis",
+    "harmony",
   ];
 
   const chainPromises = chains.map(async (chain) => {
