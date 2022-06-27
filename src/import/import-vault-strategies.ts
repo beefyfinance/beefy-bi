@@ -20,8 +20,26 @@ import { shuffle } from "lodash";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
 import { runMain } from "../utils/process";
+import yargs from "yargs";
+import { streamBifiVaultUpgradeStratEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 
 async function main() {
+  const argv = await yargs(process.argv.slice(2))
+    .usage("Usage: $0 [options]")
+    .options({
+      chain: {
+        choices: ["all"].concat(allChainIds),
+        alias: "c",
+        demand: false,
+        default: "all",
+      },
+      vaultId: { alias: "v", demand: false, string: true },
+    }).argv;
+
+  const chain = argv.chain as Chain | "all";
+  const chains = chain === "all" ? allChainIds : [chain];
+  const vaultId = argv.vaultId || null;
+
   const useExplorerFor: Chain[] = [
     "fantom",
     "cronos",
@@ -34,11 +52,12 @@ async function main() {
     "moonriver",
     "arbitrum",
     "aurora",
+    "fuse",
   ];
-  for (const chain of shuffle(allChainIds)) {
+  for (const chain of shuffle(chains)) {
     try {
       const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
-      await importChain(chain, source);
+      await importChain(chain, source, vaultId);
     } catch (error) {
       logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
@@ -51,13 +70,22 @@ async function main() {
   await sleep(1000 * 60 * 60 * 24);
 }
 
-async function importChain(chain: Chain, source: "rpc" | "explorer") {
+async function importChain(
+  chain: Chain,
+  source: "rpc" | "explorer",
+  vaultId: string | null
+) {
   logger.info(`[STRATS] Importing ${chain} vault strategies...`);
   // find out which vaults we need to parse
   const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
+    if (vaultId && vault.id !== vaultId) {
+      logger.debug(`[STRATS] Skipping vault ${vault.id}`);
+      continue;
+    }
+
     try {
       await importVault(chain, source, vault);
     } catch (error) {
@@ -136,10 +164,14 @@ async function importVault(
   );
 
   if (source === "explorer") {
+    // Fuse explorer requires an end block to be set
+    // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+    const stopBlock = chain === "fuse" ? endBlock : null;
     const stream = streamBifiVaultUpgradeStratEventsFromExplorer(
       chain,
       contractAddress,
-      startBlock
+      startBlock,
+      stopBlock
     );
     for await (const eventBatch of batchAsyncStream(stream, 1000)) {
       logger.verbose("[STRATS] Writing batch");
@@ -152,10 +184,9 @@ async function importVault(
       );
     }
   } else {
-    const stream = streamBifiVaultUpgradeStratEventsFromExplorer(
+    const stream = streamBifiVaultUpgradeStratEventsFromRpc(
       chain,
-      contractAddress,
-      startBlock
+      contractAddress
     );
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
       logger.verbose("[STRATS] Writing batch");

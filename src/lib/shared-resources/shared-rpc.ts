@@ -63,7 +63,9 @@ export async function callLockProtectedRpc<TRes>(
         try {
           res = await work(provider);
         } catch (error) {
-          if (isErrorDueToMissingDataFromNode(error)) {
+          if (error instanceof ArchiveNodeNeededError) {
+            throw error;
+          } else if (isErrorDueToMissingDataFromNode(error)) {
             throw new ArchiveNodeNeededError(chain, error);
           }
           throw error;
@@ -107,8 +109,8 @@ export class ArchiveNodeNeededError extends Error {
     super(`Archive node needed for ${chain}`);
   }
 }
-
 export function isErrorDueToMissingDataFromNode(error: any) {
+  // parse from ehter-wrapped rpc calls
   const errorRpcBody = lodash.get(error, "error.body");
   if (errorRpcBody && lodash.isString(errorRpcBody)) {
     const rpcBodyError = JSON.parse(errorRpcBody);
@@ -119,12 +121,22 @@ export function isErrorDueToMissingDataFromNode(error: any) {
       errorCode === -32000 &&
       lodash.isString(errorMessage) &&
       (errorMessage.includes("Run with --pruning=archive") ||
-        errorMessage.startsWith(
-          "missing trie node 0000000000000000000000000000000000000000000000000000000000000000"
-        ))
+        // Cf: https://github.com/ethereum/go-ethereum/issues/20557
+        errorMessage.startsWith("missing trie node"))
     ) {
       return true;
     }
+  }
+
+  // also parse from direct rpc responses
+  const directRpcError = lodash.get(error, "error");
+  if (
+    directRpcError &&
+    lodash.isObjectLike(directRpcError) &&
+    lodash.get(directRpcError, "code") === -32000 &&
+    lodash.get(directRpcError, "message")?.startsWith("missing trie node")
+  ) {
+    return true;
   }
   return false;
 }

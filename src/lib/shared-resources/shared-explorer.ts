@@ -58,6 +58,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
         const res = await axios.get<
           | { status: "0"; message: string; result: string }
           | { status: "0"; message: "No records found"; result: [] }
+          | { status: "0"; message: "No logs found"; result: [] }
           | { status: "1"; result: TRes }
         >(url);
 
@@ -68,6 +69,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
         if (
           res.data.status === "0" &&
           (res.data.message === "No records found" ||
+            res.data.message === "No logs found" ||
             res.data.message === "No transactions found")
         ) {
           return [];

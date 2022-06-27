@@ -50,6 +50,7 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
   abi: JsonAbi,
   eventName: string,
   fromBlock: number,
+  toBlock: number | null,
   formatEvent: (event: ExplorerLog) => TRes,
   fromAddress?: string
 ) {
@@ -64,6 +65,9 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     topic0: eventTopic,
     fromBlock: fromBlock.toString(),
   };
+  if (toBlock) {
+    params.toBlock = toBlock.toString();
+  }
   if (fromAddress) {
     params.topic1 =
       "0x000000000000000000000000" + fromAddress.slice(2) /** remove "0x" */;
@@ -155,6 +159,7 @@ export async function* streamERC20TransferEventsFromExplorer(
       ERC20Abi,
       "Transfer",
       fromBlock,
+      null,
       explorerLogToERC20TransferEvent,
       fromAddress
     );
@@ -205,7 +210,8 @@ function explorerLogToBeefyVaultV6UpgradeStratEvent(
 export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
   chain: Chain,
   contractAddress: string,
-  startBlock: number
+  startBlock: number,
+  endBlock: number | null
 ) {
   const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
     await fetchContractCreationInfos(chain, contractAddress);
@@ -223,6 +229,7 @@ export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
       BeefyVaultV6Abi,
       "UpgradeStrat",
       fromBlock,
+      endBlock,
       explorerLogToBeefyVaultV6UpgradeStratEvent
     );
     allStrategyEvents = allStrategyEvents.concat(pageRes.logs);

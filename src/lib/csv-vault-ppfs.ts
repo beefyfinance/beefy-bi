@@ -10,7 +10,11 @@ import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { SamplingPeriod } from "./csv-block-samples";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import {
+  ArchiveNodeNeededError,
+  callLockProtectedRpc,
+  isErrorDueToMissingDataFromNode,
+} from "./shared-resources/shared-rpc";
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
 import axios from "axios";
@@ -118,8 +122,9 @@ export async function fetchBeefyPPFS(
   blockNumber: number
 ): Promise<ethers.BigNumber> {
   // it looks like ethers doesn't yet support harmony's special format or smth
-  if (chain === "harmony") {
-    return fetchBeefyPPFSHarmonyRPC(chain, contractAddress, blockNumber);
+  // same for heco
+  if (chain === "harmony" || chain === "heco") {
+    return fetchBeefyPPFSWithManualRPCCall(chain, contractAddress, blockNumber);
   }
 
   logger.debug(
@@ -142,7 +147,10 @@ export async function fetchBeefyPPFS(
   });
 }
 
-async function fetchBeefyPPFSHarmonyRPC(
+/**
+ * I don't know why this is needed but seems like ethers.js is not doing the right rpc call
+ */
+async function fetchBeefyPPFSWithManualRPCCall(
   chain: Chain,
   contractAddress: string,
   blockNumber: number
@@ -153,9 +161,14 @@ async function fetchBeefyPPFSHarmonyRPC(
   return callLockProtectedRpc(chain, async (provider) => {
     const url = provider.connection.url;
 
+    // get the function call hash
     const abi = ["function getPricePerFullShare()"];
     const iface = new ethers.utils.Interface(abi);
     const callData = iface.encodeFunctionData("getPricePerFullShare");
+
+    // somehow block tag has to be hex encoded for heco
+    const blockNumberHex = ethers.utils.hexValue(blockNumber);
+
     const res = await axios.post(url, {
       method: "eth_call",
       params: [
@@ -164,11 +177,15 @@ async function fetchBeefyPPFSHarmonyRPC(
           to: contractAddress,
           data: callData,
         },
-        blockNumber,
+        blockNumberHex,
       ],
       id: 1,
       jsonrpc: "2.0",
     });
+
+    if (isErrorDueToMissingDataFromNode(res.data)) {
+      throw new ArchiveNodeNeededError(chain, res.data);
+    }
     const ppfs = ethers.utils.defaultAbiCoder.decode(
       ["uint256"],
       res.data.result
