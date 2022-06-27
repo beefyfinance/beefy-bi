@@ -167,9 +167,10 @@ async function importVault(
   );
 
   if (source === "explorer") {
-    // Fuse explorer requires an end block to be set
+    // Fuse and metis explorer requires an end block to be set
     // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
-    const stopBlock = chain === "fuse" ? endBlock : null;
+    // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+    const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
     const stream = streamBifiVaultUpgradeStratEventsFromExplorer(
       chain,
       contractAddress,
