@@ -65,8 +65,17 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     topic0: eventTopic,
     fromBlock: fromBlock.toString(),
   };
+  let didLimitBlockCount = false;
   if (toBlock) {
     params.toBlock = toBlock.toString();
+    const blockCount = toBlock - fromBlock;
+    if (blockCount > 10000) {
+      logger.info(
+        `[ERC20.T.EX] Limiting block count to 10k blocks to avoid 504s from explorers`
+      );
+      params.toBlock = (fromBlock + 10000).toString();
+      didLimitBlockCount = true;
+    }
   }
   if (fromAddress) {
     params.topic1 =
@@ -77,7 +86,7 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     params
   );
   let logs = rawLogs.map(formatEvent);
-  const mayHaveMore = logs.length === 1000;
+  const mayHaveMore = didLimitBlockCount ? true : logs.length === 1000;
 
   logger.verbose(
     `[ERC20.T.EX] Got ${logs.length} ${eventName} events for ${chain}:${contractAddress}:${fromAddress}, mayHaveMore: ${mayHaveMore}`
@@ -124,7 +133,6 @@ export function explorerLogToERC20TransferEvent(
   const blockNumber = parseInt(
     ethers.BigNumber.from(event.blockNumber).toString()
   );
-  console.log(event);
   const data =
     "0x" +
     event.topics
