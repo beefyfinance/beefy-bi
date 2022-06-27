@@ -116,7 +116,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   harmony: "https://explorer.harmony.one/api",
   fuse: "https://explorer.fuse.io/api",
   syscoin: "https://explorer.syscoin.org/api",
-  emerald: "https://explorer.oasis.dev/",
+  emerald: "https://explorer.emerald.oasis.dev/api", //"https://explorer.oasis.dev/",
 };
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 6000;
 export const MIN_DELAY_BETWEEN_RPC_CALLS_MS = 1000;
