@@ -265,7 +265,9 @@ export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
     callOptions = { blockTag: firstUpgradeBlockNumber - 1 };
   }
   logger.debug(
-    `[PPFS] Fetching strategy implem for ${chain}:${contractAddress} (${callOptions})`
+    `[PPFS] Fetching strategy implem for ${chain}:${contractAddress} (${JSON.stringify(
+      callOptions
+    )})`
   );
   const strategyImplem = await callLockProtectedRpc(chain, async (provider) => {
     const contract = new ethers.Contract(

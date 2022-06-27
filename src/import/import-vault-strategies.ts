@@ -17,7 +17,10 @@ import {
   getLastImportedBeefyVaultV6Strategy,
 } from "../lib/csv-vault-strategy";
 import { shuffle } from "lodash";
-import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
+import {
+  ArchiveNodeNeededError,
+  callLockProtectedRpc,
+} from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
 import { runMain } from "../utils/process";
 import yargs from "yargs";
@@ -94,11 +97,17 @@ async function importChain(
     try {
       await importVault(chain, source, vault);
     } catch (error) {
-      logger.error(
-        `[STRATS] Error importing ${chain}:${
-          vault.id
-        } strategies: ${JSON.stringify(error)}`
-      );
+      if (error instanceof ArchiveNodeNeededError) {
+        logger.error(
+          `[STRATS] Archive node needed, skipping vault ${chain}:${vault.id}`
+        );
+      } else {
+        logger.error(
+          `[STRATS] Error importing ${chain}:${
+            vault.id
+          } strategies: ${JSON.stringify(error)}`
+        );
+      }
       if (LOG_LEVEL === "trace") {
         console.log(error);
       }

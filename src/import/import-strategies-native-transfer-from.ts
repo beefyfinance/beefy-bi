@@ -18,6 +18,7 @@ import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
 import { LOG_LEVEL, WNATIVE_ADDRESS } from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
+import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 
 async function main() {
   const useExplorerFor: Chain[] = [
@@ -73,11 +74,17 @@ async function importChain(chain: Chain, source: "rpc" | "explorer") {
       try {
         await importStrategyWNativeFrom(chain, source, strategy);
       } catch (e) {
-        logger.error(
-          `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${
-            strategy.implementation
-          }. ${JSON.stringify(e)}`
-        );
+        if (e instanceof ArchiveNodeNeededError) {
+          logger.error(
+            `[STRATS] Archive node needed, skipping vault ${chain}:${strategy.implementation}`
+          );
+        } else {
+          logger.error(
+            `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${
+              strategy.implementation
+            }. ${JSON.stringify(e)}`
+          );
+        }
       }
     }
   } catch (e) {
