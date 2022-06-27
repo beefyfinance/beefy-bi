@@ -5,11 +5,17 @@ import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
-import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import {
+  ArchiveNodeNeededError,
+  callLockProtectedRpc,
+  isErrorDueToMissingDataFromNode,
+} from "./shared-resources/shared-rpc";
 import {
   fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
 } from "./fetch-if-not-found-locally";
+import axios from "axios";
+import { isNumber } from "lodash";
 
 async function* streamContractEventsFromRpc<TEventArgs>(
   chain: Chain,
@@ -161,40 +167,26 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
   logger.debug(
     `[BV6.VU.RPC] Fetching BeefyVaultV6 deploy strategy ${chain}:${contractAddress}:${deployBlockNumber}`
   );
-  const firstStrategyRes = await callLockProtectedRpc(
+  const firstStrategyRes = await getBeefyVaultV6StrategyAddress(
     chain,
-    async (provider) => {
-      const contract = new ethers.Contract(
-        contractAddress,
-        BeefyVaultV6Abi,
-        provider
-      );
-      return contract.functions.strategy({
-        blockTag: deployBlockNumber,
-      });
-    }
+    contractAddress,
+    deployBlockNumber
   );
   yield {
     blockNumber: deployBlockNumber,
     datetime: deployBlockDatetime,
-    data: { implementation: firstStrategyRes[0] as string },
+    data: { implementation: firstStrategyRes },
   };
   // add a shortcut if the strategy never changed
   logger.debug(
     `[BV6.VU.RPC] Fetching BeefyVaultV6 current strategy ${chain}:${contractAddress}`
   );
-  const currentStrategyRes = await await callLockProtectedRpc(
+  const currentStrategyRes = await getBeefyVaultV6StrategyAddress(
     chain,
-    async (provider) => {
-      const contract = new ethers.Contract(
-        contractAddress,
-        BeefyVaultV6Abi,
-        provider
-      );
-      return contract.functions.strategy();
-    }
+    contractAddress,
+    "latest"
   );
-  if (firstStrategyRes[0] === currentStrategyRes[0]) {
+  if (firstStrategyRes === currentStrategyRes) {
     logger.verbose(
       `[BV6.VU.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
     );
@@ -214,4 +206,88 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
   );
   // just iteration to the event stream
   yield* eventStream;
+}
+
+async function getBeefyVaultV6StrategyAddress(
+  chain: Chain,
+  contractAddress: string,
+  blockTag: ethers.providers.BlockTag | null
+) {
+  // it looks like ethers doesn't yet support harmony's special format or smth
+  // same for heco
+  if (chain === "harmony" || chain === "heco") {
+    return fetchBeefyVaultV6StrategyWithManualRPCCall(
+      chain,
+      contractAddress,
+      blockTag
+    );
+  }
+  return callLockProtectedRpc(chain, async (provider) => {
+    const contract = new ethers.Contract(
+      contractAddress,
+      BeefyVaultV6Abi,
+      provider
+    );
+    let strategyRes: [string];
+    if (blockTag !== null) {
+      strategyRes = await contract.functions.strategy({ blockTag });
+    } else {
+      strategyRes = await contract.functions.strategy();
+    }
+    return strategyRes[0];
+  });
+}
+
+/**
+ * I don't know why this is needed but seems like ethers.js is not doing the right rpc call
+ */
+async function fetchBeefyVaultV6StrategyWithManualRPCCall(
+  chain: Chain,
+  contractAddress: string,
+  blockTag: ethers.providers.BlockTag | null
+): Promise<string> {
+  logger.debug(
+    `[BV6.VU.RPC] Fetching strategy for ${chain}:${contractAddress}:${blockTag}`
+  );
+  return callLockProtectedRpc(chain, async (provider) => {
+    const url = provider.connection.url;
+
+    // get the function call hash
+    const abi = ["function strategy() view external returns (address)"];
+    const iface = new ethers.utils.Interface(abi);
+    const callData = iface.encodeFunctionData("strategy");
+
+    // somehow block tag has to be hex encoded for heco
+    const blockNumberHex =
+      blockTag === null
+        ? "latest"
+        : isNumber(blockTag)
+        ? ethers.utils.hexValue(blockTag)
+        : ["earliest", "latest"].includes(blockTag)
+        ? blockTag
+        : ethers.utils.hexValue(blockTag);
+
+    const res = await axios.post(url, {
+      method: "eth_call",
+      params: [
+        {
+          from: null,
+          to: contractAddress,
+          data: callData,
+        },
+        blockNumberHex,
+      ],
+      id: 1,
+      jsonrpc: "2.0",
+    });
+
+    if (isErrorDueToMissingDataFromNode(res.data)) {
+      throw new ArchiveNodeNeededError(chain, res.data);
+    }
+    const address = ethers.utils.defaultAbiCoder.decode(
+      ["address"],
+      res.data.result
+    ) as any as [string];
+    return address[0];
+  });
 }

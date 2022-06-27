@@ -7,10 +7,11 @@ async function main() {
   //const contractAddress = "0x07fFC2258c99e6667235fEAa90De35A0a50CFBFd";
   const contractAddress = "0x7828ff4aba7aab932d8407c78324b069d24284c9";
 
-  const abi = ["function getPricePerFullShare()"];
+  const abi = ["function strategy() view external returns (address)"];
   const iface = new ethers.utils.Interface(abi);
-  const data = iface.encodeFunctionData("getPricePerFullShare");
+  const data = iface.encodeFunctionData("strategy");
   console.log(data);
+  console.log(ethers.utils.hexValue("0x01234"));
 }
 
 main()
