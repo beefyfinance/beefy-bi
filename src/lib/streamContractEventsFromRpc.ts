@@ -222,6 +222,9 @@ async function getBeefyVaultV6StrategyAddress(
       blockTag
     );
   }
+  logger.debug(
+    `[BV6.VU.RPC] Fetching strategy for ${chain}:${contractAddress}:${blockTag}`
+  );
   return callLockProtectedRpc(chain, async (provider) => {
     const contract = new ethers.Contract(
       contractAddress,
@@ -247,7 +250,7 @@ async function fetchBeefyVaultV6StrategyWithManualRPCCall(
   blockTag: ethers.providers.BlockTag | null
 ): Promise<string> {
   logger.debug(
-    `[BV6.VU.RPC] Fetching strategy for ${chain}:${contractAddress}:${blockTag}`
+    `[BV6.VU.RPC] Fetching strategy with manual rpc call for ${chain}:${contractAddress}:${blockTag}`
   );
   return callLockProtectedRpc(chain, async (provider) => {
     const url = provider.connection.url;
