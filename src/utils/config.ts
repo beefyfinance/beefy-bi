@@ -15,8 +15,9 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   bsc: process.env.BSC_RPC
     ? [process.env.BSC_RPC]
     : [
-        // only ankr has a full node
-        "https://rpc.ankr.com/bsc",
+        //https://snapshot-networks.on.fleek.co/56
+        "https://speedy-nodes-nyc.moralis.io/b9aed21e7bb7bdeb35972c9a/bsc/mainnet/archive",
+        "https://bsc-private-dataseed1.nariox.org",
         //"https://bsc-dataseed.binance.org",
         //"https://bsc-dataseed1.defibit.io",
         //"https://bsc-dataseed2.defibit.io",
