@@ -10,7 +10,7 @@ import {
 } from "../lib/csv-block-samples";
 import { sleep } from "../utils/async";
 import {
-  fetchBeefyVaultAddresses,
+  fetchBeefyVaultList,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
 import {
@@ -39,7 +39,7 @@ async function main() {
 
   logger.info(`[PPFS] Importing ${chain} ppfs with period ${samplingPeriod}.`);
   // find out which vaults we need to parse
-  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
+  const vaults = shuffle(await fetchBeefyVaultList(chain));
   for (const vault of vaults) {
     if (vaultId && vault.id !== vaultId) {
       logger.debug(`[PPFS] Skipping vault ${vault.id}`);

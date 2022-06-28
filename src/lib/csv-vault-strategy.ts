@@ -31,6 +31,7 @@ function getBeefyVaultV6StrategiesFilePath(
 ): string {
   return path.join(
     DATA_DIRECTORY,
+    "chain",
     chain,
     "contracts",
     normalizeAddress(contractAddress),
@@ -51,6 +52,7 @@ export async function getBeefyVaultV6StrategiesWriteStream(
 
   let closed = false;
   onExit(async () => {
+    if (closed) return;
     logger.info(`[VAULT.S.STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();
@@ -137,6 +139,7 @@ export async function* getAllStrategyAddresses(chain: Chain) {
   const filePaths = await new Promise<string[]>((resolve, reject) => {
     const globPath = path.join(
       DATA_DIRECTORY,
+      "chain",
       chain,
       "contracts",
       "*",

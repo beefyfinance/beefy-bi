@@ -16,7 +16,7 @@ IMPORTANT:
 
 NICE TO HAVE:
 [ ] for ppfs and native transfers imports, order vaults by last update date asc so we process first those vaults we don't have much data for. It's useful on restart so we don't have to wait so much
-[ ] use jsonl format for vaults to be bigquery compatible
+[x] use jsonl format for vaults to be bigquery compatible
 [ ] close read/write streams when done
 [ ] make sure write streams are multi-process safe
 [ ] merge transfers and ppfs imports in a single container instead of one by chain

@@ -13,6 +13,7 @@ import { cacheAsyncResultInRedis } from "../utils/cache";
 import { getRedlock } from "./shared-resources/shared-lock";
 import { backOff } from "exponential-backoff";
 import { logger } from "../utils/logger";
+import { getChainWNativeTokenAddress } from "../utils/addressbook";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
@@ -120,19 +121,28 @@ function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
 
 interface RawBeefyVault {
   id: string;
+  tokenAddress?: string;
   tokenDecimals: number;
   earnContractAddress: string;
   earnedToken: string;
   isGovVault?: boolean;
+  oracleId: string;
   status?: string;
+  assets?: string[];
 }
 export interface BeefyVault {
   id: string;
   token_name: string;
   token_decimals: number;
   token_address: string;
+  want_address: string;
+  want_decimals: number;
+  price_oracle: {
+    want_oracleId: string;
+    assets: string[];
+  };
 }
-export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
+export const fetchBeefyVaultList = fetchIfNotFoundLocally(
   async (chain: Chain) => {
     logger.info(`[FETCH] Fetching updated vault list for ${chain}`);
     const res = await axios.get<RawBeefyVault[]>(
@@ -142,15 +152,30 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
     const data: BeefyVault[] = rawData
       .filter((vault) => !(vault.isGovVault === true))
       .filter((vault) => !(vault.status === "eol"))
-      .map((vault) => ({
-        id: vault.id,
-        token_name: vault.earnedToken,
-        token_decimals: vault.tokenDecimals,
-        token_address: normalizeAddress(vault.earnContractAddress),
-      }));
+      .map((vault) => {
+        try {
+          const wnative = getChainWNativeTokenAddress(chain);
+          return {
+            id: vault.id,
+            token_name: vault.earnedToken,
+            token_decimals: 18,
+            token_address: normalizeAddress(vault.earnContractAddress),
+            want_address: normalizeAddress(vault.tokenAddress || wnative),
+            want_decimals: vault.tokenDecimals,
+            price_oracle: {
+              want_oracleId: vault.oracleId,
+              assets: vault.assets || [],
+            },
+          };
+        } catch (error) {
+          logger.debug(JSON.stringify({ vault, error }));
+          throw error;
+        }
+      });
     return data;
   },
-  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.jsonl"),
+  (chain: Chain) =>
+    path.join(DATA_DIRECTORY, "chain", chain, "beefy", "vaults.jsonl"),
   {
     ttl_ms: 1000 * 60 * 60 * 24,
     getResourceId: (chain: Chain) => `vault-list:${chain}`,

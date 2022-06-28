@@ -1,6 +1,6 @@
 import {
   BeefyVault,
-  fetchBeefyVaultAddresses,
+  fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
@@ -73,7 +73,7 @@ async function importChain(
 ) {
   logger.info(`[STRATS] Importing ${chain} vault strategies...`);
   // find out which vaults we need to parse
-  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
+  const vaults = shuffle(await fetchBeefyVaultList(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {

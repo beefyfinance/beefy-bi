@@ -27,6 +27,7 @@ function getContractERC20TransferFromFilePath(
 ): string {
   return path.join(
     DATA_DIRECTORY,
+    "chain",
     chain,
     "contracts",
     normalizeAddress(fromContractAddress),
@@ -53,6 +54,7 @@ export async function getERC20TransferFromStorageWriteStream(
 
   let closed = false;
   onExit(async () => {
+    if (closed) return;
     logger.info(`[ERC20.T.STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();

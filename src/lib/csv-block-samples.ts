@@ -33,6 +33,7 @@ function getBlockSamplesFilePath(
 ): string {
   return path.join(
     DATA_DIRECTORY,
+    "chain",
     chain,
     "blocks",
     "samples",
@@ -50,6 +51,7 @@ export async function getBlockSamplesStorageWriteStream(
 
   let closed = false;
   onExit(async () => {
+    if (closed) return;
     logger.info(`[BLOCK_STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();

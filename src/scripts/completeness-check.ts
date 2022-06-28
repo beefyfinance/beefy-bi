@@ -1,7 +1,7 @@
 import { shuffle, sortBy } from "lodash";
 import {
   BeefyVault,
-  fetchBeefyVaultAddresses,
+  fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
 } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
@@ -36,10 +36,7 @@ async function main() {
 async function checkChain(chain: Chain) {
   await checkBlockSamples(chain);
 
-  const vaults = sortBy(
-    await fetchBeefyVaultAddresses(chain),
-    (v) => v.token_name
-  );
+  const vaults = sortBy(await fetchBeefyVaultList(chain), (v) => v.token_name);
   for (const vault of vaults) {
     await checkVault(chain, vault);
   }

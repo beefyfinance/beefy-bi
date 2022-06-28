@@ -3,7 +3,7 @@ import {
   getLastImportedERC20TransferEvent,
 } from "../lib/csv-transfer-events";
 import {
-  fetchBeefyVaultAddresses,
+  fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
@@ -34,7 +34,7 @@ async function main() {
 
   logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
   // find out which vaults we need to parse
-  const vaults = shuffle(await fetchBeefyVaultAddresses(chain));
+  const vaults = shuffle(await fetchBeefyVaultList(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {

@@ -35,6 +35,7 @@ function getBeefyVaultV6PPFSFilePath(
 ): string {
   return path.join(
     DATA_DIRECTORY,
+    "chain",
     chain,
     "contracts",
     normalizeAddress(contractAddress),
@@ -58,6 +59,7 @@ export async function getBeefyVaultV6PPFSWriteStream(
 
   let closed = false;
   onExit(async () => {
+    if (closed) return;
     logger.info(`[VAULT.PPFS.STORE] SIGINT, closing write stream`);
     closed = true;
     writeStream.close();

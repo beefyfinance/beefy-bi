@@ -88,6 +88,20 @@ services:
   #############################################################################
   #############################################################################
 
+  import-oracle-prices:
+    <<: *importer
+    environment:
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/import/import-prices.js
+      WORK_CHAIN: all
+      WORK_SOURCE: all
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
   import-vault-transfers-fantom:
     <<: *importer
     environment:
