@@ -70,7 +70,7 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     params.toBlock = toBlock.toString();
     const blockCount = toBlock - fromBlock;
     if (blockCount > 10000) {
-      logger.info(
+      logger.verbose(
         `[ERC20.T.EX] Limiting block count to 10k blocks to avoid 504s from explorers`
       );
       params.toBlock = (fromBlock + 10000).toString();
