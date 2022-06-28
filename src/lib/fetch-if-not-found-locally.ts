@@ -206,6 +206,7 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
   (chain: Chain, contractAddress: string) =>
     path.join(
       DATA_DIRECTORY,
+      "chain",
       chain,
       "contracts",
       normalizeAddress(contractAddress),
