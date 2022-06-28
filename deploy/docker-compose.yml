@@ -189,6 +189,13 @@ services:
       WORK_CHAIN: harmony
       WORK_SOURCE: rpc # no ethscan-compatible for harmony yet
 
+  import-vault-transfers-optimism:
+    <<: *importer
+    environment:
+      <<: *vault-importer-env
+      WORK_CHAIN: optimism
+      WORK_SOURCE: explorer
+
   # disabled because explorer is buggy
   #import-vault-transfers-fuse:
   #  <<: *importer
@@ -300,6 +307,12 @@ services:
     environment:
       <<: *ppfs-importer-env
       WORK_CHAIN: fuse
+
+  import-vault-ppfs-optimism:
+    <<: *importer
+    environment:
+      <<: *ppfs-importer-env
+      WORK_CHAIN: optimism
 
   # no beefy vault list for now
   #import-vault-ppfs-syscoin:
