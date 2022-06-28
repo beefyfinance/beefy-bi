@@ -1,36 +1,38 @@
 export type Chain =
-  | "cronos"
-  | "bsc"
-  | "polygon"
-  | "fantom"
-  | "heco"
-  | "avax"
-  | "moonbeam"
-  | "celo"
-  | "moonriver"
   | "arbitrum"
   | "aurora"
-  | "metis"
-  | "harmony"
+  | "avax"
+  | "bsc"
+  | "celo"
+  | "cronos"
+  | "emerald"
+  | "fantom"
   | "fuse"
-  | "syscoin"
-  | "emerald";
+  | "harmony"
+  | "heco"
+  | "metis"
+  | "moonbeam"
+  | "moonriver"
+  | "optimism"
+  | "polygon"
+  | "syscoin";
 
 export const allChainIds: Chain[] = [
-  "cronos",
-  "bsc",
-  "polygon",
-  "fantom",
-  "heco",
-  "avax",
-  "moonbeam",
-  "celo",
-  "moonriver",
   "arbitrum",
   "aurora",
-  "metis",
-  "harmony",
-  "fuse",
-  "syscoin",
+  "avax",
+  "bsc",
+  "celo",
+  "cronos",
   "emerald",
+  "fantom",
+  "fuse",
+  "harmony",
+  "heco",
+  "metis",
+  "moonbeam",
+  "moonriver",
+  "optimism",
+  "polygon",
+  "syscoin",
 ];

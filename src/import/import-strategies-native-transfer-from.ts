@@ -15,27 +15,17 @@ import yargs, { string } from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
-import { LOG_LEVEL, WNATIVE_ADDRESS } from "../utils/config";
+import {
+  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
+  LOG_LEVEL,
+  WNATIVE_ADDRESS,
+} from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 
 async function main() {
-  const useExplorerFor: Chain[] = [
-    "fantom",
-    "cronos",
-    "bsc",
-    "polygon",
-    "heco",
-    "avax",
-    "moonbeam",
-    "celo",
-    "moonriver",
-    "arbitrum",
-    "aurora",
-    "metis",
-    "harmony",
-  ];
+  const useExplorerFor: Chain[] = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS;
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")
     .options({

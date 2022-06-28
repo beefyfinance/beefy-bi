@@ -11,7 +11,10 @@ import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import { sleep } from "../utils/async";
 import { streamBifiVaultUpgradeStratEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import { LOG_LEVEL } from "../utils/config";
+import {
+  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
+  LOG_LEVEL,
+} from "../utils/config";
 import {
   getBeefyVaultV6StrategiesWriteStream,
   getLastImportedBeefyVaultV6Strategy,
@@ -43,22 +46,7 @@ async function main() {
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
   const vaultId = argv.vaultId || null;
 
-  const useExplorerFor: Chain[] = [
-    "fantom",
-    "cronos",
-    "bsc",
-    "polygon",
-    "heco",
-    "avax",
-    "moonbeam",
-    "celo",
-    "moonriver",
-    "arbitrum",
-    "aurora",
-    "fuse",
-    "metis",
-    "harmony",
-  ];
+  const useExplorerFor: Chain[] = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS;
 
   const chainPromises = chains.map(async (chain) => {
     const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";

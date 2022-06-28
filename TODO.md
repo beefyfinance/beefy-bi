@@ -12,7 +12,7 @@ NICE TO HAVE:
 
 BONUS:
 [x] remove hardhat
-[ ] configure which chain has a proper explorer instead of hardcoding it
+[x] configure which chain has a proper explorer instead of hardcoding it
 [ ] configure which chain requires manual rpc calls instead of hardcoding it
 [ ] create a store class that regroup similar csv stores code
 [ ] create a common ArchiveNode needed error handler and logger

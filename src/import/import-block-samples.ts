@@ -189,7 +189,7 @@ async function fillBlockGaps(
   }
 }
 
-async function estimateMsPerBlock(chain: Chain) {
+export async function estimateMsPerBlock(chain: Chain) {
   const firstBlock = await getFirstBlock(chain);
   const latestBlock = await fetchBlockData(chain, "latest");
   console.log(firstBlock, latestBlock);
