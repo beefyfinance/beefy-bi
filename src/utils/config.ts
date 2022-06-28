@@ -73,7 +73,10 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
       ],
   harmony: process.env.HARMONY_RPC
     ? [process.env.HARMONY_RPC]
-    : ["https://api.s0.t.hmny.io"],
+    : [
+        "https://rpc.ankr.com/harmony/",
+        //"https://api.s0.t.hmny.io",
+      ],
   heco: process.env.HECO_RPC
     ? [process.env.HECO_RPC]
     : [

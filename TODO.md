@@ -2,9 +2,14 @@ IMPORTANT:
 [x] periodically refresh vault list
 [ ] fetch token and want prices from beefy api
 [x] fix completeness checks for vault transaction date
-[ ] poc a dashboarding solution
+[x] poc a dashboarding solution
+[ ] Batch RPC requests? might be good for ppfs if rpcs allow it
+[ ] re-enable eol vaults (/!\ might need custom logic)
+[ ] find an archive node for harmony and heco
+[ ] enable 15min and/or 1h data points for ppfs
 
 NICE TO HAVE:
+[ ] use jsonl format for vaults to be bigquery compatible
 [ ] close read/write streams when done
 [ ] make sure write streams are multi-process safe
 [ ] merge transfers and ppfs imports in a single container instead of one by chain
