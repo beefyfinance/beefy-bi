@@ -97,6 +97,7 @@ async function importChain(
       )}`
     );
   }
+  logger.info(`[ERC20.N.ST] Done importing native TransferFrom for ${chain}`);
 }
 
 async function importStrategyWNativeFrom(

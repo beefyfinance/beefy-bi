@@ -101,6 +101,8 @@ async function importChain(
       }
     }
   }
+
+  logger.info(`[STRATS] Done importing strategies for ${chain}`);
 }
 
 async function importVault(

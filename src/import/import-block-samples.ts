@@ -132,6 +132,10 @@ async function importChainBlockSamples(
       blockCountToFill
     );
   }
+
+  logger.info(
+    `[BLOCKS] Done importing block samples for ${chain}:${samplingPeriod}`
+  );
 }
 
 async function fillBlockGaps(
