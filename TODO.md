@@ -1,7 +1,7 @@
 IMPORTANT:
 [x] periodically refresh vault list
 [ ] fetch token and want prices from beefy api
-[ ] fix completeness checks for vault transaction date
+[x] fix completeness checks for vault transaction date
 
 NICE TO HAVE:
 [ ] close read/write streams when done

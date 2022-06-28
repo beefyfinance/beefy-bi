@@ -2,6 +2,7 @@ import { shuffle, sortBy } from "lodash";
 import {
   BeefyVault,
   fetchBeefyVaultAddresses,
+  fetchCachedContractLastTransaction,
 } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
@@ -56,11 +57,25 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
       `[CC] No ERC20 moo token transfer events found for vault ${chain}:${contractAddress}`
     );
   } else if (now.getTime() - latestTransfer.datetime.getTime() > oneDay) {
-    logger.warn(
-      `[CC] ERC20 last transfer is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(
-        latestTransfer
-      )}`
+    // check against last transaction
+    const lastTrx = await fetchCachedContractLastTransaction(
+      chain,
+      contractAddress
     );
+    if (
+      lastTrx.datetime.getTime() - latestTransfer.datetime.getTime() >
+      oneDay
+    ) {
+      logger.warn(
+        `[CC] ERC20 last transfer is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(
+          latestTransfer
+        )}`
+      );
+    } else {
+      logger.debug(
+        `[CC] Vault transfers are OK for ${chain}:${contractAddress}`
+      );
+    }
   } else {
     logger.debug(`[CC] Vault transfers are OK for ${chain}:${contractAddress}`);
   }
@@ -76,7 +91,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     logger.error(
       `[CC] No PPFS found for vault ${chain}:${contractAddress} and sampling ${sampling}`
     );
-  } else if (now.getTime() - latestPPFS.datetime.getTime() > oneDay) {
+  } else if (now.getTime() - latestPPFS.datetime.getTime() > oneDay * 2) {
     logger.warn(
       `[CC] PPFS is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(
         latestPPFS
@@ -116,11 +131,23 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
         `[CC] No TransferFrom events found for vault ${chain}:${fromAddress}}`
       );
     } else if (now.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
-      logger.warn(
-        `[CC] TransferFrom events too old for vault ${chain}:${fromAddress}: ${JSON.stringify(
-          lastTransferFrom
-        )}`
+      // check against last transaction
+      const lastTrx = await fetchCachedContractLastTransaction(
+        chain,
+        contractAddress
       );
+      if (
+        lastTrx.datetime.getTime() - lastTransferFrom.datetime.getTime() >
+        oneDay
+      ) {
+        logger.warn(
+          `[CC] TransferFrom events too old for vault ${chain}:${fromAddress}: ${JSON.stringify(
+            lastTransferFrom
+          )}`
+        );
+      } else {
+        logger.debug(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
+      }
     } else {
       logger.debug(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
     }

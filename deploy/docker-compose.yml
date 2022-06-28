@@ -23,33 +23,11 @@ x-vault-importer-env: &vault-importer-env
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./dist/src/import/import-vault-transfers.js
 
-x-block-samples-importer-env: &block-samples-importer-env
-  REDIS_URL: redis://redis:6379
-  LOG_LEVEL: "info"
-  DATA_DIRECTORY: /data
-  WORK_SCRIPT: ./dist/src/import/import-block-samples.js
-
 x-ppfs-importer-env: &ppfs-importer-env
   REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
-
-x-strategy-importer-env: &strategy-importer-env
-  REDIS_URL: redis://redis:6379
-  LOG_LEVEL: "info"
-  DATA_DIRECTORY: /data
-  WORK_SCRIPT: ./dist/src/import/import-vault-strategies.js
-  WORK_CHAIN: all
-  WORK_SOURCE: all
-
-x-native-transfer-from-strategy-env: &native-transfer-from-strategy-env
-  REDIS_URL: redis://redis:6379
-  LOG_LEVEL: "info"
-  DATA_DIRECTORY: /data
-  WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.js
-  WORK_CHAIN: all
-  WORK_SOURCE: all
 
 services:
   #############################################################################
@@ -72,7 +50,12 @@ services:
   import-vault-strategies-all-chains:
     <<: *importer
     environment:
-      <<: *strategy-importer-env
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/import/import-vault-strategies.js
+      WORK_CHAIN: all
+      WORK_SOURCE: all
 
   #############################################################################
   #############################################################################
@@ -81,7 +64,10 @@ services:
   import-block-samples-all-chains:
     <<: *importer
     environment:
-      <<: *block-samples-importer-env
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/import/import-block-samples.js
       WORK_CHAIN: all
 
   #############################################################################
@@ -91,8 +77,12 @@ services:
   import-native-transfers-from-strategies:
     <<: *importer
     environment:
-      <<: *native-transfer-from-strategy-env
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.js
       WORK_CHAIN: all
+      WORK_SOURCE: all
 
   #############################################################################
   #############################################################################
