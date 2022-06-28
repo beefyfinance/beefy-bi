@@ -9,6 +9,7 @@ import { runMain } from "../utils/process";
 import { getLastImportedERC20TransferEvent } from "../lib/csv-transfer-events";
 import { getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
 import { getLastImportedERC20TransferFromEvent } from "../lib/csv-transfer-from-events";
+import { getLastImportedSampleBlockData } from "../lib/csv-block-samples";
 import {
   getLastImportedBeefyVaultV6Strategy,
   streamVaultStrategies,
@@ -33,12 +34,36 @@ async function main() {
 }
 
 async function checkChain(chain: Chain) {
+  await checkBlockSamples(chain);
+
   const vaults = sortBy(
     await fetchBeefyVaultAddresses(chain),
     (v) => v.token_name
   );
   for (const vault of vaults) {
     await checkVault(chain, vault);
+  }
+}
+
+async function checkBlockSamples(chain: Chain) {
+  const now = new Date();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const samplingPeriod = "4hour";
+  const latestBlock = await getLastImportedSampleBlockData(
+    chain,
+    samplingPeriod
+  );
+
+  if (latestBlock === null) {
+    logger.error(`[CC] No block samples for ${chain}:${samplingPeriod}`);
+  } else if (now.getTime() - latestBlock.datetime.getTime() > oneDay * 2) {
+    logger.warn(
+      `[CC] Last block sample is too old ${chain}:${samplingPeriod}: ${JSON.stringify(
+        latestBlock
+      )}`
+    );
+  } else {
+    logger.verbose(`[CC] Block samples are ok for ${chain}:${samplingPeriod}`);
   }
 }
 
@@ -72,12 +97,14 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
         )}`
       );
     } else {
-      logger.debug(
+      logger.verbose(
         `[CC] Vault transfers are OK for ${chain}:${contractAddress}`
       );
     }
   } else {
-    logger.debug(`[CC] Vault transfers are OK for ${chain}:${contractAddress}`);
+    logger.verbose(
+      `[CC] Vault transfers are OK for ${chain}:${contractAddress}`
+    );
   }
 
   // check we get a recent ppfs
@@ -98,7 +125,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
       )}`
     );
   } else {
-    logger.debug(`[CC] Vault PPFS are OK for ${chain}:${contractAddress}`);
+    logger.verbose(`[CC] Vault PPFS are OK for ${chain}:${contractAddress}`);
   }
 
   // check we got the vault strategies
@@ -111,8 +138,8 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
       `[CC] No Strategies found for vault ${chain}:${contractAddress}`
     );
   } else {
-    logger.debug(
-      `[CC] Found some strategies for vault ${chain}:${contractAddress}`
+    logger.verbose(
+      `[CC] Strategies list OK for vault ${chain}:${contractAddress}`
     );
   }
 
@@ -146,10 +173,12 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
           )}`
         );
       } else {
-        logger.debug(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
+        logger.verbose(
+          `[CC] TransferFrom events ok for ${chain}:${fromAddress}`
+        );
       }
     } else {
-      logger.debug(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
+      logger.verbose(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
     }
   }
 }
