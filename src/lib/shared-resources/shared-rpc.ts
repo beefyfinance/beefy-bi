@@ -17,20 +17,24 @@ export async function callLockProtectedRpc<TRes>(
 ) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
-  const rpcUrl = lodash.sample(RPC_URLS[chain]) as string; // pick one at random
-  const rpcIndex = RPC_URLS[chain].indexOf(rpcUrl);
-  const resourceId = `${chain}:rpc:${rpcIndex}:lock`;
   const delayBetweenCalls = MIN_DELAY_BETWEEN_RPC_CALLS_MS;
 
+  // create a loggable string as raw rpc url may contain an api key
+  const secretRpcUrl = lodash.sample(RPC_URLS[chain]) as string; // pick one at random
+  const urlObj = new URL(secretRpcUrl);
+  const publicRpcUrl = urlObj.protocol + "//" + urlObj.hostname;
+  const rpcIndex = RPC_URLS[chain].indexOf(secretRpcUrl);
+  const resourceId = `${chain}:rpc:${rpcIndex}:lock`;
+
   logger.debug(
-    `[EXPLORER] Trying to acquire lock for ${resourceId} (${rpcUrl})`
+    `[EXPLORER] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
   );
   // do multiple tries as well
   return backOff(
     () =>
       redlock.using([resourceId], 2 * 60 * 1000, async () => {
         logger.verbose(
-          `[EXPLORER] Acquired lock for ${resourceId} (${rpcUrl})`
+          `[EXPLORER] Acquired lock for ${resourceId} (${publicRpcUrl})`
         );
         // now, we are the only one running this code
         // find out the last time we called this explorer
@@ -49,15 +53,15 @@ export async function callLockProtectedRpc<TRes>(
         // wait a bit before calling the explorer again
         if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
           logger.debug(
-            `[EXPLORER] Last call too close for ${rpcUrl}, sleeping a bit`
+            `[EXPLORER] Last call too close for ${publicRpcUrl}, sleeping a bit`
           );
           await sleep(delayBetweenCalls);
-          logger.debug(`[EXPLORER] Resuming call to ${rpcUrl}`);
+          logger.debug(`[EXPLORER] Resuming call to ${publicRpcUrl}`);
         }
         // now we are going to call, so set the last call date
         await client.set(lastCallCacheKey, new Date().toISOString());
 
-        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+        const provider = new ethers.providers.JsonRpcProvider(secretRpcUrl);
 
         let res: TRes | null = null;
         try {
@@ -83,7 +87,7 @@ export async function callLockProtectedRpc<TRes>(
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling rpc for ${rpcUrl}: ${error.message}`;
+        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl}: ${error.message}`;
         if (attemptNumber < 3) logger.verbose(message);
         else if (attemptNumber < 5) logger.info(message);
         else if (attemptNumber < 8) logger.warn(message);

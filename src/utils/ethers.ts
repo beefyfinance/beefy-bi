@@ -1,9 +1,7 @@
-import { RPC_URLS } from "./config";
 import { Chain } from "../types/chain";
 import * as ethers from "ethers";
 import { cacheAsyncResultInRedis } from "./cache";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
-import * as lodash from "lodash";
 import axios from "axios";
 import { isNumber } from "lodash";
 import { logger } from "./logger";

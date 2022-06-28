@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
+    "blockchain-addressbook": "^0.34.12",
     "csv": "^6.1.0",
     "dotenv": "^16.0.1",
     "ethers": "^5.6.8",

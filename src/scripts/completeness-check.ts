@@ -16,8 +16,8 @@ import {
 } from "../lib/csv-vault-strategy";
 
 import { logger } from "../utils/logger";
-import { WNATIVE_ADDRESS } from "../utils/config";
 import yargs from "yargs";
+import { getChainWNativeTokenAddress } from "../utils/addressbook";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -147,7 +147,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   const stratStream = streamVaultStrategies(chain, contractAddress);
   for await (const strat of stratStream) {
     const fromAddress = strat.implementation;
-    const wnative = WNATIVE_ADDRESS[chain];
+    const wnative = getChainWNativeTokenAddress(chain);
     const lastTransferFrom = await getLastImportedERC20TransferFromEvent(
       chain,
       fromAddress,

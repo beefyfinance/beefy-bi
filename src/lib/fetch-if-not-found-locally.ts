@@ -18,10 +18,30 @@ function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
   getLocalPath: (...parameters: TArgs) => string,
   options?: {
-    ttl_ms: number;
-    cache_key: (...parameters: TArgs) => string;
+    ttl_ms?: number;
+    getResourceId?: (...parameters: TArgs) => string;
+    doWrite?: (data: TRes, filePath: string) => Promise<TRes>;
+    doRead?: (filePath: string) => Promise<TRes>;
   }
 ) {
+  // set default options
+  const doWrite =
+    options?.doWrite ||
+    (async (data: TRes, filePath: string) => {
+      await fs.promises.writeFile(filePath, JSON.stringify(data));
+      return data;
+    });
+  const doRead =
+    options?.doRead ||
+    (async (filePath) => {
+      const content = await fs.promises.readFile(filePath, "utf8");
+      const data = JSON.parse(content);
+      return data;
+    });
+  const getResourceId =
+    options?.getResourceId ||
+    (() => "fetchIfNotFoundLocally:" + Math.random().toString());
+
   const ttl = options?.ttl_ms || null;
   return async function (...parameters: TArgs): Promise<TRes> {
     const localPath = getLocalPath(...parameters);
@@ -42,19 +62,14 @@ function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
         logger.debug(
           `[FETCH] Local cache file exists and is not expired, returning it's content`
         );
-        const content = await fs.promises.readFile(localPath, "utf8");
-        const data = JSON.parse(content);
-        return data;
+        return doRead(localPath);
       } else {
         logger.debug(`[FETCH] Local cache file exists but is expired`);
       }
     }
 
     const redlock = await getRedlock();
-    const resourceId =
-      "fetch:" +
-      (options?.cache_key(...parameters) ||
-        "fetchIfNotFoundLocally:" + Math.random().toString());
+    const resourceId = "fetch:" + getResourceId(...parameters);
     try {
       const data = await backOff(
         () =>
@@ -86,13 +101,16 @@ function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
         `[FETCH] Got new data for ${resourceId}, writing it and returning it`
       );
       await makeDataDirRecursive(localPath);
-      await fs.promises.writeFile(localPath, JSON.stringify(data));
-      return data;
+
+      return doWrite(data, localPath);
     } catch (error) {
       if (fs.existsSync(localPath)) {
-        const content = await fs.promises.readFile(localPath, "utf8");
-        const data = JSON.parse(content);
-        return data;
+        logger.warn(
+          `[FETCH] Could not reload local data after ttl expired: ${resourceId}. Serving local data anyway. ${JSON.stringify(
+            error
+          )}`
+        );
+        return doRead(localPath);
       } else {
         throw error;
       }
@@ -132,10 +150,20 @@ export const fetchBeefyVaultAddresses = fetchIfNotFoundLocally(
       }));
     return data;
   },
-  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.json"),
+  (chain: Chain) => path.join(DATA_DIRECTORY, chain, "beefy", "vaults.jsonl"),
   {
     ttl_ms: 1000 * 60 * 60 * 24,
-    cache_key: (chain: Chain) => `vault-list:${chain}`,
+    getResourceId: (chain: Chain) => `vault-list:${chain}`,
+    doWrite: async (data, filePath) => {
+      const jsonl = data.map((obj) => JSON.stringify(obj)).join("\n");
+      await fs.promises.writeFile(filePath, jsonl);
+      return data;
+    },
+    doRead: async (filePath) => {
+      const content = await fs.promises.readFile(filePath, "utf8");
+      const data = content.split("\n").map((obj) => JSON.parse(obj));
+      return data;
+    },
   }
 );
 

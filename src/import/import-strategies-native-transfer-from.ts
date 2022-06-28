@@ -11,14 +11,14 @@ import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
-import yargs, { string } from "yargs";
+import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
+import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import {
   CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
   LOG_LEVEL,
-  WNATIVE_ADDRESS,
 } from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
@@ -105,7 +105,7 @@ async function importStrategyWNativeFrom(
   source: "rpc" | "explorer",
   strategy: { implementation: string }
 ) {
-  const nativeAddress = WNATIVE_ADDRESS[chain];
+  const nativeAddress = getChainWNativeTokenAddress(chain);
   const contractAddress = normalizeAddress(strategy.implementation);
 
   logger.info(`[ERC20.N.ST] Processing ${chain}:${strategy.implementation}`);
