@@ -2,9 +2,11 @@ IMPORTANT:
 [x] periodically refresh vault list
 [ ] fetch token and want prices from beefy api
 [x] fix completeness checks for vault transaction date
+[ ] poc a dashboarding solution
 
 NICE TO HAVE:
 [ ] close read/write streams when done
+[ ] make sure write streams are multi-process safe
 [ ] merge transfers and ppfs imports in a single container instead of one by chain
 [ ] for multi-chain scripts, retry redis lock quorum errors immediately
 [ ] derive moo price from ppfs and want price
