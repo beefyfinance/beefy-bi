@@ -14,7 +14,7 @@ FROM
 ## manual create
 
 ```
-beefy-bi/indexed-data/CHAIN/contracts/*/ERC20/Transfer.csv
+beefy-bi/indexed-data/chain/CHAIN/contracts/*/ERC20/Transfer.csv
 
 CHAIN_vault_transfer
 
@@ -52,41 +52,58 @@ external table
 ## SQL create
 
 ```
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.arbitrum_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/arbitrum/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.aurora_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/aurora/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.avax_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/avax/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.bsc_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/bsc/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.celo_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/celo/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.cronos_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/cronos/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.emerald_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/emerald/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fantom_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/fantom/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fuse_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/fuse/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.harmony_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/harmony/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.heco_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/heco/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.metis_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/metis/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonbeam_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/moonbeam/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonriver_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/moonriver/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.optimism_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/optimism/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.polygon_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/polygon/contracts/*/ERC20/Transfer.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.syscoin_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/syscoin/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.arbitrum_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/arbitrum/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.aurora_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/aurora/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.avax_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/avax/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.bsc_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/bsc/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.celo_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/celo/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.cronos_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/cronos/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.emerald_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/emerald/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fantom_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/fantom/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fuse_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/fuse/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.harmony_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/harmony/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.heco_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/heco/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.metis_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/metis/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonbeam_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/moonbeam/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonriver_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/moonriver/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.optimism_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/optimism/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.polygon_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/polygon/contracts/*/ERC20/Transfer.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.syscoin_vault_transfer` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, from_address STRING NOT NULL, to_address STRING NOT NULL, amount BIGNUMERIC NOT NULL) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/syscoin/contracts/*/ERC20/Transfer.csv"]);
 
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.arbitrum_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/arbitrum/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.aurora_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/aurora/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.avax_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/avax/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.bsc_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/bsc/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.celo_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/celo/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.cronos_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/cronos/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.emerald_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/emerald/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fantom_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/fantom/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fuse_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/fuse/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.harmony_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/harmony/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.heco_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/heco/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.metis_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/metis/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonbeam_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/moonbeam/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonriver_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/moonriver/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.optimism_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/optimism/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.polygon_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/polygon/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
-CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.syscoin_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/syscoin/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.arbitrum_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/arbitrum/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.aurora_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/aurora/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.avax_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/avax/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.bsc_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/bsc/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.celo_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/celo/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.cronos_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/cronos/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.emerald_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/emerald/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fantom_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/fantom/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.fuse_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/fuse/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.harmony_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/harmony/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.heco_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/heco/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.metis_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/metis/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonbeam_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/moonbeam/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.moonriver_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/moonriver/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.optimism_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/optimism/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.polygon_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/polygon/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.syscoin_ppfs_4hour` ( block_number INT64 NOT NULL, block_datetime STRING NOT NULL, ppfs BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/chain/syscoin/contracts/*/BeefyVaultV6/ppfs_4hour.csv"]);
+
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.oracle_price_15min` ( datetime STRING NOT NULL, usd_value BIGNUMERIC NOT NULL ) OPTIONS(format="CSV", uris=["gs://beefy-bi/indexed-data/price/beefy/*/price_15min.csv"]);
+
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.all_vaults`
+(
+  id STRING NOT NULL,
+  token_name STRING NOT NULL,
+  token_decimals INTEGER NOT NULL,
+  token_address STRING NOT NULL,
+  want_address STRING NOT NULL,
+  want_decimals INTEGER NOT NULL,
+  price_oracle JSON NOT NULL
+)
+OPTIONS(
+  format="NEWLINE_DELIMITED_JSON",
+  uris=["gs://beefy-bi/indexed-data/chain/*/beefy/vaults.jsonl"]
+);
 ```
 
 ```
@@ -149,5 +166,17 @@ CREATE OR REPLACE TABLE `beefy-bi.beefy_data_cleaned.vault_ppfs_4hour` AS (
     PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', block_datetime) as block_datetime,
     ppfs / (POW(10, 18)) as ppfs
   FROM all_ppfs
+);
+
+
+CREATE OR REPLACE TABLE `beefy-bi.beefy_data_cleaned.oracle_price_15min` AS (
+  with all_prices as (
+              select _FILE_NAME as file_name, * FROM `beefy-bi.beefy_data_raw.oracle_price_15min`
+  )
+  SELECT
+    split(file_name,'/')[OFFSET(6)] as oracle_id,
+    PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', datetime) as datetime,
+    usd_value
+  FROM all_prices
 );
 ```
