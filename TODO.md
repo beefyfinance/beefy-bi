@@ -28,7 +28,7 @@ NICE TO HAVE:
 BONUS:
 [x] remove hardhat
 [x] configure which chain has a proper explorer instead of hardcoding it
-[ ] configure which chain requires manual rpc calls instead of hardcoding it
+[ ] configure which chain requires manual rpc calls instead of hardcoding it (harmony, etc)
 [ ] create a store class that regroup similar csv stores code
 [ ] create a common ArchiveNode needed error handler and logger
 [ ] Batch RPC requests? might be good for ppfs if rpcs allow it

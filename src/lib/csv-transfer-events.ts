@@ -3,6 +3,7 @@ import * as path from "path";
 import * as readLastLines from "read-last-lines";
 import { parse as syncParser } from "csv-parse/sync";
 import { stringify as stringifySync } from "csv-stringify/sync";
+import { parse as asyncParser } from "csv-parse";
 import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
@@ -98,4 +99,33 @@ export async function getLastImportedERC20TransferEvent(
   data.reverse();
 
   return data[0];
+}
+
+export async function* streamERC20TransferEvents(
+  chain: Chain,
+  contractAddress: string
+): AsyncIterable<ERC20EventData> {
+  const filePath = getContractERC20TransfersFilePath(chain, contractAddress);
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const readStream = fs.createReadStream(filePath).pipe(
+    asyncParser({
+      delimiter: CSV_SEPARATOR,
+      columns: erc20TransferColumns,
+      cast: (value, context) => {
+        if (context.index === 0) {
+          return parseInt(value);
+        } else if (context.index === 1) {
+          return new Date(value);
+        } else {
+          return value;
+        }
+      },
+      cast_date: true,
+    })
+  );
+  yield* readStream;
+
+  readStream.destroy();
 }
