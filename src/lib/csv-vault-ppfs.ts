@@ -3,6 +3,7 @@ import * as path from "path";
 import * as readLastLines from "read-last-lines";
 import { parse as syncParser } from "csv-parse/sync";
 import { stringify as stringifySync } from "csv-stringify/sync";
+import { parse as asyncParser } from "csv-parse";
 import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
@@ -116,6 +117,56 @@ export async function getLastImportedBeefyVaultV6PPFSData(
   data.reverse();
 
   return data[0];
+}
+
+export async function getFirstImportedBeefyVaultV6PPFSData(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): Promise<BeefyVaultV6PPFSData | null> {
+  const readStream = streamBeefyVaultV6PPFSData(
+    chain,
+    contractAddress,
+    samplingPeriod
+  );
+  for await (const event of readStream) {
+    return event;
+  }
+  return null;
+}
+
+export async function* streamBeefyVaultV6PPFSData(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): AsyncIterable<BeefyVaultV6PPFSData> {
+  const filePath = getBeefyVaultV6PPFSFilePath(
+    chain,
+    contractAddress,
+    samplingPeriod
+  );
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const readStream = fs.createReadStream(filePath).pipe(
+    asyncParser({
+      delimiter: CSV_SEPARATOR,
+      columns: beefyVaultPPFSColumns,
+      cast: (value, context) => {
+        if (context.index === 0) {
+          return parseInt(value);
+        } else if (context.index === 1) {
+          return new Date(value);
+        } else {
+          return value;
+        }
+      },
+      cast_date: true,
+    })
+  );
+  yield* readStream;
+
+  readStream.destroy();
 }
 
 export async function fetchBeefyPPFS(

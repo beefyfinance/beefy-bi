@@ -101,6 +101,17 @@ export async function getLastImportedERC20TransferEvent(
   return data[0];
 }
 
+export async function getFirstImportedERC20TransferEvent(
+  chain: Chain,
+  contractAddress: string
+): Promise<ERC20EventData | null> {
+  const readStream = streamERC20TransferEvents(chain, contractAddress);
+  for await (const event of readStream) {
+    return event;
+  }
+  return null;
+}
+
 export async function* streamERC20TransferEvents(
   chain: Chain,
   contractAddress: string

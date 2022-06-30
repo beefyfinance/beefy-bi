@@ -88,6 +88,38 @@ OPTIONS(
   format="NEWLINE_DELIMITED_JSON",
   uris=["gs://beefy-bi/indexed-data/chain/*/beefy/vaults.jsonl"]
 );
+
+CREATE OR REPLACE EXTERNAL TABLE `beefy-bi.beefy_data_raw.all_vault_data_coverage`
+(
+  chain STRING,
+  vault_id STRING,
+  moo_token_address STRING,
+  moo_token_decimals INTEGER,
+  moo_token_name STRING,
+  want_oracle_id STRING,
+  want_decimals INTEGER,
+  want_address STRING,
+  vault_creation_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  vault_creation_block_number INT64,
+  vault_creation_transaction FLOAT64,
+  first_moo_erc_20_transfer_block_number INT64,
+  first_moo_erc_20_transfer_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  last_moo_erc_20_transfer_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  last_moo_erc_20_transfer_block_number INT64,
+  wnative_oracle_last_price_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  wnative_oracle_first_price_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  want_oracle_last_price_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  want_oracle_first_price_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  last_ppfs_block_number INT64,
+  first_ppfs_block_number INT64,
+  first_ppfs_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  last_ppfs_datetime TIMESTAMP OPTIONS(description="bq-datetime"),
+  strategies ARRAY<STRUCT<implementation FLOAT64, datetime TIMESTAMP OPTIONS(description="bq-datetime"), blockNumber INT64>>
+)
+OPTIONS(
+  format="NEWLINE_DELIMITED_JSON",
+  uris=["gs://beefy-bi/indexed-data/report/data-coverage.jsonl"]
+);
 ```
 
 ## create cleaned tables
@@ -443,5 +475,12 @@ CREATE OR REPLACE TABLE `beefy-bi.beefy_data_report.investor_usd_balance_ts` AS 
 select *
 from investment_value_ts
 order by chain, vault_id, investor_address, datetime
+);
+
+
+
+CREATE OR REPLACE TABLE `beefy-bi.beefy_data_report.vault_data_coverage` AS (
+ select *
+ from `beefy-bi.beefy_data_raw.all_vault_data_coverage`
 );
 ```

@@ -214,6 +214,26 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
     )
 );
 
+export async function fetchLocalContractCreationInfos(
+  chain: Chain,
+  contractAddress: string
+): Promise<ContractCreationInfo | null> {
+  const filePath = path.join(
+    DATA_DIRECTORY,
+    "chain",
+    chain,
+    "contracts",
+    normalizeAddress(contractAddress),
+    "creation_date.json"
+  );
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const content = await fs.promises.readFile(filePath, "utf8");
+  const data = JSON.parse(content);
+  return data;
+}
+
 export const fetchCachedContractLastTransaction = cacheAsyncResultInRedis(
   async (
     chain: Chain,

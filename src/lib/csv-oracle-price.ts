@@ -3,6 +3,7 @@ import * as path from "path";
 import * as readLastLines from "read-last-lines";
 import { parse as syncParser } from "csv-parse/sync";
 import { stringify as stringifySync } from "csv-stringify/sync";
+import { parse as asyncParser } from "csv-parse";
 import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "../utils/logger";
@@ -101,4 +102,44 @@ export async function getLastImportedOraclePrice(
   data.reverse();
 
   return data[0];
+}
+
+export async function getFirstImportedOraclePrice(
+  oracleId: string,
+  samplingPeriod: SamplingPeriod
+): Promise<OraclePriceData | null> {
+  const readStream = streamOraclePrices(oracleId, samplingPeriod);
+  for await (const event of readStream) {
+    return event;
+  }
+  return null;
+}
+
+export async function* streamOraclePrices(
+  oracleId: string,
+  samplingPeriod: SamplingPeriod
+): AsyncIterable<OraclePriceData> {
+  const filePath = getOraclePriceFilePath(oracleId, samplingPeriod);
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
+  const readStream = fs.createReadStream(filePath).pipe(
+    asyncParser({
+      delimiter: CSV_SEPARATOR,
+      columns: oraclePriceColumns,
+      cast: (value, context) => {
+        if (context.index === 0) {
+          return new Date(value);
+        } else if (context.index === 1) {
+          return parseFloat(value);
+        } else {
+          return value;
+        }
+      },
+      cast_date: true,
+    })
+  );
+  yield* readStream;
+
+  readStream.destroy();
 }

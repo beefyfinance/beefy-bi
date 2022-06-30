@@ -2,10 +2,18 @@ import { Chain } from "../types/chain";
 import { normalizeAddress } from "./ethers";
 import * as addressbook from "blockchain-addressbook";
 
-export function getChainWNativeTokenAddress(chain: Chain): string {
+function getAddressBookTokensConfig(chain: Chain) {
   const addrBookChain =
     chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
-  return normalizeAddress(
-    addressbook.addressBook[addrBookChain].tokens.WNATIVE.address
-  );
+  return addressbook.addressBook[addrBookChain].tokens;
+}
+
+export function getChainWNativeTokenAddress(chain: Chain): string {
+  const tokens = getAddressBookTokensConfig(chain);
+  return normalizeAddress(tokens.WNATIVE.address);
+}
+
+export function getChainWNativeTokenOracleId(chain: Chain): string {
+  const tokens = getAddressBookTokensConfig(chain);
+  return tokens.WNATIVE.symbol;
 }
