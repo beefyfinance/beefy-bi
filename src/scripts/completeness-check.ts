@@ -3,6 +3,7 @@ import {
   BeefyVault,
   fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
+  getLocalBeefyStrategyFeeRecipients,
 } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
@@ -140,19 +141,21 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     );
   }
 
-  // for each strategy, check we got transfer froms
+  // for each strategy
   const stratStream = streamVaultStrategies(chain, contractAddress);
   for await (const strat of stratStream) {
-    const fromAddress = strat.implementation;
+    const strategyAddress = strat.implementation;
+
+    // check we got transfer froms
     const wnative = getChainWNativeTokenAddress(chain);
     const lastTransferFrom = await getLastImportedERC20TransferFromEvent(
       chain,
-      fromAddress,
+      strategyAddress,
       wnative
     );
     if (lastTransferFrom === null) {
       logger.error(
-        `[CC] No TransferFrom events found for vault ${chain}:${fromAddress}}`
+        `[CC] No TransferFrom events found for vault ${chain}:${strategyAddress}}`
       );
     } else if (now.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
       // check against last transaction
@@ -165,17 +168,32 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
         oneDay
       ) {
         logger.warn(
-          `[CC] TransferFrom events too old for vault ${chain}:${fromAddress}: ${JSON.stringify(
+          `[CC] TransferFrom events too old for vault ${chain}:${strategyAddress}: ${JSON.stringify(
             lastTransferFrom
           )}`
         );
       } else {
         logger.verbose(
-          `[CC] TransferFrom events ok for ${chain}:${fromAddress}`
+          `[CC] TransferFrom events ok for ${chain}:${strategyAddress}`
         );
       }
     } else {
-      logger.verbose(`[CC] TransferFrom events ok for ${chain}:${fromAddress}`);
+      logger.verbose(
+        `[CC] TransferFrom events ok for ${chain}:${strategyAddress}`
+      );
+    }
+
+    // check we got fee recipients
+    const feeRecipients = getLocalBeefyStrategyFeeRecipients(
+      chain,
+      strategyAddress
+    );
+    if (feeRecipients === null) {
+      logger.error(
+        `[CC] No fee recipients found for vault ${chain}:${strategyAddress}`
+      );
+    } else {
+      logger.info(`[CC] Fee recipients ok for ${chain}:${strategyAddress}`);
     }
   }
 }

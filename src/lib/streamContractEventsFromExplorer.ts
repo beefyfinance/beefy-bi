@@ -8,27 +8,10 @@ import { Chain } from "../types/chain";
 import { callLockProtectedExplorerUrl } from "./shared-resources/shared-explorer";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
 import { fetchContractCreationInfos } from "./fetch-if-not-found-locally";
+import { JsonAbi } from "../types/abi";
 
 const ERC20Abi = _ERC20Abi as any as JsonAbi;
 const BeefyVaultV6Abi = _BeefyVaultV6Abi as any as JsonAbi;
-
-type JsonAbi = {
-  inputs?: {
-    internalType: string;
-    name: string;
-    type: string;
-    indexed?: boolean;
-  }[];
-  stateMutability?: string;
-  type: string;
-  anonymous?: boolean;
-  name?: string;
-  outputs?: {
-    internalType: string;
-    name: string;
-    type: string;
-  }[];
-}[];
 
 interface ExplorerLog {
   address: string;

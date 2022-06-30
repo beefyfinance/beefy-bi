@@ -102,6 +102,20 @@ services:
   #############################################################################
   #############################################################################
 
+  import-strategy-fee-recipients:
+    <<: *importer
+    environment:
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/import/import-strategies-fee-recipients.js
+      WORK_CHAIN: all
+      WORK_SOURCE: all
+
+  #############################################################################
+  #############################################################################
+  #############################################################################
+
   import-vault-transfers-fantom:
     <<: *importer
     environment:

@@ -14,6 +14,10 @@ import { getRedlock } from "./shared-resources/shared-lock";
 import { backOff } from "exponential-backoff";
 import { logger } from "../utils/logger";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
+import {
+  BeefyFeeRecipientInfo,
+  fetchBeefyStrategyFeeRecipients,
+} from "../lib/strategy-fee-recipient-infos";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
@@ -214,7 +218,7 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
     )
 );
 
-export async function fetchLocalContractCreationInfos(
+export async function getLocalContractCreationInfos(
   chain: Chain,
   contractAddress: string
 ): Promise<ContractCreationInfo | null> {
@@ -252,3 +256,41 @@ export const fetchCachedContractLastTransaction = cacheAsyncResultInRedis(
     ttl_sec: 60 * 60,
   }
 );
+
+export const getBeefyStrategyFeeRecipients = fetchIfNotFoundLocally(
+  async (
+    chain: Chain,
+    contractAddress: string
+  ): Promise<BeefyFeeRecipientInfo> => {
+    return fetchBeefyStrategyFeeRecipients(chain, contractAddress);
+  },
+  (chain: Chain, contractAddress: string) =>
+    path.join(
+      DATA_DIRECTORY,
+      "chain",
+      chain,
+      "contracts",
+      normalizeAddress(contractAddress),
+      "fee_recipients.json"
+    )
+);
+
+export async function getLocalBeefyStrategyFeeRecipients(
+  chain: Chain,
+  contractAddress: string
+): Promise<BeefyFeeRecipientInfo | null> {
+  const filePath = path.join(
+    DATA_DIRECTORY,
+    "chain",
+    chain,
+    "contracts",
+    normalizeAddress(contractAddress),
+    "fee_recipients.json"
+  );
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const content = await fs.promises.readFile(filePath, "utf8");
+  const data = JSON.parse(content);
+  return data;
+}
