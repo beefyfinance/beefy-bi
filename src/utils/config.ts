@@ -198,9 +198,46 @@ export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "fantom",
   "harmony",
   "heco",
-  "metis",
+  //"metis", too buggy to work with @see below for details
   "moonbeam",
   "moonriver",
   "optimism",
   "polygon",
 ];
+
+/**
+ * Why we don't use metis explorer api:
+ *
+ * https://andromeda-explorer.metis.io/api-docs
+ * Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: topic0_1_opr","result":null,"status":"0"}
+ * 
+ * So we need to provide an extra parameter for metis, 2 values are possible: "or" and "and"
+ * if we use "or" we get too much data
+ * if we use "and" don't get any data
+ *
+ * Example with:
+ *  - contract 0x0624ab4290f9305fb2de3fb287aa5cdcf36d6b51
+ *  - trx https://andromeda-explorer.metis.io/tx/0xd5a5f77b2f0d012407adcbf10ff34ede63c42ade473d9273812a62444d3ca705/logs
+ *
+ * RPC and explorer api show logs for this transaction from our contract:
+ *   curl "https://andromeda.metis.io/?owner=1088" -X POST -H "Content-Type: application/json" --data '{"method":"eth_getLogs","params":[{"address": "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000","fromBlock": "0x2D88A8", "toBlock": "0x2D88A8"}],"id":1,"jsonrpc":"2.0"}' | jq
+ *   {
+      "address": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",
+      "topics": [
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "0x0000000000000000000000000624ab4290f9305fb2de3fb287aa5cdcf36d6b51",
+        "0x000000000000000000000000c9b290ff37fa53272e9d71a0b13a444010af4497"
+      ],
+      "data": "0x000000000000000000000000000000000000000000000000187ab5b9e1c339c3",
+      "blockNumber": "0x2d88a8",
+      "transactionHash": "0xd5a5f77b2f0d012407adcbf10ff34ede63c42ade473d9273812a62444d3ca705",
+      "transactionIndex": "0x0",
+      "blockHash": "0xeb38b4b0fd9525f8eb17c7fc782f615829594bb85c3ec81c9dd2e8ab199146e7",
+      "logIndex": "0x15",
+      "removed": false
+    }
+
+ * But we don't get any data from explorer api
+ *   https://andromeda-explorer.metis.io/api?module=logs&action=getLogs&address=0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000&topic0=0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef&fromBlock=2984004&toBlock=2984204&topic1=0x0000000000000000000000000624ab4290f9305fb2de3fb287aa5cdcf36d6b51&topic0_1_opr=and
+ *  {"message":"No logs found","result":[],"status":"0"}
+ */
