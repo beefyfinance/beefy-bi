@@ -3,6 +3,8 @@ REVOKE ALL ON DATABASE beefy FROM public;
 REVOKE ALL ON SCHEMA public FROM public;
 REVOKE ALL ON DATABASE postgres FROM public;
 
+CREATE SCHEMA IF NOT EXISTS beefy_raw;
+ALTER SCHEMA beefy_raw OWNER TO beefy;
 
 -- drop owned by grafana_ro cascade;
 -- drop user grafana_ro;
