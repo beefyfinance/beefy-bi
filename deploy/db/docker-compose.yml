@@ -7,11 +7,31 @@ version: "3.9" # optional since v1.27.0
 # tune the system: https://docs.timescale.com/timescaledb/latest/how-to-guides/configuration/timescaledb-tune/#timescaledb-tuning-tool
 # docker exec -it beefy_db-timescaledb-1 timescaledb-tune --yes --memory="4GB" --cpus=2 --max-bg-workers=16 --dry-run
 
+x-importer: &importer
+
 services:
+  load-timescaledb:
+    image: beefy-data-importer
+    restart: always
+    volumes:
+      - data_directory:/data
+    networks:
+      - backend
+    depends_on:
+      - timescaledb
+    environment:
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      WORK_SCRIPT: ./dist/src/script/load-timescaledb.js
+      WORK_CHAIN: all
+      WORK_SOURCE: all
+
   timescaledb:
     image: timescale/timescaledb:latest-pg14
     volumes:
       - timescaledb_data:/pgdata
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     deploy:
       resources:
         limits:
@@ -46,8 +66,8 @@ services:
       TZ: UTC
       POSTGRES_HOST: timescaledb
       POSTGRES_PORT: 5432
-      POSTGRES_USER: beefy
-      POSTGRES_PASSWORD: beefy
+      POSTGRES_USER: grafana_ro
+      POSTGRES_PASSWORD: grafana_ro
       POSTGRES_DB: beefy
     volumes:
       - grafana_data:/var/lib/grafana
@@ -65,6 +85,9 @@ volumes:
   grafana_data:
     external: true
     name: beefy_grafana_data_directory
+  data_directory:
+    external: true
+    name: beefy_data_directory
 
 networks:
   backend: {}

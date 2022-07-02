@@ -13,6 +13,7 @@ services:
     image: timescale/timescaledb:latest-pg14
     volumes:
       - timescaledb_data:/pgdata
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     # configure the database
     #command: postgres -c max_locks_per_transaction=600
     env_file: ../../.env
@@ -39,8 +40,8 @@ services:
       TZ: UTC
       POSTGRES_HOST: timescaledb
       POSTGRES_PORT: 5432
-      POSTGRES_USER: beefy
-      POSTGRES_PASSWORD: beefy
+      POSTGRES_USER: grafana_ro
+      POSTGRES_PASSWORD: grafana_ro
       POSTGRES_DB: beefy
     volumes:
       - grafana_data_wtf:/var/lib/grafana
