@@ -12,6 +12,7 @@ IMPORTANT:
 [ ] Backfill price history, maybe from db archive
 [ ] Fix missing ppfs on bsc for some vaults
 [ ] Find a better solution than bigquery, or at least with stable costs
+[ ] Fetch all vaults from git history: some vaults are deleted from the files when they are empty
 
 
 

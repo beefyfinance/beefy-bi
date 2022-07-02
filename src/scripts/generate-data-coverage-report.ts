@@ -2,7 +2,7 @@ import { flatten, shuffle, sortBy } from "lodash";
 import {
   BeefyVault,
   fetchBeefyVaultList,
-  fetchLocalContractCreationInfos,
+  getLocalContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
@@ -24,7 +24,6 @@ import {
 } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
-import { normalizeAddress } from "../utils/ethers";
 import * as path from "path";
 import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
@@ -153,7 +152,7 @@ async function getVaultCoverageReport(
      * VAULT CREATION
      */
     // vault creation
-    const creationInfos = await fetchLocalContractCreationInfos(
+    const creationInfos = await getLocalContractCreationInfos(
       chain,
       contractAddress
     );

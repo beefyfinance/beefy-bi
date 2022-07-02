@@ -3,6 +3,9 @@ import { Chain } from "../types/chain";
 import * as path from "path";
 dotenv.config();
 
+export const TIMESCALEDB_URL =
+  process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
+
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL =
@@ -219,7 +222,7 @@ export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
  *  - contract 0x0624ab4290f9305fb2de3fb287aa5cdcf36d6b51
  *  - trx https://andromeda-explorer.metis.io/tx/0xd5a5f77b2f0d012407adcbf10ff34ede63c42ade473d9273812a62444d3ca705/logs
  *
- * RPC and explorer api show logs for this transaction from our contract:
+ * RPC and explorer api show logs for this transaction from this contract:
  *   curl "https://andromeda.metis.io/?owner=1088" -X POST -H "Content-Type: application/json" --data '{"method":"eth_getLogs","params":[{"address": "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000","fromBlock": "0x2D88A8", "toBlock": "0x2D88A8"}],"id":1,"jsonrpc":"2.0"}' | jq
  *   {
       "address": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",

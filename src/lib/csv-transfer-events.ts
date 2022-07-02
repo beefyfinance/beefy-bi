@@ -112,13 +112,13 @@ export async function getFirstImportedERC20TransferEvent(
   return null;
 }
 
-export async function* streamERC20TransferEvents(
+export async function getErc20TransferEventsStream(
   chain: Chain,
   contractAddress: string
-): AsyncIterable<ERC20EventData> {
+) {
   const filePath = getContractERC20TransfersFilePath(chain, contractAddress);
   if (!fs.existsSync(filePath)) {
-    return;
+    return null;
   }
   const readStream = fs.createReadStream(filePath).pipe(
     asyncParser({
@@ -136,6 +136,17 @@ export async function* streamERC20TransferEvents(
       cast_date: true,
     })
   );
+  return readStream;
+}
+
+export async function* streamERC20TransferEvents(
+  chain: Chain,
+  contractAddress: string
+): AsyncIterable<ERC20EventData> {
+  const readStream = await getErc20TransferEventsStream(chain, contractAddress);
+  if (!readStream) {
+    return;
+  }
   yield* readStream;
 
   readStream.destroy();

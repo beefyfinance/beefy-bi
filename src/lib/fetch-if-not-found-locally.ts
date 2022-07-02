@@ -196,6 +196,24 @@ export const fetchBeefyVaultList = fetchIfNotFoundLocally(
   }
 );
 
+export async function getLocalBeefyVaultList(
+  chain: Chain
+): Promise<BeefyVault[]> {
+  const filePath = path.join(
+    DATA_DIRECTORY,
+    "chain",
+    chain,
+    "beefy",
+    "vaults.jsonl"
+  );
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+  const content = await fs.promises.readFile(filePath, "utf8");
+  const data = content.split("\n").map((obj) => JSON.parse(obj));
+  return data;
+}
+
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(
   async (
     chain: Chain,

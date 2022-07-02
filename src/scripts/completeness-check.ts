@@ -1,9 +1,9 @@
 import { shuffle, sortBy } from "lodash";
 import {
   BeefyVault,
-  fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
   getLocalBeefyStrategyFeeRecipients,
+  getLocalBeefyVaultList,
 } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
@@ -19,6 +19,7 @@ import {
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
+import { LOG_LEVEL } from "../utils/config";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -28,16 +29,30 @@ async function main() {
     }).argv;
 
   const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
-  for (const chain of chains) {
-    await checkChain(chain);
-  }
+
+  const chainsToImport = chain === "all" ? allChainIds : [chain];
+  const allPromises = sortBy(chainsToImport, (chain) => chain).map(
+    async (chain) => {
+      try {
+        await checkChain(chain);
+      } catch (e) {
+        logger.error(`[CC] Error checking ${chain}. Skipping. ${e}`);
+        if (LOG_LEVEL === "trace") {
+          console.log(e);
+        }
+      }
+    }
+  );
+  await Promise.allSettled(allPromises);
 }
 
 async function checkChain(chain: Chain) {
   await checkBlockSamples(chain);
 
-  const vaults = sortBy(await fetchBeefyVaultList(chain), (v) => v.token_name);
+  const vaults = sortBy(
+    await getLocalBeefyVaultList(chain),
+    (v) => v.token_name
+  );
   for (const vault of vaults) {
     await checkVault(chain, vault);
   }
@@ -193,7 +208,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
         `[CC] No fee recipients found for vault ${chain}:${strategyAddress}`
       );
     } else {
-      logger.info(`[CC] Fee recipients ok for ${chain}:${strategyAddress}`);
+      logger.verbose(`[CC] fee recipients ok for ${chain}:${strategyAddress}`);
     }
   }
 }
