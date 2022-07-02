@@ -31,6 +31,7 @@ async function main() {
   const vaultId = argv.vaultId || null;
 
   for (const chain of chains) {
+    logger.info(`[LTSDB] Importing ${chain}`);
     const vaults = await getLocalBeefyVaultList(chain);
     for (const vault of vaults) {
       if (vaultId && vault.id !== vaultId) {
@@ -54,7 +55,7 @@ async function main() {
 async function importVault(chain: Chain, vault: BeefyVault) {
   const pgPool = await getPgPool();
 
-  logger.verbose(`[LTSDB] Processing ${chain}:${vault.id}`);
+  logger.info(`[LTSDB] Importing ${chain}:${vault.id}`);
   const contractAddress = vault.token_address;
 
   const fileReadStream = await getErc20TransferEventsStream(
