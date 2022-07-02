@@ -1,9 +1,12 @@
 ```
 
 IMPORTANT:
+[ ] Find a way to limit cpu and memory usage for timescale and grafana
+[ ] Deploy timescaledb and grafana to let ppl explore -> NEED iptables filters first (keep ssh on custom or dead omg)
 [ ] How do we get IL and individual token balance per vault?
     [x] find out how thetopdefi got IL and token stats -> custom adapters
-    [ ] wait for chebin to rework the fetchXXXPrice code so we can have LP balance of each token
+    [x] wait for chebin to rework the fetchXXXPrice code so we can have LP balance of each token
+    [ ] Reuse chebiN code to fetch LP breakdown history
 [x] periodically refresh vault list
 [x] fetch token and want prices from beefy api
 [x] fix completeness checks for vault transaction date

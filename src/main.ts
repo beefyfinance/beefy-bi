@@ -5,4 +5,5 @@ export * from "./import/import-vault-ppfs";
 export * from "./import/import-strategies-native-transfer-from";
 export * from "./import/import-prices";
 export * from "./import/import-strategies-fee-recipients";
+export * from "./scripts/load-timescaledb";
 export * from "./scripts/completeness-check";

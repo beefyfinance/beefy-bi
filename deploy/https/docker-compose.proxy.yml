@@ -1,0 +1,41 @@
+version: "3.7"
+
+services:
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./nginx-conf.d:/etc/nginx/conf.d
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhosts:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+    networks:
+      - proxy-exposed
+
+  letsencrypt-nginx-proxy-companion:
+    container_name: nginx-proxy-letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    environment:
+      DEFAULT_EMAIL: contact@beefy.finance
+      NGINX_PROXY_CONTAINER: nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhosts:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+    depends_on:
+      - nginx-proxy
+
+networks:
+  proxy-exposed:
+    external:
+      name: proxy-exposed
+
+volumes:
+  nginx-certs:
+  nginx-vhosts:
+  nginx-html:

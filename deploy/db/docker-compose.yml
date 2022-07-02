@@ -2,8 +2,7 @@ version: "3.9" # optional since v1.27.0
 
 # mkdir -p ${PWD}/data/db/timescaledb
 # docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/timescaledb --opt o=bind beefy_timescaledb_data_directory
-# mkdir -p ${PWD}/data/db/grafana && chmod 777 ${PWD}/data/db/grafana
-# docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana --opt o=bind beefy_grafana_data_directory
+# docker volume create beefy_grafana_data_directory
 
 # tune the system: https://docs.timescale.com/timescaledb/latest/how-to-guides/configuration/timescaledb-tune/#timescaledb-tuning-tool
 # docker exec -it beefy_db-timescaledb-1 timescaledb-tune --yes --memory="4GB" --cpus=2 --max-bg-workers=16 --dry-run
@@ -13,12 +12,14 @@ services:
     image: timescale/timescaledb:latest-pg14
     volumes:
       - timescaledb_data:/pgdata
-    # configure the database
-    #command: postgres -c max_locks_per_transaction=600
-    env_file: ../../.env
-    cpus: ${TIMESCALEDB_CPU_SHARE:-0.3}
-    ports:
-      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.70"
+          memory: 20G
+        reservations:
+          cpus: "0.25"
+          memory: 5G
     environment:
       TZ: "UTC"
       POSTGRES_PORT: 5432
@@ -33,8 +34,14 @@ services:
     image: grafana/grafana:9.0.2
     ports:
       - "3000:3000"
-    env_file: ../../.env
-    cpus: ${GRAFANA_CPU_SHARE:-0.3}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 1G
+        reservations:
+          cpus: "0.05"
+          memory: 250M
     environment:
       TZ: UTC
       POSTGRES_HOST: timescaledb
@@ -43,7 +50,7 @@ services:
       POSTGRES_PASSWORD: beefy
       POSTGRES_DB: beefy
     volumes:
-      - grafana_data_wtf:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
       - ./grafana.ini:/etc/grafana/grafana.ini
       - ./grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
@@ -55,7 +62,6 @@ volumes:
   timescaledb_data:
     external: true
     name: beefy_timescaledb_data_directory
-  grafana_data_wtf: {}
   grafana_data:
     external: true
     name: beefy_grafana_data_directory

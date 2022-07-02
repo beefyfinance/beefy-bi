@@ -1,6 +1,8 @@
 # config file version
 apiVersion: 1
 
+# configure manually and get the json data from /api/datasources
+
 datasources:
   - name: Beefy TimescaleDB
     type: postgres
@@ -10,9 +12,14 @@ datasources:
     database: ${POSTGRES_DB}
     isDefault: true
     jsonData:
-      sslmode: disable
-      postgresVersion: 1400
+      postgresVersion: 1200
+      sslmode: "disable"
+      timeInterval: "15m"
       timescaledb: true
+      tlsAuth: false
+      tlsAuthWithCACert: false
+      tlsConfigurationMethod: "file-path"
+      tlsSkipVerify: true
     secureJsonData:
       password: ${POSTGRES_PASSWORD}
     editable: false
