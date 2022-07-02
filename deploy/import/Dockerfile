@@ -69,5 +69,5 @@ WORKDIR /opt/app
 
 # Run the application using node
 ENTRYPOINT []
-COPY deploy/run.sh .
+COPY deploy/import/run.sh .
 CMD ["./run.sh"]
