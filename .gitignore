@@ -10,3 +10,6 @@ artifacts
 dist
 
 *.log
+
+
+.DS_Store

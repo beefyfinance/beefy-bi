@@ -14,3 +14,5 @@ out/*
 dist
 
 *.log
+
+.DS_Store
