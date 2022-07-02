@@ -25,7 +25,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1656801129513,
+  "iteration": 1656801129515,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -82,7 +82,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -204,7 +205,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -326,7 +328,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -632,7 +635,7 @@
           "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
           "metricColumn": "value",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
+          "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\n  and contract_address in (\n    select distinct contract_address\n    from beefy_raw.vault_ppfs_ts\n    WHERE $__timeFilter(datetime)\n    and chain in ($chain)\n    order by contract_address desc\n    limit 100\n  )\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
           "refId": "A",
           "select": [
             [
@@ -662,7 +665,7 @@
           ]
         }
       ],
-      "title": "PPFS  by contract",
+      "title": "PPFS  by contract (limited to 100 contracts)",
       "type": "timeseries"
     }
   ],
@@ -676,8 +679,44 @@
         "allValue": "'arbitrum','aurora','avax','bsc','celo','cronos','emerald','fantom','fuse','harmony','heco','metis','moonbeam','moonriver','optimism','polygon','syscoin'",
         "current": {
           "selected": true,
-          "text": ["arbitrum"],
-          "value": ["arbitrum"]
+          "text": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "emerald",
+            "fantom",
+            "fuse",
+            "harmony",
+            "heco",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon",
+            "syscoin"
+          ],
+          "value": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "emerald",
+            "fantom",
+            "fuse",
+            "harmony",
+            "heco",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon",
+            "syscoin"
+          ]
         },
         "hide": 0,
         "includeAll": false,
@@ -691,82 +730,82 @@
             "value": "arbitrum"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "aurora",
             "value": "aurora"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "avax",
             "value": "avax"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "bsc",
             "value": "bsc"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "celo",
             "value": "celo"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "cronos",
             "value": "cronos"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "emerald",
             "value": "emerald"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "fantom",
             "value": "fantom"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "fuse",
             "value": "fuse"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "harmony",
             "value": "harmony"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "heco",
             "value": "heco"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "metis",
             "value": "metis"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "moonbeam",
             "value": "moonbeam"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "moonriver",
             "value": "moonriver"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "optimism",
             "value": "optimism"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "polygon",
             "value": "polygon"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "syscoin",
             "value": "syscoin"
           }
