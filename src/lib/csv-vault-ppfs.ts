@@ -135,11 +135,11 @@ export async function getFirstImportedBeefyVaultV6PPFSData(
   return null;
 }
 
-export async function* streamBeefyVaultV6PPFSData(
+export function getBeefyVaultV6PPFSDataStream(
   chain: Chain,
   contractAddress: string,
   samplingPeriod: SamplingPeriod
-): AsyncIterable<BeefyVaultV6PPFSData> {
+) {
   const filePath = getBeefyVaultV6PPFSFilePath(
     chain,
     contractAddress,
@@ -164,6 +164,22 @@ export async function* streamBeefyVaultV6PPFSData(
       cast_date: true,
     })
   );
+  return readStream;
+}
+
+export async function* streamBeefyVaultV6PPFSData(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriod: SamplingPeriod
+): AsyncIterable<BeefyVaultV6PPFSData> {
+  const readStream = getBeefyVaultV6PPFSDataStream(
+    chain,
+    contractAddress,
+    samplingPeriod
+  );
+  if (!readStream) {
+    return;
+  }
   yield* readStream;
 
   readStream.destroy();

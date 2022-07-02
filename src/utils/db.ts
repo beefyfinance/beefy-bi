@@ -129,6 +129,16 @@ async function migrate() {
     CREATE SCHEMA IF NOT EXISTS beefy_derived;
     CREATE SCHEMA IF NOT EXISTS beefy_report;
   `);
+  // helper function
+  await db_query(`
+    CREATE FUNCTION format_evm_address(bytea) RETURNS character varying 
+      AS $$
+        SELECT '0x' || encode($1::bytea, 'hex')
+      $$
+      LANGUAGE SQL
+      IMMUTABLE
+      RETURNS NULL ON NULL INPUT;
+  `);
 
   // transfer table
   await db_query(`
@@ -159,7 +169,40 @@ async function migrate() {
       );
       SELECT add_compression_policy(
         hypertable => 'beefy_raw.erc20_transfer_ts', 
-        compress_after => INTERVAL '7 days',
+        compress_after => INTERVAL '10 days', -- keep a margin as data will arrive in batches
+        if_not_exists => true
+      );
+    `);
+  }
+
+  // transfer table
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_raw.vault_ppfs_ts (
+      chain chain_enum NOT NULL,
+      contract_address evm_address NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      ppfs uint_256 not null
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_raw.vault_ppfs_ts', 
+      time_column_name => 'datetime', 
+      -- partitioning_column => 'chain',
+      -- number_partitions => 20,
+      chunk_time_interval => INTERVAL '14 days', 
+      if_not_exists => true
+    );
+  `);
+
+  if (!(await isCompressionEnabled("beefy_raw", "vault_ppfs_ts"))) {
+    await db_query(`
+      ALTER TABLE beefy_raw.vault_ppfs_ts SET (
+        timescaledb.compress, 
+        timescaledb.compress_segmentby = 'chain, contract_address',
+        timescaledb.compress_orderby = 'datetime DESC'
+      );
+      SELECT add_compression_policy(
+        hypertable => 'beefy_raw.vault_ppfs_ts', 
+        compress_after => INTERVAL '20 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
     `);
