@@ -21,6 +21,7 @@ services:
       - timescaledb
     environment:
       REDIS_URL: redis://redis:6379
+      DB_URL: postgres://beefy:beefy@timescaledb_data:5432/beefy
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
       WORK_SCRIPT: ./dist/src/scripts/load-timescaledb.js
