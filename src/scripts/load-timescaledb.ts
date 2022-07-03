@@ -23,6 +23,14 @@ import {
   getBeefyVaultV6PPFSDataStream,
   getLastImportedBeefyVaultV6PPFSData,
 } from "../lib/csv-vault-ppfs";
+import { Transform } from "stream";
+import {
+  getAllAvailableOracleIds,
+  getLastImportedOraclePrice,
+  getOraclePricesStream,
+  OraclePriceData,
+} from "../lib/csv-oracle-price";
+import { SamplingPeriod } from "../lib/csv-block-samples";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -36,11 +44,11 @@ async function main() {
         demand: false,
       },
     }).argv;
-
+  type ImportOnly = "erc20_transfers" | "ppfs" | "prices";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
-  const importOnly = argv.importOnly || null;
+  const importOnly: ImportOnly | null = (argv.importOnly as ImportOnly) || null;
 
   if (!importOnly || importOnly === "erc20_transfers") {
     logger.info(`[LTSDB] Importing ERC20 transfers`);
@@ -90,166 +98,176 @@ async function main() {
     }
   }
 
+  if (!importOnly || importOnly === "prices") {
+    logger.info(`[LTSDB] Importing prices`);
+
+    const oracleIds = getAllAvailableOracleIds("15min");
+    for await (const oracleId of oracleIds) {
+      await importPricesToDB(oracleId);
+    }
+  }
+
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");
   await sleep(4 * 60 * 60 * 1000);
 }
 
 async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
-  const pgPool = await getPgPool();
-
-  logger.info(`[LTSDB] Importing ${chain}:${vault.id}`);
   const contractAddress = vault.token_address;
+  return loadCSVStreamToTimescaleTable({
+    logKey: `ERC20 Transfers for ${chain}:${vault.id}`,
 
-  const fileReadStream = await getErc20TransferEventsStream(
-    chain,
-    contractAddress
-  );
-  if (!fileReadStream) {
-    logger.verbose(`[LTSDB] No data for ${chain}:${vault.id}`);
-    return;
-  }
-  // now get the last imported data to filter on those
-  const lastImportedDate =
-    (
-      await db_query_one<{ last_imported: Date }>(
-        `SELECT max(datetime) as last_imported
-        FROM beefy_raw.erc20_transfer_ts
-        WHERE chain = %L
-          AND contract_address = %L`,
-        [chain, strAddressToPgBytea(contractAddress)]
-      )
-    )?.last_imported || null;
+    dbCopyQuery: `COPY beefy_raw.erc20_transfer_ts (chain, contract_address, datetime, from_address, to_address, value) 
+        FROM STDIN
+        WITH CSV DELIMITER ',';`,
 
-  if (lastImportedDate) {
-    const lastLocalTransfer = await getLastImportedERC20TransferEvent(
-      chain,
-      contractAddress
-    );
-    if (lastLocalTransfer && lastLocalTransfer.datetime > lastImportedDate) {
-      logger.verbose(
-        `[LTSDB] Only importing ${chain}:${
-          vault.id
-        } events after ${lastImportedDate.toISOString()}`
-      );
-    } else {
-      logger.verbose(`[LTSDB] Nothing to import for ${chain}:${vault.id} `);
-    }
-  } else {
-    logger.verbose(
-      `[LTSDB] No data for ${chain}:${vault.id}, importing all events`
-    );
-  }
+    getFileStream: async () =>
+      getErc20TransferEventsStream(chain, contractAddress),
 
-  const onlyLatestRowsFilter = new StreamObjectFilterTransform<ERC20EventData>(
-    (row) => {
-      if (!lastImportedDate) {
-        return true;
-      }
-      return row.datetime > lastImportedDate;
-    }
-  );
-
-  await new Promise((resolve, reject) => {
-    pgPool.connect(function (err, client, poolCallback) {
-      function onOk(...args: any[]) {
-        poolCallback(...args);
-        resolve(args);
-      }
-      function onErr(error: Error) {
-        poolCallback(error);
-        reject(error);
-      }
-      if (err) {
-        return reject(err);
-      }
-      const stream = client.query(
-        copyFrom(
-          `COPY beefy_raw.erc20_transfer_ts (chain, contract_address, datetime, from_address, to_address, value) 
-              FROM STDIN
-              WITH CSV DELIMITER ',';`
+    getLastDbRowDate: async () =>
+      (
+        await db_query_one<{ last_imported: Date }>(
+          `SELECT max(datetime) as last_imported
+          FROM beefy_raw.erc20_transfer_ts
+          WHERE chain = %L
+            AND contract_address = %L`,
+          [chain, strAddressToPgBytea(contractAddress)]
         )
-      );
-      fileReadStream.on("error", onErr);
-      stream.on("error", onErr);
-      stream.on("finish", onOk);
-      // start the work
-      fileReadStream
-        .pipe(onlyLatestRowsFilter)
-        .pipe(
-          transform(function (data: ERC20EventData) {
-            return [
-              // these should match the order of the copy cmd
-              chain,
-              strAddressToPgBytea(contractAddress),
-              data.datetime.toISOString(),
-              strAddressToPgBytea(data.from),
-              strAddressToPgBytea(data.to),
-              data.value,
-            ];
-          })
-        )
-        .pipe(
-          stringify({
-            header: false,
-          })
-        )
-        .pipe(stream);
-    });
+      )?.last_imported || null,
+
+    getLastFileDate: async () =>
+      (await getLastImportedERC20TransferEvent(chain, contractAddress))
+        ?.datetime || null,
+
+    rowToDbTransformer: (data: ERC20EventData) => {
+      return [
+        // these should match the order of the copy cmd
+        chain,
+        strAddressToPgBytea(contractAddress),
+        data.datetime.toISOString(),
+        strAddressToPgBytea(data.from),
+        strAddressToPgBytea(data.to),
+        data.value,
+      ];
+    },
   });
-
-  logger.debug(`[LTSDB] Finished processing ${chain}:${vault.id}`);
 }
 
 async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
   const samplingPeriod = "4hour";
-  const pgPool = await getPgPool();
-
-  logger.info(`[LTSDB] Importing ${chain}:${vault.id}`);
   const contractAddress = vault.token_address;
 
-  const fileReadStream = getBeefyVaultV6PPFSDataStream(
-    chain,
-    contractAddress,
-    samplingPeriod
-  );
+  return loadCSVStreamToTimescaleTable({
+    logKey: `PPFS for ${chain}:${vault.id}`,
+
+    dbCopyQuery: `COPY beefy_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
+
+    getFileStream: async () =>
+      getBeefyVaultV6PPFSDataStream(chain, contractAddress, samplingPeriod),
+
+    getLastDbRowDate: async () =>
+      (
+        await db_query_one<{ last_imported: Date }>(
+          `SELECT max(datetime) as last_imported
+          FROM beefy_raw.vault_ppfs_ts
+          WHERE chain = %L
+            AND contract_address = %L`,
+          [chain, strAddressToPgBytea(contractAddress)]
+        )
+      )?.last_imported || null,
+
+    getLastFileDate: async () =>
+      (
+        await getLastImportedBeefyVaultV6PPFSData(
+          chain,
+          contractAddress,
+          samplingPeriod
+        )
+      )?.datetime || null,
+
+    rowToDbTransformer: (data: BeefyVaultV6PPFSData) => {
+      return [
+        // these should match the order of the copy cmd
+        chain,
+        strAddressToPgBytea(contractAddress),
+        data.datetime.toISOString(),
+        data.pricePerFullShare,
+      ];
+    },
+  });
+}
+
+async function importPricesToDB(oracleId: string) {
+  const samplingPeriod: SamplingPeriod = "15min";
+
+  return loadCSVStreamToTimescaleTable({
+    logKey: `proces for ${oracleId}`,
+
+    dbCopyQuery: `COPY beefy_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
+
+    getFileStream: async () => getOraclePricesStream(oracleId, samplingPeriod),
+
+    getLastDbRowDate: async () =>
+      (
+        await db_query_one<{ last_imported: Date }>(
+          `SELECT max(datetime) as last_imported
+          FROM beefy_raw.oracle_price_ts
+          WHERE oracle_id = %L`,
+          [oracleId]
+        )
+      )?.last_imported || null,
+
+    getLastFileDate: async () =>
+      (await getLastImportedOraclePrice(oracleId, samplingPeriod))?.datetime ||
+      null,
+
+    rowToDbTransformer: (data: OraclePriceData) => {
+      return [
+        // these should match the order of the copy cmd
+        oracleId,
+        data.datetime.toISOString(),
+        data.usdValue,
+      ];
+    },
+  });
+}
+
+async function loadCSVStreamToTimescaleTable<
+  CSVObjType extends { datetime: Date }
+>(opts: {
+  logKey: string;
+  getFileStream: () => Promise<Transform | null>;
+  getLastDbRowDate: () => Promise<Date | null>;
+  getLastFileDate: () => Promise<Date | null>;
+  dbCopyQuery: string;
+  rowToDbTransformer: (row: CSVObjType) => any[];
+}) {
+  const pgPool = await getPgPool();
+
+  logger.info(`[LTSDB] Importing ${opts.logKey}`);
+
+  const fileReadStream = await opts.getFileStream();
   if (!fileReadStream) {
-    logger.verbose(`[LTSDB] No data for ${chain}:${vault.id}`);
+    logger.verbose(`[LTSDB] No data for ${opts.logKey}`);
     return;
   }
   // now get the last imported data to filter on those
-  const lastImportedDate =
-    (
-      await db_query_one<{ last_imported: Date }>(
-        `SELECT max(datetime) as last_imported
-        FROM beefy_raw.vault_ppfs_ts
-        WHERE chain = %L
-          AND contract_address = %L`,
-        [chain, strAddressToPgBytea(contractAddress)]
-      )
-    )?.last_imported || null;
-
+  const lastImportedDate = await opts.getLastDbRowDate();
   if (lastImportedDate) {
-    const lastLocalPpfs = await getLastImportedBeefyVaultV6PPFSData(
-      chain,
-      contractAddress,
-      samplingPeriod
-    );
-    if (lastLocalPpfs && lastLocalPpfs.datetime > lastImportedDate) {
+    const lastLocalTransfer = await opts.getLastFileDate();
+    if (lastLocalTransfer && lastLocalTransfer > lastImportedDate) {
       logger.verbose(
-        `[LTSDB] Only importing ${chain}:${
-          vault.id
+        `[LTSDB] Only importing ${
+          opts.logKey
         } events after ${lastImportedDate.toISOString()}`
       );
     } else {
-      logger.verbose(`[LTSDB] Nothing to import for ${chain}:${vault.id} `);
+      logger.verbose(`[LTSDB] Nothing to import for ${opts.logKey}`);
     }
   } else {
-    logger.verbose(
-      `[LTSDB] No data for ${chain}:${vault.id}, importing all events`
-    );
+    logger.verbose(`[LTSDB] No data for ${opts.logKey}, importing all events`);
   }
 
-  const onlyLatestRowsFilter = new StreamObjectFilterTransform<ERC20EventData>(
+  const onlyLatestRowsFilter = new StreamObjectFilterTransform<CSVObjType>(
     (row) => {
       if (!lastImportedDate) {
         return true;
@@ -271,40 +289,24 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
       if (err) {
         return reject(err);
       }
-      const stream = client.query(
-        copyFrom(
-          `COPY beefy_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) 
-              FROM STDIN
-              WITH CSV DELIMITER ',';`
-        )
-      );
+      const stream = client.query(copyFrom(opts.dbCopyQuery));
       fileReadStream.on("error", onErr);
       stream.on("error", onErr);
       stream.on("finish", onOk);
       // start the work
       fileReadStream
+        // only relevant rows
         .pipe(onlyLatestRowsFilter)
-        .pipe(
-          transform(function (data: BeefyVaultV6PPFSData) {
-            return [
-              // these should match the order of the copy cmd
-              chain,
-              strAddressToPgBytea(contractAddress),
-              data.datetime.toISOString(),
-              data.pricePerFullShare,
-            ];
-          })
-        )
-        .pipe(
-          stringify({
-            header: false,
-          })
-        )
+        // transform js obj to something the db understands
+        .pipe(transform(opts.rowToDbTransformer))
+        // transform to csv
+        .pipe(stringify({ header: false }))
+        // send this to the database
         .pipe(stream);
     });
   });
 
-  logger.debug(`[LTSDB] Finished processing ${chain}:${vault.id}`);
+  logger.debug(`[LTSDB] Finished processing ${opts.logKey}`);
 }
 
 runMain(main);

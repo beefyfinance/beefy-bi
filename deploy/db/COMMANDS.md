@@ -1,6 +1,7 @@
 ```
 erc20_transfer_ts
 vault_ppfs_ts
+oracle_price_ts
 
 -- check compression
 select pg_size_pretty(hypertable_size('beefy_raw.'));

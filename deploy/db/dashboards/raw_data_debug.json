@@ -25,7 +25,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1656801129515,
+  "iteration": 1656801129537,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -412,7 +412,7 @@
       "type": "row"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -420,8 +420,266 @@
         "y": 1
       },
       "id": 8,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "stepBefore",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 2
+          },
+          "id": 4,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [
+                {
+                  "params": ["$__interval", "none"],
+                  "type": "time"
+                }
+              ],
+              "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
+              "metricColumn": "value",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as ppfs_point_count\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["count(distinct from_address)"],
+                    "type": "column"
+                  },
+                  {
+                    "params": ["avg"],
+                    "type": "aggregate"
+                  },
+                  {
+                    "params": ["count(distinct from_address)"],
+                    "type": "alias"
+                  }
+                ]
+              ],
+              "table": "beefy_raw.erc20_transfer_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamptz",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "PPFS data point count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "stepBefore",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 12
+          },
+          "id": 9,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [
+                {
+                  "params": ["$__interval", "none"],
+                  "type": "time"
+                }
+              ],
+              "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
+              "metricColumn": "value",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\n  and contract_address in (\n    select distinct contract_address\n    from beefy_raw.vault_ppfs_ts\n    WHERE $__timeFilter(datetime)\n    and chain in ($chain)\n    order by contract_address desc\n    limit 100\n  )\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["count(distinct from_address)"],
+                    "type": "column"
+                  },
+                  {
+                    "params": ["avg"],
+                    "type": "aggregate"
+                  },
+                  {
+                    "params": ["count(distinct from_address)"],
+                    "type": "alias"
+                  }
+                ]
+              ],
+              "table": "beefy_raw.erc20_transfer_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamptz",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "PPFS  by contract (limited to 100 contracts)",
+          "type": "timeseries"
+        }
+      ],
       "title": "PPFS",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "id": 11,
+      "panels": [],
+      "title": "Prices",
       "type": "row"
     },
     {
@@ -483,9 +741,9 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 2
+        "y": 3
       },
-      "id": 4,
+      "id": 12,
       "options": {
         "legend": {
           "calcs": [],
@@ -513,7 +771,7 @@
           "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
           "metricColumn": "value",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as ppfs_point_count\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+          "rawSql": "SELECT\n  time_bucket_gapfill('$__interval', datetime) as time,\n  oracle_id as value,\n  locf(avg(usd_value)) as avg_usd_value\nFROM beefy_raw.oracle_price_ts\nWHERE\n  $__timeFilter(datetime)\n  and oracle_id in ('$oracle_id')\nGROUP BY time_bucket_gapfill('$__interval', datetime), oracle_id\nORDER BY 1,2",
           "refId": "A",
           "select": [
             [
@@ -543,129 +801,7 @@
           ]
         }
       ],
-      "title": "PPFS data point count",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "stepBefore",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 12
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "time_series",
-          "group": [
-            {
-              "params": ["$__interval", "none"],
-              "type": "time"
-            }
-          ],
-          "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
-          "metricColumn": "value",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\n  and contract_address in (\n    select distinct contract_address\n    from beefy_raw.vault_ppfs_ts\n    WHERE $__timeFilter(datetime)\n    and chain in ($chain)\n    order by contract_address desc\n    limit 100\n  )\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["count(distinct from_address)"],
-                "type": "column"
-              },
-              {
-                "params": ["avg"],
-                "type": "aggregate"
-              },
-              {
-                "params": ["count(distinct from_address)"],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "beefy_raw.erc20_transfer_ts",
-          "timeColumn": "datetime",
-          "timeColumnType": "timestamptz",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "PPFS  by contract (limited to 100 contracts)",
+      "title": "USD Prices  by oracle",
       "type": "timeseries"
     }
   ],
@@ -682,8 +818,6 @@
           "text": [
             "arbitrum",
             "aurora",
-            "avax",
-            "bsc",
             "celo",
             "cronos",
             "emerald",
@@ -701,8 +835,6 @@
           "value": [
             "arbitrum",
             "aurora",
-            "avax",
-            "bsc",
             "celo",
             "cronos",
             "emerald",
@@ -735,12 +867,12 @@
             "value": "aurora"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "avax",
             "value": "avax"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "bsc",
             "value": "bsc"
           },
@@ -814,6 +946,25 @@
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "banana-bifi-bnb",
+          "value": "banana-bifi-bnb"
+        },
+        "definition": "select distinct oracle_id from beefy_raw.oracle_price_ts;",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "oracle_id",
+        "options": [],
+        "query": "select distinct oracle_id from beefy_raw.oracle_price_ts;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
       }
     ]
   },
@@ -825,6 +976,6 @@
   "timezone": "",
   "title": "Raw Data Debug",
   "uid": "niW8Oienz",
-  "version": 14,
+  "version": 15,
   "weekStart": ""
 }

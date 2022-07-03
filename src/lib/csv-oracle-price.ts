@@ -9,6 +9,7 @@ import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
 import { SamplingPeriod } from "./csv-block-samples";
+import { glob } from "glob";
 
 const CSV_SEPARATOR = ",";
 
@@ -115,13 +116,13 @@ export async function getFirstImportedOraclePrice(
   return null;
 }
 
-export async function* streamOraclePrices(
+export function getOraclePricesStream(
   oracleId: string,
   samplingPeriod: SamplingPeriod
-): AsyncIterable<OraclePriceData> {
+) {
   const filePath = getOraclePriceFilePath(oracleId, samplingPeriod);
   if (!fs.existsSync(filePath)) {
-    return;
+    return null;
   }
   const readStream = fs.createReadStream(filePath).pipe(
     asyncParser({
@@ -139,7 +140,42 @@ export async function* streamOraclePrices(
       cast_date: true,
     })
   );
+  return readStream;
+}
+
+export async function* streamOraclePrices(
+  oracleId: string,
+  samplingPeriod: SamplingPeriod
+): AsyncIterable<OraclePriceData> {
+  const readStream = getOraclePricesStream(oracleId, samplingPeriod);
+  if (!readStream) {
+    return;
+  }
   yield* readStream;
 
   readStream.destroy();
+}
+
+export async function* getAllAvailableOracleIds(
+  samplingPeriod: SamplingPeriod
+) {
+  const filePaths = await new Promise<string[]>((resolve, reject) => {
+    const globPath = path.join(
+      DATA_DIRECTORY,
+      "price",
+      "beefy",
+      "*",
+      `price_${samplingPeriod}.csv`
+    );
+
+    // options is optional
+    glob(globPath, function (er, filePaths) {
+      if (er) {
+        return reject(er);
+      }
+      resolve(filePaths);
+    });
+  });
+
+  yield* filePaths.map((p) => p.split("/")).map((pp) => pp[pp.length - 2]);
 }

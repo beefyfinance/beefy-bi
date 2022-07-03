@@ -129,9 +129,10 @@ async function migrate() {
     CREATE SCHEMA IF NOT EXISTS beefy_derived;
     CREATE SCHEMA IF NOT EXISTS beefy_report;
   `);
+
   // helper function
   await db_query(`
-    CREATE FUNCTION format_evm_address(bytea) RETURNS character varying 
+    CREATE OR REPLACE FUNCTION format_evm_address(bytea) RETURNS character varying 
       AS $$
         SELECT '0x' || encode($1::bytea, 'hex')
       $$
@@ -175,7 +176,7 @@ async function migrate() {
     `);
   }
 
-  // transfer table
+  // PPFS
   await db_query(`
     CREATE TABLE IF NOT EXISTS beefy_raw.vault_ppfs_ts (
       chain chain_enum NOT NULL,
@@ -202,6 +203,36 @@ async function migrate() {
       );
       SELECT add_compression_policy(
         hypertable => 'beefy_raw.vault_ppfs_ts', 
+        compress_after => INTERVAL '20 days', -- keep a margin as data will arrive in batches
+        if_not_exists => true
+      );
+    `);
+  }
+
+  // PPFS
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_raw.oracle_price_ts (
+      oracle_id varchar NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      usd_value double precision not null
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_raw.oracle_price_ts', 
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '14 days', 
+      if_not_exists => true
+    );
+  `);
+
+  if (!(await isCompressionEnabled("beefy_raw", "oracle_price_ts"))) {
+    await db_query(`
+      ALTER TABLE beefy_raw.oracle_price_ts SET (
+        timescaledb.compress, 
+        timescaledb.compress_segmentby = 'oracle_id',
+        timescaledb.compress_orderby = 'datetime DESC'
+      );
+      SELECT add_compression_policy(
+        hypertable => 'beefy_raw.oracle_price_ts', 
         compress_after => INTERVAL '20 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
