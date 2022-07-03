@@ -246,14 +246,16 @@ async function migrate() {
 
   await db_query(`
     CREATE TABLE IF NOT EXISTS beefy_raw.vault (
-      token_address evm_address NOT NULL PRIMARY KEY,
+      chain chain_enum NOT NULL,
+      token_address evm_address NOT NULL,
       vault_id varchar NOT NULL,
       token_name varchar NOT NULL,
       want_address evm_address NOT NULL,
       want_decimals INTEGER NOT NULL,
       want_price_oracle_id varchar NOT NULL,
       end_of_life boolean not null,
-      assets_oracle_id varchar[] not null
+      assets_oracle_id varchar[] not null,
+      PRIMARY KEY(chain, token_address)
     );
   `);
 }

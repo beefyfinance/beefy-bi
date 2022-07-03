@@ -125,6 +125,7 @@ async function main() {
       await db_query(
         `
         INSERT INTO beefy_raw.vault (
+          chain,
           token_address,
           vault_id,
           token_name,
@@ -134,7 +135,7 @@ async function main() {
           end_of_life,
           assets_oracle_id
         ) values %L
-        ON CONFLICT (token_address) DO UPDATE SET 
+        ON CONFLICT (chain, token_address) DO UPDATE SET 
           vault_id = beefy_raw.vault.vault_id,
           token_name = beefy_raw.vault.token_name,
           want_address = beefy_raw.vault.want_address,
@@ -146,6 +147,7 @@ async function main() {
       `,
         [
           vaults.map((v) => [
+            chain,
             strAddressToPgBytea(v.token_address),
             v.id,
             v.token_name,
