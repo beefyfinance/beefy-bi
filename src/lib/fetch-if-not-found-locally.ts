@@ -153,7 +153,7 @@ export const fetchBeefyVaultList = fetchIfNotFoundLocally(
       `https://raw.githubusercontent.com/beefyfinance/beefy-v2/main/src/config/vault/${chain}.json`
     );
     const rawData: RawBeefyVault[] = res.data;
-    const data: BeefyVault[] = rawData
+    const vaults: BeefyVault[] = rawData
       .filter((vault) => !(vault.isGovVault === true))
       .filter((vault) => !(vault.status === "eol"))
       .map((vault) => {
@@ -176,7 +176,14 @@ export const fetchBeefyVaultList = fetchIfNotFoundLocally(
           throw error;
         }
       });
-    return data;
+    // some vaults have duplicate of the same target contract, we only want one of them so we take the first we find
+    const vaultsByAddress: Record<string, BeefyVault> = {};
+    for (const vault of vaults) {
+      if (!vaultsByAddress[vault.token_address]) {
+        vaultsByAddress[vault.token_address] = vault;
+      }
+    }
+    return Object.values(vaultsByAddress);
   },
   (chain: Chain) =>
     path.join(DATA_DIRECTORY, "chain", chain, "beefy", "vaults.jsonl"),
@@ -210,8 +217,15 @@ export async function getLocalBeefyVaultList(
     return [];
   }
   const content = await fs.promises.readFile(filePath, "utf8");
-  const data = content.split("\n").map((obj) => JSON.parse(obj));
-  return data;
+  const vaults = content.split("\n").map((obj) => JSON.parse(obj));
+  // some vaults have duplicate of the same target contract, we only want one of them so we take the first we find
+  const vaultsByAddress: Record<string, BeefyVault> = {};
+  for (const vault of vaults) {
+    if (!vaultsByAddress[vault.token_address]) {
+      vaultsByAddress[vault.token_address] = vault;
+    }
+  }
+  return Object.values(vaultsByAddress);
 }
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(

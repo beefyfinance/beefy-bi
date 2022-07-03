@@ -32,7 +32,8 @@ export async function db_query<RowType>(
 ): Promise<RowType[]> {
   logger.debug(`Executing query: ${sql}, params: ${params}`);
   const pool = await getPgPool();
-  const res = await pool.query(pgf(sql, ...params));
+  const sql_w_params = pgf(sql, ...params);
+  const res = await pool.query(sql_w_params);
   const rows = res?.rows || null;
   logger.debug(`Got ${res?.rowCount} for query: ${sql}, params ${params}`);
   return rows;
@@ -52,6 +53,10 @@ export async function db_query_one<RowType>(
 export function strAddressToPgBytea(evmAddress: string) {
   // 0xABC -> // \xABC
   return "\\x" + normalizeAddress(evmAddress).slice(2);
+}
+
+export function strArrToPgStrArr(strings: string[]) {
+  return "{" + pgf.withArray("%L", strings) + "}";
 }
 
 async function migrate() {
@@ -209,7 +214,7 @@ async function migrate() {
     `);
   }
 
-  // PPFS
+  // oracle price
   await db_query(`
     CREATE TABLE IF NOT EXISTS beefy_raw.oracle_price_ts (
       oracle_id varchar NOT NULL,
@@ -238,4 +243,17 @@ async function migrate() {
       );
     `);
   }
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_raw.vault (
+      token_address evm_address NOT NULL PRIMARY KEY,
+      vault_id varchar NOT NULL,
+      token_name varchar NOT NULL,
+      want_address evm_address NOT NULL,
+      want_decimals INTEGER NOT NULL,
+      want_price_oracle_id varchar NOT NULL,
+      end_of_life boolean not null,
+      assets_oracle_id varchar[] not null
+    );
+  `);
 }

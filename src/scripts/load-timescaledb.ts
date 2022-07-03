@@ -5,7 +5,13 @@ import { allChainIds } from "../types/chain";
 import { transform } from "stream-transform";
 import { Chain } from "../types/chain";
 import { stringify } from "csv-stringify";
-import { db_query_one, getPgPool, strAddressToPgBytea } from "../utils/db";
+import {
+  db_query,
+  db_query_one,
+  getPgPool,
+  strAddressToPgBytea,
+  strArrToPgStrArr,
+} from "../utils/db";
 import {
   BeefyVault,
   getLocalBeefyVaultList,
@@ -39,12 +45,12 @@ async function main() {
       chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
       vaultId: { type: "string", demand: false, alias: "v" },
       importOnly: {
-        choices: ["erc20_transfers", "ppfs", "prices"],
+        choices: ["erc20_transfers", "ppfs", "prices", "vaults"],
         alias: "o",
         demand: false,
       },
     }).argv;
-  type ImportOnly = "erc20_transfers" | "ppfs" | "prices";
+  type ImportOnly = "erc20_transfers" | "ppfs" | "prices" | "vaults";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
@@ -104,6 +110,53 @@ async function main() {
     const oracleIds = getAllAvailableOracleIds("15min");
     for await (const oracleId of oracleIds) {
       await importPricesToDB(oracleId);
+    }
+  }
+
+  if (!importOnly || importOnly === "vaults") {
+    logger.info(`[LTSDB] Importing vaults`);
+    for (const chain of chains) {
+      logger.info(`[LTSDB] Importing vaults for ${chain}`);
+      const vaults = await getLocalBeefyVaultList(chain);
+      if (vaults.length <= 0) {
+        logger.verbose(`[LTSDB] No vaults found for ${chain}`);
+        continue;
+      }
+      await db_query(
+        `
+        INSERT INTO beefy_raw.vault (
+          token_address,
+          vault_id,
+          token_name,
+          want_address,
+          want_decimals,
+          want_price_oracle_id,
+          end_of_life,
+          assets_oracle_id
+        ) values %L
+        ON CONFLICT (token_address) DO UPDATE SET 
+          vault_id = beefy_raw.vault.vault_id,
+          token_name = beefy_raw.vault.token_name,
+          want_address = beefy_raw.vault.want_address,
+          want_decimals = beefy_raw.vault.want_decimals,
+          want_price_oracle_id = beefy_raw.vault.want_price_oracle_id,
+          end_of_life = beefy_raw.vault.end_of_life,
+          assets_oracle_id = beefy_raw.vault.assets_oracle_id
+       ;
+      `,
+        [
+          vaults.map((v) => [
+            strAddressToPgBytea(v.token_address),
+            v.id,
+            v.token_name,
+            strAddressToPgBytea(v.want_address),
+            v.want_decimals,
+            v.price_oracle.want_oracleId,
+            false, // end of life (eol)
+            strArrToPgStrArr(v.price_oracle.assets),
+          ]),
+        ]
+      );
     }
   }
 
@@ -200,7 +253,7 @@ async function importPricesToDB(oracleId: string) {
   const samplingPeriod: SamplingPeriod = "15min";
 
   return loadCSVStreamToTimescaleTable({
-    logKey: `proces for ${oracleId}`,
+    logKey: `prices for ${oracleId}`,
 
     dbCopyQuery: `COPY beefy_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
 
