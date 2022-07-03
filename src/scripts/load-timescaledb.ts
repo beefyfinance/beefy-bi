@@ -22,7 +22,7 @@ import {
   getErc20TransferEventsStream,
   getLastImportedERC20TransferEvent,
 } from "../lib/csv-transfer-events";
-import { StreamObjectFilterTransform } from "../utils/stream";
+import { FlattenStream, StreamObjectFilterTransform } from "../utils/stream";
 import { sleep } from "../utils/async";
 import {
   BeefyVaultV6PPFSData,
@@ -188,7 +188,8 @@ async function main() {
 
 async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
   const contractAddress = vault.token_address;
-  return loadCSVStreamToTimescaleTable({
+
+  await loadCSVStreamToTimescaleTable({
     logKey: `ERC20 Transfers for ${chain}:${vault.id}`,
 
     dbCopyQuery: `COPY beefy_raw.erc20_transfer_ts (chain, contract_address, datetime, from_address, to_address, value) 
@@ -210,8 +211,9 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
       )?.last_imported || null,
 
     getLastFileDate: async () =>
-      (await getLastImportedERC20TransferEvent(chain, contractAddress))
-        ?.datetime || null,
+      (
+        await getLastImportedERC20TransferEvent(chain, contractAddress)
+      )?.datetime || null,
 
     rowToDbTransformer: (data: ERC20EventData) => {
       return [
@@ -224,6 +226,54 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         data.value,
       ];
     },
+    flatten: false,
+  });
+
+  await loadCSVStreamToTimescaleTable({
+    logKey: `ERC20 Transfers diffs for ${chain}:${vault.id}`,
+
+    dbCopyQuery: `COPY beefy_raw.erc20_balance_diff_ts (chain, contract_address, datetime, investor_address, balance_diff) 
+        FROM STDIN
+        WITH CSV DELIMITER ',';`,
+
+    getFileStream: async () =>
+      getErc20TransferEventsStream(chain, contractAddress),
+
+    getLastDbRowDate: async () =>
+      (
+        await db_query_one<{ last_imported: Date }>(
+          `SELECT max(datetime) as last_imported
+          FROM beefy_raw.erc20_balance_diff_ts
+          WHERE chain = %L
+            AND contract_address = %L`,
+          [chain, strAddressToPgBytea(contractAddress)]
+        )
+      )?.last_imported || null,
+
+    getLastFileDate: async () =>
+      (
+        await getLastImportedERC20TransferEvent(chain, contractAddress)
+      )?.datetime || null,
+
+    rowToDbTransformer: (data: ERC20EventData) => {
+      return [
+        [
+          chain,
+          strAddressToPgBytea(contractAddress),
+          data.datetime.toISOString(),
+          strAddressToPgBytea(data.from),
+          "-" + data.value,
+        ],
+        [
+          chain,
+          strAddressToPgBytea(contractAddress),
+          data.datetime.toISOString(),
+          strAddressToPgBytea(data.to),
+          "+" + data.value,
+        ],
+      ];
+    },
+    flatten: true,
   });
 }
 
@@ -268,6 +318,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
         data.pricePerFullShare,
       ];
     },
+    flatten: false,
   });
 }
 
@@ -303,6 +354,7 @@ async function importPricesToDB(oracleId: string) {
         data.usdValue,
       ];
     },
+    flatten: false,
   });
 }
 
@@ -315,6 +367,7 @@ async function loadCSVStreamToTimescaleTable<
   getLastFileDate: () => Promise<Date | null>;
   dbCopyQuery: string;
   rowToDbTransformer: (row: CSVObjType) => any[];
+  flatten: boolean;
 }) {
   const pgPool = await getPgPool();
 
@@ -364,20 +417,26 @@ async function loadCSVStreamToTimescaleTable<
       if (err) {
         return reject(err);
       }
-      const stream = client.query(copyFrom(opts.dbCopyQuery));
+      const dbCopyStream = client.query(copyFrom(opts.dbCopyQuery));
       fileReadStream.on("error", onErr);
-      stream.on("error", onErr);
-      stream.on("finish", onOk);
+      dbCopyStream.on("error", onErr);
+      dbCopyStream.on("finish", onOk);
       // start the work
-      fileReadStream
+      let stream: Transform = fileReadStream
         // only relevant rows
         .pipe(onlyLatestRowsFilter)
         // transform js obj to something the db understands
-        .pipe(transform(opts.rowToDbTransformer))
-        // transform to csv
-        .pipe(stringify({ header: false }))
-        // send this to the database
-        .pipe(stream);
+        .pipe(transform(opts.rowToDbTransformer));
+
+      if (opts.flatten) {
+        stream = stream.pipe(new FlattenStream());
+      }
+
+      // transform to csv
+      stream = stream.pipe(stringify({ header: false }));
+
+      // send this to the database
+      stream.pipe(dbCopyStream);
     });
   });
 

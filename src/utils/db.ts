@@ -128,6 +128,15 @@ async function migrate() {
     `);
   }
 
+  if (!(await typeExists("int_256"))) {
+    await db_query(`
+      CREATE DOMAIN int_256 
+        AS NUMERIC NOT NULL
+        CHECK (VALUE >= -2^255 AND VALUE < (2^255)-1)
+        CHECK (SCALE(VALUE) = 0)
+    `);
+  }
+
   // schemas
   await db_query(`
     CREATE SCHEMA IF NOT EXISTS beefy_raw;
@@ -175,6 +184,38 @@ async function migrate() {
       );
       SELECT add_compression_policy(
         hypertable => 'beefy_raw.erc20_transfer_ts', 
+        compress_after => INTERVAL '10 days', -- keep a margin as data will arrive in batches
+        if_not_exists => true
+      );
+    `);
+  }
+
+  // balance diff table
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_raw.erc20_balance_diff_ts (
+      chain chain_enum NOT NULL,
+      contract_address evm_address NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      investor_address evm_address not null,
+      balance_diff int_256 not null
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_raw.erc20_balance_diff_ts', 
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '7 days', 
+      if_not_exists => true
+    );
+  `);
+
+  if (!(await isCompressionEnabled("beefy_raw", "erc20_balance_diff_ts"))) {
+    await db_query(`
+      ALTER TABLE beefy_raw.erc20_balance_diff_ts SET (
+        timescaledb.compress, 
+        timescaledb.compress_segmentby = 'chain, contract_address',
+        timescaledb.compress_orderby = 'datetime DESC'
+      );
+      SELECT add_compression_policy(
+        hypertable => 'beefy_raw.erc20_balance_diff_ts', 
         compress_after => INTERVAL '10 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
