@@ -45,12 +45,23 @@ async function main() {
       chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
       vaultId: { type: "string", demand: false, alias: "v" },
       importOnly: {
-        choices: ["erc20_transfers", "ppfs", "prices", "vaults"],
+        choices: [
+          "erc20_transfers",
+          "ppfs",
+          "prices",
+          "vaults",
+          "refresh_materialized_views",
+        ],
         alias: "o",
         demand: false,
       },
     }).argv;
-  type ImportOnly = "erc20_transfers" | "ppfs" | "prices" | "vaults";
+  type ImportOnly =
+    | "erc20_transfers"
+    | "ppfs"
+    | "prices"
+    | "vaults"
+    | "refresh_materialized_views";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
@@ -160,6 +171,15 @@ async function main() {
         ]
       );
     }
+  }
+
+  if (!importOnly || importOnly === "refresh_materialized_views") {
+    logger.info(
+      `[LTSDB] Refreshing materialized view: beefy_derived.vault_ppfs_and_price_4h_ts`
+    );
+    await db_query(
+      `REFRESH MATERIALIZED VIEW beefy_derived.vault_ppfs_and_price_4h_ts`
+    );
   }
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");

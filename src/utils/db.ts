@@ -258,4 +258,60 @@ async function migrate() {
       PRIMARY KEY(chain, token_address)
     );
   `);
+
+  // continuous aggregates: ppfs
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.vault_ppfs_4h_ts WITH (timescaledb.continuous)
+      AS select ts.chain, ts.contract_address, 
+          time_bucket('4h', ts.datetime) as datetime, 
+          avg(ts.ppfs) as avg_ppfs
+      from beefy_raw.vault_ppfs_ts ts
+      group by 1,2,3;
+  `);
+  // continuous aggregates: prices
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.oracle_price_4h_ts WITH (timescaledb.continuous)
+      AS select oracle_id,
+          time_bucket('4h', datetime) as datetime, 
+          avg(usd_value) as avg_usd_value
+      from beefy_raw.oracle_price_ts
+      group by 1,2;
+  `);
+
+  // helper materialized view
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.vault_ppfs_and_price_4h_ts as 
+      with vault_scope as (
+          select chain, token_address, vault_id, want_price_oracle_id, want_decimals
+          from beefy_raw.vault
+      ), 
+      want_prices_ts as (
+          select oracle_id, datetime, avg_usd_value
+          from beefy_derived.oracle_price_4h_ts
+          where oracle_id in (
+              select distinct scope.want_price_oracle_id 
+              from vault_scope scope
+          )
+      ),
+      ppfs_ts as (
+          select chain, contract_address, datetime, avg_ppfs
+          from beefy_derived.vault_ppfs_4h_ts ts
+          where (chain, contract_address) in (
+              select distinct scope.chain, scope.token_address
+              from vault_scope scope
+          )
+      )
+      select 
+          v.chain, v.vault_id, v.token_address as contract_address, v.want_decimals, 
+          coalesce(p.datetime, usd.datetime) as datetime, 
+          p.avg_ppfs, usd.avg_usd_value as avg_want_usd_value
+      from ppfs_ts p
+      full outer join vault_scope v on v.chain = p.chain and v.token_address = p.contract_address
+      full outer join want_prices_ts usd on usd.oracle_id = v.want_price_oracle_id and usd.datetime = p.datetime
+      order by v.chain, v.vault_id, datetime
+    ;
+    CREATE INDEX IF NOT EXISTS idx_chain_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_address_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (contract_address);
+    CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (datetime);
+  `);
 }
