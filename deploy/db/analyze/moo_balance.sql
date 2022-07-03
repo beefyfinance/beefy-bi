@@ -1,45 +1,69 @@
---explain 
---explain analyze
+
 with 
-erc20_transfer_scope as (
-    SELECT *
-    FROM beefy_raw.erc20_transfer_ts
-    where chain = 'bsc'
-),
-moo_balance_diff_ts as (
-    select chain, contract_address, investor_address,
-        time_bucket_gapfill('1d', datetime) as datetime,
-        sum(moo_balance_diff) as moo_balance_diff,
-        sum(sum(moo_balance_diff)) over(
-            partition by chain, contract_address, investor_address
-            order by time_bucket_gapfill('1d', datetime)
-        ) as moo_balance
-    from (
-        SELECT chain, contract_address, from_address as investor_address, 
-            time_bucket('1d', datetime) as datetime,
-            sum(value * -1) as moo_balance_diff
-        FROM erc20_transfer_scope
-        group by 1,2,3,4
-        UNION ALL
-        SELECT chain, contract_address, to_address as investor_address, 
-            time_bucket('1d', datetime) as datetime, 
-            sum(value * 1) as moo_balance_diff
-        FROM erc20_transfer_scope
-        group by 1,2,3,4
-    ) as investor_diffs
-    where datetime between now() - INTERVAL '2 year' and now()
-    group by 1,2,3,4
-),
-moo_balance_ts as (
-    select chain, contract_address, investor_address, datetime, moo_balance_diff, moo_balance
-    from moo_balance_diff_ts
-    where moo_balance is not null
+contract_balance_4h_ts_full as (
+    select 
+        chain, contract_address, 
+        time_bucket_gapfill('4h', datetime) as datetime,
+        sum(balance) as balance,
+        count(distinct investor_address) as investor_count
+    from beefy_derived.erc20_investor_balance_4h_ts
+    where investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+        and datetime between now() - interval '30 day' and now()
+    group by 1,2,3
+), 
+contract_balance_4h_ts as (
+    select *
+    from contract_balance_4h_ts_full as t
+    where balance is not null and balance != 0
 )
-select count(*)
-from moo_balance_ts
---order by chain, contract_address, investor_address, datetime
+select 
+    b.datetime, 
+    vpt.vault_id,
+    investor_count,
+    (
+        (
+            (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+        )
+        * vpt.avg_want_usd_value
+    ) as total_tvl
+from contract_balance_4h_ts b
+left join beefy_derived.vault_ppfs_and_price_4h_ts vpt 
+    on b.chain = vpt.chain 
+    and b.contract_address = vpt.contract_address
+    and b.datetime = vpt.datetime
+where vault_id is not null
+order by vault_id, datetime
 ;
 
 
 
 
+select chain, contract_address, investor_address, 
+    time_bucket_gapfill('4h', datetime, now(), now() - interval '30 day') as datetime,
+    balance_diff, locf(balance)
+from beefy_derived.erc20_investor_balance_4h_ts
+where 
+    datetime between now() - interval '30 day' and now()
+    and contract_address = evm_address_to_bytea('0x6bBdC5cacB4e72884432E3d63745cc8e7A4392Ca')
+    and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+order by 1,2,3,4
+;
+
+
+    select 
+        chain, contract_address, 
+        time_bucket_gapfill('4h', datetime) as datetime,
+        sum(balance) as balance,
+        count(distinct investor_address) as investor_count
+    from beefy_derived.erc20_investor_balance_4h_ts
+    where 
+        contract_address = evm_address_to_bytea('0x6bBdC5cacB4e72884432E3d63745cc8e7A4392Ca')
+        and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+        and datetime between now() - interval '30 day' and now()
+    group by 1,2,3
+    ;
+
+
+select *
+from beefy_derived.erc20_investor_balance_4h_ts
+limit 100;

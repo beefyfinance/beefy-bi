@@ -146,9 +146,17 @@ async function migrate() {
 
   // helper function
   await db_query(`
-    CREATE OR REPLACE FUNCTION format_evm_address(bytea) RETURNS character varying 
+      CREATE OR REPLACE FUNCTION format_evm_address(bytea) RETURNS character varying 
+        AS $$
+          SELECT '0x' || encode($1::bytea, 'hex')
+        $$
+        LANGUAGE SQL
+        IMMUTABLE
+        RETURNS NULL ON NULL INPUT;
+
+    CREATE OR REPLACE FUNCTION evm_address_to_bytea(varchar) RETURNS bytea 
       AS $$
-        SELECT '0x' || encode($1::bytea, 'hex')
+        select decode(substring($1 ,3), 'hex')
       $$
       LANGUAGE SQL
       IMMUTABLE
@@ -318,6 +326,16 @@ async function migrate() {
       from beefy_raw.oracle_price_ts
       group by 1,2;
   `);
+  // continuous aggregates: transfer diffs
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.erc20_balance_diff_4h_ts WITH (timescaledb.continuous)
+      AS select chain, contract_address, investor_address, 
+          time_bucket('4h', datetime) as datetime, 
+          sum(balance_diff) as balance_diff,
+          count(*) as trx_count
+      from beefy_raw.erc20_balance_diff_ts
+      group by 1,2,3,4;
+  `);
 
   // helper materialized view
   await db_query(`
@@ -355,4 +373,96 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_address_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (contract_address);
     CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (datetime);
   `);
+
+  // helper erc20 balance derived table
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_derived.erc20_investor_balance_4h_ts (
+      chain chain_enum NOT NULL,
+      contract_address evm_address NOT NULL,
+      investor_address evm_address NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      balance_diff int_256,
+      balance int_256 not null
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_derived.erc20_investor_balance_4h_ts', 
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '14 days', 
+      if_not_exists => true
+    );
+  `);
+}
+
+// this is kind of a continuous aggregate
+// there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
+// so we drop and rebuild this table as needed
+// it needs to be an hypertable if we want to use ts functions like time_bucket_gapfill so materialized view are not a good fit
+export async function rebuildERC20BalanceTs() {
+  const rows = await db_query<{
+    chain: string;
+    contract_address: string;
+    investor_address: string;
+    first_datetime: Date;
+    last_datetime: Date;
+  }>(`
+    SELECT 
+      chain,
+      format_evm_address(contract_address) as contract_address,
+      format_evm_address(investor_address) as investor_address,
+      min(datetime) as first_datetime, 
+      max(datetime) as last_datetime 
+    FROM beefy_derived.erc20_balance_diff_4h_ts
+    GROUP BY 1,2,3
+  `);
+  for (const row of rows) {
+    logger.verbose(`[DB] Refreshing data for investor ${JSON.stringify(row)}`);
+    await db_query(
+      `
+      DELETE FROM beefy_derived.erc20_investor_balance_4h_ts
+      WHERE chain = %L
+        and contract_address = %L
+        and investor_address = %L
+    `,
+      [
+        row.chain,
+        strAddressToPgBytea(row.contract_address),
+        strAddressToPgBytea(row.investor_address),
+      ]
+    );
+    await db_query(
+      `
+      INSERT INTO beefy_derived.erc20_investor_balance_4h_ts (
+          chain, contract_address, investor_address,
+          datetime,
+          balance_diff, balance
+      ) 
+      select 
+          %L, %L, %L,
+          datetime,
+          coalesce(balance_diff, 0),
+          sum(coalesce(balance_diff, 0)) over (order by datetime) as balance
+      from (
+          select time_bucket_gapfill('4h', datetime) as datetime,
+              sum(balance_diff) as balance_diff
+          from beefy_derived.erc20_balance_diff_4h_ts
+          where datetime between %L and %L
+              and chain = %L
+              and contract_address = %L
+              and investor_address = %L
+          group by 1
+      ) as t
+      where balance_diff != 0
+    `,
+      [
+        row.chain,
+        strAddressToPgBytea(row.contract_address),
+        strAddressToPgBytea(row.investor_address),
+        row.first_datetime,
+        row.last_datetime,
+        row.chain,
+        strAddressToPgBytea(row.contract_address),
+        strAddressToPgBytea(row.investor_address),
+      ]
+    );
+  }
 }

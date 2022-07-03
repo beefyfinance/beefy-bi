@@ -9,6 +9,7 @@ import {
   db_query,
   db_query_one,
   getPgPool,
+  rebuildERC20BalanceTs,
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
@@ -51,6 +52,7 @@ async function main() {
           "prices",
           "vaults",
           "refresh_materialized_views",
+          "refresh_balance_monster_ts",
         ],
         alias: "o",
         demand: false,
@@ -61,7 +63,8 @@ async function main() {
     | "ppfs"
     | "prices"
     | "vaults"
-    | "refresh_materialized_views";
+    | "refresh_materialized_views"
+    | "refresh_balance_monster_ts";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
@@ -180,6 +183,13 @@ async function main() {
     await db_query(
       `REFRESH MATERIALIZED VIEW beefy_derived.vault_ppfs_and_price_4h_ts`
     );
+  }
+
+  if (!importOnly || importOnly === "refresh_balance_monster_ts") {
+    logger.info(
+      `[LTSDB] Refreshing manual materialized view: beefy_derived.erc20_investor_balance_4h_ts`
+    );
+    await rebuildERC20BalanceTs();
   }
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");
