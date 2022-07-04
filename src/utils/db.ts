@@ -390,6 +390,9 @@ async function migrate() {
       datetime TIMESTAMPTZ NOT NULL,
       token_balance int_256 not null,
       balance_usd_value double precision, -- some usd value may not be available
+      balance_diff_usd_value double precision, 
+      deposit_diff_usd_value double precision,
+      withdraw_diff_usd_value double precision,
       balance_diff int_256 not null,
       deposit_diff int_256 not null,
       withdraw_diff int_256 not null,
@@ -462,7 +465,10 @@ export async function rebuildBalanceReportTable() {
         trx_count,
         deposit_count,
         withdraw_count,
-        balance_usd_value
+        balance_usd_value,
+        balance_diff_usd_value,
+        deposit_diff_usd_value,
+        withdraw_diff_usd_value
       ) 
       with
       balance_ts as (
@@ -525,7 +531,16 @@ export async function rebuildBalanceReportTable() {
             bt.trx_count, bt.deposit_count, bt.withdraw_count,
             (
                 (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as balance_usd_value
+            ) * vpt.avg_want_usd_value as balance_usd_value,
+            (
+                (bt.balance_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as balance_diff_usd_value,
+            (
+                (bt.deposit_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as deposit_diff_usd_value,
+            (
+                (bt.withdraw_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as withdraw_diff_usd_value
         from balance_diff_with_snaps_ts as bt
         join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
             on vpt.chain = %L
@@ -536,7 +551,7 @@ export async function rebuildBalanceReportTable() {
         token_balance, 
         balance_diff, deposit_diff, withdraw_diff, 
         trx_count, deposit_count, withdraw_count,
-        balance_usd_value
+        balance_usd_value, balance_diff_usd_value, deposit_diff_usd_value, withdraw_diff_usd_value
       from investor_metrics;
       COMMIT;
     `,

@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
-  "iteration": 1656951513281,
+  "iteration": 1656954531964,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -301,8 +301,8 @@
   "time": { "from": "now-30d", "to": "now" },
   "timepicker": {},
   "timezone": "",
-  "title": "Investor 4h Overview",
+  "title": "Investor USD 4h Overview",
   "uid": "kFb7S767k",
-  "version": 7,
+  "version": 8,
   "weekStart": ""
 }
