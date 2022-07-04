@@ -383,11 +383,6 @@ async function loadCSVStreamToTimescaleTable<
 
   logger.info(`[LTSDB] Importing ${opts.logKey}`);
 
-  const fileReadStream = await opts.getFileStream();
-  if (!fileReadStream) {
-    logger.verbose(`[LTSDB] No data for ${opts.logKey}`);
-    return;
-  }
   // now get the last imported data to filter on those
   const lastImportedDate = await opts.getLastDbRowDate();
   if (lastImportedDate) {
@@ -403,6 +398,12 @@ async function loadCSVStreamToTimescaleTable<
     }
   } else {
     logger.verbose(`[LTSDB] No data for ${opts.logKey}, importing all events`);
+  }
+
+  const fileReadStream = await opts.getFileStream();
+  if (!fileReadStream) {
+    logger.verbose(`[LTSDB] No data for ${opts.logKey}`);
+    return;
   }
 
   const onlyLatestRowsFilter = new StreamObjectFilterTransform<CSVObjType>(

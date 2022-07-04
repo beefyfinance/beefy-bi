@@ -10,12 +10,14 @@ ALTER SCHEMA beefy_raw OWNER TO beefy;
 -- drop user grafana_ro;
 CREATE USER grafana_ro WITH PASSWORD 'grafana_ro'
 NOSUPERUSER NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION VALID UNTIL 'infinity';
-ALTER USER grafana_ro SET search_path = public,beefy_raw,beefy_derived;
+ALTER USER grafana_ro SET search_path = public,beefy_raw,beefy_derived,beefy_report;
 
 GRANT CONNECT ON DATABASE beefy TO grafana_ro;
 GRANT USAGE ON SCHEMA public TO grafana_ro;
 
 GRANT USAGE ON SCHEMA beefy_raw TO grafana_ro;
 GRANT USAGE ON SCHEMA beefy_derived TO grafana_ro;
+GRANT USAGE ON SCHEMA beefy_report TO grafana_ro;
 GRANT SELECT ON ALL TABLES IN SCHEMA beefy_raw TO grafana_ro;
 GRANT SELECT ON ALL TABLES IN SCHEMA beefy_derived TO grafana_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA beefy_report TO grafana_ro;
