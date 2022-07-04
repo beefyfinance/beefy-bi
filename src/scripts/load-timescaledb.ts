@@ -1,6 +1,6 @@
 import { from as copyFrom } from "pg-copy-streams";
 import { runMain } from "../utils/process";
-import yargs from "yargs";
+import yargs, { string } from "yargs";
 import { allChainIds } from "../types/chain";
 import { transform } from "stream-transform";
 import { Chain } from "../types/chain";
@@ -122,8 +122,19 @@ async function main() {
     logger.info(`[LTSDB] Importing prices`);
 
     const oracleIds = getAllAvailableOracleIds("15min");
+    // get the latest import date for all oracles in one go
+    const res = await db_query<{ oracle_id: string; last_imported: Date }>(
+      `SELECT oracle_id, max(datetime) as last_imported
+      FROM beefy_raw.oracle_price_ts
+      group by 1`
+    );
+    const lastImportedOraclePrices = res.reduce(
+      (agg, cur) => Object.assign(agg, { [cur.oracle_id]: cur.last_imported }),
+      {} as Record<string, Date>
+    );
+
     for await (const oracleId of oracleIds) {
-      await importPricesToDB(oracleId);
+      await importPricesToDB(oracleId, lastImportedOraclePrices);
     }
   }
 
@@ -332,7 +343,10 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
   });
 }
 
-async function importPricesToDB(oracleId: string) {
+async function importPricesToDB(
+  oracleId: string,
+  lastImportedOraclePrices: Record<string, Date>
+) {
   const samplingPeriod: SamplingPeriod = "15min";
 
   return loadCSVStreamToTimescaleTable({
@@ -342,15 +356,7 @@ async function importPricesToDB(oracleId: string) {
 
     getFileStream: async () => getOraclePricesStream(oracleId, samplingPeriod),
 
-    getLastDbRowDate: async () =>
-      (
-        await db_query_one<{ last_imported: Date }>(
-          `SELECT max(datetime) as last_imported
-          FROM beefy_raw.oracle_price_ts
-          WHERE oracle_id = %L`,
-          [oracleId]
-        )
-      )?.last_imported || null,
+    getLastDbRowDate: async () => lastImportedOraclePrices[oracleId] || null,
 
     getLastFileDate: async () =>
       (await getLastImportedOraclePrice(oracleId, samplingPeriod))?.datetime ||

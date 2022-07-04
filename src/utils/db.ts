@@ -401,6 +401,10 @@ async function migrate() {
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
+
+    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (investor_address);
+    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (vault_id);
   `);
 }
 
