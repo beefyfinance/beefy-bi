@@ -387,7 +387,7 @@ async function migrate() {
       investor_address evm_address NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
       token_balance int_256 not null,
-      balance_usd_value double precision not null,
+      balance_usd_value double precision, -- some usd value may not be available
       balance_diff int_256 not null,
       deposit_diff int_256 not null,
       withdraw_diff int_256 not null,
@@ -429,12 +429,13 @@ export async function rebuildBalanceReportTable() {
     select dates.chain, format_evm_address(dates.contract_address) as contract_address,
       dates.first_datetime, dates.last_datetime, vault.vault_id
     from contract_diff_dates dates
-    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address);
+    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
+    order by dates.chain, vault.vault_id
   `);
 
-  for (const contract of contracts) {
+  for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
-      `[DB] Refreshing data for vault ${contract.chain}:${contract.vault_id}`
+      `[DB] Refreshing data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
     await db_query(
       `
