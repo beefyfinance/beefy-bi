@@ -9,7 +9,7 @@ import {
   db_query,
   db_query_one,
   getPgPool,
-  rebuildERC20BalanceTs,
+  rebuildBalanceReportTable,
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
@@ -189,7 +189,7 @@ async function main() {
     logger.info(
       `[LTSDB] Refreshing manual materialized view: beefy_derived.erc20_investor_balance_4h_ts`
     );
-    await rebuildERC20BalanceTs();
+    await rebuildBalanceReportTable();
   }
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");

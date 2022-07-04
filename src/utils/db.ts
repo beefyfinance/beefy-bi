@@ -33,6 +33,7 @@ export async function db_query<RowType>(
   logger.debug(`Executing query: ${sql}, params: ${params}`);
   const pool = await getPgPool();
   const sql_w_params = pgf(sql, ...params);
+  //console.log(sql_w_params);
   const res = await pool.query(sql_w_params);
   const rows = res?.rows || null;
   logger.debug(`Got ${res?.rowCount} for query: ${sql}, params ${params}`);
@@ -332,7 +333,11 @@ async function migrate() {
       AS select chain, contract_address, investor_address, 
           time_bucket('4h', datetime) as datetime, 
           sum(balance_diff) as balance_diff,
-          count(*) as trx_count
+          sum(balance_diff) filter(where balance_diff > 0) as deposit_diff,
+          sum(balance_diff) filter(where balance_diff < 0) as withdraw_diff,
+          count(*) as trx_count,
+          count(*) filter (where balance_diff > 0) as deposit_count,
+          count(*) filter (where balance_diff < 0) as withdraw_count
       from beefy_raw.erc20_balance_diff_ts
       group by 1,2,3,4;
   `);
@@ -374,18 +379,24 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (datetime);
   `);
 
-  // helper erc20 balance derived table
+  // build a full report table with balance diffs every 4h and balance snapshots every 3d
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_derived.erc20_investor_balance_4h_ts (
+    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_4h_snaps_3d_ts (
       chain chain_enum NOT NULL,
-      contract_address evm_address NOT NULL,
+      vault_id varchar NOT NULL,
       investor_address evm_address NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
-      balance_diff int_256,
-      balance int_256 not null
+      token_balance int_256 not null,
+      balance_usd_value double precision not null,
+      balance_diff int_256 not null,
+      deposit_diff int_256 not null,
+      withdraw_diff int_256 not null,
+      trx_count integer not null,
+      deposit_count integer not null,
+      withdraw_count integer not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_derived.erc20_investor_balance_4h_ts', 
+      relation => 'beefy_report.vault_investor_balance_4h_snaps_3d_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
@@ -395,73 +406,146 @@ async function migrate() {
 
 // this is kind of a continuous aggregate
 // there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
-// so we drop and rebuild this table as needed
+// so we rebuild this table as needed
 // it needs to be an hypertable if we want to use ts functions like time_bucket_gapfill so materialized view are not a good fit
-export async function rebuildERC20BalanceTs() {
-  const rows = await db_query<{
+export async function rebuildBalanceReportTable() {
+  // we select the min and max date to feed the gapfill function
+  const contracts = await db_query<{
     chain: string;
     contract_address: string;
-    investor_address: string;
+    vault_id: string;
     first_datetime: Date;
     last_datetime: Date;
   }>(`
-    SELECT 
-      chain,
-      format_evm_address(contract_address) as contract_address,
-      format_evm_address(investor_address) as investor_address,
-      min(datetime) as first_datetime, 
-      max(datetime) as last_datetime 
-    FROM beefy_derived.erc20_balance_diff_4h_ts
-    GROUP BY 1,2,3
+    with contract_diff_dates as (
+      SELECT
+        chain,
+        contract_address,
+        min(datetime) as first_datetime,
+        max(datetime) as last_datetime
+      FROM beefy_derived.erc20_balance_diff_4h_ts
+      GROUP BY 1,2
+    )
+    select dates.chain, format_evm_address(dates.contract_address) as contract_address,
+      dates.first_datetime, dates.last_datetime, vault.vault_id
+    from contract_diff_dates dates
+    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address);
   `);
-  for (const row of rows) {
-    logger.verbose(`[DB] Refreshing data for investor ${JSON.stringify(row)}`);
-    await db_query(
-      `
-      DELETE FROM beefy_derived.erc20_investor_balance_4h_ts
-      WHERE chain = %L
-        and contract_address = %L
-        and investor_address = %L
-    `,
-      [
-        row.chain,
-        strAddressToPgBytea(row.contract_address),
-        strAddressToPgBytea(row.investor_address),
-      ]
+
+  for (const contract of contracts) {
+    logger.info(
+      `[DB] Refreshing data for contract ${JSON.stringify(contract)}`
     );
     await db_query(
       `
-      INSERT INTO beefy_derived.erc20_investor_balance_4h_ts (
-          chain, contract_address, investor_address,
-          datetime,
-          balance_diff, balance
+      DELETE FROM beefy_report.vault_investor_balance_4h_snaps_3d_ts
+      WHERE chain = %L
+        and vault_id = %L;
+
+      INSERT INTO beefy_report.vault_investor_balance_4h_snaps_3d_ts (
+        chain,
+        vault_id,
+        investor_address,
+        datetime,
+        token_balance,
+        balance_diff,
+        deposit_diff,
+        withdraw_diff,
+        trx_count,
+        deposit_count,
+        withdraw_count,
+        balance_usd_value
       ) 
-      select 
-          %L, %L, %L,
-          datetime,
-          coalesce(balance_diff, 0),
-          sum(coalesce(balance_diff, 0)) over (order by datetime) as balance
-      from (
-          select time_bucket_gapfill('4h', datetime) as datetime,
-              sum(balance_diff) as balance_diff
-          from beefy_derived.erc20_balance_diff_4h_ts
+      with
+      balance_ts as (
+          SELECT investor_address, datetime,
+              balance_diff, trx_count, deposit_diff, withdraw_diff, deposit_count, withdraw_count,
+              sum(balance_diff) over (
+                  partition by investor_address
+                  order by datetime asc
+              ) as balance
+          FROM beefy_derived.erc20_balance_diff_4h_ts
+          where chain = %L
+            and contract_address = %L
+      ),
+      -- create a balance snapshot every now and then to allow for analysis with filters on date
+      balance_snapshots_full_hist_ts as (
+          select investor_address, 
+              time_bucket_gapfill('3d', datetime) as datetime,
+              locf((array_agg(balance order by datetime desc))[1]) as balance_snapshot,
+              lag(locf((array_agg(balance order by datetime desc))[1])) over (
+                  partition by investor_address
+                  order by time_bucket_gapfill('3d', datetime)
+              ) as prev_balance_snapshot
+          from balance_ts
           where datetime between %L and %L
-              and chain = %L
-              and contract_address = %L
-              and investor_address = %L
-          group by 1
-      ) as t
-      where balance_diff != 0
+          group by 1,2
+      ),
+      balance_snapshots_ts as (
+          select investor_address, 
+          -- assign the snapshot to the end of the last period
+          datetime + interval '3 days' as datetime, 
+          balance_snapshot
+          from balance_snapshots_full_hist_ts
+          where 
+              -- remove balances before the first investment
+              balance_snapshot is not null 
+              -- remove rows after full exit of this user
+              and not (prev_balance_snapshot = 0 and balance_snapshot = 0)
+      ),
+      balance_diff_with_snaps_ts as (
+          -- now that we have balance snapshots, we can intertwine them with diffs to get a diff history with some snapshots
+          select 
+              coalesce(b.investor_address, bs.investor_address) as investor_address, 
+              coalesce(b.datetime, bs.datetime) as datetime, 
+              coalesce(b.balance, bs.balance_snapshot) as balance,
+              coalesce(b.balance_diff, 0) as balance_diff, 
+              coalesce(b.deposit_diff, 0) as deposit_diff,
+              coalesce(b.withdraw_diff, 0) as withdraw_diff,
+              coalesce(b.trx_count, 0) as trx_count,
+              coalesce(b.deposit_count, 0) as deposit_count,
+              coalesce(b.withdraw_count, 0) as withdraw_count
+          from balance_snapshots_ts bs
+          full outer join balance_ts b 
+              on b.investor_address = bs.investor_address
+              and b.datetime = bs.datetime
+      ),
+      investor_metrics as (
+        select 
+            vpt.vault_id, bt.investor_address, bt.datetime, 
+            bt.balance as token_balance, bt.balance_diff, bt.deposit_diff, bt.withdraw_diff, 
+            bt.trx_count, bt.deposit_count, bt.withdraw_count,
+            (
+                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as balance_usd_value
+        from balance_diff_with_snaps_ts as bt
+        join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
+            on vpt.chain = %L
+            and vpt.vault_id = %L
+            and vpt.datetime = bt.datetime
+      )
+      select %L as chain, vault_id, investor_address, datetime,
+        token_balance, 
+        balance_diff, deposit_diff, withdraw_diff, 
+        trx_count, deposit_count, withdraw_count,
+        balance_usd_value
+      from investor_metrics
     `,
       [
-        row.chain,
-        strAddressToPgBytea(row.contract_address),
-        strAddressToPgBytea(row.investor_address),
-        row.first_datetime,
-        row.last_datetime,
-        row.chain,
-        strAddressToPgBytea(row.contract_address),
-        strAddressToPgBytea(row.investor_address),
+        // delete query filters
+        contract.chain,
+        contract.vault_id,
+        // balance_ts filters
+        contract.chain,
+        strAddressToPgBytea(contract.contract_address),
+        // balance_snapshots_full_hist_ts filters
+        contract.first_datetime,
+        contract.last_datetime,
+        // investor_metrics filters
+        contract.chain,
+        contract.vault_id,
+        // select raw values
+        contract.chain,
       ]
     );
   }
