@@ -434,10 +434,11 @@ export async function rebuildBalanceReportTable() {
 
   for (const contract of contracts) {
     logger.info(
-      `[DB] Refreshing data for contract ${JSON.stringify(contract)}`
+      `[DB] Refreshing data for vault ${contract.chain}:${contract.vault_id}`
     );
     await db_query(
       `
+      BEGIN;
       DELETE FROM beefy_report.vault_investor_balance_4h_snaps_3d_ts
       WHERE chain = %L
         and vault_id = %L;
@@ -529,7 +530,8 @@ export async function rebuildBalanceReportTable() {
         balance_diff, deposit_diff, withdraw_diff, 
         trx_count, deposit_count, withdraw_count,
         balance_usd_value
-      from investor_metrics
+      from investor_metrics;
+      COMMIT;
     `,
       [
         // delete query filters
@@ -549,4 +551,11 @@ export async function rebuildBalanceReportTable() {
       ]
     );
   }
+
+  logger.info(
+    `[DB] Running vacuum full on beefy_report.vault_investor_balance_4h_snaps_3d_ts`
+  );
+  await db_query(`
+    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_balance_4h_snaps_3d_ts;
+  `);
 }
