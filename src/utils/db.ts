@@ -377,11 +377,13 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_chain_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (chain);
     CREATE INDEX IF NOT EXISTS idx_address_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (contract_address);
     CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (datetime);
+    -- index to speed up investor dashboard (5s -> 100ms)
+    CREATE INDEX IF NOT EXISTS idx_chain_vault_dt_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (chain, vault_id, datetime);
   `);
 
   // build a full report table with balance diffs every 4h and balance snapshots every 3d
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_4h_snaps_3d_ts (
+    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       investor_address evm_address NOT NULL,
@@ -396,15 +398,15 @@ async function migrate() {
       withdraw_count integer not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_report.vault_investor_balance_4h_snaps_3d_ts', 
+      relation => 'beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (investor_address);
-    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_4h_snaps_3d_ts (vault_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (investor_address);
+    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
   `);
 }
 
@@ -444,11 +446,11 @@ export async function rebuildBalanceReportTable() {
     await db_query(
       `
       BEGIN;
-      DELETE FROM beefy_report.vault_investor_balance_4h_snaps_3d_ts
+      DELETE FROM beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
       WHERE chain = %L
         and vault_id = %L;
 
-      INSERT INTO beefy_report.vault_investor_balance_4h_snaps_3d_ts (
+      INSERT INTO beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
         chain,
         vault_id,
         investor_address,
@@ -558,9 +560,9 @@ export async function rebuildBalanceReportTable() {
   }
 
   logger.info(
-    `[DB] Running vacuum full on beefy_report.vault_investor_balance_4h_snaps_3d_ts`
+    `[DB] Running vacuum full on beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts`
   );
   await db_query(`
-    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_balance_4h_snaps_3d_ts;
+    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts;
   `);
 }

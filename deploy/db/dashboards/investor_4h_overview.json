@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
-  "iteration": 1656948767427,
+  "iteration": 1656951513281,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -81,7 +81,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              --sum(balance_diff) as balance_diff,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_4h_snaps_3d_ts\n          where $__timeFilter(datetime)\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\nwhere vpt.vault_id is not null\ngroup by 1\norder by 1",
+          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              --sum(balance_diff) as balance_diff,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts\n          -- make sure we select the previous snapshot to fill the graph\n          where datetime between ('${__from:date}'::TIMESTAMPTZ - interval '3d') and '${__to:date}'::TIMESTAMPTZ\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\n    and $__timeFilter(vpt.datetime)\nwhere vpt.vault_id is not null\ngroup by 1\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -140,7 +140,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_4h_snaps_3d_ts\n          where $__timeFilter(datetime)\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
+          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts\n          -- make sure we select the previous snapshot to fill the graph\n          where datetime between ('${__from:date}'::TIMESTAMPTZ - interval '3d') and '${__to:date}'::TIMESTAMPTZ\n            and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\n    and $__timeFilter(vpt.datetime)\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -199,7 +199,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_4h_snaps_3d_ts\n          where $__timeFilter(datetime)\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
+          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts\n          -- make sure we select the previous snapshot to fill the graph\n          where datetime between ('${__from:date}'::TIMESTAMPTZ - interval '3d') and '${__to:date}'::TIMESTAMPTZ\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\n    and $__timeFilter(vpt.datetime)\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -258,7 +258,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_4h_snaps_3d_ts\n          where $__timeFilter(datetime)\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
+          "rawSql": "with\nbalance_4h_ts as (\n  select *\n  from (\n          select chain, vault_id,\n              time_bucket_gapfill('4h', datetime) as datetime,\n              locf(avg(token_balance)) as balance\n          from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts\n          -- make sure we select the previous snapshot to fill the graph\n          where datetime between ('${__from:date}'::TIMESTAMPTZ - interval '3d') and '${__to:date}'::TIMESTAMPTZ\n              and investor_address = evm_address_to_bytea('$investor_address')\n          group by 1,2,3\n  ) as t\n  where balance is not null\n)\nselect \n    b.datetime as time, \n    vpt.vault_id,\n    sum(\n        (\n          (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        )\n        * vpt.avg_want_usd_value\n    ) as value\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt \n    on b.chain = vpt.chain \n    and b.vault_id = vpt.vault_id\n    and b.datetime = vpt.datetime\n    and $__timeFilter(vpt.datetime)\nwhere vpt.vault_id is not null\ngroup by 1,2\norder by 1,2",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -298,14 +298,11 @@
       }
     ]
   },
-  "time": {
-    "from": "2022-04-27T11:39:29.833Z",
-    "to": "2022-07-04T15:42:24.341Z"
-  },
+  "time": { "from": "now-30d", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Investor 4h Overview",
   "uid": "kFb7S767k",
-  "version": 4,
+  "version": 7,
   "weekStart": ""
 }

@@ -11,6 +11,7 @@ ALTER SCHEMA beefy_raw OWNER TO beefy;
 CREATE USER grafana_ro WITH PASSWORD 'grafana_ro'
 NOSUPERUSER NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION VALID UNTIL 'infinity';
 ALTER USER grafana_ro SET search_path = public,beefy_raw,beefy_derived,beefy_report;
+ALTER USER beefy SET search_path = public,beefy_raw,beefy_derived,beefy_report;
 
 GRANT CONNECT ON DATABASE beefy TO grafana_ro;
 GRANT USAGE ON SCHEMA public TO grafana_ro;
