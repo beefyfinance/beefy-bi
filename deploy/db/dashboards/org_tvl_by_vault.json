@@ -1,0 +1,241 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 14,
+  "iteration": 1657055861286,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 2,
+      "panels": [],
+      "repeat": "vault_id",
+      "repeatDirection": "h",
+      "title": "$vault_id TVL",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 1 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time_bucket('4h', datetime) AS \"time\",\n  balance_usd_value\nFROM beefy_report.vault_tvl_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain = '$chain'\n  and vault_id in ($vault_id)\nORDER BY 1",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "$vault_id TVL",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 1 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time_bucket('4h', datetime) AS \"time\",\n  want_balance\nFROM beefy_report.vault_tvl_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain = '$chain'\n  and vault_id in ($vault_id)\nORDER BY 1",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "$vault_id TVL",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "arbitrum",
+          "value": "arbitrum"
+        },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct chain from beefy_report.vault_tvl_4h_ts;",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from beefy_report.vault_tvl_4h_ts;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "arbi-bifi-maxi",
+            "balancer-wbtc-eth-usdc",
+            "curve-arb-2pool",
+            "curve-arb-ren",
+            "curve-arb-tricrypto",
+            "spell-mim-crv",
+            "sushi-arb-eth-usdc",
+            "sushi-arb-magic-weth",
+            "sushi-arb-spell-weth",
+            "sushi-arb-sushi-eth",
+            "sushi-arb-wbtc-weth",
+            "sushi-arb-weth-gohm",
+            "sushi-arb-weth-mim",
+            "sushi-arb-weth-usdt"
+          ],
+          "value": [
+            "arbi-bifi-maxi",
+            "balancer-wbtc-eth-usdc",
+            "curve-arb-2pool",
+            "curve-arb-ren",
+            "curve-arb-tricrypto",
+            "spell-mim-crv",
+            "sushi-arb-eth-usdc",
+            "sushi-arb-magic-weth",
+            "sushi-arb-spell-weth",
+            "sushi-arb-sushi-eth",
+            "sushi-arb-wbtc-weth",
+            "sushi-arb-weth-gohm",
+            "sushi-arb-weth-mim",
+            "sushi-arb-weth-usdt"
+          ]
+        },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct vault_id from beefy_report.vault_tvl_4h_ts where chain = '$chain' and vault_id is not null",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "vault_id",
+        "options": [],
+        "query": "select distinct vault_id from beefy_report.vault_tvl_4h_ts where chain = '$chain' and vault_id is not null",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-90d", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TVL by vault",
+  "uid": "_a3uud67k",
+  "version": 1,
+  "weekStart": ""
+}

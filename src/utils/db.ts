@@ -342,6 +342,21 @@ async function migrate() {
       group by 1,2,3,4;
   `);
 
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.erc20_contract_balance_diff_4h_ts WITH (timescaledb.continuous)
+      AS select chain, contract_address,
+          time_bucket('4h', datetime) as datetime, 
+          sum(balance_diff) as balance_diff,
+          sum(balance_diff) filter(where balance_diff > 0) as deposit_diff,
+          sum(balance_diff) filter(where balance_diff < 0) as withdraw_diff,
+          count(*) as trx_count,
+          count(*) filter (where balance_diff > 0) as deposit_count,
+          count(*) filter (where balance_diff < 0) as withdraw_count
+      from beefy_raw.erc20_balance_diff_ts
+      where investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+      group by 1,2,3;
+  `);
+
   // helper materialized view
   await db_query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.vault_ppfs_and_price_4h_ts as 
@@ -439,6 +454,47 @@ async function migrate() {
                 balance_diff = 0 and deposit_diff = 0 and withdraw_diff = 0
             )
         group by 1,2,3;
+  `);
+
+  // manual continuous aggregate: vault tvl
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_report.vault_tvl_4h_ts
+      AS 
+        with
+        contract_balance_ts as (
+            select * 
+            from (
+                select chain, contract_address,
+                    time_bucket_gapfill('4h', datetime) as datetime,
+                    sum(sum(balance_diff)) over (
+                        partition by chain, contract_address
+                        order by time_bucket_gapfill('4h', datetime)
+                    ) as balance
+                from beefy_derived.erc20_contract_balance_diff_4h_ts
+                where datetime between '2019-01-01' and now()
+                group by 1,2,3
+            ) as t
+            where balance is not null
+        )
+        select 
+            bt.chain, vpt.vault_id, bt.datetime,
+            balance,
+            (
+              (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) as want_balance,
+            (
+                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as balance_usd_value
+        from contract_balance_ts bt
+        left join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
+            on vpt.chain = bt.chain
+            and vpt.contract_address = bt.contract_address
+            and vpt.datetime = bt.datetime
+        ;
+
+        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON beefy_report.vault_tvl_4h_ts (chain);
+        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON beefy_report.vault_tvl_4h_ts (vault_id);
+        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON beefy_report.vault_tvl_4h_ts (datetime);
   `);
 }
 
