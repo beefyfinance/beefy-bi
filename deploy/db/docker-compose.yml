@@ -31,7 +31,7 @@ services:
   timescaledb:
     image: timescale/timescaledb-ha:pg14-latest
     volumes:
-      - timescaledb_data:/pgdata
+      - timescaledb_data:/home/postgres/pgdata/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     deploy:
       resources:
@@ -47,7 +47,7 @@ services:
       POSTGRES_USER: beefy
       POSTGRES_PASSWORD: beefy
       POSTGRES_DB: beefy
-      PGDATA: /pgdata
+      PGDATA: /home/postgres/pgdata/data
     networks:
       - backend
 
