@@ -411,6 +411,34 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (investor_address);
     CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
   `);
+
+  // continuous aggregate: investor rollup
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_report.vault_entry_exit_count_4h_ts WITH (timescaledb.continuous)
+      AS 
+        select 
+            chain,
+            vault_id,
+            time_bucket('4h', datetime) as datetime,
+            sum((deposit_diff > 0)::int) as investor_entries,
+            sum((token_balance = 0)::int) as investor_exits,
+            hyperloglog(65536, investor_address) as hll_investor_address,
+            hyperloglog(65536, investor_address) filter (where deposit_diff > 0) as hll_investor_entries,
+            hyperloglog(65536, investor_address) filter (where token_balance = 0) as hll_investor_exits
+        from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
+        where
+            -- remove mintburn address
+            investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+            and (
+                token_balance = balance_diff -- new investor
+                or token_balance = 0 -- removed investor
+            )
+            -- ignore rows with no change while keeping quick entry and exit 
+            and not (
+                balance_diff = 0 and deposit_diff = 0 and withdraw_diff = 0
+            )
+        group by 1,2,3;
+  `);
 }
 
 // this is kind of a continuous aggregate

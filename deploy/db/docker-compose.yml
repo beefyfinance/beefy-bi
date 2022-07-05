@@ -29,7 +29,7 @@ services:
       WORK_SOURCE: all
 
   timescaledb:
-    image: timescale/timescaledb:latest-pg14
+    image: timescale/timescaledb-ha:pg14-latest
     volumes:
       - timescaledb_data:/pgdata
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

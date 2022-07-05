@@ -403,12 +403,14 @@ async function loadCSVStreamToTimescaleTable<
       logger.verbose(`[LTSDB] Nothing to import for ${opts.logKey}`);
     }
   } else {
-    logger.verbose(`[LTSDB] No data for ${opts.logKey}, importing all events`);
+    logger.verbose(
+      `[LTSDB] No data in database for ${opts.logKey}, importing all events`
+    );
   }
 
   const fileReadStream = await opts.getFileStream();
   if (!fileReadStream) {
-    logger.verbose(`[LTSDB] No data for ${opts.logKey}`);
+    logger.verbose(`[LTSDB] No data in input stream for ${opts.logKey}`);
     return;
   }
 
