@@ -422,9 +422,10 @@ async function migrate() {
             time_bucket('4h', datetime) as datetime,
             sum((deposit_diff > 0)::int) as investor_entries,
             sum((token_balance = 0)::int) as investor_exits,
-            hyperloglog(65536, investor_address) as hll_investor_address,
-            hyperloglog(65536, investor_address) filter (where deposit_diff > 0) as hll_investor_entries,
-            hyperloglog(65536, investor_address) filter (where token_balance = 0) as hll_investor_exits
+            -- use hyperloglog with max precision of 2^18 bits for distinct count rollups, should be good enough
+            hyperloglog(262144, investor_address) as hll_investor_address,
+            hyperloglog(262144, investor_address) filter (where deposit_diff > 0) as hll_investor_entries,
+            hyperloglog(262144, investor_address) filter (where token_balance = 0) as hll_investor_exits
         from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
         where
             -- remove mintburn address

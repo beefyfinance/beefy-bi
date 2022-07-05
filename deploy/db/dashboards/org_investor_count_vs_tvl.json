@@ -1,0 +1,223 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 12,
+  "iteration": 1657020402838,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 2,
+      "panels": [],
+      "repeat": "vault_id",
+      "repeatDirection": "h",
+      "title": "Vault $vault_id",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 1 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select datetime as time, uniq_investors \nfrom (\n    -- we want to full scope of data for the window function to work\n    select datetime,\n        sum(investor_entries - investor_exits) over (order by datetime) as uniq_investors\n    from beefy_report.vault_entry_exit_count_4h_ts\n    where chain = '$chain' and vault_id in ($vault_id)\n) as t\nwhere $__timeFilter(datetime)\n",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "$vault_id unique investors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 1 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nwith\nbalance_4h_ts as (\n  select *\n  from (\n          select time_bucket_gapfill('4h', datetime) as datetime,\n              sum(sum(balance_diff)) over (order by time_bucket_gapfill('4h', datetime)) as tvl_token\n          from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts\n          -- make sure we select the previous snapshot to fill the graph\n          where datetime between '$min_vault_date' and '${__to:date}'::TIMESTAMPTZ\n                and chain = '$chain'\n                and vault_id in ($vault_id)\n                and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')  \n          group by 1\n  ) as t\n  where tvl_token is not null\n)\nselect time_bucket('4h', b.datetime) as time, --, b.tvl_token,\n    sum((\n        (b.tvl_token::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n    )\n    * vpt.avg_want_usd_value) as tvl_usd\nfrom balance_4h_ts b\nleft join beefy_derived.vault_ppfs_and_price_4h_ts vpt\n    on vpt.datetime = b.datetime\n    and vpt.datetime between ('${__from:date}'::TIMESTAMPTZ - interval '3d') and '${__to:date}'::TIMESTAMPTZ\n    and vpt.chain = '$chain'\n    and vpt.vault_id in ($vault_id)\ngroup by 1\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "$vault_id TVL",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "bsc", "value": "bsc" },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct chain\nfrom beefy_report.vault_entry_exit_count_4h_ts",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain\nfrom beefy_report.vault_entry_exit_count_4h_ts",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct vault_id \nfrom beefy_report.vault_entry_exit_count_4h_ts\nwhere vault_id is not null and chain = '$chain'",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "vault_id",
+        "options": [],
+        "query": "select distinct vault_id \nfrom beefy_report.vault_entry_exit_count_4h_ts\nwhere vault_id is not null and chain = '$chain'",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "2021-02-24 16:00:00+00",
+          "value": "2021-02-24 16:00:00+00"
+        },
+        "definition": "select min(datetime)::varchar from beefy_derived.vault_ppfs_and_price_4h_ts where vault_id in ($vault_id)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "min_vault_date",
+        "options": [],
+        "query": "select min(datetime)::varchar from beefy_derived.vault_ppfs_and_price_4h_ts where vault_id in ($vault_id)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-90d", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Investor counts vs TVL",
+  "uid": "slkjd3nad",
+  "version": 3,
+  "weekStart": ""
+}
