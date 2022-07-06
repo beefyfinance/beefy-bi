@@ -427,6 +427,59 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
   `);
 
+  // build a full report table with balance diffs every 4h and balance snapshots every 3d
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
+      chain chain_enum NOT NULL,
+      vault_id varchar NOT NULL,
+      investor_address evm_address NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      token_balance int_256 not null,
+      balance_usd_value double precision, -- some usd value may not be available
+      balance_diff_usd_value double precision, 
+      deposit_diff_usd_value double precision,
+      withdraw_diff_usd_value double precision,
+      balance_diff int_256 not null,
+      deposit_diff int_256 not null,
+      withdraw_diff int_256 not null,
+      trx_count integer not null,
+      deposit_count integer not null,
+      withdraw_count integer not null
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts', 
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '14 days', 
+      if_not_exists => true
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (investor_address);
+    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
+  `);
+
+  // build a full report table with balance usd value bucket
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_usd_balance_buckets_4h_ts (
+      chain chain_enum NOT NULL,
+      vault_id varchar NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL,
+      usd_balance_bucket_id integer,
+      investor_count integer,
+      avg_balance_usd_value double precision,
+      sum_balance_usd_value double precision
+    );
+    SELECT create_hypertable(
+      relation => 'beefy_report.vault_investor_usd_balance_buckets_4h_ts', 
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '14 days', 
+      if_not_exists => true
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chain_vubb4h ON beefy_report.vault_investor_usd_balance_buckets_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_vault_vubb4h ON beefy_report.vault_investor_usd_balance_buckets_4h_ts (vault_id);
+  `);
+
   // continuous aggregate: investor rollup
   await db_query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_report.vault_entry_exit_count_4h_ts WITH (timescaledb.continuous)
@@ -529,7 +582,7 @@ export async function rebuildBalanceReportTable() {
 
   for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
-      `[DB] Refreshing data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
+      `[DB] Refreshing balance diff data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
     await db_query(
       `
@@ -664,5 +717,155 @@ export async function rebuildBalanceReportTable() {
   );
   await db_query(`
     VACUUM (FULL, ANALYZE) beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts;
+  `);
+}
+
+// this is kind of a continuous aggregate
+// there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
+// so we rebuild this table as needed
+// it needs to be an hypertable if we want to use ts functions like time_bucket_gapfill so materialized view are not a good fit
+export async function rebuildBalanceBucketsReportTable() {
+  // we select the min and max date to feed the gapfill function
+  const contracts = await db_query<{
+    chain: string;
+    contract_address: string;
+    vault_id: string;
+    first_datetime: Date;
+    last_datetime: Date;
+  }>(`
+    with contract_diff_dates as (
+      SELECT
+        chain,
+        contract_address,
+        min(datetime) as first_datetime,
+        max(datetime) as last_datetime
+      FROM beefy_derived.erc20_balance_diff_4h_ts
+      GROUP BY 1,2
+    )
+    select dates.chain, format_evm_address(dates.contract_address) as contract_address,
+      dates.first_datetime, dates.last_datetime, vault.vault_id
+    from contract_diff_dates dates
+    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
+    order by dates.chain, vault.vault_id
+  `);
+  /*
+    case 
+        when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'
+        when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'
+        when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'
+        when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'
+        when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'
+        when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'
+        when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'
+        when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'
+        when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'
+        when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'
+        else '10 [$1m ; Inf)'
+    end as investor_tranche_bucket,*/
+  for (const [idx, contract] of Object.entries(contracts)) {
+    logger.info(
+      `[DB] Refreshing balance bucket data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
+    );
+    await db_query(
+      `
+      BEGIN;
+      DELETE FROM beefy_report.vault_investor_usd_balance_buckets_4h_ts
+      WHERE chain = %L
+        and vault_id = %L;
+
+      INSERT INTO beefy_report.vault_investor_usd_balance_buckets_4h_ts (
+        chain,
+        vault_id,
+        datetime,
+        usd_balance_bucket_id,
+        investor_count,
+        avg_balance_usd_value,
+        sum_balance_usd_value
+      ) 
+      with
+        balance_4h_ts as (
+          select *
+          from (
+                  select investor_address,
+                      time_bucket_gapfill('4h', datetime) as datetime,
+                      locf(avg(token_balance)) as balance
+                  from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
+                  -- make sure we select the previous snapshot to fill the graph
+                  where datetime between ((%L)::TIMESTAMPTZ - interval '3 days') and %L
+                    and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+                    and chain = %L
+                    and vault_id = %L
+                  group by 1,2
+          ) as t
+          where balance is not null and balance != 0
+        ),
+        investor_balance_usd_and_tranche_ts as (
+            select 
+                b.datetime, 
+                investor_address,
+                sum(
+                    (
+                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                    )
+                    * vpt.avg_want_usd_value
+                ) as balance_usd_value,
+                width_bucket(sum(
+                    (
+                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                    )
+                    * vpt.avg_want_usd_value
+                ), array[
+                    0,
+                    100,
+                    1000,
+                    5000,
+                    10000,
+                    25000,
+                    50000,
+                    100000,
+                    500000,
+                    1000000
+                ]) as usd_balance_bucket_id
+            from balance_4h_ts b
+            left join beefy_derived.vault_ppfs_and_price_4h_ts vpt 
+                on vpt.chain = %L
+                and vpt.vault_id = %L
+                and b.datetime = vpt.datetime
+            group by 1,2
+        )
+        select %L, %L, datetime,
+            usd_balance_bucket_id,
+            count(*) as investor_count,
+            avg(balance_usd_value) as avg_balance_usd_value,
+            sum(balance_usd_value) as sum_balance_usd_value
+        from investor_balance_usd_and_tranche_ts
+        group by datetime, usd_balance_bucket_id;
+
+      COMMIT;
+    `,
+      [
+        // delete query filters
+        contract.chain,
+        contract.vault_id,
+        // balance_4h_ts filters
+        contract.first_datetime,
+        contract.last_datetime,
+        contract.chain,
+        contract.vault_id,
+        // investor_balance_usd_and_tranche_ts filters
+        contract.chain,
+        contract.vault_id,
+        // select raw values
+        contract.chain,
+        contract.vault_id,
+      ]
+    );
+  }
+
+  logger.info(
+    `[DB] Running vacuum full on beefy_report.vault_investor_usd_balance_buckets_4h_ts`
+  );
+  await db_query(`
+    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_usd_balance_buckets_4h_ts;
   `);
 }

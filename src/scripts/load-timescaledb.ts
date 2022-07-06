@@ -9,6 +9,7 @@ import {
   db_query,
   db_query_one,
   getPgPool,
+  rebuildBalanceBucketsReportTable,
   rebuildBalanceReportTable,
   strAddressToPgBytea,
   strArrToPgStrArr,
@@ -53,6 +54,7 @@ async function main() {
           "vaults",
           "refresh_materialized_views",
           "refresh_balance_monster_ts",
+          "refresh_balance_bucket_monster_ts",
         ],
         alias: "o",
         demand: false,
@@ -64,7 +66,8 @@ async function main() {
     | "prices"
     | "vaults"
     | "refresh_materialized_views"
-    | "refresh_balance_monster_ts";
+    | "refresh_balance_monster_ts"
+    | "refresh_balance_bucket_monster_ts";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
@@ -200,9 +203,16 @@ async function main() {
 
   if (!importOnly || importOnly === "refresh_balance_monster_ts") {
     logger.info(
-      `[LTSDB] Refreshing manual materialized view: beefy_derived.erc20_investor_balance_4h_ts`
+      `[LTSDB] Refreshing manual materialized view: beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts`
     );
     await rebuildBalanceReportTable();
+  }
+
+  if (!importOnly || importOnly === "refresh_balance_bucket_monster_ts") {
+    logger.info(
+      `[LTSDB] Refreshing manual materialized view: beefy_report.vault_investor_usd_balance_buckets_4h_ts`
+    );
+    await rebuildBalanceBucketsReportTable();
   }
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");
