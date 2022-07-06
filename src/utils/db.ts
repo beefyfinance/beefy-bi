@@ -761,7 +761,7 @@ export async function rebuildBalanceBucketsReportTable() {
         when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'
         when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'
         else '10 [$1m ; Inf)'
-    end as investor_tranche_bucket,*/
+    end as investor_tranche,*/
   for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
       `[DB] Refreshing balance bucket data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
