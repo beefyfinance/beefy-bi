@@ -9,8 +9,8 @@ import {
   db_query,
   db_query_one,
   getPgPool,
-  rebuildBalanceBucketsReportTable,
-  rebuildBalanceReportTable,
+  //rebuildBalanceBucketsReportTable,
+  //rebuildBalanceReportTable,
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
@@ -39,6 +39,7 @@ import {
   OraclePriceData,
 } from "../lib/csv-oracle-price";
 import { SamplingPeriod } from "../lib/csv-block-samples";
+import { ethers } from "ethers";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -128,7 +129,7 @@ async function main() {
     // get the latest import date for all oracles in one go
     const res = await db_query<{ oracle_id: string; last_imported: Date }>(
       `SELECT oracle_id, max(datetime) as last_imported
-      FROM beefy_raw.oracle_price_ts
+      FROM data_raw.oracle_price_ts
       group by 1`
     );
     const lastImportedOraclePrices = res.reduce(
@@ -152,7 +153,7 @@ async function main() {
       }
       await db_query(
         `
-        INSERT INTO beefy_raw.vault (
+        INSERT INTO data_raw.vault (
           chain,
           token_address,
           vault_id,
@@ -164,13 +165,13 @@ async function main() {
           assets_oracle_id
         ) values %L
         ON CONFLICT (chain, token_address) DO UPDATE SET 
-          vault_id = beefy_raw.vault.vault_id,
-          token_name = beefy_raw.vault.token_name,
-          want_address = beefy_raw.vault.want_address,
-          want_decimals = beefy_raw.vault.want_decimals,
-          want_price_oracle_id = beefy_raw.vault.want_price_oracle_id,
-          end_of_life = beefy_raw.vault.end_of_life,
-          assets_oracle_id = beefy_raw.vault.assets_oracle_id
+          vault_id = data_raw.vault.vault_id,
+          token_name = data_raw.vault.token_name,
+          want_address = data_raw.vault.want_address,
+          want_decimals = data_raw.vault.want_decimals,
+          want_price_oracle_id = data_raw.vault.want_price_oracle_id,
+          end_of_life = data_raw.vault.end_of_life,
+          assets_oracle_id = data_raw.vault.assets_oracle_id
        ;
       `,
         [
@@ -192,30 +193,30 @@ async function main() {
 
   if (!importOnly || importOnly === "refresh_materialized_views") {
     logger.info(
-      `[LTSDB] Refreshing materialized view: beefy_derived.vault_ppfs_and_price_4h_ts`
+      `[LTSDB] Refreshing materialized view: data_derived.vault_ppfs_and_price_4h_ts`
     );
     await db_query(
-      `REFRESH MATERIALIZED VIEW beefy_derived.vault_ppfs_and_price_4h_ts`
+      `REFRESH MATERIALIZED VIEW data_derived.vault_ppfs_and_price_4h_ts`
     );
     logger.info(
-      `[LTSDB] Refreshing materialized view: beefy_report.vault_tvl_4h_ts`
+      `[LTSDB] Refreshing materialized view: data_report.vault_tvl_4h_ts`
     );
-    await db_query(`REFRESH MATERIALIZED VIEW beefy_report.vault_tvl_4h_ts`);
+    await db_query(`REFRESH MATERIALIZED VIEW data_report.vault_tvl_4h_ts`);
   }
-
+  /*
   if (!importOnly || importOnly === "refresh_balance_monster_ts") {
     logger.info(
-      `[LTSDB] Refreshing manual materialized view: beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts`
+      `[LTSDB] Refreshing manual materialized view: data_report.vault_investor_balance_diff_4h_snaps_3d_ts`
     );
     await rebuildBalanceReportTable();
   }
 
   if (!importOnly || importOnly === "refresh_balance_bucket_monster_ts") {
     logger.info(
-      `[LTSDB] Refreshing manual materialized view: beefy_report.vault_investor_usd_balance_buckets_4h_ts`
+      `[LTSDB] Refreshing manual materialized view: data_report.vault_investor_usd_balance_buckets_4h_ts`
     );
     await rebuildBalanceBucketsReportTable();
-  }
+  }*/
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");
   await sleep(4 * 60 * 60 * 1000);
@@ -225,51 +226,12 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
   const contractAddress = vault.token_address;
 
   await loadCSVStreamToTimescaleTable({
-    logKey: `ERC20 Transfers for ${chain}:${vault.id}`,
-
-    dbCopyQuery: `COPY beefy_raw.erc20_transfer_ts (chain, contract_address, datetime, from_address, to_address, value) 
-        FROM STDIN
-        WITH CSV DELIMITER ',';`,
-
-    getFileStream: async () =>
-      getErc20TransferEventsStream(chain, contractAddress),
-
-    getLastDbRowDate: async () =>
-      (
-        await db_query_one<{ last_imported: Date }>(
-          `SELECT max(datetime) as last_imported
-          FROM beefy_raw.erc20_transfer_ts
-          WHERE chain = %L
-            AND contract_address = %L`,
-          [chain, strAddressToPgBytea(contractAddress)]
-        )
-      )?.last_imported || null,
-
-    getLastFileDate: async () =>
-      (
-        await getLastImportedERC20TransferEvent(chain, contractAddress)
-      )?.datetime || null,
-
-    rowToDbTransformer: (data: ERC20EventData) => {
-      return [
-        // these should match the order of the copy cmd
-        chain,
-        strAddressToPgBytea(contractAddress),
-        data.datetime.toISOString(),
-        strAddressToPgBytea(data.from),
-        strAddressToPgBytea(data.to),
-        data.value,
-      ];
-    },
-    flatten: false,
-  });
-
-  await loadCSVStreamToTimescaleTable({
     logKey: `ERC20 Transfers diffs for ${chain}:${vault.id}`,
 
-    dbCopyQuery: `COPY beefy_raw.erc20_balance_diff_ts (chain, contract_address, datetime, investor_address, balance_diff) 
-        FROM STDIN
-        WITH CSV DELIMITER ',';`,
+    dbCopyQuery: `COPY data_raw.erc20_balance_diff_ts (
+        chain, contract_address, datetime, owner_address, 
+        balance_diff, balance_before, balance_after
+        ) FROM STDIN WITH CSV DELIMITER ',';`,
 
     getFileStream: async () =>
       getErc20TransferEventsStream(chain, contractAddress),
@@ -278,7 +240,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
       (
         await db_query_one<{ last_imported: Date }>(
           `SELECT max(datetime) as last_imported
-          FROM beefy_raw.erc20_balance_diff_ts
+          FROM data_raw.erc20_balance_diff_ts
           WHERE chain = %L
             AND contract_address = %L`,
           [chain, strAddressToPgBytea(contractAddress)]
@@ -290,24 +252,54 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         await getLastImportedERC20TransferEvent(chain, contractAddress)
       )?.datetime || null,
 
-    rowToDbTransformer: (data: ERC20EventData) => {
-      return [
-        [
-          chain,
-          strAddressToPgBytea(contractAddress),
-          data.datetime.toISOString(),
-          strAddressToPgBytea(data.from),
-          "-" + data.value,
-        ],
-        [
-          chain,
-          strAddressToPgBytea(contractAddress),
-          data.datetime.toISOString(),
-          strAddressToPgBytea(data.to),
-          "+" + data.value,
-        ],
-      ];
-    },
+    rowToDbTransformer: await (async () => {
+      // get latest balance from db per owner to propate it
+      const rows = await db_query<{
+        owner_address: string;
+        balance_after: string;
+      }>(
+        `SELECT owner_address, balance_after
+        from data_raw.erc20_balance_diff_ts
+        where chain = %L
+          and contract_address = %L`,
+        [chain, strAddressToPgBytea(contractAddress)]
+      );
+      const lastBalancePerOwner = rows.reduce(
+        (agg, row) =>
+          Object.assign(agg, {
+            [row.owner_address]: ethers.BigNumber.from(row.balance_after),
+          }),
+        {} as Record<string, ethers.BigNumber>
+      );
+      const bigZero = ethers.BigNumber.from(0);
+
+      return (data: ERC20EventData) => {
+        if (data.from === data.to) {
+          logger.verbose(
+            `Ignoring self transfer from ${data.from} at block ${data.blockNumber}`
+          );
+        }
+        const newDiffRows = [
+          { owner: data.from, balance_diff: "-" + data.value },
+          { owner: data.to, balance_diff: data.value },
+        ].map((cfg) => {
+          const lastBalance = lastBalancePerOwner[cfg.owner] || bigZero;
+          const balanceDiff = ethers.BigNumber.from(cfg.balance_diff);
+          const newBalance = lastBalance.add(balanceDiff);
+          lastBalancePerOwner[cfg.owner] = newBalance;
+          return [
+            chain,
+            strAddressToPgBytea(contractAddress),
+            data.datetime.toISOString(),
+            strAddressToPgBytea(cfg.owner),
+            cfg.balance_diff, // diff
+            lastBalance.toString(), // balance before
+            newBalance.toString(), // balance after
+          ];
+        });
+        return newDiffRows;
+      };
+    })(),
     flatten: true,
   });
 }
@@ -319,7 +311,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
   return loadCSVStreamToTimescaleTable({
     logKey: `PPFS for ${chain}:${vault.id}`,
 
-    dbCopyQuery: `COPY beefy_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
+    dbCopyQuery: `COPY data_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
 
     getFileStream: async () =>
       getBeefyVaultV6PPFSDataStream(chain, contractAddress, samplingPeriod),
@@ -328,7 +320,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
       (
         await db_query_one<{ last_imported: Date }>(
           `SELECT max(datetime) as last_imported
-          FROM beefy_raw.vault_ppfs_ts
+          FROM data_raw.vault_ppfs_ts
           WHERE chain = %L
             AND contract_address = %L`,
           [chain, strAddressToPgBytea(contractAddress)]
@@ -366,7 +358,7 @@ async function importPricesToDB(
   return loadCSVStreamToTimescaleTable({
     logKey: `prices for ${oracleId}`,
 
-    dbCopyQuery: `COPY beefy_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
+    dbCopyQuery: `COPY data_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
 
     getFileStream: async () => getOraclePricesStream(oracleId, samplingPeriod),
 

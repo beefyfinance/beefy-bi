@@ -7,7 +7,7 @@ balance_ts as (
             partition by chain, contract_address, investor_address
             order by datetime asc
         ) as balance
-    FROM beefy_derived.erc20_balance_diff_4h_ts
+    FROM data_derived.erc20_balance_diff_4h_ts
     where chain = 'optimism'
 ),
 -- create a balance snapshot every now and then to allow for analysis with filters on date
@@ -64,7 +64,7 @@ select
         (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
     ) * vpt.avg_want_usd_value as balance_usd_value
 from balance_diff_with_snaps_ts as bt
-join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
+join data_derived.vault_ppfs_and_price_4h_ts as vpt 
     on vpt.chain = bt.chain
     and vpt.contract_address = bt.contract_address
     and vpt.datetime = bt.datetime

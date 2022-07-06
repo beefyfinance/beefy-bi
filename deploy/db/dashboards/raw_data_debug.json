@@ -128,7 +128,7 @@
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM beefy_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -146,7 +146,7 @@
                   }
                 ]
               ],
-              "table": "beefy_raw.erc20_transfer_ts",
+              "table": "data_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
@@ -251,7 +251,7 @@
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM beefy_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and to_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and to_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -269,7 +269,7 @@
                   }
                 ]
               ],
-              "table": "beefy_raw.erc20_transfer_ts",
+              "table": "data_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
@@ -374,7 +374,7 @@
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM beefy_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and from_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and from_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -392,7 +392,7 @@
                   }
                 ]
               ],
-              "table": "beefy_raw.erc20_transfer_ts",
+              "table": "data_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
@@ -510,7 +510,7 @@
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as ppfs_point_count\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as ppfs_point_count\nFROM data_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -528,7 +528,7 @@
                   }
                 ]
               ],
-              "table": "beefy_raw.erc20_transfer_ts",
+              "table": "data_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
@@ -632,7 +632,7 @@
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM beefy_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\n  and contract_address in (\n    select distinct contract_address\n    from beefy_raw.vault_ppfs_ts\n    WHERE $__timeFilter(datetime)\n    and chain in ($chain)\n    order by contract_address desc\n    limit 100\n  )\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  format_evm_address(contract_address) as value,\n  avg(ppfs) as avg_ppfs\nFROM data_raw.vault_ppfs_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\n  and contract_address in (\n    select distinct contract_address\n    from data_raw.vault_ppfs_ts\n    WHERE $__timeFilter(datetime)\n    and chain in ($chain)\n    order by contract_address desc\n    limit 100\n  )\nGROUP BY time_bucket('$__interval', datetime), contract_address\nORDER BY 1,2",
               "refId": "A",
               "select": [
                 [
@@ -650,7 +650,7 @@
                   }
                 ]
               ],
-              "table": "beefy_raw.erc20_transfer_ts",
+              "table": "data_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
@@ -771,7 +771,7 @@
           "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
           "metricColumn": "value",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket_gapfill('$__interval', datetime) as time,\n  oracle_id as value,\n  locf(avg(usd_value)) as avg_usd_value\nFROM beefy_raw.oracle_price_ts\nWHERE\n  $__timeFilter(datetime)\n  and oracle_id in ('$oracle_id')\nGROUP BY time_bucket_gapfill('$__interval', datetime), oracle_id\nORDER BY 1,2",
+          "rawSql": "SELECT\n  time_bucket_gapfill('$__interval', datetime) as time,\n  oracle_id as value,\n  locf(avg(usd_value)) as avg_usd_value\nFROM data_raw.oracle_price_ts\nWHERE\n  $__timeFilter(datetime)\n  and oracle_id in ('$oracle_id')\nGROUP BY time_bucket_gapfill('$__interval', datetime), oracle_id\nORDER BY 1,2",
           "refId": "A",
           "select": [
             [
@@ -789,7 +789,7 @@
               }
             ]
           ],
-          "table": "beefy_raw.erc20_transfer_ts",
+          "table": "data_raw.erc20_transfer_ts",
           "timeColumn": "datetime",
           "timeColumnType": "timestamptz",
           "where": [
@@ -953,13 +953,13 @@
           "text": "banana-bifi-bnb",
           "value": "banana-bifi-bnb"
         },
-        "definition": "select distinct oracle_id from beefy_raw.oracle_price_ts;",
+        "definition": "select distinct oracle_id from data_raw.oracle_price_ts;",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "oracle_id",
         "options": [],
-        "query": "select distinct oracle_id from beefy_raw.oracle_price_ts;",
+        "query": "select distinct oracle_id from data_raw.oracle_price_ts;",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

@@ -121,7 +121,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
           "refId": "A",
           "select": [
             [
@@ -225,7 +225,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
           "refId": "A",
           "select": [
             [
@@ -339,7 +339,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
+              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
               "refId": "A",
               "select": [
                 [
@@ -443,7 +443,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
+              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
               "refId": "A",
               "select": [
                 [
@@ -520,13 +520,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select distinct chain from beefy_report.vault_investor_usd_balance_buckets_4h_ts",
+        "definition": "select distinct chain from data_report.vault_investor_usd_balance_buckets_4h_ts",
         "hide": 0,
         "includeAll": false,
         "multi": true,
         "name": "chain",
         "options": [],
-        "query": "select distinct chain from beefy_report.vault_investor_usd_balance_buckets_4h_ts",
+        "query": "select distinct chain from data_report.vault_investor_usd_balance_buckets_4h_ts",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

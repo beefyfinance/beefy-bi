@@ -4,6 +4,7 @@ import { logger } from "./logger";
 import * as pgcs from "pg-connection-string";
 import { TIMESCALEDB_URL } from "./config";
 import { normalizeAddress } from "./ethers";
+import { allChainIds } from "../types/chain";
 
 /**
  * evm_address: It's a bit more difficult to use but half the size
@@ -60,59 +61,43 @@ export function strArrToPgStrArr(strings: string[]) {
   return "{" + pgf.withArray("%L", strings) + "}";
 }
 
-async function migrate() {
-  // postgresql don't have "create type/domain if not exists"
-  async function typeExists(typeName: string) {
-    const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [
-      typeName,
-    ]);
-    return res !== null;
-  }
+// postgresql don't have "create type/domain if not exists"
+async function typeExists(typeName: string) {
+  const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [
+    typeName,
+  ]);
+  return res !== null;
+}
 
-  // avoid error ERROR:  cannot change configuration on already compressed chunks
-  // on alter table set compression
-  async function isCompressionEnabled(
-    hyperTableSchema: string,
-    hypertableName: string
-  ) {
-    const res = await db_query_one<{ compression_enabled: boolean }>(
-      `SELECT compression_enabled 
+// avoid error ERROR:  cannot change configuration on already compressed chunks
+// on alter table set compression
+async function isCompressionEnabled(
+  hyperTableSchema: string,
+  hypertableName: string
+) {
+  const res = await db_query_one<{ compression_enabled: boolean }>(
+    `SELECT compression_enabled 
       FROM timescaledb_information.hypertables 
       WHERE hypertable_schema = %L
       AND hypertable_name = %L`,
-      [hyperTableSchema, hypertableName]
-    );
-    if (res === null) {
-      throw new Error(`No hypertable ${hyperTableSchema}.${hypertableName}`);
-    }
-    return res.compression_enabled;
+    [hyperTableSchema, hypertableName]
+  );
+  if (res === null) {
+    throw new Error(`No hypertable ${hyperTableSchema}.${hypertableName}`);
   }
+  return res.compression_enabled;
+}
 
+async function migrate() {
   // types
   if (!(await typeExists("chain_enum"))) {
     await db_query(`
         CREATE TYPE chain_enum AS ENUM ('ethereum');
     `);
   }
-  await db_query(`
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'arbitrum';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'aurora';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'avax';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'bsc';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'celo';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'cronos';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'emerald';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'fantom';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'fuse';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'harmony';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'heco';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'metis';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'moonbeam';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'moonriver';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'optimism';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'polygon';
-    ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS 'syscoin';
-  `);
+  for (const chain of allChainIds) {
+    await db_query(`ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS %L`, [chain]);
+  }
 
   if (!(await typeExists("evm_address"))) {
     await db_query(`
@@ -140,9 +125,9 @@ async function migrate() {
 
   // schemas
   await db_query(`
-    CREATE SCHEMA IF NOT EXISTS beefy_raw;
-    CREATE SCHEMA IF NOT EXISTS beefy_derived;
-    CREATE SCHEMA IF NOT EXISTS beefy_report;
+    CREATE SCHEMA IF NOT EXISTS data_raw;
+    CREATE SCHEMA IF NOT EXISTS data_derived;
+    CREATE SCHEMA IF NOT EXISTS data_report;
   `);
 
   // helper function
@@ -164,67 +149,34 @@ async function migrate() {
       RETURNS NULL ON NULL INPUT;
   `);
 
-  // transfer table
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_raw.erc20_transfer_ts (
-      chain chain_enum NOT NULL,
-      contract_address evm_address NOT NULL,
-      datetime TIMESTAMPTZ NOT NULL,
-      from_address evm_address not null,
-      to_address evm_address not null,
-      value uint_256 not null
-    );
-    SELECT create_hypertable(
-      relation => 'beefy_raw.erc20_transfer_ts', 
-      time_column_name => 'datetime', 
-      -- partitioning_column => 'chain',
-      -- number_partitions => 20,
-      chunk_time_interval => INTERVAL '7 days', 
-      if_not_exists => true
-    );
-  `);
-
-  if (!(await isCompressionEnabled("beefy_raw", "erc20_transfer_ts"))) {
-    await db_query(`
-      ALTER TABLE beefy_raw.erc20_transfer_ts SET (
-        timescaledb.compress, 
-        timescaledb.compress_segmentby = 'chain, contract_address',
-        timescaledb.compress_orderby = 'datetime DESC'
-      );
-      SELECT add_compression_policy(
-        hypertable => 'beefy_raw.erc20_transfer_ts', 
-        compress_after => INTERVAL '10 days', -- keep a margin as data will arrive in batches
-        if_not_exists => true
-      );
-    `);
-  }
-
   // balance diff table
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_raw.erc20_balance_diff_ts (
+    CREATE TABLE IF NOT EXISTS data_raw.erc20_balance_diff_ts (
       chain chain_enum NOT NULL,
       contract_address evm_address NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
-      investor_address evm_address not null,
-      balance_diff int_256 not null
+      owner_address evm_address not null,
+      balance_diff int_256 not null,
+      balance_before int_256 not null,
+      balance_after int_256 not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_raw.erc20_balance_diff_ts', 
-      time_column_name => 'datetime', 
+      relation => 'data_raw.erc20_balance_diff_ts', 
+      time_column_name => 'datetime',
       chunk_time_interval => INTERVAL '7 days', 
       if_not_exists => true
     );
   `);
 
-  if (!(await isCompressionEnabled("beefy_raw", "erc20_balance_diff_ts"))) {
+  if (!(await isCompressionEnabled("data_raw", "erc20_balance_diff_ts"))) {
     await db_query(`
-      ALTER TABLE beefy_raw.erc20_balance_diff_ts SET (
+      ALTER TABLE data_raw.erc20_balance_diff_ts SET (
         timescaledb.compress, 
         timescaledb.compress_segmentby = 'chain, contract_address',
         timescaledb.compress_orderby = 'datetime DESC'
       );
       SELECT add_compression_policy(
-        hypertable => 'beefy_raw.erc20_balance_diff_ts', 
+        hypertable => 'data_raw.erc20_balance_diff_ts', 
         compress_after => INTERVAL '10 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
@@ -233,31 +185,29 @@ async function migrate() {
 
   // PPFS
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_raw.vault_ppfs_ts (
+    CREATE TABLE IF NOT EXISTS data_raw.vault_ppfs_ts (
       chain chain_enum NOT NULL,
       contract_address evm_address NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
       ppfs uint_256 not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_raw.vault_ppfs_ts', 
+      relation => 'data_raw.vault_ppfs_ts', 
       time_column_name => 'datetime', 
-      -- partitioning_column => 'chain',
-      -- number_partitions => 20,
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
   `);
 
-  if (!(await isCompressionEnabled("beefy_raw", "vault_ppfs_ts"))) {
+  if (!(await isCompressionEnabled("data_raw", "vault_ppfs_ts"))) {
     await db_query(`
-      ALTER TABLE beefy_raw.vault_ppfs_ts SET (
+      ALTER TABLE data_raw.vault_ppfs_ts SET (
         timescaledb.compress, 
         timescaledb.compress_segmentby = 'chain, contract_address',
         timescaledb.compress_orderby = 'datetime DESC'
       );
       SELECT add_compression_policy(
-        hypertable => 'beefy_raw.vault_ppfs_ts', 
+        hypertable => 'data_raw.vault_ppfs_ts', 
         compress_after => INTERVAL '20 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
@@ -266,28 +216,28 @@ async function migrate() {
 
   // oracle price
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_raw.oracle_price_ts (
+    CREATE TABLE IF NOT EXISTS data_raw.oracle_price_ts (
       oracle_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
       usd_value double precision not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_raw.oracle_price_ts', 
+      relation => 'data_raw.oracle_price_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
   `);
 
-  if (!(await isCompressionEnabled("beefy_raw", "oracle_price_ts"))) {
+  if (!(await isCompressionEnabled("data_raw", "oracle_price_ts"))) {
     await db_query(`
-      ALTER TABLE beefy_raw.oracle_price_ts SET (
+      ALTER TABLE data_raw.oracle_price_ts SET (
         timescaledb.compress, 
         timescaledb.compress_segmentby = 'oracle_id',
         timescaledb.compress_orderby = 'datetime DESC'
       );
       SELECT add_compression_policy(
-        hypertable => 'beefy_raw.oracle_price_ts', 
+        hypertable => 'data_raw.oracle_price_ts', 
         compress_after => INTERVAL '20 days', -- keep a margin as data will arrive in batches
         if_not_exists => true
       );
@@ -295,7 +245,7 @@ async function migrate() {
   }
 
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_raw.vault (
+    CREATE TABLE IF NOT EXISTS data_raw.vault (
       chain chain_enum NOT NULL,
       token_address evm_address NOT NULL,
       vault_id varchar NOT NULL,
@@ -311,62 +261,72 @@ async function migrate() {
 
   // continuous aggregates: ppfs
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.vault_ppfs_4h_ts WITH (timescaledb.continuous)
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.vault_ppfs_4h_ts WITH (timescaledb.continuous)
       AS select ts.chain, ts.contract_address, 
           time_bucket('4h', ts.datetime) as datetime, 
           avg(ts.ppfs) as avg_ppfs
-      from beefy_raw.vault_ppfs_ts ts
+      from data_raw.vault_ppfs_ts ts
       group by 1,2,3;
   `);
   // continuous aggregates: prices
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.oracle_price_4h_ts WITH (timescaledb.continuous)
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.oracle_price_4h_ts WITH (timescaledb.continuous)
       AS select oracle_id,
           time_bucket('4h', datetime) as datetime, 
           avg(usd_value) as avg_usd_value
-      from beefy_raw.oracle_price_ts
+      from data_raw.oracle_price_ts
       group by 1,2;
   `);
-  // continuous aggregates: transfer diffs
+
+  // continuous aggregates: transfer diffs on the contract/owner level
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.erc20_balance_diff_4h_ts WITH (timescaledb.continuous)
-      AS select chain, contract_address, investor_address, 
-          time_bucket('4h', datetime) as datetime, 
-          sum(balance_diff) as balance_diff,
-          sum(balance_diff) filter(where balance_diff > 0) as deposit_diff,
-          sum(balance_diff) filter(where balance_diff < 0) as withdraw_diff,
-          count(*) as trx_count,
-          count(*) filter (where balance_diff > 0) as deposit_count,
-          count(*) filter (where balance_diff < 0) as withdraw_count
-      from beefy_raw.erc20_balance_diff_ts
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.erc20_owner_balance_diff_4h_ts WITH (timescaledb.continuous)
+      AS 
+      select chain, contract_address, owner_address,
+        time_bucket('4h', datetime) as datetime, 
+        sum(balance_diff)  as balance_diff,
+        last(balance_after, datetime) - sum(balance_diff) as balance_before,
+        last(balance_after, datetime) as balance_after,
+        coalesce(sum(balance_diff) filter(where balance_diff > 0),0) as deposit_diff,
+        coalesce(sum(balance_diff) filter(where balance_diff < 0),0) as withdraw_diff,
+        count(*) as trx_count,
+        count(*) filter (where balance_diff > 0) as deposit_count,
+        count(*) filter (where balance_diff < 0) as withdraw_count
+      from data_raw.erc20_balance_diff_ts
       group by 1,2,3,4;
   `);
 
+  // continuous aggregates: transfer diffs on the contract level
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.erc20_contract_balance_diff_4h_ts WITH (timescaledb.continuous)
-      AS select chain, contract_address,
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.erc20_contract_balance_diff_4h_ts WITH (timescaledb.continuous)
+      AS
+        select chain, contract_address,
           time_bucket('4h', datetime) as datetime, 
-          sum(balance_diff) as balance_diff,
-          sum(balance_diff) filter(where balance_diff > 0) as deposit_diff,
-          sum(balance_diff) filter(where balance_diff < 0) as withdraw_diff,
+          last(-balance_after, datetime) - first(-balance_before, datetime) as balance_diff,
+          first(-balance_before, datetime) as balance_before,
+          last(-balance_after, datetime) as balance_after,
+          sum(-balance_diff) filter(where -balance_diff > 0) as deposit_diff,
+          sum(-balance_diff) filter(where -balance_diff < 0) as withdraw_diff,
           count(*) as trx_count,
-          count(*) filter (where balance_diff > 0) as deposit_count,
-          count(*) filter (where balance_diff < 0) as withdraw_count
-      from beefy_raw.erc20_balance_diff_ts
-      where investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+          count(*) filter (where -balance_diff > 0) as deposit_count,
+          count(*) filter (where -balance_diff < 0) as withdraw_count
+      from data_raw.erc20_balance_diff_ts
+      -- only consider the minted tokens because it makes it easier to group
+      -- just inverse the numbers to get the positive value
+      where owner_address = evm_address_to_bytea('0x0000000000000000000000000000000000000000')
       group by 1,2,3;
   `);
 
-  // helper materialized view
+  // helper materialized view to have a quick access to vault prices without indexing all prices
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_derived.vault_ppfs_and_price_4h_ts as 
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.vault_ppfs_and_price_4h_ts as 
       with vault_scope as (
           select chain, token_address, vault_id, want_price_oracle_id, want_decimals
-          from beefy_raw.vault
+          from data_raw.vault
       ), 
       want_prices_ts as (
           select oracle_id, datetime, avg_usd_value
-          from beefy_derived.oracle_price_4h_ts
+          from data_derived.oracle_price_4h_ts
           where oracle_id in (
               select distinct scope.want_price_oracle_id 
               from vault_scope scope
@@ -374,7 +334,7 @@ async function migrate() {
       ),
       ppfs_ts as (
           select chain, contract_address, datetime, avg_ppfs
-          from beefy_derived.vault_ppfs_4h_ts ts
+          from data_derived.vault_ppfs_4h_ts ts
           where (chain, contract_address) in (
               select distinct scope.chain, scope.token_address
               from vault_scope scope
@@ -389,16 +349,57 @@ async function migrate() {
       full outer join want_prices_ts usd on usd.oracle_id = v.want_price_oracle_id and usd.datetime = p.datetime
       order by v.chain, v.vault_id, datetime
     ;
-    CREATE INDEX IF NOT EXISTS idx_chain_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_address_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (contract_address);
-    CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (datetime);
+    CREATE INDEX IF NOT EXISTS idx_chain_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_address_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (contract_address);
+    CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (datetime);
     -- index to speed up investor dashboard (5s -> 100ms)
-    CREATE INDEX IF NOT EXISTS idx_chain_vault_dt_vpp4h ON beefy_derived.vault_ppfs_and_price_4h_ts (chain, vault_id, datetime);
+    CREATE INDEX IF NOT EXISTS idx_chain_vault_dt_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (chain, vault_id, datetime);
   `);
+
+  // materialized tvl view
+  /*
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_tvl_4h_ts
+      AS 
+        with
+        contract_balance_ts as (
+            select * 
+            from (
+                select chain, contract_address,
+                    time_bucket_gapfill('4h', datetime) as datetime,
+                    sum(balance_diff) as sum_balance_diff,
+                    locf(last(balance_after, datetime)) as balance
+                from data_derived.erc20_contract_balance_diff_4h_ts
+                where datetime between '2019-01-01' and now()
+                group by 1,2,3
+            ) as t
+            where balance is not null
+        )
+        select 
+            bt.chain, vpt.vault_id, bt.datetime,
+            balance,
+            (
+              (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) as want_balance,
+            (
+                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+            ) * vpt.avg_want_usd_value as balance_usd_value
+        from contract_balance_ts bt
+        left join data_derived.vault_ppfs_and_price_4h_ts as vpt 
+            on vpt.chain = bt.chain
+            and vpt.contract_address = bt.contract_address
+            and vpt.datetime = bt.datetime
+        ;
+
+        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON data_report.vault_tvl_4h_ts (chain);
+        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON data_report.vault_tvl_4h_ts (vault_id);
+        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON data_report.vault_tvl_4h_ts (datetime);
+  `);*/
+  /*
 
   // build a full report table with balance diffs every 4h and balance snapshots every 3d
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
+    CREATE TABLE IF NOT EXISTS data_report.vault_investor_balance_diff_4h_ts (
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       investor_address evm_address NOT NULL,
@@ -416,51 +417,21 @@ async function migrate() {
       withdraw_count integer not null
     );
     SELECT create_hypertable(
-      relation => 'beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts', 
+      relation => 'data_report.vault_investor_balance_diff_4h_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (investor_address);
-    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (investor_address);
+    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (vault_id);
   `);
-
-  // build a full report table with balance diffs every 4h and balance snapshots every 3d
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
-      chain chain_enum NOT NULL,
-      vault_id varchar NOT NULL,
-      investor_address evm_address NOT NULL,
-      datetime TIMESTAMPTZ NOT NULL,
-      token_balance int_256 not null,
-      balance_usd_value double precision, -- some usd value may not be available
-      balance_diff_usd_value double precision, 
-      deposit_diff_usd_value double precision,
-      withdraw_diff_usd_value double precision,
-      balance_diff int_256 not null,
-      deposit_diff int_256 not null,
-      withdraw_diff int_256 not null,
-      trx_count integer not null,
-      deposit_count integer not null,
-      withdraw_count integer not null
-    );
-    SELECT create_hypertable(
-      relation => 'beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts', 
-      time_column_name => 'datetime', 
-      chunk_time_interval => INTERVAL '14 days', 
-      if_not_exists => true
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (investor_address);
-    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (vault_id);
-  `);
-
+*/
+  /*
   // build a full report table with balance usd value bucket
   await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_report.vault_investor_usd_balance_buckets_4h_ts (
+    CREATE TABLE IF NOT EXISTS data_report.vault_investor_usd_balance_buckets_4h_ts (
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
@@ -470,19 +441,19 @@ async function migrate() {
       sum_balance_usd_value double precision
     );
     SELECT create_hypertable(
-      relation => 'beefy_report.vault_investor_usd_balance_buckets_4h_ts', 
+      relation => 'data_report.vault_investor_usd_balance_buckets_4h_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chain_vubb4h ON beefy_report.vault_investor_usd_balance_buckets_4h_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_vault_vubb4h ON beefy_report.vault_investor_usd_balance_buckets_4h_ts (vault_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_vubb4h ON data_report.vault_investor_usd_balance_buckets_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_vault_vubb4h ON data_report.vault_investor_usd_balance_buckets_4h_ts (vault_id);
   `);
 
   // continuous aggregate: investor rollup
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_report.vault_entry_exit_count_4h_ts WITH (timescaledb.continuous)
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_entry_exit_count_4h_ts WITH (timescaledb.continuous)
       AS 
         select 
             chain,
@@ -494,7 +465,7 @@ async function migrate() {
             hyperloglog(262144, investor_address) as hll_investor_address,
             hyperloglog(262144, investor_address) filter (where deposit_diff > 0) as hll_investor_entries,
             hyperloglog(262144, investor_address) filter (where token_balance = 0) as hll_investor_exits
-        from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
+        from data_report.vault_investor_balance_diff_4h_snaps_3d_ts
         where
             -- remove mintburn address
             investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
@@ -511,21 +482,20 @@ async function migrate() {
 
   // manual continuous aggregate: vault tvl
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS beefy_report.vault_tvl_4h_ts
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_tvl_4h_ts
       AS 
         with
         contract_balance_ts as (
             select * 
             from (
-                select chain, contract_address,
-                    time_bucket_gapfill('4h', datetime) as datetime,
-                    sum(sum(balance_diff)) over (
-                        partition by chain, contract_address
-                        order by time_bucket_gapfill('4h', datetime)
-                    ) as balance
-                from beefy_derived.erc20_contract_balance_diff_4h_ts
-                where datetime between '2019-01-01' and now()
-                group by 1,2,3
+              select chain, contract_address,
+                  time_bucket_gapfill('4h', datetime) as datetime,
+                  locf(last(balance_after, datetime)) as balance_2
+              from data_derived.erc20_contract_balance_diff_4h_ts
+              where datetime between '2019-01-01' and now()
+              and chain = 'optimism'
+              and contract_address= '\x107dbf9c9c0ef2df114159e5c7dc2baf7c444cff'
+              group by 1,2,3
             ) as t
             where balance is not null
         )
@@ -539,18 +509,18 @@ async function migrate() {
                 (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
             ) * vpt.avg_want_usd_value as balance_usd_value
         from contract_balance_ts bt
-        left join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
+        left join data_derived.vault_ppfs_and_price_4h_ts as vpt 
             on vpt.chain = bt.chain
             and vpt.contract_address = bt.contract_address
             and vpt.datetime = bt.datetime
         ;
 
-        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON beefy_report.vault_tvl_4h_ts (chain);
-        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON beefy_report.vault_tvl_4h_ts (vault_id);
-        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON beefy_report.vault_tvl_4h_ts (datetime);
-  `);
+        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON data_report.vault_tvl_4h_ts (chain);
+        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON data_report.vault_tvl_4h_ts (vault_id);
+        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON data_report.vault_tvl_4h_ts (datetime);
+  `);*/
 }
-
+/*
 // this is kind of a continuous aggregate
 // there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
 // so we rebuild this table as needed
@@ -570,13 +540,13 @@ export async function rebuildBalanceReportTable() {
         contract_address,
         min(datetime) as first_datetime,
         max(datetime) as last_datetime
-      FROM beefy_derived.erc20_balance_diff_4h_ts
+      FROM data_derived.erc20_balance_diff_4h_ts
       GROUP BY 1,2
     )
     select dates.chain, format_evm_address(dates.contract_address) as contract_address,
       dates.first_datetime, dates.last_datetime, vault.vault_id
     from contract_diff_dates dates
-    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
+    join data_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
     order by dates.chain, vault.vault_id
   `);
 
@@ -587,11 +557,11 @@ export async function rebuildBalanceReportTable() {
     await db_query(
       `
       BEGIN;
-      DELETE FROM beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
+      DELETE FROM data_report.vault_investor_balance_diff_4h_snaps_3d_ts
       WHERE chain = %L
         and vault_id = %L;
 
-      INSERT INTO beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts (
+      INSERT INTO data_report.vault_investor_balance_diff_4h_snaps_3d_ts (
         chain,
         vault_id,
         investor_address,
@@ -616,7 +586,7 @@ export async function rebuildBalanceReportTable() {
                   partition by investor_address
                   order by datetime asc
               ) as balance
-          FROM beefy_derived.erc20_balance_diff_4h_ts
+          FROM data_derived.erc20_balance_diff_4h_ts
           where chain = %L
             and contract_address = %L
       ),
@@ -680,7 +650,7 @@ export async function rebuildBalanceReportTable() {
                 (bt.withdraw_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
             ) * vpt.avg_want_usd_value as withdraw_diff_usd_value
         from balance_diff_with_snaps_ts as bt
-        join beefy_derived.vault_ppfs_and_price_4h_ts as vpt 
+        join data_derived.vault_ppfs_and_price_4h_ts as vpt 
             on vpt.chain = %L
             and vpt.vault_id = %L
             and vpt.datetime = bt.datetime
@@ -713,13 +683,15 @@ export async function rebuildBalanceReportTable() {
   }
 
   logger.info(
-    `[DB] Running vacuum full on beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts`
+    `[DB] Running vacuum full on data_report.vault_investor_balance_diff_4h_snaps_3d_ts`
   );
   await db_query(`
-    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts;
+    VACUUM (FULL, ANALYZE) data_report.vault_investor_balance_diff_4h_snaps_3d_ts;
   `);
 }
+*/
 
+/*
 // this is kind of a continuous aggregate
 // there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
 // so we rebuild this table as needed
@@ -739,29 +711,29 @@ export async function rebuildBalanceBucketsReportTable() {
         contract_address,
         min(datetime) as first_datetime,
         max(datetime) as last_datetime
-      FROM beefy_derived.erc20_balance_diff_4h_ts
+      FROM data_derived.erc20_balance_diff_4h_ts
       GROUP BY 1,2
     )
     select dates.chain, format_evm_address(dates.contract_address) as contract_address,
       dates.first_datetime, dates.last_datetime, vault.vault_id
     from contract_diff_dates dates
-    join beefy_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
+    join data_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
     order by dates.chain, vault.vault_id
   `);
-  /*
-    case 
-        when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'
-        when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'
-        when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'
-        when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'
-        when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'
-        when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'
-        when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'
-        when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'
-        when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'
-        when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'
-        else '10 [$1m ; Inf)'
-    end as investor_tranche,*/
+  
+  //  case 
+  //      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'
+  //      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'
+  //      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'
+  //      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'
+  //      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'
+  //      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'
+  //      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'
+  //      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'
+  //      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'
+  //      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'
+  //      else '10 [$1m ; Inf)'
+  //  end as investor_tranche,
   for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
       `[DB] Refreshing balance bucket data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
@@ -769,11 +741,11 @@ export async function rebuildBalanceBucketsReportTable() {
     await db_query(
       `
       BEGIN;
-      DELETE FROM beefy_report.vault_investor_usd_balance_buckets_4h_ts
+      DELETE FROM data_report.vault_investor_usd_balance_buckets_4h_ts
       WHERE chain = %L
         and vault_id = %L;
 
-      INSERT INTO beefy_report.vault_investor_usd_balance_buckets_4h_ts (
+      INSERT INTO data_report.vault_investor_usd_balance_buckets_4h_ts (
         chain,
         vault_id,
         datetime,
@@ -789,7 +761,7 @@ export async function rebuildBalanceBucketsReportTable() {
                   select investor_address,
                       time_bucket_gapfill('4h', datetime) as datetime,
                       locf(avg(token_balance)) as balance
-                  from beefy_report.vault_investor_balance_diff_4h_snaps_3d_ts
+                  from data_report.vault_investor_balance_diff_4h_snaps_3d_ts
                   -- make sure we select the previous snapshot to fill the graph
                   where datetime between ((%L)::TIMESTAMPTZ - interval '3 days') and %L
                     and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
@@ -827,7 +799,7 @@ export async function rebuildBalanceBucketsReportTable() {
                     1000000
                 ]) as usd_balance_bucket_id
             from balance_4h_ts b
-            left join beefy_derived.vault_ppfs_and_price_4h_ts vpt 
+            left join data_derived.vault_ppfs_and_price_4h_ts vpt 
                 on vpt.chain = %L
                 and vpt.vault_id = %L
                 and b.datetime = vpt.datetime
@@ -863,9 +835,10 @@ export async function rebuildBalanceBucketsReportTable() {
   }
 
   logger.info(
-    `[DB] Running vacuum full on beefy_report.vault_investor_usd_balance_buckets_4h_ts`
+    `[DB] Running vacuum full on data_report.vault_investor_usd_balance_buckets_4h_ts`
   );
   await db_query(`
-    VACUUM (FULL, ANALYZE) beefy_report.vault_investor_usd_balance_buckets_4h_ts;
+    VACUUM (FULL, ANALYZE) data_report.vault_investor_usd_balance_buckets_4h_ts;
   `);
 }
+*/

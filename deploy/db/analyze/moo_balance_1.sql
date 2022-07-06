@@ -6,7 +6,7 @@ balance_4h_ts as (
             time_bucket_gapfill('4h', datetime) as datetime,
             balance_diff as balance_diff,
             locf(coalesce(balance, 0)) as balance
-        from beefy_derived.erc20_investor_balance_4h_ts
+        from data_derived.erc20_investor_balance_4h_ts
         where datetime between now() - interval '300 days' and now()
             and investor_address = evm_address_to_bytea('0x18913656c387613f6D0a1bFF7365C335C0069e69')
         group by 1,2,3
@@ -22,7 +22,7 @@ select
         * vpt.avg_want_usd_value
     ) as value
 from balance_4h_ts b
-left join beefy_derived.vault_ppfs_and_price_4h_ts vpt 
+left join data_derived.vault_ppfs_and_price_4h_ts vpt 
     on b.chain = vpt.chain 
     and b.contract_address = vpt.contract_address
     and b.datetime = vpt.datetime
@@ -40,7 +40,7 @@ from (
             time_bucket_gapfill('4h', datetime) as datetime,
             sum(balance_diff) as balance_diff,
             locf(avg(balance)) as balance
-        from beefy_derived.erc20_investor_balance_4h_ts
+        from data_derived.erc20_investor_balance_4h_ts
         where datetime between now() - interval '300 days' and now()
             and investor_address = evm_address_to_bytea('0x18913656c387613f6D0a1bFF7365C335C0069e69')
         group by 1,2,3
@@ -54,7 +54,7 @@ with erc20_investor_balance_4h_ts as (
               partition by chain, contract_address, investor_address
               order by datetime
           ) as balance
-      from beefy_derived.erc20_balance_diff_4h_ts
+      from data_derived.erc20_balance_diff_4h_ts
       where balance_diff != 0
       --order by 1,2,3,4
 )
@@ -63,12 +63,12 @@ with erc20_investor_balance_4h_ts as (
 DO $$DECLARE r record;
 BEGIN
     FOR r IN SELECT chain, contract_address, min(datetime) as first_datetime, max(datetime) as last_datetime 
-        FROM beefy_derived.erc20_balance_diff_4h_ts
+        FROM data_derived.erc20_balance_diff_4h_ts
         GROUP BY 1,2
         --limit 10
     LOOP
         EXECUTE '
-            INSERT INTO beefy_derived.erc20_investor_balance_4h_ts (
+            INSERT INTO data_derived.erc20_investor_balance_4h_ts (
                 chain, contract_address, investor_address,
                 datetime,
                 balance_diff, balance
@@ -85,7 +85,7 @@ BEGIN
                 select chain, contract_address, investor_address,
                     time_bucket_gapfill(''1w'', datetime) as datetime,
                     sum(balance_diff) as balance_diff
-                from beefy_derived.erc20_balance_diff_4h_ts
+                from data_derived.erc20_balance_diff_4h_ts
                 where datetime between '''||r.first_datetime||''' and '''||r.last_datetime||'''
                     and contract_address = '''||r.contract_address||'''
                 group by 1,2,3,4
@@ -104,7 +104,7 @@ select chain, contract_address, investor_address,
         partition by chain, contract_address, investor_address
         order by time_bucket_gapfill('4h', datetime)
     ) as balance
-from beefy_derived.erc20_balance_diff_4h_ts
+from data_derived.erc20_balance_diff_4h_ts
 where $__timeFilter(datetime)
     and investor_address = evm_address_to_bytea('$investor_address')
 group by 1,2,3
