@@ -1,0 +1,548 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 16,
+  "iteration": 1657112667582,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 7,
+      "panels": [],
+      "title": "All chains overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 13,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "normal",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["usd_value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investment size group by user by vault",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 11,
+        "x": 13,
+        "y": 1
+      },
+      "id": 34,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "percent",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["usd_value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investment size group by user by vault",
+      "type": "barchart"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 13,
+            "w": 13,
+            "x": 0,
+            "y": 17
+          },
+          "id": 5,
+          "options": {
+            "barRadius": 0,
+            "barWidth": 0.97,
+            "groupWidth": 0.7,
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "orientation": "auto",
+            "showValue": "always",
+            "stacking": "normal",
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 100
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["usd_value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Investment size group by user by vault",
+          "type": "barchart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 13,
+            "w": 11,
+            "x": 13,
+            "y": 17
+          },
+          "id": 35,
+          "options": {
+            "barRadius": 0,
+            "barWidth": 0.97,
+            "groupWidth": 0.7,
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "orientation": "auto",
+            "showValue": "always",
+            "stacking": "percent",
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 100
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom beefy_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["usd_value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Investment size group by user by vault",
+          "type": "barchart"
+        }
+      ],
+      "repeat": "chain",
+      "repeatDirection": "h",
+      "title": "Chain: $chain",
+      "type": "row"
+    }
+  ],
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "fantom",
+            "fuse",
+            "harmony",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ],
+          "value": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "fantom",
+            "fuse",
+            "harmony",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select distinct chain from beefy_report.vault_investor_usd_balance_buckets_4h_ts",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from beefy_report.vault_investor_usd_balance_buckets_4h_ts",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Investment size buckets",
+  "uid": "rMsP0ce7k",
+  "version": 6,
+  "weekStart": ""
+}
