@@ -88,10 +88,9 @@ async function main() {
           await importVaultERC20TransfersToDB(chain, vault);
         } catch (err) {
           logger.error(
-            `[LTSDB] Skipping ERC20 transfers for ${chain}:${
-              vault.id
-            }. ${JSON.stringify(err)}`
+            `[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`
           );
+          console.log(err);
         }
       }
     }
