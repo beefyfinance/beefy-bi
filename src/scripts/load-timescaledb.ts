@@ -90,7 +90,7 @@ async function main() {
           logger.error(
             `[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`
           );
-          console.log(err);
+          logger.error(err);
         }
       }
     }
