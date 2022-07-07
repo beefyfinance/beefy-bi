@@ -27,14 +27,14 @@ export async function callLockProtectedRpc<TRes>(
   const resourceId = `${chain}:rpc:${rpcIndex}:lock`;
 
   logger.debug(
-    `[EXPLORER] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
+    `[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
   );
   // do multiple tries as well
   return backOff(
     () =>
       redlock.using([resourceId], 2 * 60 * 1000, async () => {
         logger.verbose(
-          `[EXPLORER] Acquired lock for ${resourceId} (${publicRpcUrl})`
+          `[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`
         );
         // now, we are the only one running this code
         // find out the last time we called this explorer
@@ -47,16 +47,16 @@ export async function callLockProtectedRpc<TRes>(
 
         const now = new Date();
         logger.debug(
-          `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
+          `[RPC] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
         );
 
-        // wait a bit before calling the explorer again
+        // wait a bit before calling the rpc again
         if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
           logger.debug(
-            `[EXPLORER] Last call too close for ${publicRpcUrl}, sleeping a bit`
+            `[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`
           );
           await sleep(delayBetweenCalls);
-          logger.debug(`[EXPLORER] Resuming call to ${publicRpcUrl}`);
+          logger.debug(`[RPC] Resuming call to ${publicRpcUrl}`);
         }
         // now we are going to call, so set the last call date
         await client.set(lastCallCacheKey, new Date().toISOString());
@@ -87,7 +87,7 @@ export async function callLockProtectedRpc<TRes>(
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl}: ${error.message}`;
+        const message = `[RPC] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl}: ${error.message}`;
         if (attemptNumber < 3) logger.verbose(message);
         else if (attemptNumber < 5) logger.info(message);
         else if (attemptNumber < 8) logger.warn(message);
