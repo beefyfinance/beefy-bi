@@ -242,10 +242,11 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         owner_address: string;
         balance_after: string;
       }>(
-        `SELECT owner_address, balance_after
+        `SELECT owner_address, last(balance_after, datetime) as balance_after
         from data_raw.erc20_balance_diff_ts
         where chain = %L
-          and contract_address = %L`,
+          and contract_address = %L
+        group by owner_address`,
         [chain, strAddressToPgBytea(contractAddress)]
       );
       const lastBalancePerOwner = rows.reduce(
