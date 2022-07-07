@@ -35,7 +35,7 @@ async function main() {
 
   const chain = argv.chain as Chain;
   const samplingPeriod = argv.period as SamplingPeriod;
-  const vaultId = argv.vaultId;
+  const vaultId = argv.vaultId || null;
 
   logger.info(`[PPFS] Importing ${chain} ppfs with period ${samplingPeriod}.`);
   // find out which vaults we need to parse

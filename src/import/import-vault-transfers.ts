@@ -8,7 +8,7 @@ import {
   fetchContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
-import { allChainIds } from "../types/chain";
+import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
@@ -28,9 +28,11 @@ async function main() {
         alias: "s",
         demand: true,
       },
+      vaultId: { alias: "v", demand: false, string: true },
     }).argv;
 
-  const chain = argv.chain;
+  const chain = argv.chain as Chain;
+  const vaultId = argv.vaultId || null;
 
   logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
   // find out which vaults we need to parse
@@ -38,6 +40,10 @@ async function main() {
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
+    if (vaultId && vault.id !== vaultId) {
+      logger.debug(`[ERC20.T] Skipping vault ${vault.id}`);
+      continue;
+    }
     const contractAddress = normalizeAddress(vault.token_address);
     logger.info(
       `[ERC20.T] Processing ${chain}:${vault.id} (${contractAddress})`

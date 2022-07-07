@@ -193,7 +193,15 @@ export const LOG_LEVEL:
 
 export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "arbitrum",
-  "aurora",
+  // aurora explorer is missing transfer events
+  // ex: this trx is still "indexing" https://aurorascan.dev/tx/0x25baaf56da97b0aff012fcc571476cbb53a6d99c21aed0ae2c7bdb9d217045fe)
+  // without this trx, we have a user who'se only trx is a withdrawal: https://aurorascan.dev/token/0x1c9270ac5c42e51611d7b97b1004313d52c80293?a=0x9fd3174fe380591837047ccc0be7ac24b1ea9772
+  // Aurora RPC and explorer also disagree on block numbers for the same trx
+  // Explorer: https://aurorascan.dev/tx/0xbaba4c1f10dd6773a895a30a07e4ce7829145fb371facbab3c95d6415630e71e
+  //  -> block number: 64055210
+  // RPC: curl -s "https://mainnet.aurora.dev" -X POST -H "Content-Type: application/json" --data '{"method":"eth_getLogs","params":[{"address": "0x1c9270ac5C42E51611d7b97b1004313D52c80293","fromBlock": "0x3D167A9", "toBlock": "0x3D167AB"}],"id":1,"jsonrpc":"2.0"}' | jq
+  //  -> block number: 0x3d167ab -> 64055211
+  //"aurora",
   "avax",
   "bsc",
   "celo",
