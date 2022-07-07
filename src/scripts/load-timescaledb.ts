@@ -440,7 +440,7 @@ async function loadCSVStreamToTimescaleTable<
       }
       let errorHandled = false;
       function onErr(error: Error) {
-        logger.error(`[LTSDB] Error importing ${opts.logKey}`, error);
+        logger.error(`[LTSDB] Error on import stream ${opts.logKey}: `, error);
         if (errorHandled) {
           return;
         }
@@ -483,11 +483,11 @@ runMain(main);
 
 export class InconsistentUserBalance extends Error {
   constructor(
-    public readonly chain: Chain,
-    public readonly contractAddress: string,
-    public readonly lastBalance: ethers.BigNumber,
-    public readonly newBalance: ethers.BigNumber,
-    public readonly data: ERC20EventData
+    chain: Chain,
+    contractAddress: string,
+    lastBalance: ethers.BigNumber,
+    newBalance: ethers.BigNumber,
+    data: ERC20EventData
   ) {
     super(
       `Refusing to insert negative balance for non-mintburn address ${chain}:${contractAddress}: ${JSON.stringify(
