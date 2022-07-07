@@ -9,8 +9,7 @@ import {
   db_query,
   db_query_one,
   getPgPool,
-  //rebuildBalanceBucketsReportTable,
-  //rebuildBalanceReportTable,
+  rebuildVaultStatsReportTable,
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
@@ -54,8 +53,7 @@ async function main() {
           "prices",
           "vaults",
           "refresh_materialized_views",
-          "refresh_balance_monster_ts",
-          "refresh_balance_bucket_monster_ts",
+          "refresh_vault_stats_view",
         ],
         alias: "o",
         demand: false,
@@ -67,8 +65,7 @@ async function main() {
     | "prices"
     | "vaults"
     | "refresh_materialized_views"
-    | "refresh_balance_monster_ts"
-    | "refresh_balance_bucket_monster_ts";
+    | "refresh_vault_stats_view";
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
   const vaultId = argv.vaultId || null;
@@ -198,27 +195,12 @@ async function main() {
     await db_query(
       `REFRESH MATERIALIZED VIEW data_derived.vault_ppfs_and_price_4h_ts`
     );
-
-    logger.info(
-      `[LTSDB] Refreshing materialized view: data_report.vault_tvl_4h_ts`
-    );
-    await db_query(`REFRESH MATERIALIZED VIEW data_report.vault_tvl_4h_ts`);
   }
 
-  /*
-  if (!importOnly || importOnly === "refresh_balance_monster_ts") {
-    logger.info(
-      `[LTSDB] Refreshing manual materialized view: data_report.vault_investor_balance_diff_4h_snaps_3d_ts`
-    );
-    await rebuildBalanceReportTable();
+  if (!importOnly || importOnly === "refresh_vault_stats_view") {
+    logger.info(`[LTSDB] Refreshing vault stats`);
+    await rebuildVaultStatsReportTable();
   }
-
-  if (!importOnly || importOnly === "refresh_balance_bucket_monster_ts") {
-    logger.info(
-      `[LTSDB] Refreshing manual materialized view: data_report.vault_investor_usd_balance_buckets_4h_ts`
-    );
-    await rebuildBalanceBucketsReportTable();
-  }*/
 
   logger.info("[LTSDB] Finished importing data. Sleeping 4h...");
   await sleep(4 * 60 * 60 * 1000);

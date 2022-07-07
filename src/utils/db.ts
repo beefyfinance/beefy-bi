@@ -369,174 +369,35 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_chain_vault_dt_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (chain, vault_id, datetime);
   `);
 
-  // materialized tvl view
+  // pre-compute stats by vautl:
+  // - total balance at each point in time
+  // - owner_address hll to get distinct counts
+  // - TVL at each point in time
+  // - investment size buckets
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_tvl_4h_ts
-      AS 
-        with
-        contract_balance_ts as (
-            select * 
-            from (
-                select chain, contract_address,
-                    time_bucket_gapfill('4h', datetime) as datetime,
-                    locf(last(balance_after, datetime)) as balance
-                from data_derived.erc20_contract_balance_diff_4h_ts
-                where datetime between '2019-01-01' and now()
-                group by 1,2,3
-            ) as t
-            where balance is not null
-        )
-        select 
-            bt.chain, vpt.vault_id, bt.datetime,
-            balance,
-            (
-              (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) as want_balance,
-            (
-                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as balance_usd_value
-        from contract_balance_ts bt
-        left join data_derived.vault_ppfs_and_price_4h_ts as vpt 
-            on vpt.chain = bt.chain
-            and vpt.contract_address = bt.contract_address
-            and vpt.datetime = bt.datetime
-        ;
-
-        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON data_report.vault_tvl_4h_ts (chain);
-        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON data_report.vault_tvl_4h_ts (vault_id);
-        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON data_report.vault_tvl_4h_ts (datetime);
-  `);
-  /*
-
-  // build a full report table with balance diffs every 4h and balance snapshots every 3d
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS data_report.vault_investor_balance_diff_4h_ts (
+    CREATE TABLE IF NOT EXISTS data_report.vault_stats_4h_ts (
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
-      investor_address evm_address NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
-      token_balance int_256 not null,
-      balance_usd_value double precision, -- some usd value may not be available
-      balance_diff_usd_value double precision, 
-      deposit_diff_usd_value double precision,
-      withdraw_diff_usd_value double precision,
-      balance_diff int_256 not null,
-      deposit_diff int_256 not null,
-      withdraw_diff int_256 not null,
-      trx_count integer not null,
-      deposit_count integer not null,
-      withdraw_count integer not null
+      log_usd_owner_balance_histogram_1_1m_10b integer[] not null,
+      owner_address_hll hyperloglog not null,
+      usd_balance double precision -- prices can be null
     );
     SELECT create_hypertable(
-      relation => 'data_report.vault_investor_balance_diff_4h_ts', 
+      relation => 'data_report.vault_stats_4h_ts', 
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '14 days', 
       if_not_exists => true
     );
 
-    CREATE INDEX IF NOT EXISTS idx_chain_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_investor_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (investor_address);
-    CREATE INDEX IF NOT EXISTS idx_vault_vib4hs3d ON data_report.vault_investor_balance_diff_4h_ts (vault_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_vst4h ON data_report.vault_stats_4h_ts (chain);
+    CREATE INDEX IF NOT EXISTS idx_vault_vst4h ON data_report.vault_stats_4h_ts (vault_id);
   `);
-*/
-  /*
-  // build a full report table with balance usd value bucket
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS data_report.vault_investor_usd_balance_buckets_4h_ts (
-      chain chain_enum NOT NULL,
-      vault_id varchar NOT NULL,
-      datetime TIMESTAMPTZ NOT NULL,
-      usd_balance_bucket_id integer,
-      investor_count integer,
-      avg_balance_usd_value double precision,
-      sum_balance_usd_value double precision
-    );
-    SELECT create_hypertable(
-      relation => 'data_report.vault_investor_usd_balance_buckets_4h_ts', 
-      time_column_name => 'datetime', 
-      chunk_time_interval => INTERVAL '14 days', 
-      if_not_exists => true
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_chain_vubb4h ON data_report.vault_investor_usd_balance_buckets_4h_ts (chain);
-    CREATE INDEX IF NOT EXISTS idx_vault_vubb4h ON data_report.vault_investor_usd_balance_buckets_4h_ts (vault_id);
-  `);
-
-  // continuous aggregate: investor rollup
-  await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_entry_exit_count_4h_ts WITH (timescaledb.continuous)
-      AS 
-        select 
-            chain,
-            vault_id,
-            time_bucket('4h', datetime) as datetime,
-            sum((deposit_diff > 0)::int) as investor_entries,
-            sum((token_balance = 0)::int) as investor_exits,
-            -- use hyperloglog with max precision of 2^18 bits for distinct count rollups, should be good enough
-            hyperloglog(262144, investor_address) as hll_investor_address,
-            hyperloglog(262144, investor_address) filter (where deposit_diff > 0) as hll_investor_entries,
-            hyperloglog(262144, investor_address) filter (where token_balance = 0) as hll_investor_exits
-        from data_report.vault_investor_balance_diff_4h_snaps_3d_ts
-        where
-            -- remove mintburn address
-            investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-            and (
-                token_balance = balance_diff -- new investor
-                or token_balance = 0 -- removed investor
-            )
-            -- ignore rows with no change while keeping quick entry and exit 
-            and not (
-                balance_diff = 0 and deposit_diff = 0 and withdraw_diff = 0
-            )
-        group by 1,2,3;
-  `);
-
-  // manual continuous aggregate: vault tvl
-  await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_tvl_4h_ts
-      AS 
-        with
-        contract_balance_ts as (
-            select * 
-            from (
-              select chain, contract_address,
-                  time_bucket_gapfill('4h', datetime) as datetime,
-                  locf(last(balance_after, datetime)) as balance_2
-              from data_derived.erc20_contract_balance_diff_4h_ts
-              where datetime between '2019-01-01' and now()
-              and chain = 'optimism'
-              and contract_address= '\x107dbf9c9c0ef2df114159e5c7dc2baf7c444cff'
-              group by 1,2,3
-            ) as t
-            where balance is not null
-        )
-        select 
-            bt.chain, vpt.vault_id, bt.datetime,
-            balance,
-            (
-              (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) as want_balance,
-            (
-                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as balance_usd_value
-        from contract_balance_ts bt
-        left join data_derived.vault_ppfs_and_price_4h_ts as vpt 
-            on vpt.chain = bt.chain
-            and vpt.contract_address = bt.contract_address
-            and vpt.datetime = bt.datetime
-        ;
-
-        CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON data_report.vault_tvl_4h_ts (chain);
-        CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON data_report.vault_tvl_4h_ts (vault_id);
-        CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON data_report.vault_tvl_4h_ts (datetime);
-  `);*/
 }
-/*
+
 // this is kind of a continuous aggregate
-// there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
-// so we rebuild this table as needed
-// it needs to be an hypertable if we want to use ts functions like time_bucket_gapfill so materialized view are not a good fit
-export async function rebuildBalanceReportTable() {
+// but we need a gapfill which is way faster to execute on a vault by vault basis
+export async function rebuildVaultStatsReportTable() {
   // we select the min and max date to feed the gapfill function
   const contracts = await db_query<{
     chain: string;
@@ -551,7 +412,7 @@ export async function rebuildBalanceReportTable() {
         contract_address,
         min(datetime) as first_datetime,
         max(datetime) as last_datetime
-      FROM data_derived.erc20_balance_diff_4h_ts
+      FROM data_derived.erc20_owner_balance_diff_4h_ts
       GROUP BY 1,2
     )
     select dates.chain, format_evm_address(dates.contract_address) as contract_address,
@@ -563,266 +424,66 @@ export async function rebuildBalanceReportTable() {
 
   for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
-      `[DB] Refreshing balance diff data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
+      `[DB] Refreshing vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
     await db_query(
       `
       BEGIN;
-      DELETE FROM data_report.vault_investor_balance_diff_4h_snaps_3d_ts
+      DELETE FROM data_report.vault_stats_4h_ts
       WHERE chain = %L
         and vault_id = %L;
 
-      INSERT INTO data_report.vault_investor_balance_diff_4h_snaps_3d_ts (
+      INSERT INTO data_report.vault_stats_4h_ts (
         chain,
         vault_id,
-        investor_address,
         datetime,
-        token_balance,
-        balance_diff,
-        deposit_diff,
-        withdraw_diff,
-        trx_count,
-        deposit_count,
-        withdraw_count,
-        balance_usd_value,
-        balance_diff_usd_value,
-        deposit_diff_usd_value,
-        withdraw_diff_usd_value
+        log_usd_owner_balance_histogram_1_1m_10b,
+        owner_address_hll,
+        usd_balance
       ) 
-      with
-      balance_ts as (
-          SELECT investor_address, datetime,
-              balance_diff, trx_count, deposit_diff, withdraw_diff, deposit_count, withdraw_count,
-              sum(balance_diff) over (
-                  partition by investor_address
-                  order by datetime asc
-              ) as balance
-          FROM data_derived.erc20_balance_diff_4h_ts
-          where chain = %L
-            and contract_address = %L
-      ),
-      -- create a balance snapshot every now and then to allow for analysis with filters on date
-      balance_snapshots_full_hist_ts as (
-          select investor_address, 
-              time_bucket_gapfill('3d', datetime) as datetime,
-              locf((array_agg(balance order by datetime desc))[1]) as balance_snapshot,
-              lag(locf((array_agg(balance order by datetime desc))[1])) over (
-                  partition by investor_address
-                  order by time_bucket_gapfill('3d', datetime)
-              ) as prev_balance_snapshot
-          from balance_ts
+        with balance_4h_ts as (
+          select owner_address,
+              time_bucket_gapfill('4h', datetime) as datetime,
+              locf(last(balance_after::numeric, datetime)) as balance
+          from data_derived.erc20_owner_balance_diff_4h_ts
+          -- make sure we select the previous snapshot to fill the graph
           where datetime between %L and %L
+          and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+          and chain = %L
+          and contract_address = %L
           group by 1,2
       ),
-      balance_snapshots_ts as (
-          select investor_address, 
-          -- assign the snapshot to the end of the last period
-          datetime + interval '3 days' as datetime, 
-          balance_snapshot
-          from balance_snapshots_full_hist_ts
-          where 
-              -- remove balances before the first investment
-              balance_snapshot is not null 
-              -- remove rows after full exit of this user
-              and not (prev_balance_snapshot = 0 and balance_snapshot = 0)
-      ),
-      balance_diff_with_snaps_ts as (
-          -- now that we have balance snapshots, we can intertwine them with diffs to get a diff history with some snapshots
-          select 
-              coalesce(b.investor_address, bs.investor_address) as investor_address, 
-              coalesce(b.datetime, bs.datetime) as datetime, 
-              coalesce(b.balance, bs.balance_snapshot) as balance,
-              coalesce(b.balance_diff, 0) as balance_diff, 
-              coalesce(b.deposit_diff, 0) as deposit_diff,
-              coalesce(b.withdraw_diff, 0) as withdraw_diff,
-              coalesce(b.trx_count, 0) as trx_count,
-              coalesce(b.deposit_count, 0) as deposit_count,
-              coalesce(b.withdraw_count, 0) as withdraw_count
-          from balance_snapshots_ts bs
-          full outer join balance_ts b 
-              on b.investor_address = bs.investor_address
-              and b.datetime = bs.datetime
-      ),
-      investor_metrics as (
+      new_vault_stats_4h_ts as (
         select 
-            vpt.vault_id, bt.investor_address, bt.datetime, 
-            bt.balance as token_balance, bt.balance_diff, bt.deposit_diff, bt.withdraw_diff, 
-            bt.trx_count, bt.deposit_count, bt.withdraw_count,
-            (
-                (bt.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as balance_usd_value,
-            (
-                (bt.balance_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as balance_diff_usd_value,
-            (
-                (bt.deposit_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as deposit_diff_usd_value,
-            (
-                (bt.withdraw_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-            ) * vpt.avg_want_usd_value as withdraw_diff_usd_value
-        from balance_diff_with_snaps_ts as bt
-        join data_derived.vault_ppfs_and_price_4h_ts as vpt 
+            b.datetime,
+            hyperloglog(262144, b.owner_address) as owner_address_hll,
+            sum(
+                (
+                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                )
+                * vpt.avg_want_usd_value
+            ) as usd_balance,
+            histogram(log(
+                (
+                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                )
+                * vpt.avg_want_usd_value
+            ), log(1), log(1000000), 10) as log_usd_owner_balance_histogram_1_1m_10b
+        from balance_4h_ts as b
+        left join data_derived.vault_ppfs_and_price_4h_ts vpt 
             on vpt.chain = %L
-            and vpt.vault_id = %L
-            and vpt.datetime = bt.datetime
+            and vpt.contract_address = %L
+            and vpt.datetime = b.datetime
+        where balance is not null
+            and balance != 0
+        group by b.datetime
       )
-      select %L as chain, vault_id, investor_address, datetime,
-        token_balance, 
-        balance_diff, deposit_diff, withdraw_diff, 
-        trx_count, deposit_count, withdraw_count,
-        balance_usd_value, balance_diff_usd_value, deposit_diff_usd_value, withdraw_diff_usd_value
-      from investor_metrics;
-      COMMIT;
-    `,
-      [
-        // delete query filters
-        contract.chain,
-        contract.vault_id,
-        // balance_ts filters
-        contract.chain,
-        strAddressToPgBytea(contract.contract_address),
-        // balance_snapshots_full_hist_ts filters
-        contract.first_datetime,
-        contract.last_datetime,
-        // investor_metrics filters
-        contract.chain,
-        contract.vault_id,
-        // select raw values
-        contract.chain,
-      ]
-    );
-  }
-
-  logger.info(
-    `[DB] Running vacuum full on data_report.vault_investor_balance_diff_4h_snaps_3d_ts`
-  );
-  await db_query(`
-    VACUUM (FULL, ANALYZE) data_report.vault_investor_balance_diff_4h_snaps_3d_ts;
-  `);
-}
-*/
-
-/*
-// this is kind of a continuous aggregate
-// there currently is no way to do continuous aggregates with window functions (cumulative sum to get the balance)
-// so we rebuild this table as needed
-// it needs to be an hypertable if we want to use ts functions like time_bucket_gapfill so materialized view are not a good fit
-export async function rebuildBalanceBucketsReportTable() {
-  // we select the min and max date to feed the gapfill function
-  const contracts = await db_query<{
-    chain: string;
-    contract_address: string;
-    vault_id: string;
-    first_datetime: Date;
-    last_datetime: Date;
-  }>(`
-    with contract_diff_dates as (
-      SELECT
-        chain,
-        contract_address,
-        min(datetime) as first_datetime,
-        max(datetime) as last_datetime
-      FROM data_derived.erc20_balance_diff_4h_ts
-      GROUP BY 1,2
-    )
-    select dates.chain, format_evm_address(dates.contract_address) as contract_address,
-      dates.first_datetime, dates.last_datetime, vault.vault_id
-    from contract_diff_dates dates
-    join data_raw.vault vault on (dates.chain = vault.chain and dates.contract_address = vault.token_address)
-    order by dates.chain, vault.vault_id
-  `);
-  
-  //  case 
-  //      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'
-  //      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'
-  //      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'
-  //      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'
-  //      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'
-  //      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'
-  //      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'
-  //      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'
-  //      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'
-  //      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'
-  //      else '10 [$1m ; Inf)'
-  //  end as investor_tranche,
-  for (const [idx, contract] of Object.entries(contracts)) {
-    logger.info(
-      `[DB] Refreshing balance bucket data for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
-    );
-    await db_query(
-      `
-      BEGIN;
-      DELETE FROM data_report.vault_investor_usd_balance_buckets_4h_ts
-      WHERE chain = %L
-        and vault_id = %L;
-
-      INSERT INTO data_report.vault_investor_usd_balance_buckets_4h_ts (
-        chain,
-        vault_id,
-        datetime,
-        usd_balance_bucket_id,
-        investor_count,
-        avg_balance_usd_value,
-        sum_balance_usd_value
-      ) 
-      with
-        balance_4h_ts as (
-          select *
-          from (
-                  select investor_address,
-                      time_bucket_gapfill('4h', datetime) as datetime,
-                      locf(avg(token_balance)) as balance
-                  from data_report.vault_investor_balance_diff_4h_snaps_3d_ts
-                  -- make sure we select the previous snapshot to fill the graph
-                  where datetime between ((%L)::TIMESTAMPTZ - interval '3 days') and %L
-                    and investor_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-                    and chain = %L
-                    and vault_id = %L
-                  group by 1,2
-          ) as t
-          where balance is not null and balance != 0
-        ),
-        investor_balance_usd_and_tranche_ts as (
-            select 
-                b.datetime, 
-                investor_address,
-                sum(
-                    (
-                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-                    )
-                    * vpt.avg_want_usd_value
-                ) as balance_usd_value,
-                width_bucket(sum(
-                    (
-                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-                    )
-                    * vpt.avg_want_usd_value
-                ), array[
-                    0,
-                    100,
-                    1000,
-                    5000,
-                    10000,
-                    25000,
-                    50000,
-                    100000,
-                    500000,
-                    1000000
-                ]) as usd_balance_bucket_id
-            from balance_4h_ts b
-            left join data_derived.vault_ppfs_and_price_4h_ts vpt 
-                on vpt.chain = %L
-                and vpt.vault_id = %L
-                and b.datetime = vpt.datetime
-            group by 1,2
-        )
-        select %L, %L, datetime,
-            usd_balance_bucket_id,
-            count(*) as investor_count,
-            avg(balance_usd_value) as avg_balance_usd_value,
-            sum(balance_usd_value) as sum_balance_usd_value
-        from investor_balance_usd_and_tranche_ts
-        group by datetime, usd_balance_bucket_id;
+      select %L, %L, datetime,
+        log_usd_owner_balance_histogram_1_1m_10b,
+        owner_address_hll,
+        usd_balance
+      from new_vault_stats_4h_ts
+      ;
 
       COMMIT;
     `,
@@ -834,10 +495,10 @@ export async function rebuildBalanceBucketsReportTable() {
         contract.first_datetime,
         contract.last_datetime,
         contract.chain,
-        contract.vault_id,
-        // investor_balance_usd_and_tranche_ts filters
+        strAddressToPgBytea(contract.contract_address),
+        // vault_stats_4h_ts join filters
         contract.chain,
-        contract.vault_id,
+        strAddressToPgBytea(contract.contract_address),
         // select raw values
         contract.chain,
         contract.vault_id,
@@ -845,11 +506,8 @@ export async function rebuildBalanceBucketsReportTable() {
     );
   }
 
-  logger.info(
-    `[DB] Running vacuum full on data_report.vault_investor_usd_balance_buckets_4h_ts`
-  );
+  logger.info(`[DB] Running vacuum full on data_report.vault_stats_4h_ts`);
   await db_query(`
-    VACUUM (FULL, ANALYZE) data_report.vault_investor_usd_balance_buckets_4h_ts;
+    VACUUM (FULL, ANALYZE) data_report.vault_stats_4h_ts;
   `);
 }
-*/
