@@ -317,19 +317,6 @@ async function migrate() {
       group by 1,2,3;
   `);
 
-  // continuous aggregates: distinct owner counts
-  await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.erc20_contract_distinct_owner_count_4h_ts WITH (timescaledb.continuous)
-      AS
-        select chain, contract_address,
-          time_bucket('4h', datetime) as datetime, 
-          hyperloglog(262144, owner_address) as owner_address_hll
-      from data_raw.erc20_balance_diff_ts
-      where owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-        and balance_after != 0
-      group by 1,2,3;
-  `);
-
   // helper materialized view to have a quick access to vault prices without indexing all prices
   await db_query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS data_derived.vault_ppfs_and_price_4h_ts as 
