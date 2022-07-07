@@ -427,49 +427,51 @@ export async function rebuildVaultStatsReportTable() {
         log_usd_owner_balance_histogram_1_1m_10b,
         owner_address_hll,
         usd_balance
-      ) 
-        with balance_4h_ts as (
-          select owner_address,
-              time_bucket_gapfill('4h', datetime) as datetime,
-              locf(last(balance_after::numeric, datetime)) as balance
-          from data_derived.erc20_owner_balance_diff_4h_ts
-          -- make sure we select the previous snapshot to fill the graph
-          where datetime between %L and %L
-          and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-          and chain = %L
-          and contract_address = %L
-          group by 1,2
-      ),
-      new_vault_stats_4h_ts as (
-        select 
-            b.datetime,
-            hyperloglog(262144, b.owner_address) as owner_address_hll,
-            sum(
-                (
-                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-                )
-                * vpt.avg_want_usd_value
-            ) as usd_balance,
-            histogram(log(
-                (
-                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-                )
-                * vpt.avg_want_usd_value
-            ), log(1), log(1000000), 10) as log_usd_owner_balance_histogram_1_1m_10b
-        from balance_4h_ts as b
-        left join data_derived.vault_ppfs_and_price_4h_ts vpt 
-            on vpt.chain = %L
-            and vpt.contract_address = %L
-            and vpt.datetime = b.datetime
-        where balance is not null
-            and balance != 0
-        group by b.datetime
+      ) (
+          with balance_4h_ts as (
+            select owner_address,
+                time_bucket_gapfill('4h', datetime) as datetime,
+                locf(last(balance_after::numeric, datetime)) as balance
+            from data_derived.erc20_owner_balance_diff_4h_ts
+            -- make sure we select the previous snapshot to fill the graph
+            where datetime between %L and %L
+            and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+            and chain = %L
+            and contract_address = %L
+            group by 1,2
+        ),
+        new_vault_stats_4h_ts as (
+          select 
+              b.datetime,
+              hyperloglog(262144, b.owner_address) as owner_address_hll,
+              sum(
+                  (
+                      (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                  )
+                  * vpt.avg_want_usd_value
+              ) as usd_balance,
+              histogram(log(
+                  (
+                      (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                  )
+                  * vpt.avg_want_usd_value
+              ), log(1), log(1000000), 10) as log_usd_owner_balance_histogram_1_1m_10b
+          from balance_4h_ts as b
+          left join data_derived.vault_ppfs_and_price_4h_ts vpt 
+              on vpt.chain = %L
+              and vpt.contract_address = %L
+              and vpt.datetime = b.datetime
+          where balance is not null
+              and balance != 0
+          group by b.datetime
+        )
+        select %L, %L, datetime,
+          log_usd_owner_balance_histogram_1_1m_10b,
+          owner_address_hll,
+          usd_balance
+        from new_vault_stats_4h_ts
       )
-      select %L, %L, datetime,
-        log_usd_owner_balance_histogram_1_1m_10b,
-        owner_address_hll,
-        usd_balance
-      from new_vault_stats_4h_ts
+      RETURNING null -- node parser cannot comprehend the hyperloglog format
       ;
 
       COMMIT;
@@ -490,6 +492,10 @@ export async function rebuildVaultStatsReportTable() {
         contract.chain,
         contract.vault_id,
       ]
+    );
+
+    logger.info(
+      `[DB] Refresh DONE for vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
   }
 
