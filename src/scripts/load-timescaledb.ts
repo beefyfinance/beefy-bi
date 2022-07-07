@@ -90,7 +90,7 @@ async function main() {
           logger.error(
             `[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`
           );
-          logger.error(err);
+          console.log(err);
         }
       }
     }
@@ -242,7 +242,8 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         owner_address: string;
         balance_after: string;
       }>(
-        `SELECT owner_address, last(balance_after, datetime) as balance_after
+        `SELECT format_evm_address(owner_address) as owner_address, 
+          last(balance_after, datetime) as balance_after
         from data_raw.erc20_balance_diff_ts
         where chain = %L
           and contract_address = %L
