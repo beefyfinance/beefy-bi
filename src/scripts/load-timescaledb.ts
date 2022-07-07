@@ -280,8 +280,12 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
                 cfg.owner
               } (${JSON.stringify(data)})`
             );
-            throw new Error(
-              "Refusing to insert negative balance for non-mintburn address"
+            throw new InconsistentUserBalance(
+              chain,
+              contractAddress,
+              lastBalance,
+              newBalance,
+              data
             );
           }
 
@@ -434,7 +438,13 @@ async function loadCSVStreamToTimescaleTable<
         poolCallback(...args);
         resolve(args);
       }
+      let errorHandled = false;
       function onErr(error: Error) {
+        logger.error(`[LTSDB] Error importing ${opts.logKey}`, error);
+        if (errorHandled) {
+          return;
+        }
+        errorHandled = true;
         poolCallback(error);
         reject(error);
       }
@@ -452,6 +462,8 @@ async function loadCSVStreamToTimescaleTable<
         // transform js obj to something the db understands
         .pipe(transform(opts.rowToDbTransformer));
 
+      stream.on("error", onErr);
+
       if (opts.flatten) {
         stream = stream.pipe(new FlattenStream());
       }
@@ -468,3 +480,23 @@ async function loadCSVStreamToTimescaleTable<
 }
 
 runMain(main);
+
+export class InconsistentUserBalance extends Error {
+  constructor(
+    public readonly chain: Chain,
+    public readonly contractAddress: string,
+    public readonly lastBalance: ethers.BigNumber,
+    public readonly newBalance: ethers.BigNumber,
+    public readonly data: ERC20EventData
+  ) {
+    super(
+      `Refusing to insert negative balance for non-mintburn address ${chain}:${contractAddress}: ${JSON.stringify(
+        {
+          data,
+          lastBalance: lastBalance.toString(),
+          newBalance: newBalance.toString(),
+        }
+      )}`
+    );
+  }
+}
