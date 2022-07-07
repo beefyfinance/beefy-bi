@@ -270,6 +270,21 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
           const lastBalance = lastBalancePerOwner[cfg.owner] || bigZero;
           const balanceDiff = ethers.BigNumber.from(cfg.balance_diff);
           const newBalance = lastBalance.add(balanceDiff);
+          // add a test to avoid inserting garbage
+          if (
+            newBalance.lt(0) &&
+            cfg.owner !== "0x0000000000000000000000000000000000000000"
+          ) {
+            logger.error(
+              `Refusing to insert negative balance for ${chain}:${
+                cfg.owner
+              } (${JSON.stringify(data)})`
+            );
+            throw new Error(
+              "Refusing to insert negative balance for non-mintburn address"
+            );
+          }
+
           lastBalancePerOwner[cfg.owner] = newBalance;
           return [
             chain,
