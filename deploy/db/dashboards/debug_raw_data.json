@@ -3,10 +3,7 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -24,31 +21,21 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1656801129537,
+  "id": 2,
+  "iteration": 1657150202148,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 6,
       "panels": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
+              "color": { "mode": "palette-classic" },
               "custom": {
                 "axisLabel": "",
                 "axisPlacement": "auto",
@@ -56,50 +43,28 @@
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                 "lineInterpolation": "stepBefore",
                 "lineWidth": 1,
                 "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
+                "scaleDistribution": { "type": "linear" },
                 "showPoints": "auto",
                 "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
                 ]
               }
             },
             "overrides": []
           },
-          "gridPos": {
-            "h": 9,
-            "w": 23,
-            "x": 0,
-            "y": 1
-          },
+          "gridPos": { "h": 9, "w": 23, "x": 0, "y": 1 },
           "id": 1,
           "options": {
             "legend": {
@@ -107,28 +72,17 @@
               "displayMode": "list",
               "placement": "bottom"
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
             {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
               "format": "time_series",
-              "group": [
-                {
-                  "params": ["$__interval", "none"],
-                  "type": "time"
-                }
-              ],
+              "group": [{ "params": ["$__interval", "none"], "type": "time" }],
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*)/2 as transfer_count\nFROM data_raw.erc20_balance_diff_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -136,25 +90,18 @@
                     "params": ["count(distinct from_address)"],
                     "type": "column"
                   },
-                  {
-                    "params": ["avg"],
-                    "type": "aggregate"
-                  },
+                  { "params": ["avg"], "type": "aggregate" },
                   {
                     "params": ["count(distinct from_address)"],
                     "type": "alias"
                   }
                 ]
               ],
-              "table": "data_raw.erc20_transfer_ts",
+              "table": "beefy_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
+                { "name": "$__timeFilter", "params": [], "type": "macro" }
               ]
             }
           ],
@@ -162,16 +109,11 @@
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "description": "Transfers where the \"to\" field is set to 0x0000...",
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
+              "color": { "mode": "palette-classic" },
               "custom": {
                 "axisLabel": "",
                 "axisPlacement": "auto",
@@ -179,50 +121,28 @@
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
+                "scaleDistribution": { "type": "linear" },
                 "showPoints": "auto",
                 "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
                 ]
               }
             },
             "overrides": []
           },
-          "gridPos": {
-            "h": 9,
-            "w": 23,
-            "x": 0,
-            "y": 10
-          },
+          "gridPos": { "h": 9, "w": 23, "x": 0, "y": 10 },
           "id": 3,
           "options": {
             "legend": {
@@ -230,28 +150,17 @@
               "displayMode": "list",
               "placement": "bottom"
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
             {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
               "format": "time_series",
-              "group": [
-                {
-                  "params": ["$__interval", "none"],
-                  "type": "time"
-                }
-              ],
+              "group": [{ "params": ["$__interval", "none"], "type": "time" }],
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and to_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_balance_diff_ts\nWHERE\n  $__timeFilter(datetime)\n  and owner_address != '\\x0000000000000000000000000000000000000000'\n  and balance_diff < 0\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -259,25 +168,18 @@
                     "params": ["count(distinct from_address)"],
                     "type": "column"
                   },
-                  {
-                    "params": ["avg"],
-                    "type": "aggregate"
-                  },
+                  { "params": ["avg"], "type": "aggregate" },
                   {
                     "params": ["count(distinct from_address)"],
                     "type": "alias"
                   }
                 ]
               ],
-              "table": "data_raw.erc20_transfer_ts",
+              "table": "beefy_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
+                { "name": "$__timeFilter", "params": [], "type": "macro" }
               ]
             }
           ],
@@ -285,16 +187,11 @@
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "description": "Transfers where the from field is set to 0x0000...",
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
+              "color": { "mode": "palette-classic" },
               "custom": {
                 "axisLabel": "",
                 "axisPlacement": "auto",
@@ -302,50 +199,28 @@
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
+                "scaleDistribution": { "type": "linear" },
                 "showPoints": "auto",
                 "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
                 ]
               }
             },
             "overrides": []
           },
-          "gridPos": {
-            "h": 9,
-            "w": 23,
-            "x": 0,
-            "y": 19
-          },
+          "gridPos": { "h": 9, "w": 23, "x": 0, "y": 19 },
           "id": 2,
           "options": {
             "legend": {
@@ -353,28 +228,17 @@
               "displayMode": "list",
               "placement": "bottom"
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
             {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
               "format": "time_series",
-              "group": [
-                {
-                  "params": ["$__interval", "none"],
-                  "type": "time"
-                }
-              ],
+              "group": [{ "params": ["$__interval", "none"], "type": "time" }],
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
-              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_transfer_ts\nWHERE\n  $__timeFilter(datetime)\n  and from_address = '\\x0000000000000000000000000000000000000000'\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
+              "rawSql": "SELECT\n  time_bucket('$__interval', datetime) as time,\n  chain as value,\n  count(*) as transfer_count\nFROM data_raw.erc20_balance_diff_ts\nWHERE\n  $__timeFilter(datetime)\n  and owner_address != '\\x0000000000000000000000000000000000000000'\n  and balance_diff > 0\n  and chain in ($chain)\nGROUP BY time_bucket('$__interval', datetime), chain, contract_address\nORDER BY 1",
               "refId": "A",
               "select": [
                 [
@@ -382,25 +246,18 @@
                     "params": ["count(distinct from_address)"],
                     "type": "column"
                   },
-                  {
-                    "params": ["avg"],
-                    "type": "aggregate"
-                  },
+                  { "params": ["avg"], "type": "aggregate" },
                   {
                     "params": ["count(distinct from_address)"],
                     "type": "alias"
                   }
                 ]
               ],
-              "table": "data_raw.erc20_transfer_ts",
+              "table": "beefy_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
+                { "name": "$__timeFilter", "params": [], "type": "macro" }
               ]
             }
           ],
@@ -413,24 +270,14 @@
     },
     {
       "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 1
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 1 },
       "id": 8,
       "panels": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
+              "color": { "mode": "palette-classic" },
               "custom": {
                 "axisLabel": "",
                 "axisPlacement": "auto",
@@ -438,50 +285,28 @@
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                 "lineInterpolation": "stepBefore",
                 "lineWidth": 1,
                 "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
+                "scaleDistribution": { "type": "linear" },
                 "showPoints": "auto",
                 "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
                 ]
               }
             },
             "overrides": []
           },
-          "gridPos": {
-            "h": 10,
-            "w": 24,
-            "x": 0,
-            "y": 2
-          },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 2 },
           "id": 4,
           "options": {
             "legend": {
@@ -489,24 +314,13 @@
               "displayMode": "list",
               "placement": "bottom"
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
             {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
               "format": "time_series",
-              "group": [
-                {
-                  "params": ["$__interval", "none"],
-                  "type": "time"
-                }
-              ],
+              "group": [{ "params": ["$__interval", "none"], "type": "time" }],
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
@@ -518,25 +332,18 @@
                     "params": ["count(distinct from_address)"],
                     "type": "column"
                   },
-                  {
-                    "params": ["avg"],
-                    "type": "aggregate"
-                  },
+                  { "params": ["avg"], "type": "aggregate" },
                   {
                     "params": ["count(distinct from_address)"],
                     "type": "alias"
                   }
                 ]
               ],
-              "table": "data_raw.erc20_transfer_ts",
+              "table": "beefy_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
+                { "name": "$__timeFilter", "params": [], "type": "macro" }
               ]
             }
           ],
@@ -544,15 +351,10 @@
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
             "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
+              "color": { "mode": "palette-classic" },
               "custom": {
                 "axisLabel": "",
                 "axisPlacement": "auto",
@@ -560,50 +362,28 @@
                 "drawStyle": "line",
                 "fillOpacity": 0,
                 "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                 "lineInterpolation": "stepBefore",
                 "lineWidth": 1,
                 "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
+                "scaleDistribution": { "type": "linear" },
                 "showPoints": "auto",
                 "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
                 ]
               }
             },
             "overrides": []
           },
-          "gridPos": {
-            "h": 10,
-            "w": 24,
-            "x": 0,
-            "y": 12
-          },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 12 },
           "id": 9,
           "options": {
             "legend": {
@@ -611,24 +391,13 @@
               "displayMode": "list",
               "placement": "bottom"
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "tooltip": { "mode": "multi", "sort": "desc" }
           },
           "targets": [
             {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
               "format": "time_series",
-              "group": [
-                {
-                  "params": ["$__interval", "none"],
-                  "type": "time"
-                }
-              ],
+              "group": [{ "params": ["$__interval", "none"], "type": "time" }],
               "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
               "metricColumn": "value",
               "rawQuery": true,
@@ -640,25 +409,18 @@
                     "params": ["count(distinct from_address)"],
                     "type": "column"
                   },
-                  {
-                    "params": ["avg"],
-                    "type": "aggregate"
-                  },
+                  { "params": ["avg"], "type": "aggregate" },
                   {
                     "params": ["count(distinct from_address)"],
                     "type": "alias"
                   }
                 ]
               ],
-              "table": "data_raw.erc20_transfer_ts",
+              "table": "beefy_raw.erc20_transfer_ts",
               "timeColumn": "datetime",
               "timeColumnType": "timestamptz",
               "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
+                { "name": "$__timeFilter", "params": [], "type": "macro" }
               ]
             }
           ],
@@ -671,27 +433,17 @@
     },
     {
       "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 2
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 2 },
       "id": 11,
       "panels": [],
       "title": "Prices",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
@@ -699,75 +451,38 @@
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "lineInterpolation": "stepBefore",
             "lineWidth": 1,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 3
-      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 3 },
       "id": 12,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "format": "time_series",
-          "group": [
-            {
-              "params": ["$__interval", "none"],
-              "type": "time"
-            }
-          ],
+          "group": [{ "params": ["$__interval", "none"], "type": "time" }],
           "key": "Q-676b5ab8-842f-4ff3-ac01-306036e0ff48-0",
           "metricColumn": "value",
           "rawQuery": true,
@@ -775,30 +490,15 @@
           "refId": "A",
           "select": [
             [
-              {
-                "params": ["count(distinct from_address)"],
-                "type": "column"
-              },
-              {
-                "params": ["avg"],
-                "type": "aggregate"
-              },
-              {
-                "params": ["count(distinct from_address)"],
-                "type": "alias"
-              }
+              { "params": ["count(distinct from_address)"], "type": "column" },
+              { "params": ["avg"], "type": "aggregate" },
+              { "params": ["count(distinct from_address)"], "type": "alias" }
             ]
           ],
-          "table": "data_raw.erc20_transfer_ts",
+          "table": "beefy_raw.erc20_transfer_ts",
           "timeColumn": "datetime",
           "timeColumnType": "timestamptz",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
       "title": "USD Prices  by oracle",
@@ -856,91 +556,23 @@
         "multi": true,
         "name": "chain",
         "options": [
-          {
-            "selected": true,
-            "text": "arbitrum",
-            "value": "arbitrum"
-          },
-          {
-            "selected": true,
-            "text": "aurora",
-            "value": "aurora"
-          },
-          {
-            "selected": false,
-            "text": "avax",
-            "value": "avax"
-          },
-          {
-            "selected": false,
-            "text": "bsc",
-            "value": "bsc"
-          },
-          {
-            "selected": true,
-            "text": "celo",
-            "value": "celo"
-          },
-          {
-            "selected": true,
-            "text": "cronos",
-            "value": "cronos"
-          },
-          {
-            "selected": true,
-            "text": "emerald",
-            "value": "emerald"
-          },
-          {
-            "selected": true,
-            "text": "fantom",
-            "value": "fantom"
-          },
-          {
-            "selected": true,
-            "text": "fuse",
-            "value": "fuse"
-          },
-          {
-            "selected": true,
-            "text": "harmony",
-            "value": "harmony"
-          },
-          {
-            "selected": true,
-            "text": "heco",
-            "value": "heco"
-          },
-          {
-            "selected": true,
-            "text": "metis",
-            "value": "metis"
-          },
-          {
-            "selected": true,
-            "text": "moonbeam",
-            "value": "moonbeam"
-          },
-          {
-            "selected": true,
-            "text": "moonriver",
-            "value": "moonriver"
-          },
-          {
-            "selected": true,
-            "text": "optimism",
-            "value": "optimism"
-          },
-          {
-            "selected": true,
-            "text": "polygon",
-            "value": "polygon"
-          },
-          {
-            "selected": true,
-            "text": "syscoin",
-            "value": "syscoin"
-          }
+          { "selected": true, "text": "arbitrum", "value": "arbitrum" },
+          { "selected": true, "text": "aurora", "value": "aurora" },
+          { "selected": false, "text": "avax", "value": "avax" },
+          { "selected": false, "text": "bsc", "value": "bsc" },
+          { "selected": true, "text": "celo", "value": "celo" },
+          { "selected": true, "text": "cronos", "value": "cronos" },
+          { "selected": true, "text": "emerald", "value": "emerald" },
+          { "selected": true, "text": "fantom", "value": "fantom" },
+          { "selected": true, "text": "fuse", "value": "fuse" },
+          { "selected": true, "text": "harmony", "value": "harmony" },
+          { "selected": true, "text": "heco", "value": "heco" },
+          { "selected": true, "text": "metis", "value": "metis" },
+          { "selected": true, "text": "moonbeam", "value": "moonbeam" },
+          { "selected": true, "text": "moonriver", "value": "moonriver" },
+          { "selected": true, "text": "optimism", "value": "optimism" },
+          { "selected": true, "text": "polygon", "value": "polygon" },
+          { "selected": true, "text": "syscoin", "value": "syscoin" }
         ],
         "query": "arbitrum,aurora,avax,bsc,celo,cronos,emerald,fantom,fuse,harmony,heco,metis,moonbeam,moonriver,optimism,polygon,syscoin",
         "queryValue": "",
@@ -948,11 +580,8 @@
         "type": "custom"
       },
       {
-        "current": {
-          "selected": true,
-          "text": "banana-bifi-bnb",
-          "value": "banana-bifi-bnb"
-        },
+        "current": { "selected": false, "text": "AAVE", "value": "AAVE" },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct oracle_id from data_raw.oracle_price_ts;",
         "hide": 0,
         "includeAll": false,
@@ -968,14 +597,11 @@
       }
     ]
   },
-  "time": {
-    "from": "now-1y",
-    "to": "now"
-  },
+  "time": { "from": "now-1y", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Raw Data Debug",
   "uid": "niW8Oienz",
-  "version": 15,
+  "version": 9,
   "weekStart": ""
 }

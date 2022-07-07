@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 3,
-  "iteration": 1656859253909,
+  "iteration": 1657150518239,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -158,7 +158,11 @@
   "templating": {
     "list": [
       {
-        "current": { "selected": false, "text": "aurora", "value": "aurora" },
+        "current": {
+          "selected": false,
+          "text": "arbitrum",
+          "value": "arbitrum"
+        },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain from data_derived.vault_ppfs_and_price_4h_ts where chain is not null",
         "hide": 0,
@@ -177,7 +181,7 @@
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct vault_id from data_derived.vault_ppfs_and_price_4h_ts where vault_id is not null and chain = '$chain'",
-        "hide": 2,
+        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "vault_id",
@@ -196,6 +200,6 @@
   "timezone": "",
   "title": "Debug Vault ppfs+price materialized view",
   "uid": "JSeFgn67z",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }
