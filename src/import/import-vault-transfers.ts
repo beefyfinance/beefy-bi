@@ -117,17 +117,22 @@ async function main() {
         endBlock,
         timeOrder: "timeline",
       });
-      for await (const eventBatch of batchAsyncStream(stream, 10)) {
+      // write events as often as possible to avoid redoing too much work when pulling from RPC
+      // we could have large period of data without event and that takes lots of time to pull
+      // if we have an error in the meantime we have to redo all this work because we don't save
+      // that there is no transactions in the block range. We could also do some checkpoints but
+      // it's an exercise for the reader.
+      for await (const event of stream) {
         logger.verbose("[ERC20.T] Writing batch");
-        await writeBatch(
-          eventBatch.map((event) => ({
+        await writeBatch([
+          {
             blockNumber: event.blockNumber,
             datetime: event.datetime,
             from: event.data.from,
             to: event.data.to,
             value: event.data.value,
-          }))
-        );
+          },
+        ]);
       }
     }
   }
