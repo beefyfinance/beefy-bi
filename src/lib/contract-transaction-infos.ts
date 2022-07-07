@@ -49,7 +49,7 @@ export async function fetchContractFirstLastTrxFromExplorer(
   const trxHash = trxInfos.hash;
 
   logger.debug(
-    `${type} block for ${chain}:${contractAddress}: ${block} - timestamp: ${timestamp}`
+    `[CTI] ${type} block for ${chain}:${contractAddress}: ${block} - timestamp: ${timestamp}`
   );
   return {
     blockNumber: block,

@@ -128,7 +128,7 @@ services:
     environment:
       <<: *vault-importer-env
       WORK_CHAIN: cronos
-      WORK_SOURCE: explorer
+      WORK_SOURCE: rpc # cf. eplain in config
 
   import-vault-transfers-bsc:
     <<: *importer

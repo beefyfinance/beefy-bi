@@ -354,6 +354,8 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_datetime_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (datetime);
     -- index to speed up investor dashboard (5s -> 100ms)
     CREATE INDEX IF NOT EXISTS idx_chain_vault_dt_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (chain, vault_id, datetime);
+    -- index to speed up vault stats reloading (90s -> 12s)
+    CREATE INDEX IF NOT EXISTS idx_chain_contract_datetime_dt_vpp4h ON data_derived.vault_ppfs_and_price_4h_ts (chain, contract_address, datetime);
   `);
 
   // pre-compute stats by vautl:

@@ -39,6 +39,7 @@ import {
 } from "../lib/csv-oracle-price";
 import { SamplingPeriod } from "../lib/csv-block-samples";
 import { ethers } from "ethers";
+import { normalizeAddress } from "../utils/ethers";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -252,7 +253,9 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
       const lastBalancePerOwner = rows.reduce(
         (agg, row) =>
           Object.assign(agg, {
-            [row.owner_address]: ethers.BigNumber.from(row.balance_after),
+            [normalizeAddress(row.owner_address)]: ethers.BigNumber.from(
+              row.balance_after
+            ),
           }),
         {} as Record<string, ethers.BigNumber>
       );
@@ -268,18 +271,19 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
           { owner: data.from, balance_diff: "-" + data.value },
           { owner: data.to, balance_diff: data.value },
         ].map((cfg) => {
-          const lastBalance = lastBalancePerOwner[cfg.owner] || bigZero;
+          const ownerAddress = normalizeAddress(cfg.owner);
+          const lastBalance = lastBalancePerOwner[ownerAddress] || bigZero;
           const balanceDiff = ethers.BigNumber.from(cfg.balance_diff);
           const newBalance = lastBalance.add(balanceDiff);
           // add a test to avoid inserting garbage
           if (
             newBalance.lt(0) &&
-            cfg.owner !== "0x0000000000000000000000000000000000000000"
+            ownerAddress !== "0x0000000000000000000000000000000000000000"
           ) {
             logger.error(
-              `Refusing to insert negative balance for ${chain}:${
-                cfg.owner
-              } (${JSON.stringify(data)})`
+              `Refusing to insert negative balance for ${chain}:${ownerAddress} (${JSON.stringify(
+                data
+              )})`
             );
             throw new InconsistentUserBalance(
               chain,
@@ -290,12 +294,12 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
             );
           }
 
-          lastBalancePerOwner[cfg.owner] = newBalance;
+          lastBalancePerOwner[ownerAddress] = newBalance;
           return [
             chain,
             strAddressToPgBytea(contractAddress),
             data.datetime.toISOString(),
-            strAddressToPgBytea(cfg.owner),
+            strAddressToPgBytea(ownerAddress),
             cfg.balance_diff, // diff
             lastBalance.toString(), // balance before
             newBalance.toString(), // balance after

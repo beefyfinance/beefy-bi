@@ -58,7 +58,11 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
       ],
   cronos: process.env.CRONOS_RPC
     ? [process.env.CRONOS_RPC]
-    : ["https://rpc.vvs.finance" /*, "https://evm.cronos.org"*/],
+    : [
+        "https://evm-cronos.crypto.org",
+        //"https://rpc.vvs.finance",
+        //"https://evm.cronos.org",
+      ],
   emerald: process.env.EMERALD_RPC
     ? [process.env.EMERALD_RPC]
     : ["https://emerald.oasis.dev"],
@@ -134,7 +138,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   avax: 2048, // requested too many blocks from 3052900 to 3055899, maximum is set to 2048
   bsc: 3000,
   celo: 3000,
-  cronos: 3000,
+  cronos: 2000, // 2k for https://evm-cronos.crypto.org
   emerald: 3000,
   fantom: 3000,
   fuse: 3000,
@@ -205,7 +209,8 @@ export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "avax",
   "bsc",
   "celo",
-  "cronos",
+  // cronos explorer has missing events, like aurora https://cronoscan.com/token/0x2425d707a5C63ff5De83eB78f63e06c3f6eEaA1c?a=0x129Dd111C23a8AE4a14694eeb5fAAd7cE9Ed19e1
+  //"cronos",
   "fantom",
   "harmony",
   "heco",

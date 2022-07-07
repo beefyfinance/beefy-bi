@@ -122,6 +122,7 @@ async function main() {
       // if we have an error in the meantime we have to redo all this work because we don't save
       // that there is no transactions in the block range. We could also do some checkpoints but
       // it's an exercise for the reader.
+      /*
       for await (const event of stream) {
         logger.verbose("[ERC20.T] Writing batch");
         await writeBatch([
@@ -133,6 +134,21 @@ async function main() {
             value: event.data.value,
           },
         ]);
+      }*/
+      // but somehow it takes suuuuuper long to write many times
+      // Test with cronos:0x2425d707a5C63ff5De83eB78f63e06c3f6eEaA1c:Transfer
+      // it takes 25 sec or more to write 10 events
+      for await (const eventBatch of batchAsyncStream(stream, 10)) {
+        logger.verbose("[ERC20.T] Writing batch");
+        await writeBatch(
+          eventBatch.map((event) => ({
+            blockNumber: event.blockNumber,
+            datetime: event.datetime,
+            from: event.data.from,
+            to: event.data.to,
+            value: event.data.value,
+          }))
+        );
       }
     }
   }
