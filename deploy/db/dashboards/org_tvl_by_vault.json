@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 14,
-  "iteration": 1657055861286,
+  "iteration": 1657153383227,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -161,7 +161,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "arbitrum",
           "value": "arbitrum"
         },
@@ -183,36 +183,14 @@
         "current": {
           "selected": true,
           "text": [
-            "arbi-bifi-maxi",
-            "balancer-wbtc-eth-usdc",
-            "curve-arb-2pool",
-            "curve-arb-ren",
-            "curve-arb-tricrypto",
-            "spell-mim-crv",
-            "sushi-arb-eth-usdc",
-            "sushi-arb-magic-weth",
             "sushi-arb-spell-weth",
-            "sushi-arb-sushi-eth",
-            "sushi-arb-wbtc-weth",
             "sushi-arb-weth-gohm",
-            "sushi-arb-weth-mim",
-            "sushi-arb-weth-usdt"
+            "sushi-arb-sushi-eth"
           ],
           "value": [
-            "arbi-bifi-maxi",
-            "balancer-wbtc-eth-usdc",
-            "curve-arb-2pool",
-            "curve-arb-ren",
-            "curve-arb-tricrypto",
-            "spell-mim-crv",
-            "sushi-arb-eth-usdc",
-            "sushi-arb-magic-weth",
             "sushi-arb-spell-weth",
-            "sushi-arb-sushi-eth",
-            "sushi-arb-wbtc-weth",
             "sushi-arb-weth-gohm",
-            "sushi-arb-weth-mim",
-            "sushi-arb-weth-usdt"
+            "sushi-arb-sushi-eth"
           ]
         },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
@@ -236,6 +214,6 @@
   "timezone": "",
   "title": "TVL by vault",
   "uid": "_a3uud67k",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 13,
-  "iteration": 1657055485725,
+  "iteration": 1657152046534,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -230,49 +230,17 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "arbitrum",
-            "aurora",
-            "avax",
-            "bsc",
-            "celo",
-            "cronos",
-            "fantom",
-            "fuse",
-            "harmony",
-            "heco",
-            "metis",
-            "moonbeam",
-            "moonriver",
-            "optimism",
-            "polygon"
-          ],
-          "value": [
-            "arbitrum",
-            "aurora",
-            "avax",
-            "bsc",
-            "celo",
-            "cronos",
-            "fantom",
-            "fuse",
-            "harmony",
-            "heco",
-            "metis",
-            "moonbeam",
-            "moonriver",
-            "optimism",
-            "polygon"
-          ]
+          "text": ["avax", "celo", "cronos"],
+          "value": ["avax", "celo", "cronos"]
         },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-        "definition": "select distinct chain from data_report.vault_tvl_4h_ts",
+        "definition": "select distinct chain from data_derived.erc20_contract_balance_diff_4h_ts",
         "hide": 0,
         "includeAll": false,
         "multi": true,
         "name": "chain",
         "options": [],
-        "query": "select distinct chain from data_report.vault_tvl_4h_ts",
+        "query": "select distinct chain from data_derived.erc20_contract_balance_diff_4h_ts",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -281,14 +249,11 @@
       }
     ]
   },
-  "time": {
-    "from": "2021-07-27T14:15:37.382Z",
-    "to": "2022-07-05T21:04:49.583Z"
-  },
+  "time": { "from": "now-1y", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "TVL by chain",
   "uid": "Pk00ud67z",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

@@ -370,7 +370,6 @@ async function migrate() {
   `);
 
   // materialized tvl view
-  /*
   await db_query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.vault_tvl_4h_ts
       AS 
@@ -380,7 +379,6 @@ async function migrate() {
             from (
                 select chain, contract_address,
                     time_bucket_gapfill('4h', datetime) as datetime,
-                    sum(balance_diff) as sum_balance_diff,
                     locf(last(balance_after, datetime)) as balance
                 from data_derived.erc20_contract_balance_diff_4h_ts
                 where datetime between '2019-01-01' and now()
@@ -407,7 +405,7 @@ async function migrate() {
         CREATE INDEX IF NOT EXISTS idx_chain_vtvl4h ON data_report.vault_tvl_4h_ts (chain);
         CREATE INDEX IF NOT EXISTS idx_vault_vtvl4h ON data_report.vault_tvl_4h_ts (vault_id);
         CREATE INDEX IF NOT EXISTS idx_datetime_vtvl4h ON data_report.vault_tvl_4h_ts (datetime);
-  `);*/
+  `);
   /*
 
   // build a full report table with balance diffs every 4h and balance snapshots every 3d

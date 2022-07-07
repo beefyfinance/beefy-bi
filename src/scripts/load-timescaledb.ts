@@ -198,12 +198,13 @@ async function main() {
     await db_query(
       `REFRESH MATERIALIZED VIEW data_derived.vault_ppfs_and_price_4h_ts`
     );
-    /*
+
     logger.info(
       `[LTSDB] Refreshing materialized view: data_report.vault_tvl_4h_ts`
     );
-    await db_query(`REFRESH MATERIALIZED VIEW data_report.vault_tvl_4h_ts`);*/
+    await db_query(`REFRESH MATERIALIZED VIEW data_report.vault_tvl_4h_ts`);
   }
+
   /*
   if (!importOnly || importOnly === "refresh_balance_monster_ts") {
     logger.info(
