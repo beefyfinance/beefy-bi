@@ -413,11 +413,16 @@ export async function rebuildVaultStatsReportTable() {
     order by dates.chain, vault.vault_id
   `);
 
+  // create a target table so we don't lock the main one
+  await db_query(`
+      CREATE TEMPORARY TABLE vault_stats_4h_ts_import (LIKE data_report.vault_stats_4h_ts);
+  `);
+
   // prepare the complex query to avoid ~1s of JIT compilation each time
   await db_query(`
       -- chain, vault_id, contract_address, first datetime, last datetime
       PREPARE vault_stats_inserts (chain_enum, text, evm_address, timestamptz, timestamptz) AS
-        INSERT INTO data_report.vault_stats_4h_ts (
+        INSERT INTO vault_stats_4h_ts_import (
           chain,
           vault_id,
           datetime,
@@ -492,35 +497,31 @@ export async function rebuildVaultStatsReportTable() {
     logger.info(
       `[DB] Refreshing vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
-    await db_query(
-      `
-      BEGIN;
-
-        DELETE FROM data_report.vault_stats_4h_ts
-        WHERE chain = %L
-          and vault_id = %L;
-
-        EXECUTE vault_stats_inserts(%L, %L, %L, %L, %L);
-
-      COMMIT;
-    `,
-      [
-        // delete query filters
-        contract.chain,
-        contract.vault_id,
-        // insert call params
-        contract.chain,
-        contract.vault_id,
-        strAddressToPgBytea(contract.contract_address),
-        contract.first_datetime,
-        contract.last_datetime,
-      ]
-    );
+    await db_query(`EXECUTE vault_stats_inserts(%L, %L, %L, %L, %L);`, [
+      contract.chain,
+      contract.vault_id,
+      strAddressToPgBytea(contract.contract_address),
+      contract.first_datetime,
+      contract.last_datetime,
+    ]);
 
     logger.info(
       `[DB] Refresh DONE for vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
   }
+
+  logger.info(
+    `[DB] Transfering imported data to the data_report.vault_stats_4h_ts table`
+  );
+  // now transfer to the main table
+  await db_query(`
+    BEGIN;
+
+      TRUNCATE TABLE data_report.vault_stats_4h_ts;
+      INSERT INTO data_report.vault_stats_4h_ts (SELECT * FROM vault_stats_4h_ts_import);
+
+    COMMIT;
+  `);
 
   logger.info(`[DB] Running vacuum full on data_report.vault_stats_4h_ts`);
   await db_query(`
