@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 8,
-  "iteration": 1657151498586,
+  "iteration": 1657269338163,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -65,7 +65,8 @@
               { "color": "green", "value": null },
               { "color": "red", "value": 80 }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
@@ -161,24 +162,24 @@
       {
         "current": {
           "selected": false,
-          "text": "0x18913656c387613f6D0a1bFF7365C335C0069e69",
-          "value": "0x18913656c387613f6D0a1bFF7365C335C0069e69"
+          "text": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
+          "value": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0x18913656c387613f6D0a1bFF7365C335C0069e69",
-            "value": "0x18913656c387613f6D0a1bFF7365C335C0069e69"
+            "text": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
+            "value": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63"
           }
         ],
-        "query": "0x18913656c387613f6D0a1bFF7365C335C0069e69",
+        "query": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
-        "current": { "selected": true, "text": "bsc", "value": "bsc" },
+        "current": { "selected": false, "text": "bsc", "value": "bsc" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain\nfrom data_derived.erc20_owner_balance_diff_4h_ts\nwhere owner_address = evm_address_to_bytea('$investor_address')",
         "hide": 0,
@@ -210,7 +211,11 @@
         "type": "query"
       },
       {
-        "current": { "selected": false, "text": "BIFI", "value": "BIFI" },
+        "current": {
+          "selected": false,
+          "text": "cakev2-belt-bnb",
+          "value": "cakev2-belt-bnb"
+        },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select want_price_oracle_id\nfrom data_raw.vault\nwhere chain = '$chain'\nand vault_id in ($vault_id)",
         "hide": 0,
@@ -232,6 +237,6 @@
   "timezone": "",
   "title": "Investment By Vault Overview",
   "uid": "o_EouSenk",
-  "version": 6,
+  "version": 7,
   "weekStart": ""
 }

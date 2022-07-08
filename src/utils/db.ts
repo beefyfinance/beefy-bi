@@ -368,9 +368,11 @@ async function migrate() {
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
-      log_usd_owner_balance_histogram_1_1m_10b integer[] not null,
       owner_address_hll hyperloglog not null,
-      usd_balance double precision -- prices can be null
+      balance_usd_value double precision, -- prices can be null
+      balance_want_value numeric,
+      log_usd_owner_balance_histogram_1_1m_10b integer[] not null,
+      sqrt_usd_owner_balance_histogram_1_1m_10 integer[] not null
     );
     SELECT create_hypertable(
       relation => 'data_report.vault_stats_4h_ts', 
@@ -419,9 +421,11 @@ export async function rebuildVaultStatsReportTable() {
           chain,
           vault_id,
           datetime,
-          log_usd_owner_balance_histogram_1_1m_10b,
           owner_address_hll,
-          usd_balance
+          balance_usd_value,
+          balance_want_value,
+          log_usd_owner_balance_histogram_1_1m_10b,
+          sqrt_usd_owner_balance_histogram_1_1m_10
         ) (
             with balance_4h_ts as (
               select owner_address,
@@ -441,7 +445,10 @@ export async function rebuildVaultStatsReportTable() {
                 (
                     (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
                 )
-                * vpt.avg_want_usd_value as usd_balance
+                * vpt.avg_want_usd_value as balance_usd_value,
+                (
+                  (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                ) as balance_want_value
             from balance_4h_ts as b
             left join data_derived.vault_ppfs_and_price_4h_ts vpt 
                 on vpt.chain = $1
@@ -454,18 +461,27 @@ export async function rebuildVaultStatsReportTable() {
             select 
                 datetime,
                 hyperloglog(262144, owner_address) as owner_address_hll,
-                sum(usd_balance) as usd_balance,
-                histogram(log(usd_balance), log(1), log(1000000), 10) filter (
+                sum(balance_usd_value) as balance_usd_value,
+                sum(balance_want_value) as balance_want_value,
+                histogram(log(balance_usd_value), log(1), log(1000000), 10) filter (
                   -- sometimes we don't have price or ppfs and the balance gets set to zero
-                  where (usd_balance) != 0
-                ) as log_usd_owner_balance_histogram_1_1m_10b
+                  where (balance_usd_value) != 0
+                ) as log_usd_owner_balance_histogram_1_1m_10b,
+                histogram(
+                  case 
+                    when balance_usd_value < 0 then -sqrt(-balance_usd_value)
+                    else sqrt(balance_usd_value)
+                  end
+                , sqrt(0), sqrt(1000000), 10) as sqrt_usd_owner_balance_histogram_1_1m_10b
             from balance_4h_ts_with_usd_price
             group by datetime
           )
           select $1, $2, datetime,
-            coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
             owner_address_hll,
-            usd_balance
+            balance_usd_value,
+            coalesce(balance_want_value, 0) as balance_want_value,
+            coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
+            coalesce(sqrt_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as sqrt_usd_owner_balance_histogram_1_1m_10b
           from new_vault_stats_4h_ts
         )
         RETURNING null -- node parser cannot comprehend the hyperloglog format
