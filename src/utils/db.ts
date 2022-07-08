@@ -384,6 +384,31 @@ async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_chain_vst4h ON data_report.vault_stats_4h_ts (chain);
     CREATE INDEX IF NOT EXISTS idx_vault_vst4h ON data_report.vault_stats_4h_ts (vault_id);
   `);
+
+  // continuous aggregates: chain stats
+  // we need this because rollups on hll are expensive
+  await db_query(`
+  CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.chain_stats_4h_ts WITH (timescaledb.continuous)
+    AS 
+    select chain,
+      time_bucket('4h', datetime) as datetime, 
+      rollup(owner_address_hll) as owner_address_hll,
+      sum(balance_usd_value) as balance_usd_value,
+      sum(balance_want_value) as balance_want_value
+    from data_report.vault_stats_4h_ts
+    group by 1,2;
+  `);
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.all_stats_4h_ts WITH (timescaledb.continuous)
+      AS 
+      select 
+        time_bucket('4h', datetime) as datetime, 
+        rollup(owner_address_hll) as owner_address_hll,
+        sum(balance_usd_value) as balance_usd_value,
+        sum(balance_want_value) as balance_want_value
+      from data_report.vault_stats_4h_ts
+      group by 1;
+  `);
 }
 
 // this is kind of a continuous aggregate
@@ -497,13 +522,20 @@ export async function rebuildVaultStatsReportTable() {
     logger.info(
       `[DB] Refreshing vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
     );
-    await db_query(`EXECUTE vault_stats_inserts(%L, %L, %L, %L, %L);`, [
-      contract.chain,
-      contract.vault_id,
-      strAddressToPgBytea(contract.contract_address),
-      contract.first_datetime,
-      contract.last_datetime,
-    ]);
+    try {
+      await db_query(`EXECUTE vault_stats_inserts(%L, %L, %L, %L, %L);`, [
+        contract.chain,
+        contract.vault_id,
+        strAddressToPgBytea(contract.contract_address),
+        contract.first_datetime,
+        contract.last_datetime,
+      ]);
+    } catch (e) {
+      logger.error(
+        `[DB] Could not refresh vault stats for ${contract.chain}:${contract.vault_id}:${contract.contract_address}`
+      );
+      console.log(e);
+    }
 
     logger.info(
       `[DB] Refresh DONE for vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
