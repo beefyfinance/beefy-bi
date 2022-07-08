@@ -369,6 +369,8 @@ async function migrate() {
       vault_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
       owner_address_hll hyperloglog not null,
+      owner_address_mid_res_hll hyperloglog not null,
+      owner_address_low_res_hll hyperloglog not null,
       balance_usd_value double precision, -- prices can be null
       balance_want_value numeric,
       log_usd_owner_balance_histogram_1_1m_10b integer[] not null,
@@ -393,21 +395,12 @@ async function migrate() {
     select chain,
       time_bucket('4h', datetime) as datetime, 
       rollup(owner_address_hll) as owner_address_hll,
+      rollup(owner_address_mid_res_hll) as owner_address_mid_res_hll,
+      rollup(owner_address_low_res_hll) as owner_address_low_res_hll,
       sum(balance_usd_value) as balance_usd_value,
       sum(balance_want_value) as balance_want_value
     from data_report.vault_stats_4h_ts
     group by 1,2;
-  `);
-  await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.all_stats_4h_ts WITH (timescaledb.continuous)
-      AS 
-      select 
-        time_bucket('4h', datetime) as datetime, 
-        rollup(owner_address_hll) as owner_address_hll,
-        sum(balance_usd_value) as balance_usd_value,
-        sum(balance_want_value) as balance_want_value
-      from data_report.vault_stats_4h_ts
-      group by 1;
   `);
 }
 
@@ -452,6 +445,8 @@ export async function rebuildVaultStatsReportTable() {
           vault_id,
           datetime,
           owner_address_hll,
+          owner_address_mid_res_hll,
+          owner_address_low_res_hll,
           balance_usd_value,
           balance_want_value,
           log_usd_owner_balance_histogram_1_1m_10b,
@@ -491,6 +486,8 @@ export async function rebuildVaultStatsReportTable() {
             select 
                 datetime,
                 hyperloglog(262144, owner_address) as owner_address_hll,
+                hyperloglog(32768, owner_address) as owner_address_mid_res_hll,
+                hyperloglog(1024, owner_address) as owner_address_low_res_hll,
                 sum(balance_usd_value) as balance_usd_value,
                 sum(balance_want_value) as balance_want_value,
                 histogram(log(balance_usd_value), log(1), log(1000000), 10) filter (
@@ -508,6 +505,8 @@ export async function rebuildVaultStatsReportTable() {
           )
           select $1, $2, datetime,
             owner_address_hll,
+            owner_address_mid_res_hll,
+            owner_address_low_res_hll,
             balance_usd_value,
             coalesce(balance_want_value, 0) as balance_want_value,
             coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
