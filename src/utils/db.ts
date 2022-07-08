@@ -411,6 +411,67 @@ export async function rebuildVaultStatsReportTable() {
     order by dates.chain, vault.vault_id
   `);
 
+  // prepare the complex query to avoid ~1s of JIT compilation each time
+  await db_query(`
+      -- chain, vault_id, contract_address, first datetime, last datetime
+      PREPARE vault_stats_inserts (chain_enum, text, evm_address, timestamptz, timestamptz) AS
+        INSERT INTO data_report.vault_stats_4h_ts (
+          chain,
+          vault_id,
+          datetime,
+          log_usd_owner_balance_histogram_1_1m_10b,
+          owner_address_hll,
+          usd_balance
+        ) (
+            with balance_4h_ts as (
+              select owner_address,
+                  time_bucket_gapfill('4h', datetime) as datetime,
+                  locf(last(balance_after::numeric, datetime)) as balance
+              from data_derived.erc20_owner_balance_diff_4h_ts
+              -- make sure we select the previous snapshot to fill the graph
+              where datetime between $4 and $4
+              and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
+              and chain = $1
+              and contract_address = $3
+              group by 1,2
+          ),
+          balance_4h_ts_with_usd_price as materialized ( -- prevent expensive late group by plan
+            select 
+                b.datetime, b.owner_address,
+                (
+                    (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
+                )
+                * vpt.avg_want_usd_value as usd_balance
+            from balance_4h_ts as b
+            left join data_derived.vault_ppfs_and_price_4h_ts vpt 
+                on vpt.chain = $1
+                and vpt.contract_address = $3
+                and vpt.datetime = b.datetime
+            where b.balance is not null
+                and b.balance != 0
+          ),
+          new_vault_stats_4h_ts as (
+            select 
+                datetime,
+                hyperloglog(262144, owner_address) as owner_address_hll,
+                sum(usd_balance) as usd_balance,
+                histogram(log(usd_balance), log(1), log(1000000), 10) filter (
+                  -- sometimes we don't have price or ppfs and the balance gets set to zero
+                  where (usd_balance) != 0
+                ) as log_usd_owner_balance_histogram_1_1m_10b
+            from balance_4h_ts_with_usd_price
+            group by datetime
+          )
+          select $1, $2, datetime,
+            coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
+            owner_address_hll,
+            usd_balance
+          from new_vault_stats_4h_ts
+        )
+        RETURNING null -- node parser cannot comprehend the hyperloglog format
+        ;
+  `);
+
   for (const [idx, contract] of Object.entries(contracts)) {
     logger.info(
       `[DB] Refreshing vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
@@ -418,65 +479,12 @@ export async function rebuildVaultStatsReportTable() {
     await db_query(
       `
       BEGIN;
-      DELETE FROM data_report.vault_stats_4h_ts
-      WHERE chain = %L
-        and vault_id = %L;
 
-      INSERT INTO data_report.vault_stats_4h_ts (
-        chain,
-        vault_id,
-        datetime,
-        log_usd_owner_balance_histogram_1_1m_10b,
-        owner_address_hll,
-        usd_balance
-      ) (
-          with balance_4h_ts as (
-            select owner_address,
-                time_bucket_gapfill('4h', datetime) as datetime,
-                locf(last(balance_after::numeric, datetime)) as balance
-            from data_derived.erc20_owner_balance_diff_4h_ts
-            -- make sure we select the previous snapshot to fill the graph
-            where datetime between %L and %L
-            and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-            and chain = %L
-            and contract_address = %L
-            group by 1,2
-        ),
-        balance_4h_ts_with_usd_price as (
-          select 
-              b.datetime, b.owner_address,
-              (
-                  (b.balance::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC
-              )
-              * vpt.avg_want_usd_value as usd_balance
-          from balance_4h_ts as b
-          left join data_derived.vault_ppfs_and_price_4h_ts vpt 
-              on vpt.chain = %L
-              and vpt.contract_address = %L
-              and vpt.datetime = b.datetime
-          where b.balance is not null
-              and b.balance != 0
-        ),
-        new_vault_stats_4h_ts as (
-          select 
-              datetime,
-              hyperloglog(262144, owner_address) as owner_address_hll,
-              sum(usd_balance) as usd_balance,
-              histogram(log(usd_balance), log(1), log(1000000), 10) filter (
-                -- sometimes we don't have price or ppfs and the balance gets set to zero
-                where (usd_balance) != 0
-              ) as log_usd_owner_balance_histogram_1_1m_10b
-          from balance_4h_ts_with_usd_price
-          group by datetime
-        )
-        select %L, %L, datetime,
-          coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
-          owner_address_hll,
-          usd_balance
-        from new_vault_stats_4h_ts
-      )
-      RETURNING null -- node parser cannot comprehend the hyperloglog format
-      ;
+        DELETE FROM data_report.vault_stats_4h_ts
+        WHERE chain = %L
+          and vault_id = %L;
+
+        EXECUTE vault_stats_inserts(%L, %L, %L, %L, %L);
 
       COMMIT;
     `,
@@ -484,17 +492,12 @@ export async function rebuildVaultStatsReportTable() {
         // delete query filters
         contract.chain,
         contract.vault_id,
-        // balance_4h_ts filters
-        contract.first_datetime,
-        contract.last_datetime,
-        contract.chain,
-        strAddressToPgBytea(contract.contract_address),
-        // vault_stats_4h_ts join filters
-        contract.chain,
-        strAddressToPgBytea(contract.contract_address),
-        // select raw values
+        // insert call params
         contract.chain,
         contract.vault_id,
+        strAddressToPgBytea(contract.contract_address),
+        contract.first_datetime,
+        contract.last_datetime,
       ]
     );
 

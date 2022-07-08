@@ -1,8 +1,8 @@
 ```
 
 IMPORTANT:
-[ ] Find a way to limit cpu and memory usage for timescale and grafana
-[ ] Deploy timescaledb and grafana to let ppl explore -> NEED iptables filters first (keep ssh on custom or dead omg)
+[x] Find a way to limit cpu and memory usage for timescale and grafana
+[x] Deploy timescaledb and grafana to let ppl explore -> NEED iptables filters first (keep ssh on custom or dead omg)
 [ ] How do we get IL and individual token balance per vault?
     [x] find out how thetopdefi got IL and token stats -> custom adapters
     [x] wait for chebin to rework the fetchXXXPrice code so we can have LP balance of each token
@@ -133,24 +133,9 @@ beefy-> ;
 
 -------------
 
-Error inconsistent balance on cronos
-
-beefy_db-load-timescaledb-1  | 2022-07-07T17:17:45.481Z [error] [LTSDB] Error on import stream ERC20 Transfers diffs for cronos:vvs-vvs-usdt:  Refusing to insert negative balance for non-mintburn address
-cronos:0x2425d707a5C63ff5De83eB78f63e06c3f6eEaA1c: {
-    "data":{
-        "blockNumber":643139,
-        "datetime":"2021-12-20T06:57:24.000Z",
-        "from":"0x129Dd111C23a8AE4a14694eeb5fAAd7cE9Ed19e1",
-        "to":"0x0000000000000000000000000000000000000000",
-        "value":"40125445583275"
-    },
-    "lastBalance":"0",
-    "newBalance":"-40125445583275"
-}
 
 
-
-Error inconsistent balance on harmony
+Error inconsistent balance on harmony RPC feed
 
 beefy_db-load-timescaledb-1  | 2022-07-07T17:22:38.501Z [error] [LTSDB] Error on import stream ERC20 Transfers diffs for harmony:sushi-one-1usdt-1usdc:  Refusing to insert negative balance for non-mintburn address
 harmony:0x3ECD8Ec6BD954261397E77FD5792482Adaf2a387: {
@@ -179,6 +164,7 @@ metis:0xC8ca2254bCBA3aD8511Faff54e0b9941D0424502: {
 }
 
 
+Missing event on polygon
 beefy_db-load-timescaledb-1  | 2022-07-07T19:20:00.169Z [error] [LTSDB] Error on import stream ERC20 Transfers diffs for polygon:quick-matic-usdc:  Refusing to insert nega
 tive balance for non-mintburn address
 polygon:0xC1A2e8274D390b67A7136708203D71BF3877f158: {
