@@ -433,7 +433,7 @@ export async function rebuildVaultStatsReportTable() {
                   locf(last(balance_after::numeric, datetime)) as balance
               from data_derived.erc20_owner_balance_diff_4h_ts
               -- make sure we select the previous snapshot to fill the graph
-              where datetime between $4 and $4
+              where datetime between $4 and $5
               and owner_address != evm_address_to_bytea('0x0000000000000000000000000000000000000000')
               and chain = $1
               and contract_address = $3
