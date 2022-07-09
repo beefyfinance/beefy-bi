@@ -174,7 +174,7 @@ async function migrate() {
           from unnest($1, $2) as u(a, b)
       $$;
       create or replace aggregate intarray_sum_elements_agg(integer[]) (
-          sfunc = sum_int_arrays,
+          sfunc = intarray_sum_elements,
           stype = int[]
       );
   `);
