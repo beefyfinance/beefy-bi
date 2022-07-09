@@ -168,6 +168,15 @@ async function migrate() {
         INITCOND = '{}'
       );
 
+      create or replace function intarray_sum_elements(int[], int[])
+      returns int[] language sql immutable as $$
+          select array_agg(coalesce(a, 0)+ b)
+          from unnest($1, $2) as u(a, b)
+      $$;
+      create or replace aggregate intarray_sum_elements_agg(integer[]) (
+          sfunc = sum_int_arrays,
+          stype = int[]
+      );
   `);
 
   // balance diff table
@@ -397,8 +406,7 @@ async function migrate() {
       owner_address_low_res_hll hyperloglog not null,
       balance_usd_value double precision, -- prices can be null
       balance_want_value numeric,
-      log_usd_owner_balance_histogram_1_1m_10b integer[] not null,
-      sqrt_usd_owner_balance_histogram_1_1m_10 integer[] not null
+      balance_usd_ranges_counts integer[]
     );
     SELECT create_hypertable(
       relation => 'data_report.vault_stats_4h_ts', 
@@ -425,7 +433,8 @@ async function migrate() {
       rollup(owner_address_mid_res_hll) as owner_address_mid_res_hll,
       rollup(owner_address_low_res_hll) as owner_address_low_res_hll,
       sum(balance_usd_value) as balance_usd_value,
-      sum(balance_want_value) as balance_want_value
+      sum(balance_want_value) as balance_want_value,
+      intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts
     from data_report.vault_stats_4h_ts
     group by 1,2;
   `);
@@ -489,8 +498,7 @@ export async function rebuildVaultStatsReportTable() {
             owner_address_low_res_hll,
             balance_usd_value,
             balance_want_value,
-            log_usd_owner_balance_histogram_1_1m_10b,
-            sqrt_usd_owner_balance_histogram_1_1m_10
+            balance_usd_ranges_counts
           ) (
               with balance_4h_ts as (
                 select owner_address,
@@ -529,20 +537,29 @@ export async function rebuildVaultStatsReportTable() {
                   array_agg(distinct substring(owner_address from 1 for 5)) as distinct_owner_addresse_prefixes_5b,
                   array_agg(distinct substring(owner_address from 1 for 10)) as distinct_owner_addresse_prefixes_10b,
                   hyperloglog(262144, owner_address) as owner_address_hll,
-                  hyperloglog(32768, owner_address) as owner_address_mid_res_hll,
+                  hyperloglog(16384, owner_address) as owner_address_mid_res_hll,
                   hyperloglog(1024, owner_address) as owner_address_low_res_hll,
                   sum(balance_usd_value) as balance_usd_value,
                   sum(balance_want_value) as balance_want_value,
-                  histogram(log(balance_usd_value), log(1), log(1000000), 10) filter (
-                    -- sometimes we don't have price or ppfs and the balance gets set to zero
-                    where (balance_usd_value) != 0
-                  ) as log_usd_owner_balance_histogram_1_1m_10b,
-                  histogram(
+                  intarray_sum_elements_agg(
                     case 
-                      when balance_usd_value < 0 then -sqrt(-balance_usd_value)
-                      else sqrt(balance_usd_value)
+                      when balance_usd_value is null then null
+                      when balance_usd_value < 0.0        then ARRAY[1,0,0,0,0,0,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value = 0.0        then ARRAY[0,1,0,0,0,0,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 10.0       then ARRAY[0,0,1,0,0,0,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 100.0      then ARRAY[0,0,0,1,0,0,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 1000.0     then ARRAY[0,0,0,0,1,0,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 5000.0     then ARRAY[0,0,0,0,0,1,0,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 10000.0    then ARRAY[0,0,0,0,0,0,1,0,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 25000.0    then ARRAY[0,0,0,0,0,0,0,1,0,0,0,0,0,0]::int[]
+                      when balance_usd_value < 50000.0    then ARRAY[0,0,0,0,0,0,0,0,1,0,0,0,0,0]::int[]
+                      when balance_usd_value < 100000.0   then ARRAY[0,0,0,0,0,0,0,0,0,1,0,0,0,0]::int[]
+                      when balance_usd_value < 500000.0   then ARRAY[0,0,0,0,0,0,0,0,0,0,1,0,0,0]::int[]
+                      when balance_usd_value < 1000000.0  then ARRAY[0,0,0,0,0,0,0,0,0,0,0,1,0,0]::int[]
+                      when balance_usd_value < 10000000.0 then ARRAY[0,0,0,0,0,0,0,0,0,0,0,0,1,0]::int[]
+                                                          else ARRAY[0,0,0,0,0,0,0,0,0,0,0,0,0,1]::int[]
                     end
-                  , sqrt(0), sqrt(1000000), 10) as sqrt_usd_owner_balance_histogram_1_1m_10b
+                  ) as balance_usd_ranges_counts
               from balance_4h_ts_with_usd_price
               group by datetime
             )
@@ -555,8 +572,7 @@ export async function rebuildVaultStatsReportTable() {
               owner_address_low_res_hll,
               balance_usd_value,
               coalesce(balance_want_value, 0) as balance_want_value,
-              coalesce(log_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as log_usd_owner_balance_histogram_1_1m_10b,
-              coalesce(sqrt_usd_owner_balance_histogram_1_1m_10b, ARRAY[]::integer[]) as sqrt_usd_owner_balance_histogram_1_1m_10b
+              balance_usd_ranges_counts
             from new_vault_stats_4h_ts
           )
           RETURNING null -- node parser cannot comprehend the hyperloglog format
