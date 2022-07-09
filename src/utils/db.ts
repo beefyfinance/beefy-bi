@@ -150,6 +150,24 @@ async function migrate() {
       LANGUAGE SQL
       IMMUTABLE
       RETURNS NULL ON NULL INPUT;
+
+      CREATE OR REPLACE FUNCTION array_unique_union(a ANYARRAY, b ANYARRAY)
+      RETURNS ANYARRAY AS
+      $$
+        SELECT array_agg(distinct x)
+        FROM (
+          SELECT unnest(a) as x
+          UNION ALL
+          SELECT unnest(b) as x
+        ) AS u
+      $$ LANGUAGE SQL IMMUTABLE;
+
+      CREATE OR REPLACE AGGREGATE array_unique_union_agg(ANYARRAY) (
+        SFUNC = array_unique_union,
+        STYPE = ANYARRAY,
+        INITCOND = '{}'
+      );
+
   `);
 
   // balance diff table
@@ -371,6 +389,9 @@ async function migrate() {
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
+      distinct_owner_addresses evm_address[] NOT NULL,
+      distinct_owner_addresse_prefixes_5b evm_address[] NOT NULL,
+      distinct_owner_addresse_prefixes_10b evm_address[] NOT NULL,
       owner_address_hll hyperloglog not null,
       owner_address_mid_res_hll hyperloglog not null,
       owner_address_low_res_hll hyperloglog not null,
@@ -396,7 +417,10 @@ async function migrate() {
   CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.chain_stats_4h_ts WITH (timescaledb.continuous)
     AS 
     select chain,
-      time_bucket('4h', datetime) as datetime, 
+      time_bucket('4h', datetime) as datetime,
+      array_unique_union_agg(distinct_owner_addresses) as distinct_owner_addresses,
+      array_unique_union_agg(distinct_owner_addresse_prefixes_5b) as distinct_owner_addresse_prefixes_5b,
+      array_unique_union_agg(distinct_owner_addresse_prefixes_10b) as distinct_owner_addresse_prefixes_10b,
       rollup(owner_address_hll) as owner_address_hll,
       rollup(owner_address_mid_res_hll) as owner_address_mid_res_hll,
       rollup(owner_address_low_res_hll) as owner_address_low_res_hll,
@@ -457,6 +481,9 @@ export async function rebuildVaultStatsReportTable() {
             chain,
             vault_id,
             datetime,
+            distinct_owner_addresses,
+            distinct_owner_addresse_prefixes_5b,
+            distinct_owner_addresse_prefixes_10b,
             owner_address_hll,
             owner_address_mid_res_hll,
             owner_address_low_res_hll,
@@ -498,6 +525,9 @@ export async function rebuildVaultStatsReportTable() {
             new_vault_stats_4h_ts as (
               select 
                   datetime,
+                  array_agg(distinct owner_address) as distinct_owner_addresses,
+                  array_agg(distinct substring(owner_address from 1 for 5)) as distinct_owner_addresse_prefixes_5b,
+                  array_agg(distinct substring(owner_address from 1 for 10)) as distinct_owner_addresse_prefixes_10b,
                   hyperloglog(262144, owner_address) as owner_address_hll,
                   hyperloglog(32768, owner_address) as owner_address_mid_res_hll,
                   hyperloglog(1024, owner_address) as owner_address_low_res_hll,
@@ -517,6 +547,9 @@ export async function rebuildVaultStatsReportTable() {
               group by datetime
             )
             select $1, $2, datetime,
+              distinct_owner_addresses,
+              distinct_owner_addresse_prefixes_5b,
+              distinct_owner_addresse_prefixes_10b,
               owner_address_hll,
               owner_address_mid_res_hll,
               owner_address_low_res_hll,
