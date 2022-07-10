@@ -53,6 +53,9 @@ RUN npm run build
 #################################################################
 FROM node:18.2-alpine as release
 
+# install git to parse vaults from git history
+RUN apk add --no-cache git
+
 # Set environment to production
 ENV NODE_ENV='production'
 
