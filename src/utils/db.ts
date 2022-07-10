@@ -162,12 +162,6 @@ async function migrate() {
         ) AS u
       $$ LANGUAGE SQL IMMUTABLE;
 
-      CREATE OR REPLACE AGGREGATE array_unique_union_agg(ANYARRAY) (
-        SFUNC = array_unique_union,
-        STYPE = ANYARRAY,
-        INITCOND = '{}'
-      );
-
       create or replace function intarray_sum_elements(int[], int[])
       returns int[] language sql immutable as $$
           select array_agg(coalesce(a, 0)+ b)
@@ -398,12 +392,7 @@ async function migrate() {
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
       datetime TIMESTAMPTZ NOT NULL,
-      distinct_owner_addresses evm_address[] NOT NULL,
-      distinct_owner_addresse_prefixes_5b evm_address[] NOT NULL,
-      distinct_owner_addresse_prefixes_10b evm_address[] NOT NULL,
       owner_address_hll hyperloglog not null,
-      owner_address_mid_res_hll hyperloglog not null,
-      owner_address_low_res_hll hyperloglog not null,
       balance_usd_value double precision, -- prices can be null
       balance_want_value numeric,
       balance_usd_ranges_counts integer[]
@@ -426,17 +415,29 @@ async function migrate() {
     AS 
     select chain,
       time_bucket('4h', datetime) as datetime,
-      array_unique_union_agg(distinct_owner_addresses) as distinct_owner_addresses,
-      array_unique_union_agg(distinct_owner_addresse_prefixes_5b) as distinct_owner_addresse_prefixes_5b,
-      array_unique_union_agg(distinct_owner_addresse_prefixes_10b) as distinct_owner_addresse_prefixes_10b,
       rollup(owner_address_hll) as owner_address_hll,
-      rollup(owner_address_mid_res_hll) as owner_address_mid_res_hll,
-      rollup(owner_address_low_res_hll) as owner_address_low_res_hll,
+      distinct_count(rollup(owner_address_hll)) as approx_owner_address_count,
       sum(balance_usd_value) as balance_usd_value,
       sum(balance_want_value) as balance_want_value,
       intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts
     from data_report.vault_stats_4h_ts
     group by 1,2;
+  `);
+
+  // continuous aggregates: all chains stats
+  // we need this because rollups on hll are expensive
+  await db_query(`
+  CREATE MATERIALIZED VIEW IF NOT EXISTS data_report.all_stats_4h_ts WITH (timescaledb.continuous)
+    AS 
+    select
+      time_bucket('4h', datetime) as datetime,
+      rollup(owner_address_hll) as owner_address_hll,
+      distinct_count(rollup(owner_address_hll)) as approx_owner_address_count,
+      sum(balance_usd_value) as balance_usd_value,
+      sum(balance_want_value) as balance_want_value,
+      intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts
+    from data_report.vault_stats_4h_ts
+    group by 1;
   `);
 }
 
@@ -490,12 +491,7 @@ export async function rebuildVaultStatsReportTable() {
             chain,
             vault_id,
             datetime,
-            distinct_owner_addresses,
-            distinct_owner_addresse_prefixes_5b,
-            distinct_owner_addresse_prefixes_10b,
             owner_address_hll,
-            owner_address_mid_res_hll,
-            owner_address_low_res_hll,
             balance_usd_value,
             balance_want_value,
             balance_usd_ranges_counts
@@ -533,12 +529,7 @@ export async function rebuildVaultStatsReportTable() {
             new_vault_stats_4h_ts as (
               select 
                   datetime,
-                  array_agg(distinct owner_address) as distinct_owner_addresses,
-                  array_agg(distinct substring(owner_address from 1 for 5)) as distinct_owner_addresse_prefixes_5b,
-                  array_agg(distinct substring(owner_address from 1 for 10)) as distinct_owner_addresse_prefixes_10b,
                   hyperloglog(262144, owner_address) as owner_address_hll,
-                  hyperloglog(16384, owner_address) as owner_address_mid_res_hll,
-                  hyperloglog(1024, owner_address) as owner_address_low_res_hll,
                   sum(balance_usd_value) as balance_usd_value,
                   sum(balance_want_value) as balance_want_value,
                   intarray_sum_elements_agg(
@@ -564,12 +555,7 @@ export async function rebuildVaultStatsReportTable() {
               group by datetime
             )
             select $1, $2, datetime,
-              distinct_owner_addresses,
-              distinct_owner_addresse_prefixes_5b,
-              distinct_owner_addresse_prefixes_10b,
               owner_address_hll,
-              owner_address_mid_res_hll,
-              owner_address_low_res_hll,
               balance_usd_value,
               coalesce(balance_want_value, 0) as balance_want_value,
               balance_usd_ranges_counts
@@ -584,7 +570,11 @@ export async function rebuildVaultStatsReportTable() {
 
     for (const [idx, contract] of Object.entries(contracts)) {
       logger.info(
-        `[DB] Refreshing vault stats for vault ${contract.chain}:${contract.vault_id} (${idx}/${contracts.length})`
+        `[DB] Refreshing vault stats for vault ${contract.chain}:${
+          contract.vault_id
+        } between ${contract.first_datetime.toISOString()} and ${contract.last_datetime.toISOString()} (${idx}/${
+          contracts.length
+        })`
       );
       try {
         await db_query(
