@@ -12,6 +12,7 @@ x-importer: &importer
   restart: always
   volumes:
     - data_directory:/data
+    - git_work_directory:/git_work
   networks:
     - backend
   depends_on:
@@ -21,13 +22,26 @@ x-vault-importer-env: &vault-importer-env
   REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
+  GIT_WORK_DIRECTORY: /git_work
   WORK_SCRIPT: ./dist/src/import/import-vault-transfers.js
 
 x-ppfs-importer-env: &ppfs-importer-env
   REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
+  GIT_WORK_DIRECTORY: /git_work
   WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
+
+volumes:
+  data_directory:
+    external: true
+    name: beefy_data_directory
+  git_work_directory:
+    external: true
+    name: beefy_git_work_directory
+
+networks:
+  backend: {}
 
 services:
   #############################################################################
@@ -38,8 +52,6 @@ services:
     image: redis:7-alpine
     restart: always
     command: redis-server --save "" --appendonly no --replicaof no one
-    #ports:
-    #  - "6379:6379"
     networks:
       - backend
 
@@ -53,6 +65,7 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-vault-strategies.js
       WORK_CHAIN: all
       WORK_SOURCE: all
@@ -67,6 +80,7 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-block-samples.js
       WORK_CHAIN: all
 
@@ -80,6 +94,7 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.js
       WORK_CHAIN: all
       WORK_SOURCE: all
@@ -94,6 +109,7 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-prices.js
       WORK_CHAIN: all
       WORK_SOURCE: all
@@ -108,6 +124,7 @@ services:
       REDIS_URL: redis://redis:6379
       LOG_LEVEL: "info"
       DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-strategies-fee-recipients.js
       WORK_CHAIN: all
       WORK_SOURCE: all
@@ -345,11 +362,3 @@ services:
   #  environment:
   #    <<: *ppfs-importer-env
   #    WORK_CHAIN: emerald
-
-volumes:
-  data_directory:
-    external: true
-    name: beefy_data_directory
-
-networks:
-  backend: {}

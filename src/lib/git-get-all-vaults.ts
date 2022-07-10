@@ -59,9 +59,10 @@ export async function getAllVaultsFromGitHistory(
     for (const vault of vaults) {
       if (!vault.earnedTokenAddress) {
         logger.error(
-          `[GIT.V] Could not find vault earned token address for v2 vault`
+          `[GIT.V] Could not find vault earned token address for v2 vault: ${JSON.stringify(
+            vault
+          )}`
         );
-        console.log(vault);
         continue;
       }
       const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);
@@ -82,29 +83,50 @@ export async function getAllVaultsFromGitHistory(
     order: "recent-to-old",
     throwOnError: false,
   });
+  // for v1, we only get the last of each month to make it quicker
+  const includedMonths: Record<string, true> = {};
 
   for await (const fileVersion of fileContentStreamV1) {
+    const month = fileVersion.date.toISOString().slice(0, 7);
+    if (includedMonths[month]) {
+      logger.debug(
+        `[GIT.V] Skipping v1 vault for hash ${fileVersion.commitHash} as we already imported one for ${month}`
+      );
+      continue;
+    }
+    includedMonths[month] = true;
     // using prettier to transform js objects into proper json was the easiest way for me
     try {
-      const jsonContent = prettier.format(
+      // remove js code to make json5-like string
+      const jsonCode =
         "[" +
-          fileVersion.fileContent
-            .replace(/\/\*(\s|\S)*?\*\//gm, "") // remove comments
-            .trim()
-            .split("\n")
-            .slice(1, -1)
-            .join("\n") +
-          "]",
-        { semi: false, parser: "json" }
+        fileVersion.fileContent.trim().split("\n").slice(1, -1).join("\n") +
+        "]";
+
+      // format json with comments in a standard way to make comment removing easy
+      const json5Content = prettier.format(jsonCode, {
+        semi: false,
+        parser: "json5",
+        quoteProps: "consistent",
+        singleQuote: false,
+      });
+
+      const jsonContent = prettier.format(
+        json5Content
+          .replace(/\/\*(\s|\S)*?\*\//gm, "") // remove multiline comments
+          .replace(/\/\/( .*\n|\n)/gm, ""), // remove single line comments
+        { parser: "json", semi: false }
       );
+
       const vaults: RawBeefyVault[] = JSON.parse(jsonContent);
 
       for (const vault of vaults) {
         if (!vault.earnedTokenAddress) {
           logger.error(
-            `[GIT.V] Could not find vault earned token address for v1 vault`
+            `[GIT.V] Could not find vault earned token address for v1 vault ${JSON.stringify(
+              vault
+            )}`
           );
-          console.log(vault);
           continue;
         }
         const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);
@@ -114,9 +136,8 @@ export async function getAllVaultsFromGitHistory(
       }
     } catch (e) {
       logger.error(
-        `[GIT.V] Could not parse vault list for v1 hash ${chain}:${fileVersion.commitHash}:${fileVersion.date}`
+        `[GIT.V] Could not parse vault list for v1 hash ${chain}:${fileVersion.commitHash}:${fileVersion.date}: ${e}`
       );
-      console.log(e);
     }
   }
 
@@ -143,7 +164,7 @@ export async function getAllVaultsFromGitHistory(
       throw error;
     }
   });
-  logger.info(`[GIT.V] Fetched ${vaults.length} vaults`);
+  logger.info(`[GIT.V] Fetched ${vaults.length} vaults for ${chain}`);
   return vaults;
 }
 
@@ -183,6 +204,11 @@ export async function* gitStreamFileVersions(options: {
   logger.debug(`[GIT.V] Pulling changes for branch ${options.branch}`);
   await git.pull("origin", options.branch);
 
+  if (!fs.existsSync(path.join(options.workdir, options.filePath))) {
+    logger.debug(`[GIT.V] File ${options.filePath} not found`);
+    return;
+  }
+
   // get all commit hashes for the target file
   logger.debug(`[GIT.V] Pulling all commit hash for file ${options.filePath}`);
   const log = await git.log({
@@ -206,8 +232,18 @@ export async function* gitStreamFileVersions(options: {
       const fileContent = await git.show([`${log.hash}:${options.filePath}`]);
       yield { commitHash: log.hash, date: new Date(log.date), fileContent };
     } catch (e) {
-      logger.error(`[GIT.V] Could not get file content for hash ${log.hash}`);
-      console.log(e);
+      if (
+        e instanceof Error &&
+        e.message.includes("exists on disk, but not in")
+      ) {
+        logger.debug(
+          `[GIT.V] File ${options.filePath} not found in commit ${log.hash}, most likely the file was renamed`
+        );
+      } else {
+        logger.error(
+          `[GIT.V] Could not get file content for hash ${log.hash}: ${e}`
+        );
+      }
       if (options.throwOnError) {
         throw e;
       }

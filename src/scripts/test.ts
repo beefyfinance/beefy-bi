@@ -2,14 +2,17 @@ import { logger } from "../utils/logger";
 import _ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BigNumber from "bignumber.js";
 import { getAllVaultsFromGitHistory } from "../lib/git-get-all-vaults";
-import { allChainIds } from "../types/chain";
+import { allChainIds, Chain } from "../types/chain";
 import prettier from "prettier";
+import * as fs from "fs";
 
 async function main() {
+  const result: { chain: Chain; count: number }[] = [];
   for (const chain of allChainIds) {
     const vaults = await getAllVaultsFromGitHistory(chain);
-    console.log(chain, vaults.length);
+    result.push({ chain, count: vaults.length });
   }
+  console.log(result.map((r) => `${r.chain}:${r.count}`).join("\n"));
   /*
   const data = {
     chain: "fantom",
