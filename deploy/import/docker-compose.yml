@@ -233,13 +233,12 @@ services:
       WORK_CHAIN: optimism
       WORK_SOURCE: explorer
 
-  # disabled because explorer is buggy
-  #import-vault-transfers-fuse:
-  #  <<: *importer
-  #  environment:
-  #    <<: *vault-importer-env
-  #    WORK_CHAIN: fuse
-  #    WORK_SOURCE: rpc # explorer requires toBlock to be set
+  import-vault-transfers-fuse:
+    <<: *importer
+    environment:
+      <<: *vault-importer-env
+      WORK_CHAIN: fuse
+      WORK_SOURCE: rpc # explorer requires toBlock to be set
 
   # no beefy vault list for now
   #import-vault-transfers-syscoin:
