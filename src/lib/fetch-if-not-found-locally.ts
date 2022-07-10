@@ -163,7 +163,11 @@ export async function getLocalBeefyVaultList(
   if (!fs.existsSync(filePath)) {
     return [];
   }
-  const content = await fs.promises.readFile(filePath, "utf8");
+  let content = await fs.promises.readFile(filePath, "utf8");
+  content = content.trim();
+  if (content === "") {
+    return [];
+  }
   const vaults = content.split("\n").map((obj) => JSON.parse(obj));
   return Object.values(vaults);
 }
@@ -205,7 +209,11 @@ export async function getLocalContractCreationInfos(
   if (!fs.existsSync(filePath)) {
     return null;
   }
-  const content = await fs.promises.readFile(filePath, "utf8");
+  let content = await fs.promises.readFile(filePath, "utf8");
+  content = content.trim();
+  if (content === "") {
+    return null;
+  }
   const data = JSON.parse(content);
   return data;
 }
@@ -262,7 +270,11 @@ export async function getLocalBeefyStrategyFeeRecipients(
   if (!fs.existsSync(filePath)) {
     return null;
   }
-  const content = await fs.promises.readFile(filePath, "utf8");
+  let content = await fs.promises.readFile(filePath, "utf8");
+  content = content.trim();
+  if (content === "") {
+    return null;
+  }
   const data = JSON.parse(content);
   return data;
 }
