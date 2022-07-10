@@ -180,6 +180,9 @@ export const GIT_WORK_DIRECTORY =
   process.env.GIT_WORK_DIRECTORY ||
   path.join(__dirname, "..", "..", "data", "git-work");
 
+export const GITHUB_RO_AUTH_TOKEN: string | null =
+  process.env.GITHUB_RO_AUTH_TOKEN || null;
+
 const log_level = process.env.LOG_LEVEL || "info";
 if (!["info", "debug", "verbose", "warn", "error"].includes(log_level)) {
   throw new Error(`Invalid log level ${log_level}`);

@@ -11,6 +11,7 @@ version: "3.9" # optional since v1.27.0
 x-importer: &importer
   image: beefy-data-importer
   restart: always
+  env_file: ../../.env
   volumes:
     - data_directory:/data
     - git_work_directory:/git_work

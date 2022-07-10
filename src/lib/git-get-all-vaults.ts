@@ -2,7 +2,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { Chain } from "../types/chain";
-import { GIT_WORK_DIRECTORY } from "../utils/config";
+import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../utils/config";
 import { logger } from "../utils/logger";
 import { sortBy } from "lodash";
 import { normalizeAddress } from "../utils/ethers";
@@ -42,11 +42,12 @@ export async function getAllVaultsFromGitHistory(
   logger.info(`[GIT.V] Fetching updated vault list for ${chain}`);
 
   const vaultsByAddress: Record<string, RawBeefyVault> = {};
-
   // import v2 vaults first
   logger.verbose(`[GIT.V] Fetching vault list for ${chain} from v2`);
   const fileContentStreamV2 = gitStreamFileVersions({
-    remote: "git@github.com:beefyfinance/beefy-v2.git",
+    remote: GITHUB_RO_AUTH_TOKEN
+      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com:beefyfinance/beefy-v2.git`
+      : "git@github.com:beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/vault/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
@@ -76,7 +77,9 @@ export async function getAllVaultsFromGitHistory(
   logger.verbose(`[GIT.V] Fetching vault list for ${chain} from v1`);
   const v1Chain = chain === "avax" ? "avalanche" : chain;
   const fileContentStreamV1 = gitStreamFileVersions({
-    remote: "git@github.com:beefyfinance/beefy-app.git",
+    remote: GITHUB_RO_AUTH_TOKEN
+      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com:beefyfinance/beefy-app.git`
+      : "git@github.com:beefyfinance/beefy-app.git",
     branch: "prod",
     filePath: `src/features/configure/vault/${v1Chain}_pools.js`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v1"),
@@ -178,7 +181,7 @@ export async function* gitStreamFileVersions(options: {
 }): AsyncGenerator<{ commitHash: string; date: Date; fileContent: string }> {
   const baseOptions: Partial<SimpleGitOptions> = {
     binary: "git",
-    maxConcurrentProcesses: 6,
+    maxConcurrentProcesses: 1,
   };
 
   // pull latest changes from remote or just clone remote

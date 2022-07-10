@@ -13,6 +13,7 @@ services:
   load-timescaledb:
     image: beefy-data-importer
     restart: always
+    env_file: ../../.env
     volumes:
       - data_directory:/data
     networks:
