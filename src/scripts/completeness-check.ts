@@ -1,6 +1,5 @@
 import { shuffle, sortBy } from "lodash";
 import {
-  BeefyVault,
   fetchCachedContractLastTransaction,
   getLocalBeefyStrategyFeeRecipients,
   getLocalBeefyVaultList,
@@ -20,6 +19,7 @@ import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { LOG_LEVEL } from "../utils/config";
+import { BeefyVault } from "../lib/git-get-all-vaults";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))

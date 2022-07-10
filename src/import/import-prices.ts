@@ -1,12 +1,8 @@
 import {
   getLastImportedOraclePrice,
   getOraclePriceWriteStream,
-  OraclePriceData,
 } from "../lib/csv-oracle-price";
-import {
-  BeefyVault,
-  fetchBeefyVaultList,
-} from "../lib/fetch-if-not-found-locally";
+import { fetchBeefyVaultList } from "../lib/fetch-if-not-found-locally";
 import { streamBeefyPrices } from "../lib/streamBeefyPrices";
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
@@ -16,6 +12,7 @@ import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
 import { allSamplingPeriods, SamplingPeriod } from "../lib/csv-block-samples";
 import { batchAsyncStream } from "../utils/batch";
+import { BeefyVault } from "../lib/git-get-all-vaults";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))

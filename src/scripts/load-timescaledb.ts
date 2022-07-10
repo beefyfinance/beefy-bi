@@ -13,10 +13,7 @@ import {
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
-import {
-  BeefyVault,
-  getLocalBeefyVaultList,
-} from "../lib/fetch-if-not-found-locally";
+import { getLocalBeefyVaultList } from "../lib/fetch-if-not-found-locally";
 import { logger } from "../utils/logger";
 import {
   ERC20EventData,
@@ -40,6 +37,7 @@ import {
 import { SamplingPeriod } from "../lib/csv-block-samples";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
+import { BeefyVault } from "../lib/git-get-all-vaults";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))

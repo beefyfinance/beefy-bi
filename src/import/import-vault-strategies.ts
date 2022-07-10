@@ -1,5 +1,4 @@
 import {
-  BeefyVault,
   fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
   fetchContractCreationInfos,
@@ -28,6 +27,7 @@ import { ethers } from "ethers";
 import { runMain } from "../utils/process";
 import yargs from "yargs";
 import { streamBifiVaultUpgradeStratEventsFromRpc } from "../lib/streamContractEventsFromRpc";
+import { BeefyVault } from "../lib/git-get-all-vaults";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
