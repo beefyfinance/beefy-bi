@@ -46,7 +46,7 @@ export async function getAllVaultsFromGitHistory(
   logger.verbose(`[GIT.V] Fetching vault list for ${chain} from v2`);
   const fileContentStreamV2 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
-      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com:beefyfinance/beefy-v2.git`
+      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
       : "git@github.com:beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/vault/${chain}.json`,
@@ -78,7 +78,7 @@ export async function getAllVaultsFromGitHistory(
   const v1Chain = chain === "avax" ? "avalanche" : chain;
   const fileContentStreamV1 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
-      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com:beefyfinance/beefy-app.git`
+      ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-app.git`
       : "git@github.com:beefyfinance/beefy-app.git",
     branch: "prod",
     filePath: `src/features/configure/vault/${v1Chain}_pools.js`,
