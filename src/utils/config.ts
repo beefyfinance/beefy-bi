@@ -176,6 +176,10 @@ export const DATA_DIRECTORY =
   process.env.DATA_DIRECTORY ||
   path.join(__dirname, "..", "..", "data", "indexed-data");
 
+export const GIT_WORK_DIRECTORY =
+  process.env.GIT_WORK_DIRECTORY ||
+  path.join(__dirname, "..", "..", "data", "git-work");
+
 const log_level = process.env.LOG_LEVEL || "info";
 if (!["info", "debug", "verbose", "warn", "error"].includes(log_level)) {
   throw new Error(`Invalid log level ${log_level}`);

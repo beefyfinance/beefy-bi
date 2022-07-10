@@ -1,8 +1,16 @@
 import { logger } from "../utils/logger";
 import _ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BigNumber from "bignumber.js";
+import { getAllVaultsFromGitHistory } from "../lib/git-get-all-vaults";
+import { allChainIds } from "../types/chain";
+import prettier from "prettier";
 
 async function main() {
+  for (const chain of allChainIds) {
+    const vaults = await getAllVaultsFromGitHistory(chain);
+    console.log(chain, vaults.length);
+  }
+  /*
   const data = {
     chain: "fantom",
     vault_id: "stargate-fantom-usdc",
@@ -27,7 +35,7 @@ async function main() {
   console.log(oracleAmount.toString());
   const oracleAmount2 = mooAmount.shiftedBy(-(18 + 6)).multipliedBy(ppfs);
   console.log(oracleAmount2.toString());
-
+*/
   /*
 
   const wantAmount = mooAmountToOracleAmount(

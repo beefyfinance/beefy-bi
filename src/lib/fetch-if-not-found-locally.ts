@@ -13,11 +13,14 @@ import { cacheAsyncResultInRedis } from "../utils/cache";
 import { getRedlock } from "./shared-resources/shared-lock";
 import { backOff } from "exponential-backoff";
 import { logger } from "../utils/logger";
-import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import {
   BeefyFeeRecipientInfo,
   fetchBeefyStrategyFeeRecipients,
 } from "../lib/strategy-fee-recipient-infos";
+import {
+  BeefyVault,
+  getAllVaultsFromGitHistory,
+} from "../lib/git-get-all-vaults";
 
 function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   doFetch: (...parameters: TArgs) => Promise<TRes>,
@@ -123,67 +126,11 @@ function fetchIfNotFoundLocally<TRes, TArgs extends any[]>(
   };
 }
 
-interface RawBeefyVault {
-  id: string;
-  tokenAddress?: string;
-  tokenDecimals: number;
-  earnContractAddress: string;
-  earnedToken: string;
-  isGovVault?: boolean;
-  oracleId: string;
-  status?: string;
-  assets?: string[];
-}
-export interface BeefyVault {
-  id: string;
-  token_name: string;
-  token_decimals: number;
-  token_address: string;
-  want_address: string;
-  want_decimals: number;
-  price_oracle: {
-    want_oracleId: string;
-    assets: string[];
-  };
-}
 export const fetchBeefyVaultList = fetchIfNotFoundLocally(
   async (chain: Chain) => {
     logger.info(`[FETCH] Fetching updated vault list for ${chain}`);
-    const res = await axios.get<RawBeefyVault[]>(
-      `https://raw.githubusercontent.com/beefyfinance/beefy-v2/main/src/config/vault/${chain}.json`
-    );
-    const rawData: RawBeefyVault[] = res.data;
-    const vaults: BeefyVault[] = rawData
-      .filter((vault) => !(vault.isGovVault === true))
-      .filter((vault) => !(vault.status === "eol"))
-      .map((vault) => {
-        try {
-          const wnative = getChainWNativeTokenAddress(chain);
-          return {
-            id: vault.id,
-            token_name: vault.earnedToken,
-            token_decimals: 18,
-            token_address: normalizeAddress(vault.earnContractAddress),
-            want_address: normalizeAddress(vault.tokenAddress || wnative),
-            want_decimals: vault.tokenDecimals,
-            price_oracle: {
-              want_oracleId: vault.oracleId,
-              assets: vault.assets || [],
-            },
-          };
-        } catch (error) {
-          logger.debug(JSON.stringify({ vault, error }));
-          throw error;
-        }
-      });
-    // some vaults have duplicate of the same target contract, we only want one of them so we take the first we find
-    const vaultsByAddress: Record<string, BeefyVault> = {};
-    for (const vault of vaults) {
-      if (!vaultsByAddress[vault.token_address]) {
-        vaultsByAddress[vault.token_address] = vault;
-      }
-    }
-    return Object.values(vaultsByAddress);
+
+    return getAllVaultsFromGitHistory(chain);
   },
   (chain: Chain) =>
     path.join(DATA_DIRECTORY, "chain", chain, "beefy", "vaults.jsonl"),
@@ -218,14 +165,7 @@ export async function getLocalBeefyVaultList(
   }
   const content = await fs.promises.readFile(filePath, "utf8");
   const vaults = content.split("\n").map((obj) => JSON.parse(obj));
-  // some vaults have duplicate of the same target contract, we only want one of them so we take the first we find
-  const vaultsByAddress: Record<string, BeefyVault> = {};
-  for (const vault of vaults) {
-    if (!vaultsByAddress[vault.token_address]) {
-      vaultsByAddress[vault.token_address] = vault;
-    }
-  }
-  return Object.values(vaultsByAddress);
+  return Object.values(vaults);
 }
 
 export const fetchContractCreationInfos = fetchIfNotFoundLocally(

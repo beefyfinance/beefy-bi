@@ -9,14 +9,21 @@ version: "3.9" # optional since v1.27.0
 # docker exec -it beefy_db-timescaledb-1 timescaledb-tune --yes --memory="4GB" --cpus=2 --max-bg-workers=16 --dry-run
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis-dev
+    command: redis-server --save "" --appendonly no --maxmemory 314572800 --replicaof no one
+    ports:
+      - "6379:6379"
+
   timescaledb:
     image: timescale/timescaledb-ha:pg14-latest
     volumes:
       - timescaledb_data:/pgdata
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     # configure the database
     #command: postgres -c max_locks_per_transaction=600
-    env_file: ../../.env
+    env_file: ../.env
     cpus: ${TIMESCALEDB_CPU_SHARE:-0.3}
     ports:
       - "5432:5432"
@@ -34,7 +41,7 @@ services:
     image: grafana/grafana:9.0.2
     ports:
       - "3000:3000"
-    env_file: ../../.env
+    env_file: ../.env
     cpus: ${GRAFANA_CPU_SHARE:-0.3}
     environment:
       TZ: UTC
@@ -45,8 +52,8 @@ services:
       POSTGRES_DB: beefy
     volumes:
       - grafana_data_wtf:/var/lib/grafana
-      - ./grafana.ini:/etc/grafana/grafana.ini
-      - ./grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
+      - ./db/grafana.ini:/etc/grafana/grafana.ini
+      - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
       - timescaledb
     networks:
