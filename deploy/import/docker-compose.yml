@@ -68,7 +68,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_SCRIPT: ./dist/src/import/import-vault-transfers-prices.js
+      WORK_SCRIPT: ./dist/src/import/import-vault-transfers.js
 
   import-vault-ppfs:
     <<: *importer
