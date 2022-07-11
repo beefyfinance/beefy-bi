@@ -13,7 +13,7 @@ import * as lodash from "lodash";
 
 export async function callLockProtectedRpc<TRes>(
   chain: Chain,
-  work: (provider: ethers.providers.JsonRpcProvider) => Promise<TRes>
+  work: (provider: ethers.providers.JsonRpcBatchProvider) => Promise<TRes>
 ) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
@@ -57,7 +57,9 @@ export async function callLockProtectedRpc<TRes>(
         // now we are going to call, so set the last call date
         await client.set(lastCallCacheKey, new Date().toISOString());
 
-        const provider = new ethers.providers.JsonRpcProvider(secretRpcUrl);
+        const provider = new ethers.providers.JsonRpcBatchProvider(
+          secretRpcUrl
+        );
 
         let res: TRes | null = null;
         try {

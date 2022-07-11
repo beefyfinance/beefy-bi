@@ -169,6 +169,28 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   syscoin: _getDelayFromEnv("syscoin"),
 };
 
+export const RPC_BATCH_CALLS: {
+  [chain in Chain]: number;
+} = {
+  arbitrum: 10,
+  aurora: 10,
+  avax: 10,
+  bsc: 10,
+  celo: 10,
+  cronos: 10,
+  emerald: 10,
+  fantom: 10,
+  fuse: 10,
+  harmony: 10,
+  heco: 10,
+  metis: 10,
+  moonbeam: 10,
+  moonriver: 10,
+  optimism: 10,
+  polygon: 10,
+  syscoin: 10,
+};
+
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   arbitrum: 3000,
   aurora: 3000,

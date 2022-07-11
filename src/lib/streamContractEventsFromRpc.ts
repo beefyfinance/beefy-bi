@@ -4,7 +4,7 @@ import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS } from "../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, RPC_BATCH_CALLS } from "../utils/config";
 import {
   ArchiveNodeNeededError,
   callLockProtectedRpc,
@@ -71,43 +71,75 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   logger.verbose(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
-  for (const [rangeIdx, blockRange] of ranges.entries()) {
-    logger.debug(
-      `[ERC20.T.RPC] Fetching ERC20 event batch for ${chain}:${contractAddress} (${blockRange.fromBlock} -> ${blockRange.toBlock})`
+  const batchSize = RPC_BATCH_CALLS[chain];
+  const rangesBatches = lodash.chunk(ranges, batchSize);
+  for (const rangesBatch of rangesBatches) {
+    logger.verbose(
+      `[ERC20.T.RPC] Fetching ERC20 event batch for ${chain}:${contractAddress} (${
+        rangesBatch[0].fromBlock
+      } -> ${rangesBatch[rangesBatch.length - 1].toBlock}, batch rpc: ${
+        rangesBatch.length
+      })`
     );
-    const events = await callLockProtectedRpc(chain, async (provider) => {
-      // instanciate contract late to shuffle rpcs on error
-      const contract = new ethers.Contract(contractAddress, abi, provider);
-      const eventFilter = options?.getEventFilters
-        ? options?.getEventFilters(contract.filters)
-        : contract.filters[eventName]();
-      return contract.queryFilter(
-        eventFilter,
-        blockRange.fromBlock,
-        blockRange.toBlock
-      );
-    });
-
-    if (events.length > 0) {
-      logger.verbose(
-        `[ERC20.T.RPC] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
-      );
-    } else {
-      logger.debug(
-        `[ERC20.T.RPC] No events for range ${rangeIdx}/${ranges.length}`
-      );
-    }
-
-    for (const rawEvent of events) {
-      if (!rawEvent.args) {
-        throw new Error(`No event args in event ${rawEvent}`);
+    const eventPromises = await callLockProtectedRpc(
+      chain,
+      async (provider) => {
+        return rangesBatch.map((blockRange) => {
+          // instanciate contract late to shuffle rpcs on error
+          const contract = new ethers.Contract(contractAddress, abi, provider);
+          const eventFilter = options?.getEventFilters
+            ? options?.getEventFilters(contract.filters)
+            : contract.filters[eventName]();
+          return contract.queryFilter(
+            eventFilter,
+            blockRange.fromBlock,
+            blockRange.toBlock
+          );
+        });
       }
-      const mappedEvent = {
-        blockNumber: rawEvent.blockNumber,
-        datetime: new Date((await rawEvent.getBlock()).timestamp * 1000),
-        data: mapArgs(rawEvent.args),
-      };
-      yield mappedEvent;
+    );
+    const batchEvents = await Promise.all(eventPromises);
+    // now we get all blocks in one batch
+    const blockNumbers = lodash.uniq(
+      lodash.flatten(
+        batchEvents.map((events) => events.map((event) => event.blockNumber))
+      )
+    );
+    const blockPromises = await callLockProtectedRpc(
+      chain,
+      async (provider) => {
+        return blockNumbers.map((blockNumber) => {
+          return provider.getBlock(blockNumber);
+        });
+      }
+    );
+    const blocks = await Promise.all(blockPromises);
+    const blockByNumber = lodash.keyBy(blocks, "number");
+
+    for (const [rangeIdx, events] of batchEvents.entries()) {
+      if (events.length > 0) {
+        logger.verbose(
+          `[ERC20.T.RPC] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
+        );
+      } else {
+        logger.debug(
+          `[ERC20.T.RPC] No events for range ${rangeIdx}/${ranges.length}`
+        );
+      }
+
+      for (const rawEvent of events) {
+        if (!rawEvent.args) {
+          throw new Error(`No event args in event ${rawEvent}`);
+        }
+        const mappedEvent = {
+          blockNumber: rawEvent.blockNumber,
+          datetime: new Date(
+            blockByNumber[rawEvent.blockNumber].timestamp * 1000
+          ),
+          data: mapArgs(rawEvent.args),
+        };
+        yield mappedEvent;
+      }
     }
   }
 }

@@ -83,7 +83,7 @@ async function main() {
     logger.info(
       `[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
     );
-    const { writeBatch } = await getERC20TransferStorageWriteStream(
+    const { writeBatchSync } = await getERC20TransferStorageWriteStream(
       chain,
       contractAddress
     );
@@ -101,7 +101,7 @@ async function main() {
       );
       for await (const eventBatch of batchAsyncStream(stream, 1000)) {
         logger.verbose("[ERC20.T] Writing batch");
-        await writeBatch(
+        writeBatchSync(
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
             datetime: event.datetime,
@@ -140,7 +140,7 @@ async function main() {
       // it takes 25 sec or more to write 10 events
       for await (const eventBatch of batchAsyncStream(stream, 10)) {
         logger.verbose("[ERC20.T] Writing batch");
-        await writeBatch(
+        writeBatchSync(
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
             datetime: event.datetime,

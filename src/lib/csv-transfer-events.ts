@@ -3,6 +3,7 @@ import * as path from "path";
 import * as readLastLines from "read-last-lines";
 import { parse as syncParser } from "csv-parse/sync";
 import { stringify as stringifySync } from "csv-stringify/sync";
+import { stringify as stringifyStream } from "csv-stringify";
 import { parse as asyncParser } from "csv-parse";
 import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
@@ -40,17 +41,28 @@ function getContractERC20TransfersFilePath(
 export async function getERC20TransferStorageWriteStream(
   chain: Chain,
   contractAddress: string
-): Promise<{ writeBatch: (events: ERC20EventData[]) => Promise<void> }> {
+): Promise<{
+  writeBatch: (events: ERC20EventData[]) => Promise<void>;
+  writeBatchSync: (events: ERC20EventData[]) => void;
+}> {
   const filePath = getContractERC20TransfersFilePath(chain, contractAddress);
   await makeDataDirRecursive(filePath);
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
+  const csvStream = stringifyStream({
+    delimiter: CSV_SEPARATOR,
+    cast: {
+      date: (date) => date.toISOString(),
+    },
+  });
+  csvStream.pipe(writeStream);
 
   let closed = false;
   onExit(async () => {
     if (closed) return;
     logger.info(`[ERC20.T.STORE] SIGINT, closing write stream`);
     closed = true;
-    writeStream.close();
+    writeStream.destroy();
+    csvStream.destroy();
   });
 
   return {
@@ -59,13 +71,18 @@ export async function getERC20TransferStorageWriteStream(
         logger.debug(`[ERC20.T.STORE] stream closed, ignoring batch`);
         return;
       }
-      const csvData = stringifySync(events, {
-        delimiter: CSV_SEPARATOR,
-        cast: {
-          date: (date) => date.toISOString(),
-        },
-      });
-      writeStream.write(csvData);
+      for (const event of events) {
+        csvStream.write(event);
+      }
+    },
+    writeBatchSync: (events) => {
+      if (closed) {
+        logger.debug(`[ERC20.T.STORE] stream closed, ignoring batch`);
+        return;
+      }
+      for (const event of events) {
+        csvStream.write(event);
+      }
     },
   };
 }
