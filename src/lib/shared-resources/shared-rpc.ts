@@ -17,7 +17,7 @@ export async function callLockProtectedRpc<TRes>(
 ) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
-  const delayBetweenCalls = MIN_DELAY_BETWEEN_RPC_CALLS_MS;
+  const delayBetweenCalls = MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain];
 
   // create a loggable string as raw rpc url may contain an api key
   const secretRpcUrl = lodash.sample(RPC_URLS[chain]) as string; // pick one at random
@@ -26,16 +26,10 @@ export async function callLockProtectedRpc<TRes>(
   const rpcIndex = RPC_URLS[chain].indexOf(secretRpcUrl);
   const resourceId = `${chain}:rpc:${rpcIndex}:lock`;
 
-  logger.debug(
-    `[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
-  );
   // do multiple tries as well
   return backOff(
-    () =>
-      redlock.using([resourceId], 2 * 60 * 1000, async () => {
-        logger.verbose(
-          `[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`
-        );
+    () => {
+      const doWork = async () => {
         // now, we are the only one running this code
         // find out the last time we called this explorer
         const lastCallCacheKey = `${chain}:rpc:${rpcIndex}:last-call-date`;
@@ -50,13 +44,15 @@ export async function callLockProtectedRpc<TRes>(
           `[RPC] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
         );
 
-        // wait a bit before calling the rpc again
-        if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-          logger.debug(
-            `[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`
-          );
-          await sleep(delayBetweenCalls);
-          logger.debug(`[RPC] Resuming call to ${publicRpcUrl}`);
+        // wait a bit before calling the rpc again if needed
+        if (delayBetweenCalls !== "no-limit") {
+          if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+            logger.debug(
+              `[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`
+            );
+            await sleep(delayBetweenCalls);
+            logger.debug(`[RPC] Resuming call to ${publicRpcUrl}`);
+          }
         }
         // now we are going to call, so set the last call date
         await client.set(lastCallCacheKey, new Date().toISOString());
@@ -80,7 +76,23 @@ export async function callLockProtectedRpc<TRes>(
         await client.set(lastCallCacheKey, new Date().toISOString());
 
         return res;
-      }),
+      };
+
+      if (delayBetweenCalls === "no-limit") {
+        logger.debug(`[RPC] No lock needed for ${publicRpcUrl}`);
+        return doWork();
+      } else {
+        logger.debug(
+          `[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
+        );
+        return redlock.using([resourceId], 2 * 60 * 1000, async () => {
+          logger.verbose(
+            `[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`
+          );
+          return doWork();
+        });
+      }
+    },
     {
       delayFirstAttempt: false,
       jitter: "full",
@@ -102,7 +114,7 @@ export async function callLockProtectedRpc<TRes>(
         }
         return true;
       },
-      startingDelay: delayBetweenCalls,
+      startingDelay: delayBetweenCalls !== "no-limit" ? delayBetweenCalls : 0,
       timeMultiple: 5,
     }
   );
