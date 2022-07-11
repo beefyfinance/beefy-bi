@@ -13,7 +13,7 @@ import * as lodash from "lodash";
 
 export async function callLockProtectedRpc<TRes>(
   chain: Chain,
-  work: (provider: ethers.providers.JsonRpcBatchProvider) => Promise<TRes>
+  work: (provider: ethers.providers.JsonRpcProvider) => Promise<TRes>
 ) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
@@ -57,9 +57,11 @@ export async function callLockProtectedRpc<TRes>(
         // now we are going to call, so set the last call date
         await client.set(lastCallCacheKey, new Date().toISOString());
 
-        const provider = new ethers.providers.JsonRpcBatchProvider(
-          secretRpcUrl
-        );
+        // cronos throws a typeerror when called with a batch provider, and we can't catch those so it crashed the script
+        const provider =
+          chain === "cronos"
+            ? new ethers.providers.JsonRpcProvider(secretRpcUrl)
+            : new ethers.providers.JsonRpcBatchProvider(secretRpcUrl);
         /*
         provider.on("debug", (event) => {
           if (event.action === "response") {

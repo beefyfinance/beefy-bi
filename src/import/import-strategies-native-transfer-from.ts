@@ -168,7 +168,7 @@ async function importStrategyWNativeFrom(
       contractAddress
     );
     for await (const eventBatch of batchAsyncStream(stream, 1000)) {
-      logger.verbose("[ERC20.N.ST] Writing batch");
+      logger.debug("[ERC20.N.ST] Writing batch");
       await writeBatch(
         eventBatch.map((event) => ({
           blockNumber: event.blockNumber,
@@ -186,7 +186,7 @@ async function importStrategyWNativeFrom(
       from: contractAddress,
     });
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      logger.verbose("[ERC20.N.ST] Writing batch");
+      logger.debug("[ERC20.N.ST] Writing batch");
       await writeBatch(
         eventBatch.map((event) => ({
           blockNumber: event.blockNumber,

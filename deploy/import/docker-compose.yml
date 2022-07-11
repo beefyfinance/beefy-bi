@@ -20,19 +20,12 @@ x-importer: &importer
   depends_on:
     - redis
 
-x-vault-importer-env: &vault-importer-env
+x-importer-env: &importer-env
   REDIS_URL: redis://redis:6379
   LOG_LEVEL: "info"
   DATA_DIRECTORY: /data
   GIT_WORK_DIRECTORY: /git_work
-  WORK_SCRIPT: ./dist/src/import/import-vault-transfers.js
-
-x-ppfs-importer-env: &ppfs-importer-env
-  REDIS_URL: redis://redis:6379
-  LOG_LEVEL: "info"
-  DATA_DIRECTORY: /data
-  GIT_WORK_DIRECTORY: /git_work
-  WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
+  WORK_CHAIN: all
 
 volumes:
   data_directory:
@@ -46,9 +39,7 @@ networks:
   backend: {}
 
 services:
-  #############################################################################
-  #############################################################################
-  #############################################################################
+  ######################### Infra ##################################
 
   redis:
     image: redis:7-alpine
@@ -57,11 +48,41 @@ services:
     networks:
       - backend
 
-  #############################################################################
-  #############################################################################
-  #############################################################################
+  ######################### Basic Data ##################################
 
-  import-vault-strategies-all-chains:
+  import-block-samples:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_SCRIPT: ./dist/src/import/import-block-samples.js
+
+  import-oracle-prices:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_SCRIPT: ./dist/src/import/import-prices.js
+
+  ######################### Vault Data ##################################
+
+  import-vault-transfers:
+    <<: *importer
+    environment:
+      <<: *vault-importer-env
+      WORK_SCRIPT: ./dist/src/import/import-vault-transfers-prices.js
+
+  import-vault-ppfs:
+    <<: *importer
+    environment:
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
+      WORK_CHAIN: all
+
+  ######################### Strategy/Fee Data ##################################
+
+  import-vault-strategies:
     <<: *importer
     environment:
       REDIS_URL: redis://redis:6379
@@ -70,25 +91,6 @@ services:
       GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-vault-strategies.js
       WORK_CHAIN: all
-      WORK_SOURCE: all
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  import-block-samples-all-chains:
-    <<: *importer
-    environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
-      WORK_SCRIPT: ./dist/src/import/import-block-samples.js
-      WORK_CHAIN: all
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
 
   import-native-transfers-from-strategies:
     <<: *importer
@@ -99,26 +101,6 @@ services:
       GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.js
       WORK_CHAIN: all
-      WORK_SOURCE: all
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  import-oracle-prices:
-    <<: *importer
-    environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
-      WORK_SCRIPT: ./dist/src/import/import-prices.js
-      WORK_CHAIN: all
-      WORK_SOURCE: all
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
 
   import-strategy-fee-recipients:
     <<: *importer
@@ -129,144 +111,3 @@ services:
       GIT_WORK_DIRECTORY: /git_work
       WORK_SCRIPT: ./dist/src/import/import-strategies-fee-recipients.js
       WORK_CHAIN: all
-      WORK_SOURCE: all
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  import-vault-transfers-fantom:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: fantom
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-cronos:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: cronos
-      WORK_SOURCE: rpc # cf. eplain in config
-
-  import-vault-transfers-bsc:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: bsc
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-polygon:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: polygon
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-heco:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: heco
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-avax:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: avax
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-moonbeam:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: moonbeam
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-celo:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: celo
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-moonriver:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: moonriver
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-arbitrum:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: arbitrum
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-aurora:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: aurora
-      WORK_SOURCE: rpc # cf. eplain in config
-
-  import-vault-transfers-metis:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: metis
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-harmony:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: harmony
-      WORK_SOURCE: rpc # no ethscan-compatible for harmony yet
-
-  import-vault-transfers-optimism:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: optimism
-      WORK_SOURCE: explorer
-
-  import-vault-transfers-fuse:
-    <<: *importer
-    environment:
-      <<: *vault-importer-env
-      WORK_CHAIN: fuse
-      WORK_SOURCE: rpc # explorer requires toBlock to be set
-
-  # no beefy vault list for now
-  #import-vault-transfers-syscoin:
-  #  <<: *importer
-  #  environment:
-  #    <<: *vault-importer-env
-  #    WORK_CHAIN: syscoin
-  #    WORK_SOURCE: ???
-
-  # disabled because explorer api is different
-  #import-vault-transfers-emerald:
-  #  <<: *importer
-  #  environment:
-  #    <<: *vault-importer-env
-  #    WORK_CHAIN: emerald
-  #    WORK_SOURCE: rpc
-
-  #############################################################################
-  #############################################################################
-  #############################################################################
-
-  import-vault-ppfs-all-chains:
-    <<: *importer
-    environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
-      WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
-      WORK_CHAIN: all
-      WORK_SOURCE: all

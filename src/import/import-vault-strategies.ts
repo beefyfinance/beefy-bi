@@ -181,7 +181,7 @@ async function importVault(
       stopBlock
     );
     for await (const eventBatch of batchAsyncStream(stream, 1000)) {
-      logger.verbose("[STRATS] Writing batch");
+      logger.debug("[STRATS] Writing batch");
       await writeBatch(
         eventBatch.map((event) => ({
           blockNumber: event.blockNumber,
@@ -196,7 +196,7 @@ async function importVault(
       contractAddress
     );
     for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      logger.verbose("[STRATS] Writing batch");
+      logger.debug("[STRATS] Writing batch");
       await writeBatch(
         eventBatch.map((event) => ({
           blockNumber: event.blockNumber,

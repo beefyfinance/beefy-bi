@@ -16,7 +16,7 @@ IMPORTANT:
 [ ] Fix missing ppfs on bsc for some vaults
 [ ] Find a better solution than bigquery, or at least with stable costs
 [ ] Fetch all vaults from git history: some vaults are deleted from the files when they are empty
-
+[ ] Currently we test the last transaction before fetching transfers, but we really want to save which transactions we are at once we import the transfers. Because there could be more non transfer transactions, like: https://snowtrace.io/address/0xc44d493B6219A7f5C286724b74c158CEBd7fB6f7#tokentxns
 
 
 NICE TO HAVE:

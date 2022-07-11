@@ -6,7 +6,7 @@ import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVault
 import { ethers } from "ethers";
 import {
   CHAIN_RPC_MAX_QUERY_BLOCKS,
-  RPC_BATCH_ERC20_TRANSFERS_LOGS_CALLS,
+  RPC_BACH_CALL_COUNT,
 } from "../utils/config";
 import {
   ArchiveNodeNeededError,
@@ -74,7 +74,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   logger.verbose(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
-  const batchSize = RPC_BATCH_ERC20_TRANSFERS_LOGS_CALLS[chain];
+  const batchSize = RPC_BACH_CALL_COUNT[chain];
   const rangesBatches = lodash.chunk(ranges, batchSize);
   for (const rangesBatch of rangesBatches) {
     logger.verbose(
@@ -102,6 +102,9 @@ async function* streamContractEventsFromRpc<TEventArgs>(
       }
     );
     const batchEvents = await Promise.all(eventPromises);
+    logger.debug(
+      `[ERC20.T.RPC] Fetched ${batchEvents.length} events, fetching associated block dates`
+    );
     // now we get all blocks in one batch
     const blockNumbers = lodash.uniq(
       lodash.flatten(
@@ -117,6 +120,8 @@ async function* streamContractEventsFromRpc<TEventArgs>(
       }
     );
     const blocks = await Promise.all(blockPromises);
+
+    logger.debug(`[ERC20.T.RPC] Fetched ${blocks.length} blocks`);
     const blockByNumber = lodash.keyBy(blocks, "number");
 
     for (const [rangeIdx, events] of batchEvents.entries()) {

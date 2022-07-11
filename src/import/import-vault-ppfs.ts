@@ -23,7 +23,7 @@ import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
-import { LOG_LEVEL, RPC_BATCH_PPFS_CALLS } from "../utils/config";
+import { LOG_LEVEL, RPC_BACH_CALL_COUNT } from "../utils/config";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 
 async function main() {
@@ -147,7 +147,7 @@ async function importVault(
   try {
     for await (const blockDataBatch of batchAsyncStream(
       blockSampleStream,
-      RPC_BATCH_PPFS_CALLS[chain]
+      RPC_BACH_CALL_COUNT[chain]
     )) {
       logger.verbose(
         `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`

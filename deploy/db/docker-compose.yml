@@ -27,7 +27,6 @@ services:
       DATA_DIRECTORY: /data
       WORK_SCRIPT: ./dist/src/scripts/load-timescaledb.js
       WORK_CHAIN: all
-      WORK_SOURCE: all
 
   timescaledb:
     image: timescale/timescaledb-ha:pg14-latest
