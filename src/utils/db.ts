@@ -291,6 +291,13 @@ async function migrate() {
           avg(ts.ppfs) as avg_ppfs
       from data_raw.vault_ppfs_ts ts
       group by 1,2,3;
+
+      SELECT add_continuous_aggregate_policy('data_derived.vault_ppfs_4h_ts',
+        start_offset => INTERVAL '1 month',
+        end_offset => INTERVAL '4 hour',
+        schedule_interval => INTERVAL '4 hour',
+        if_not_exists => true
+      );
   `);
   // continuous aggregates: prices
   await db_query(`
@@ -300,6 +307,13 @@ async function migrate() {
           avg(usd_value) as avg_usd_value
       from data_raw.oracle_price_ts
       group by 1,2;
+
+      SELECT add_continuous_aggregate_policy('data_derived.oracle_price_4h_ts',
+        start_offset => INTERVAL '1 month',
+        end_offset => INTERVAL '4 hour',
+        schedule_interval => INTERVAL '4 hour',
+        if_not_exists => true
+      );
   `);
 
   // continuous aggregates: transfer diffs on the contract/owner level
@@ -318,6 +332,13 @@ async function migrate() {
         count(*) filter (where balance_diff < 0) as withdraw_count
       from data_raw.erc20_balance_diff_ts
       group by 1,2,3,4;
+
+      SELECT add_continuous_aggregate_policy('data_derived.erc20_owner_balance_diff_4h_ts',
+        start_offset => INTERVAL '1 month',
+        end_offset => INTERVAL '4 hour',
+        schedule_interval => INTERVAL '4 hour',
+        if_not_exists => true
+      );
   `);
 
   // continuous aggregates: transfer diffs on the contract level
@@ -339,6 +360,13 @@ async function migrate() {
       -- just inverse the numbers to get the positive value
       where owner_address = evm_address_to_bytea('0x0000000000000000000000000000000000000000')
       group by 1,2,3;
+
+      SELECT add_continuous_aggregate_policy('data_derived.erc20_contract_balance_diff_4h_ts',
+        start_offset => INTERVAL '1 month',
+        end_offset => INTERVAL '4 hour',
+        schedule_interval => INTERVAL '4 hour',
+        if_not_exists => true
+      );
   `);
 
   // helper materialized view to have a quick access to vault prices without indexing all prices
@@ -422,6 +450,13 @@ async function migrate() {
       intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts
     from data_report.vault_stats_4h_ts
     group by 1,2;
+
+    SELECT add_continuous_aggregate_policy('data_report.chain_stats_4h_ts',
+      start_offset => INTERVAL '1 month',
+      end_offset => INTERVAL '4 hour',
+      schedule_interval => INTERVAL '4 hour',
+      if_not_exists => true
+    );
   `);
 
   // continuous aggregates: all chains stats
@@ -438,6 +473,13 @@ async function migrate() {
       intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts
     from data_report.vault_stats_4h_ts
     group by 1;
+
+    SELECT add_continuous_aggregate_policy('data_report.all_stats_4h_ts',
+      start_offset => INTERVAL '1 month',
+      end_offset => INTERVAL '4 hour',
+      schedule_interval => INTERVAL '4 hour',
+      if_not_exists => true
+    );
   `);
 }
 
@@ -624,4 +666,11 @@ export async function rebuildVaultStatsReportTable() {
   await db_query(`
     VACUUM (FULL, ANALYZE) data_report.vault_stats_4h_ts;
   `);
+
+  logger.info(`[DB] Refreshing continuous aggregates`);
+  await db_query(`
+    CALL refresh_continuous_aggregate('data_report.chain_stats_4h_ts', '2018-01-01', now());
+    CALL refresh_continuous_aggregate('data_report.all_stats_4h_ts', '2018-01-01', now());
+  `);
+  logger.info(`[DB] Refreshing vault stats DONE`);
 }
