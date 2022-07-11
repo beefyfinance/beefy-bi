@@ -7,6 +7,7 @@ import { logger } from "../utils/logger";
 import { sortBy } from "lodash";
 import { normalizeAddress } from "../utils/ethers";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
+import { callLockProtectedGitRepo } from "./shared-resources/shared-gitrepo";
 import prettier from "prettier";
 
 interface RawBeefyVault {
@@ -184,17 +185,20 @@ export async function* gitStreamFileVersions(options: {
     maxConcurrentProcesses: 1,
   };
 
-  // pull latest changes from remote or just clone remote
-  if (!fs.existsSync(options.workdir)) {
-    logger.debug(`[GIT.V] cloning ${options.remote} into ${options.workdir}`);
-    const git: SimpleGit = simpleGit({
-      ...baseOptions,
-      baseDir: GIT_WORK_DIRECTORY,
-    });
-    await git.clone(options.remote, options.workdir);
-  } else {
-    logger.debug(`[GIT.V] Local repo found at ${options.workdir}.`);
-  }
+  // we can't make concurrent pulls
+  await callLockProtectedGitRepo(options.workdir, async () => {
+    // pull latest changes from remote or just clone remote
+    if (!fs.existsSync(options.workdir)) {
+      logger.debug(`[GIT.V] cloning ${options.remote} into ${options.workdir}`);
+      const git: SimpleGit = simpleGit({
+        ...baseOptions,
+        baseDir: GIT_WORK_DIRECTORY,
+      });
+      await git.clone(options.remote, options.workdir);
+    } else {
+      logger.debug(`[GIT.V] Local repo found at ${options.workdir}.`);
+    }
+  });
 
   // get a new git instance for the current git repo
   const git = simpleGit({
@@ -202,11 +206,12 @@ export async function* gitStreamFileVersions(options: {
     baseDir: options.workdir,
   });
   // switch to the target branch
-  logger.debug(`[GIT.V] Changing branch to ${options.branch}`);
-  await git.checkout(options.branch);
-  logger.debug(`[GIT.V] Pulling changes for branch ${options.branch}`);
-  await git.pull("origin", options.branch);
-
+  await callLockProtectedGitRepo(options.workdir, async () => {
+    logger.debug(`[GIT.V] Changing branch to ${options.branch}`);
+    await git.checkout(options.branch);
+    logger.debug(`[GIT.V] Pulling changes for branch ${options.branch}`);
+    await git.pull("origin", options.branch);
+  });
   if (!fs.existsSync(path.join(options.workdir, options.filePath))) {
     logger.debug(`[GIT.V] File ${options.filePath} not found`);
     return;

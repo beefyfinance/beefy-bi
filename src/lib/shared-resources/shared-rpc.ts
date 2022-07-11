@@ -60,6 +60,12 @@ export async function callLockProtectedRpc<TRes>(
         const provider = new ethers.providers.JsonRpcBatchProvider(
           secretRpcUrl
         );
+        /*
+        provider.on("debug", (event) => {
+          if (event.action === "response") {
+            console.log(event);
+          }
+        });*/
 
         let res: TRes | null = null;
         try {

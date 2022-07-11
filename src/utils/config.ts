@@ -169,7 +169,7 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   syscoin: _getDelayFromEnv("syscoin"),
 };
 
-export const RPC_BATCH_CALLS: {
+export const RPC_BATCH_ERC20_TRANSFERS_LOGS_CALLS: {
   [chain in Chain]: number;
 } = {
   arbitrum: 10,
@@ -189,6 +189,28 @@ export const RPC_BATCH_CALLS: {
   optimism: 10,
   polygon: 10,
   syscoin: 10,
+};
+
+export const RPC_BATCH_PPFS_CALLS: {
+  [chain in Chain]: number;
+} = {
+  arbitrum: 100,
+  aurora: 100,
+  avax: 100,
+  bsc: 100,
+  celo: 100,
+  cronos: 1, // cronos doesn't look it supports batching or ethers don't understand the response
+  emerald: 100,
+  fantom: 100,
+  fuse: 50, // fuse is a bit slower than the others
+  harmony: 50, // harmony is a bit sensitive when batching too much (BUFFER_OVERRUN)
+  heco: 100,
+  metis: 50, // metis has large blocks
+  moonbeam: 100,
+  moonriver: 10, // too slow to handle much more
+  optimism: 100,
+  polygon: 100,
+  syscoin: 100,
 };
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
@@ -323,3 +345,30 @@ export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
  *   https://andromeda-explorer.metis.io/api?module=logs&action=getLogs&address=0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000&topic0=0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef&fromBlock=2984004&toBlock=2984204&topic1=0x0000000000000000000000000624ab4290f9305fb2de3fb287aa5cdcf36d6b51&topic0_1_opr=and
  *  {"message":"No logs found","result":[],"status":"0"}
  */
+/*
+interface ChainConfig {
+  name: Chain;
+  rpcEndpoints: {
+    url: string;
+    rateLimit: {
+      sharedLockProtected: boolean;
+      minDelayBetweenCallsMs: number;
+    };
+    batch: {
+      erc20Logs: number;
+      ppfsCalls: number;
+    };
+    maxBlocksPerQuery: number;
+  }[];
+  ethscanApiExplorer: {
+    url: string;
+    rateLimit: {
+      sharedLockProtected: boolean;
+      minDelayBetweenCallsMs: number;
+    };
+  };
+  msPerBlockEstimate: number;
+}
+
+const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {};
+*/

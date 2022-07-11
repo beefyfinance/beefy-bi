@@ -5,14 +5,24 @@ import { getAllVaultsFromGitHistory } from "../lib/git-get-all-vaults";
 import { allChainIds, Chain } from "../types/chain";
 import prettier from "prettier";
 import * as fs from "fs";
+import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
+import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
+import { ethers } from "ethers";
 
 async function main() {
+  const blockNumber = 5534201;
+  const hex = blockNumber.toString(16);
+  const data = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes("getPricePerFullShare()")
+  );
+  console.log(hex, data);
+  /*
   const result: { chain: Chain; count: number }[] = [];
   for (const chain of allChainIds) {
     const vaults = await getAllVaultsFromGitHistory(chain);
     result.push({ chain, count: vaults.length });
   }
-  console.log(result.map((r) => `${r.chain}:${r.count}`).join("\n"));
+  console.log(result.map((r) => `${r.chain}:${r.count}`).join("\n"));*/
   /*
   const data = {
     chain: "fantom",

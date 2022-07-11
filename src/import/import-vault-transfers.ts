@@ -83,73 +83,65 @@ async function main() {
     logger.info(
       `[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
     );
-    const { writeBatchSync } = await getERC20TransferStorageWriteStream(
+    const { writeBatch, close } = await getERC20TransferStorageWriteStream(
       chain,
       contractAddress
     );
 
-    if (argv.source === "explorer") {
-      // Fuse and metis explorer requires an end block to be set
-      // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
-      // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
-      const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
-      const stream = streamERC20TransferEventsFromExplorer(
-        chain,
-        contractAddress,
-        startBlock,
-        stopBlock
-      );
-      for await (const eventBatch of batchAsyncStream(stream, 1000)) {
-        logger.verbose("[ERC20.T] Writing batch");
-        writeBatchSync(
-          eventBatch.map((event) => ({
-            blockNumber: event.blockNumber,
-            datetime: event.datetime,
-            from: event.from,
-            to: event.to,
-            value: event.value,
-          }))
+    try {
+      if (argv.source === "explorer") {
+        // Fuse and metis explorer requires an end block to be set
+        // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+        // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+        const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
+        const stream = streamERC20TransferEventsFromExplorer(
+          chain,
+          contractAddress,
+          startBlock,
+          stopBlock
         );
-      }
-    } else {
-      const stream = streamERC20TransferEventsFromRpc(chain, contractAddress, {
-        startBlock,
-        endBlock,
-        timeOrder: "timeline",
-      });
-      // write events as often as possible to avoid redoing too much work when pulling from RPC
-      // we could have large period of data without event and that takes lots of time to pull
-      // if we have an error in the meantime we have to redo all this work because we don't save
-      // that there is no transactions in the block range. We could also do some checkpoints but
-      // it's an exercise for the reader.
-      /*
-      for await (const event of stream) {
-        logger.verbose("[ERC20.T] Writing batch");
-        await writeBatch([
+        for await (const eventBatch of batchAsyncStream(stream, 1000)) {
+          logger.verbose("[ERC20.T] Writing batch");
+          await writeBatch(
+            eventBatch.map((event) => ({
+              blockNumber: event.blockNumber,
+              datetime: event.datetime,
+              from: event.from,
+              to: event.to,
+              value: event.value,
+            }))
+          );
+        }
+      } else {
+        const stream = streamERC20TransferEventsFromRpc(
+          chain,
+          contractAddress,
           {
-            blockNumber: event.blockNumber,
-            datetime: event.datetime,
-            from: event.data.from,
-            to: event.data.to,
-            value: event.data.value,
-          },
-        ]);
-      }*/
-      // but somehow it takes suuuuuper long to write many times
-      // Test with cronos:0x2425d707a5C63ff5De83eB78f63e06c3f6eEaA1c:Transfer
-      // it takes 25 sec or more to write 10 events
-      for await (const eventBatch of batchAsyncStream(stream, 10)) {
-        logger.verbose("[ERC20.T] Writing batch");
-        writeBatchSync(
-          eventBatch.map((event) => ({
-            blockNumber: event.blockNumber,
-            datetime: event.datetime,
-            from: event.data.from,
-            to: event.data.to,
-            value: event.data.value,
-          }))
+            startBlock,
+            endBlock,
+            timeOrder: "timeline",
+          }
         );
+        // write events as often as possible to avoid redoing too much work when pulling from RPC
+        // we could have large period of data without event and that takes lots of time to pull
+        // if we have an error in the meantime we have to redo all this work because we don't save
+        // that there is no transactions in the block range. We could also do some checkpoints but
+        // it's an exercise for the reader.
+        for await (const event of stream) {
+          logger.verbose("[ERC20.T] Writing batch");
+          await writeBatch([
+            {
+              blockNumber: event.blockNumber,
+              datetime: event.datetime,
+              from: event.data.from,
+              to: event.data.to,
+              value: event.data.value,
+            },
+          ]);
+        }
       }
+    } finally {
+      await close();
     }
   }
 

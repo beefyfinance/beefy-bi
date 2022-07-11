@@ -24,11 +24,9 @@ async function main() {
     throw new Error(`[${chain}] Vault not found: ${argv.vaultId}`);
   }
 
-  const ppfs = await fetchBeefyPPFS(
-    chain,
-    vault.token_address,
-    argv.blockNumber
-  );
+  const [ppfs] = await fetchBeefyPPFS(chain, vault.token_address, [
+    argv.blockNumber,
+  ]);
   console.log(ppfs);
   console.log(ppfs.toString());
   console.log(ppfs.toHexString());

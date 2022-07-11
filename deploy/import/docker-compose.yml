@@ -260,106 +260,13 @@ services:
   #############################################################################
   #############################################################################
 
-  import-vault-ppfs-fantom:
+  import-vault-ppfs-all-chains:
     <<: *importer
     environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: fantom
-
-  import-vault-ppfs-cronos:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: cronos
-
-  import-vault-ppfs-bsc:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: bsc
-
-  import-vault-ppfs-polygon:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: polygon
-
-  import-vault-ppfs-heco:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: heco
-
-  import-vault-ppfs-avax:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: avax
-
-  import-vault-ppfs-moonbeam:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: moonbeam
-
-  import-vault-ppfs-celo:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: celo
-
-  import-vault-ppfs-moonriver:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: moonriver
-
-  import-vault-ppfs-arbitrum:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: arbitrum
-
-  import-vault-ppfs-aurora:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: aurora
-
-  import-vault-ppfs-metis:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: metis
-
-  import-vault-ppfs-harmony:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: harmony
-
-  import-vault-ppfs-fuse:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: fuse
-
-  import-vault-ppfs-optimism:
-    <<: *importer
-    environment:
-      <<: *ppfs-importer-env
-      WORK_CHAIN: optimism
-
-  # no beefy vault list for now
-  #import-vault-ppfs-syscoin:
-  #  <<: *importer
-  #  environment:
-  #    <<: *ppfs-importer-env
-  #    WORK_CHAIN: syscoin
-
-  # disabled because explorer api is different
-  #import-vault-ppfs-emerald:
-  #  <<: *importer
-  #  environment:
-  #    <<: *ppfs-importer-env
-  #    WORK_CHAIN: emerald
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: "info"
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
+      WORK_CHAIN: all
+      WORK_SOURCE: all

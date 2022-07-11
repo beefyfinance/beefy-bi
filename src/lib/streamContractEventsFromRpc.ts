@@ -4,7 +4,10 @@ import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, RPC_BATCH_CALLS } from "../utils/config";
+import {
+  CHAIN_RPC_MAX_QUERY_BLOCKS,
+  RPC_BATCH_ERC20_TRANSFERS_LOGS_CALLS,
+} from "../utils/config";
 import {
   ArchiveNodeNeededError,
   callLockProtectedRpc,
@@ -71,7 +74,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   logger.verbose(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
-  const batchSize = RPC_BATCH_CALLS[chain];
+  const batchSize = RPC_BATCH_ERC20_TRANSFERS_LOGS_CALLS[chain];
   const rangesBatches = lodash.chunk(ranges, batchSize);
   for (const rangesBatch of rangesBatches) {
     logger.verbose(

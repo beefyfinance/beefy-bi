@@ -19,6 +19,7 @@ import {
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
 import axios from "axios";
+import { sortBy } from "lodash";
 
 const CSV_SEPARATOR = ",";
 
@@ -49,13 +50,20 @@ export async function getBeefyVaultV6PPFSWriteStream(
   chain: Chain,
   contractAddress: string,
   samplingPeriod: SamplingPeriod
-): Promise<{ writeBatch: (events: BeefyVaultV6PPFSData[]) => Promise<void> }> {
+): Promise<{
+  writeBatch: (events: BeefyVaultV6PPFSData[]) => Promise<void>;
+  close: () => Promise<void>;
+}> {
   const filePath = getBeefyVaultV6PPFSFilePath(
     chain,
     contractAddress,
     samplingPeriod
   );
   await makeDataDirRecursive(filePath);
+
+  logger.debug(
+    `[VAULT.PPFS.STORE] Opening write stream for ${chain}:${contractAddress}:${samplingPeriod}`
+  );
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
 
   let closed = false;
@@ -79,6 +87,16 @@ export async function getBeefyVaultV6PPFSWriteStream(
         },
       });
       writeStream.write(csvData);
+    },
+    close: async () => {
+      if (closed) {
+        logger.warn(`[VAULT.PPFS.STORE] stream already closed`);
+      }
+      logger.debug(
+        `[VAULT.PPFS.STORE] closing write stream for ${chain}:${contractAddress}:${samplingPeriod}`
+      );
+      closed = true;
+      writeStream.close();
     },
   };
 }
@@ -188,77 +206,98 @@ export async function* streamBeefyVaultV6PPFSData(
 export async function fetchBeefyPPFS(
   chain: Chain,
   contractAddress: string,
-  blockNumber: number
-): Promise<ethers.BigNumber> {
-  // it looks like ethers doesn't yet support harmony's special format or smth
-  // same for heco
-  if (chain === "harmony" || chain === "heco") {
-    return fetchBeefyPPFSWithManualRPCCall(chain, contractAddress, blockNumber);
-  }
-
-  logger.debug(
-    `[PPFS] Fetching PPFS for ${chain}:${contractAddress}:${blockNumber}`
-  );
-  return callLockProtectedRpc(chain, async (provider) => {
+  blockNumbers: number[]
+): Promise<ethers.BigNumber[]> {
+  const ppfsPromises = await callLockProtectedRpc(chain, async (provider) => {
     const contract = new ethers.Contract(
       contractAddress,
       BeefyVaultV6Abi,
       provider
     );
-    const ppfs: [ethers.BigNumber] =
-      await contract.functions.getPricePerFullShare({
+
+    logger.debug(
+      `[PPFS] Batch fetching PPFS for ${chain}:${contractAddress} (${
+        blockNumbers[0]
+      } -> ${blockNumbers[blockNumbers.length - 1]}) (${
+        blockNumbers.length
+      } blocks)`
+    );
+    // it looks like ethers doesn't yet support harmony's special format or smth
+    // same for heco
+    if (chain === "harmony" || chain === "heco") {
+      return fetchBeefyPPFSWithManualRPCCall(
+        provider,
+        chain,
+        contractAddress,
+        blockNumbers
+      );
+    }
+    return blockNumbers.map((blockNumber) => {
+      return contract.functions.getPricePerFullShare({
         // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
         // note that many backends do not support this, or may require paid plans to access as the node
         // database storage and processing requirements are much higher
         blockTag: blockNumber,
-      });
-    return ppfs[0];
+      }) as Promise<[ethers.BigNumber]>;
+    });
   });
+  const ppfs = await Promise.all(ppfsPromises);
+  return ppfs.map(([ppfs]) => ppfs);
 }
 
 /**
  * I don't know why this is needed but seems like ethers.js is not doing the right rpc call
  */
 async function fetchBeefyPPFSWithManualRPCCall(
+  provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractAddress: string,
-  blockNumber: number
-): Promise<ethers.BigNumber> {
-  logger.debug(
-    `[PPFS] Fetching PPFS for ${chain}:${contractAddress}:${blockNumber}`
-  );
-  return callLockProtectedRpc(chain, async (provider) => {
-    const url = provider.connection.url;
+  blockNumbers: number[]
+): Promise<Promise<[ethers.BigNumber]>[]> {
+  const url = provider.connection.url;
 
-    // get the function call hash
-    const abi = ["function getPricePerFullShare()"];
-    const iface = new ethers.utils.Interface(abi);
-    const callData = iface.encodeFunctionData("getPricePerFullShare");
+  // get the function call hash
+  const abi = ["function getPricePerFullShare()"];
+  const iface = new ethers.utils.Interface(abi);
+  const callData = iface.encodeFunctionData("getPricePerFullShare");
 
-    // somehow block tag has to be hex encoded for heco
-    const blockNumberHex = ethers.utils.hexValue(blockNumber);
+  // somehow block tag has to be hex encoded for heco
+  const batchParams = blockNumbers.map((blockNumber, idx) => ({
+    method: "eth_call",
+    params: [
+      {
+        from: null,
+        to: contractAddress,
+        data: callData,
+      },
+      ethers.utils.hexValue(blockNumber),
+    ],
+    id: idx,
+    jsonrpc: "2.0",
+  }));
 
-    const res = await axios.post(url, {
-      method: "eth_call",
-      params: [
-        {
-          from: null,
-          to: contractAddress,
-          data: callData,
-        },
-        blockNumberHex,
-      ],
-      id: 1,
-      jsonrpc: "2.0",
-    });
-
-    if (isErrorDueToMissingDataFromNode(res.data)) {
-      throw new ArchiveNodeNeededError(chain, res.data);
+  type BatchResItem =
+    | {
+        jsonrpc: "2.0";
+        id: number;
+        result: string;
+      }
+    | {
+        jsonrpc: "2.0";
+        id: number;
+        error: string;
+      };
+  const results = await axios.post<BatchResItem[]>(url, batchParams);
+  return sortBy(results.data, (res) => res.id).map((res) => {
+    if (isErrorDueToMissingDataFromNode(res)) {
+      throw new ArchiveNodeNeededError(chain, res);
+    } else if ("error" in res) {
+      throw new Error("Error in fetching PPFS: " + JSON.stringify(res));
     }
     const ppfs = ethers.utils.defaultAbiCoder.decode(
       ["uint256"],
-      res.data.result
+      res.result
     ) as any as [ethers.BigNumber];
-    return ppfs[0];
+    return Promise.resolve(ppfs);
   });
 }
