@@ -67,47 +67,31 @@ services:
   import-vault-transfers:
     <<: *importer
     environment:
-      <<: *vault-importer-env
+      <<: *importer-env
       WORK_SCRIPT: ./dist/src/import/import-vault-transfers-prices.js
 
   import-vault-ppfs:
     <<: *importer
     environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
+      <<: *importer-env
       WORK_SCRIPT: ./dist/src/import/import-vault-ppfs.js
-      WORK_CHAIN: all
 
   ######################### Strategy/Fee Data ##################################
 
   import-vault-strategies:
     <<: *importer
     environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
+      <<: *importer-env
       WORK_SCRIPT: ./dist/src/import/import-vault-strategies.js
-      WORK_CHAIN: all
 
   import-native-transfers-from-strategies:
     <<: *importer
     environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
+      <<: *importer-env
       WORK_SCRIPT: ./dist/src/import/import-strategies-native-transfer-from.js
-      WORK_CHAIN: all
 
   import-strategy-fee-recipients:
     <<: *importer
     environment:
-      REDIS_URL: redis://redis:6379
-      LOG_LEVEL: "info"
-      DATA_DIRECTORY: /data
-      GIT_WORK_DIRECTORY: /git_work
+      <<: *importer-env
       WORK_SCRIPT: ./dist/src/import/import-strategies-fee-recipients.js
-      WORK_CHAIN: all
