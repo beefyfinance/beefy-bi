@@ -40,11 +40,39 @@ select ht.object_type, ht.table_display_name, ht.table_internal_name,
     pg_size_pretty(htds.total_bytes) as total_bytes
 from timescale_objects as ht,
 lateral (
-    select sum(table_bytes) as table_bytes, sum(index_bytes) as index_bytes, sum(toast_bytes) as toast_bytes, sum(total_bytes) as total_bytes
+    select
+        sum(table_bytes) as table_bytes,
+        sum(index_bytes) as index_bytes,
+        sum(toast_bytes) as toast_bytes,
+        sum(total_bytes) as total_bytes
     from hypertable_detailed_size(ht.table_internal_name)
 ) as htds
 order by htds.total_bytes desc
 ;
+
+with timescale_objects as (
+    select
+        'hypertable' as object_type,
+        hypertable_schema || '.' || hypertable_name as table_display_name,
+        hypertable_schema || '.' || hypertable_name as table_internal_name
+    from timescaledb_information.hypertables
+    UNION ALL
+    select
+        'continuous aggregate' as object_type,
+        hypertable_schema || '.' || hypertable_name as table_display_name,
+        materialization_hypertable_schema || '.' || materialization_hypertable_name as table_internal_name
+    from timescaledb_information.continuous_aggregates
+)
+select *
+from information_schema.tables
+where table_schema not like '%timescaledb%'
+    and table_schema not in ('pg_catalog', 'information_schema')
+    and table_schema || '.' || table_name not in (
+        select table_internal_name from timescale_objects
+        UNION ALL
+        select table_display_name from timescale_objects
+    );
+
 
 -- Full refresh all continuous aggregates
 CALL refresh_continuous_aggregate('data_derived.vault_ppfs_4h_ts', '2018-01-01', now());
