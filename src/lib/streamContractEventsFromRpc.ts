@@ -102,9 +102,19 @@ async function* streamContractEventsFromRpc<TEventArgs>(
       }
     );
     const batchEvents = await Promise.all(eventPromises);
-    logger.debug(
-      `[ERC20.T.RPC] Fetched ${batchEvents.length} events, fetching associated block dates`
+    const eventCount = batchEvents.reduce(
+      (acc, events) => acc + events.length,
+      0
     );
+    logger.debug(
+      `[ERC20.T.RPC] Fetched ${eventCount} events, fetching associated block dates`
+    );
+
+    // shortcut if we have no events for this batch
+    if (eventCount === 0) {
+      continue;
+    }
+
     // now we get all blocks in one batch
     const blockNumbers = lodash.uniq(
       lodash.flatten(
@@ -140,6 +150,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
           throw new Error(`No event args in event ${rawEvent}`);
         }
         const mappedEvent = {
+          transactionHash: rawEvent.transactionHash,
           blockNumber: rawEvent.blockNumber,
           datetime: new Date(
             blockByNumber[rawEvent.blockNumber].timestamp * 1000
@@ -243,6 +254,22 @@ export async function* streamBifiVaultUpgradeStratEventsFromRpc(
         implementation: args.implementation,
       }),
     }
+  );
+  // just iteration to the event stream
+  yield* eventStream;
+}
+
+export async function* streamBifiVaultOwnershipTransferedEventsFromRpc(
+  chain: Chain,
+  contractAddress: string,
+  startBlock?: number
+) {
+  const eventStream = streamContractEventsFromRpc<{}>(
+    chain,
+    contractAddress,
+    BeefyVaultV6Abi,
+    "OwnershipTransferred",
+    { startBlock }
   );
   // just iteration to the event stream
   yield* eventStream;

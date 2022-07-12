@@ -1,5 +1,7 @@
 import { isArray } from "lodash";
 import { Transform, TransformCallback } from "stream";
+import * as fs from "fs";
+import * as readline from "readline";
 
 // adapted from https://futurestud.io/tutorials/node-js-filter-data-in-streams
 export class StreamObjectFilterTransform<RowType> extends Transform {
@@ -36,4 +38,17 @@ export class FlattenStream<RowType> extends Transform {
     }
     next();
   }
+}
+
+export async function getFirstLineOfFile(pathToFile: string): Promise<string> {
+  const readable = fs.createReadStream(pathToFile);
+  const reader = readline.createInterface({ input: readable });
+  const line = await new Promise<string>((resolve) => {
+    reader.on("line", (line) => {
+      reader.close();
+      resolve(line);
+    });
+  });
+  readable.close();
+  return line;
 }

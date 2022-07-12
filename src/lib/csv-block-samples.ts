@@ -9,6 +9,7 @@ import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
+import { getFirstLineOfFile } from "../utils/stream";
 
 const CSV_SEPARATOR = ",";
 
@@ -125,5 +126,26 @@ export async function getLastImportedSampleBlockData(
   }
   data.reverse();
 
+  return data[0];
+}
+
+export async function getFirstImportedSampleBlockData(
+  chain: Chain,
+  samplingPeriod: SamplingPeriod
+): Promise<BlockSampleData | null> {
+  const filePath = getBlockSamplesFilePath(chain, samplingPeriod);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const firstLine = await getFirstLineOfFile(filePath);
+  const data = syncParser(firstLine, {
+    delimiter: CSV_SEPARATOR,
+    columns: blockSamplesColumns,
+    cast: true,
+    cast_date: true,
+  });
+  if (data.length === 0) {
+    return null;
+  }
   return data[0];
 }

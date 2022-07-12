@@ -6,6 +6,11 @@ import * as lodash from "lodash";
 import { RPC_URLS } from "../utils/config";
 import axios from "axios";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
+import {
+  getFirstImportedSampleBlockData,
+  SamplingPeriod,
+} from "./csv-block-samples";
+import { streamBifiVaultOwnershipTransferedEventsFromRpc } from "./streamContractEventsFromRpc";
 
 export interface ContractCreationInfo {
   chain: Chain;
@@ -58,6 +63,42 @@ export async function fetchContractFirstLastTrxFromExplorer(
     chain,
     contractAddress: ethers.utils.getAddress(contractAddress),
   };
+}
+
+export async function getContractCreationInfosFromRPC(
+  chain: Chain,
+  contractAddress: string,
+  samplingPeriodForFirstBlock: SamplingPeriod
+): Promise<ContractCreationInfo | null> {
+  const firstBlock = await getFirstImportedSampleBlockData(
+    chain,
+    samplingPeriodForFirstBlock
+  );
+  if (!firstBlock) {
+    logger.info(`[CTI] No blocks samples imported yet.`);
+    return null;
+  }
+  logger.info(
+    `[CTI] Fetching contract creation for ${chain}:${contractAddress} from block: ${JSON.stringify(
+      firstBlock
+    )}`
+  );
+  const eventStream = streamBifiVaultOwnershipTransferedEventsFromRpc(
+    chain,
+    contractAddress,
+    firstBlock.blockNumber
+  );
+
+  for await (const event of eventStream) {
+    return {
+      chain,
+      contractAddress,
+      blockNumber: event.blockNumber,
+      datetime: event.datetime,
+      transactionHash: event.transactionHash,
+    };
+  }
+  return null;
 }
 
 async function getCreationTimestampHarmonyRpc(

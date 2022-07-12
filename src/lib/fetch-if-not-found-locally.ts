@@ -1,13 +1,18 @@
 import axios from "axios";
 import * as fs from "fs";
 import { Chain } from "../types/chain";
-import { DATA_DIRECTORY, LOG_LEVEL } from "../utils/config";
+import {
+  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
+  DATA_DIRECTORY,
+  LOG_LEVEL,
+} from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
 import {
   ContractCreationInfo,
   fetchContractFirstLastTrxFromExplorer,
+  getContractCreationInfosFromRPC,
 } from "./contract-transaction-infos";
 import { cacheAsyncResultInRedis } from "../utils/cache";
 import { getRedlock } from "./shared-resources/shared-lock";
@@ -177,11 +182,26 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
     chain: Chain,
     contractAddress: string
   ): Promise<ContractCreationInfo> => {
-    return fetchContractFirstLastTrxFromExplorer(
-      chain,
-      contractAddress,
-      "first"
-    );
+    const useExplorer = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+    if (useExplorer) {
+      return fetchContractFirstLastTrxFromExplorer(
+        chain,
+        contractAddress,
+        "first"
+      );
+    } else {
+      const creationInfos = await getContractCreationInfosFromRPC(
+        chain,
+        contractAddress,
+        "4hour"
+      );
+      if (!creationInfos) {
+        throw new Error(
+          `Could not find contract creation block for ${contractAddress} on ${chain}`
+        );
+      }
+      return creationInfos;
+    }
   },
   (chain: Chain, contractAddress: string) =>
     path.join(
@@ -215,6 +235,7 @@ export async function getLocalContractCreationInfos(
     return null;
   }
   const data = JSON.parse(content);
+  data.datetime = new Date(data.datetime);
   return data;
 }
 

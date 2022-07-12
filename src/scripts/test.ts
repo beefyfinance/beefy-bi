@@ -1,6 +1,7 @@
 import { logger } from "../utils/logger";
 import _ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BigNumber from "bignumber.js";
+import { streamBifiVaultOwnershipTransferedEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { getAllVaultsFromGitHistory } from "../lib/git-get-all-vaults";
 import { allChainIds, Chain } from "../types/chain";
 import prettier from "prettier";
@@ -8,14 +9,50 @@ import * as fs from "fs";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
+import {
+  getFirstImportedSampleBlockData,
+  SamplingPeriod,
+} from "../lib/csv-block-samples";
+import { normalizeAddress } from "../utils/ethers";
 
 async function main() {
+  const chain: Chain = "aurora";
+  const samplingPeriod: SamplingPeriod = "4hour";
+  const contractAddress = normalizeAddress(
+    "0x92E586d7dB14483C103c2e0FE6A596F8b55DA752"
+  );
+
+  const firstBlock = await getFirstImportedSampleBlockData(
+    chain,
+    samplingPeriod
+  );
+  if (!firstBlock) {
+    logger.info(`No blocks samples imported yet.`);
+    return;
+  }
+  logger.info(
+    `Fetching contract creation for ${chain}:${contractAddress} from block: ${JSON.stringify(
+      firstBlock
+    )}`
+  );
+  const eventStream = streamBifiVaultOwnershipTransferedEventsFromRpc(
+    chain,
+    contractAddress,
+    63520889 //firstBlock.blockNumber
+  );
+
+  for await (const event of eventStream) {
+    console.log(event);
+    break;
+  }
+  console.log("CONTRACT CREATION FOUND ");
+  /*
   const blockNumber = 5534201;
   const hex = blockNumber.toString(16);
   const data = ethers.utils.keccak256(
     ethers.utils.toUtf8Bytes("getPricePerFullShare()")
   );
-  console.log(hex, data);
+  console.log(hex, data);*/
   /*
   const result: { chain: Chain; count: number }[] = [];
   for (const chain of allChainIds) {

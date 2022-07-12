@@ -197,3 +197,36 @@ export async function* getAllStrategyAddresses(chain: Chain) {
     }
   }
 }
+
+export async function deleteAllVaultStrategiesData(
+  chain: Chain,
+  vaultContractAddress: string,
+  dryrun: boolean
+) {
+  const strategiesStream = streamVaultStrategies(chain, vaultContractAddress);
+  logger.verbose(
+    `[VAULT.S.STORE]${
+      dryrun ? "[dryrun]" : ""
+    } Deleting all strategy data for ${chain}:${vaultContractAddress}`
+  );
+  for await (const strategy of strategiesStream) {
+    const contractDirectory = path.join(
+      DATA_DIRECTORY,
+      "chain",
+      chain,
+      "contracts",
+      normalizeAddress(strategy.implementation)
+    );
+
+    logger.verbose(
+      `[VAULT.S.STORE]${
+        dryrun ? "[dryrun]" : ""
+      } Deleting all strategy data for ${chain}:${vaultContractAddress}:${
+        strategy.implementation
+      }`
+    );
+    if (!dryrun) {
+      await fs.promises.rmdir(contractDirectory, { recursive: true });
+    }
+  }
+}

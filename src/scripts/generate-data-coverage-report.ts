@@ -1,6 +1,5 @@
 import { flatten, shuffle, sortBy } from "lodash";
 import {
-  BeefyVault,
   fetchBeefyVaultList,
   getLocalContractCreationInfos,
 } from "../lib/fetch-if-not-found-locally";
@@ -30,6 +29,7 @@ import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
 import * as fs from "fs";
 import { SamplingPeriod } from "../lib/csv-block-samples";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
+import { BeefyVault } from "../lib/git-get-all-vaults";
 
 interface DataCoverageReportRow {
   chain: Chain;

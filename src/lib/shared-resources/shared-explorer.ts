@@ -26,7 +26,7 @@ export async function callLockProtectedExplorerUrl<TRes>(
   return backOff(
     () =>
       redlock.using([explorerResourceId], 2 * 60 * 1000, async () => {
-        logger.verbose(`[EXPLORER] Acquired lock for ${explorerResourceId}`);
+        logger.debug(`[EXPLORER] Acquired lock for ${explorerResourceId}`);
         // now, we are the only one running this code
         // find out the last time we called this explorer
         const lastCallCacheKey = `${chain}:explorer:last-call-date`;

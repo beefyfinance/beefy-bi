@@ -16,7 +16,7 @@ export async function callLockProtectedGitRepo(
   return backOff(
     () =>
       redlock.using([resourceId], 2 * 60 * 1000, async () => {
-        logger.verbose(`[GIT.LOCK] Acquired lock for ${resourceId}`);
+        logger.debug(`[GIT.LOCK] Acquired lock for ${resourceId}`);
 
         const res = await work();
         return res;

@@ -96,7 +96,7 @@ export async function callLockProtectedRpc<TRes>(
           `[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
         );
         return redlock.using([resourceId], 2 * 60 * 1000, async () => {
-          logger.verbose(
+          logger.debug(
             `[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`
           );
           return doWork();
