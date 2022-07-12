@@ -3,10 +3,7 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -25,454 +22,204 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 16,
-  "iteration": 1657112667582,
+  "iteration": 1657585689943,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 7,
       "panels": [],
       "title": "All chains overview",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
             "fillOpacity": 80,
             "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            }
+            "scaleDistribution": { "type": "linear" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 15,
-        "w": 13,
-        "x": 0,
-        "y": 1
-      },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 1 },
       "id": 2,
       "options": {
         "barRadius": 0,
         "barWidth": 0.97,
         "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
         "orientation": "auto",
         "showValue": "always",
         "stacking": "normal",
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
+        "tooltip": { "mode": "multi", "sort": "none" },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 100
       },
       "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "rawSql": "with range_counts_ts as (\n    select time_bucket('4h', datetime) as datetime,\n        intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts\n    from data_report.chain_stats_4h_ts\n    where $__timeFilter(datetime)\n    group by 1\n)\nselect datetime as time,\n    case \n        when ranges.investment_range is null then null\n        when ranges.investment_range = 1 then '01) < $0'\n        when ranges.investment_range = 2 then '02) = $0'\n        when ranges.investment_range = 3 then '03) ($0 ; $10)'\n        when ranges.investment_range = 4 then '04) [$10 ; $100)'\n        when ranges.investment_range = 5 then '05) [$100 ; $1k)'\n        when ranges.investment_range = 6 then '06) [$1k ; $5k)'\n        when ranges.investment_range = 7 then '07) [$5k ; $10k)'\n        when ranges.investment_range = 8 then '08) [$10k ; $25k)'\n        when ranges.investment_range = 9 then '09) [$25k ; $50k)'\n        when ranges.investment_range = 10 then '10) [$50k ; $100k)'\n        when ranges.investment_range = 11 then '11) [$100k ; $500k)'\n        when ranges.investment_range = 12 then '12) [$500k ; $1m)'\n        when ranges.investment_range = 13 then '13) [$1m ; $10m)'\n        when ranges.investment_range = 14 then '14) +$10m'\n                                          else 'error'\n    end as investment_range,\n  sum(ranges.investor_count) as investor_count\nfrom range_counts_ts, lateral (\n    select investor_count, investment_range\n    from unnest(range_counts_ts.balance_usd_ranges_counts) with ordinality as ranges(investor_count, investment_range)\n) as ranges\nwhere ranges.investor_count is not null\ngroup by 1,2\norder by 1",
           "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["usd_value"],
-                "type": "column"
-              }
-            ]
-          ],
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
           "timeColumn": "datetime",
           "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Investment size group by user by vault",
+      "title": "Investment size group",
       "type": "barchart"
     },
     {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "id": 4,
+      "panels": [],
+      "repeat": "chain",
+      "repeatDirection": "h",
+      "title": "Chain: $chain",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
             "fillOpacity": 80,
             "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            }
+            "scaleDistribution": { "type": "linear" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
             ]
           }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 15,
-        "w": 11,
-        "x": 13,
-        "y": 1
-      },
-      "id": 34,
+      "gridPos": { "h": 13, "w": 13, "x": 0, "y": 16 },
+      "id": 5,
       "options": {
         "barRadius": 0,
         "barWidth": 0.97,
         "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
         "orientation": "auto",
         "showValue": "always",
-        "stacking": "percent",
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
+        "stacking": "normal",
+        "tooltip": { "mode": "multi", "sort": "none" },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 100
       },
       "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\ngroup by 1,2\norder by 1",
+          "rawSql": "with range_counts_ts as (\n    select time_bucket('4h', datetime) as datetime,\n        intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts\n    from data_report.chain_stats_4h_ts\n    where $__timeFilter(datetime)\n      and chain in ($chain)\n    group by 1\n)\nselect datetime as time,\n    case \n        when ranges.investment_range is null then null\n        when ranges.investment_range = 1 then '01) < $0'\n        when ranges.investment_range = 2 then '02) = $0'\n        when ranges.investment_range = 3 then '03) ($0 ; $10)'\n        when ranges.investment_range = 4 then '04) [$10 ; $100)'\n        when ranges.investment_range = 5 then '05) [$100 ; $1k)'\n        when ranges.investment_range = 6 then '06) [$1k ; $5k)'\n        when ranges.investment_range = 7 then '07) [$5k ; $10k)'\n        when ranges.investment_range = 8 then '08) [$10k ; $25k)'\n        when ranges.investment_range = 9 then '09) [$25k ; $50k)'\n        when ranges.investment_range = 10 then '10) [$50k ; $100k)'\n        when ranges.investment_range = 11 then '11) [$100k ; $500k)'\n        when ranges.investment_range = 12 then '12) [$500k ; $1m)'\n        when ranges.investment_range = 13 then '13) [$1m ; $10m)'\n        when ranges.investment_range = 14 then '14) +$10m'\n                                          else 'error'\n    end as investment_range,\n  sum(ranges.investor_count) as investor_count\nfrom range_counts_ts, lateral (\n    select investor_count, investment_range\n    from unnest(range_counts_ts.balance_usd_ranges_counts) with ordinality as ranges(investor_count, investment_range)\n) as ranges\nwhere ranges.investor_count is not null\ngroup by 1,2\norder by 1",
           "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["usd_value"],
-                "type": "column"
-              }
-            ]
-          ],
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
           "timeColumn": "datetime",
           "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
       "title": "Investment size group by user by vault",
       "type": "barchart"
     },
     {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 16
-      },
-      "id": 4,
-      "panels": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" }
           },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "fillOpacity": 80,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineWidth": 1,
-                "scaleDistribution": {
-                  "type": "linear"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 13,
-            "w": 13,
-            "x": 0,
-            "y": 17
-          },
-          "id": 5,
-          "options": {
-            "barRadius": 0,
-            "barWidth": 0.97,
-            "groupWidth": 0.7,
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "orientation": "auto",
-            "showValue": "always",
-            "stacking": "normal",
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            },
-            "xTickLabelRotation": 0,
-            "xTickLabelSpacing": 100
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
-              "format": "time_series",
-              "group": [],
-              "metricColumn": "none",
-              "rawQuery": true,
-              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
-              "refId": "A",
-              "select": [
-                [
-                  {
-                    "params": ["usd_value"],
-                    "type": "column"
-                  }
-                ]
-              ],
-              "table": "oracle_price_ts",
-              "timeColumn": "datetime",
-              "timeColumnType": "timestamp",
-              "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
-              ]
-            }
-          ],
-          "title": "Investment size group by user by vault",
-          "type": "barchart"
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
         },
+        "overrides": []
+      },
+      "gridPos": { "h": 13, "w": 11, "x": 13, "y": 16 },
+      "id": 35,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+        "orientation": "auto",
+        "showValue": "always",
+        "stacking": "percent",
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 100
+      },
+      "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "fillOpacity": 80,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineWidth": 1,
-                "scaleDistribution": {
-                  "type": "linear"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 13,
-            "w": 11,
-            "x": 13,
-            "y": 17
-          },
-          "id": 35,
-          "options": {
-            "barRadius": 0,
-            "barWidth": 0.97,
-            "groupWidth": 0.7,
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "orientation": "auto",
-            "showValue": "always",
-            "stacking": "percent",
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            },
-            "xTickLabelRotation": 0,
-            "xTickLabelSpacing": 100
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "postgres",
-                "uid": "P1A7A05C63CAD1F73"
-              },
-              "format": "time_series",
-              "group": [],
-              "metricColumn": "none",
-              "rawQuery": true,
-              "rawSql": "select time_bucket('4h', datetime) as time,\n  case \n      when usd_balance_bucket_id = 0 then '00 [-Inf ; $0)'\n      when usd_balance_bucket_id = 1 then '01 [$0 ; $100)'\n      when usd_balance_bucket_id = 2 then '02 [$100 ; $1k)'\n      when usd_balance_bucket_id = 3 then '03 [$1k ; $5k)'\n      when usd_balance_bucket_id = 4 then '04 [$5k ; $10k)'\n      when usd_balance_bucket_id = 5 then '05 [$10k ; $25k)'\n      when usd_balance_bucket_id = 6 then '06 [$25k ; $50k)'\n      when usd_balance_bucket_id = 7 then '07 [$50k ; $100k)'\n      when usd_balance_bucket_id = 8 then '08 [$100k ; $500k)'\n      when usd_balance_bucket_id = 9 then '09 [$500k ; $1m)'\n      else '10 [$1m ; Inf)'\n  end as investment_tranche,\n  sum(investor_count) as investment_count\nfrom data_report.vault_investor_usd_balance_buckets_4h_ts\nwhere $__timeFilter(datetime)\n  and chain in ($chain)\ngroup by 1,2\norder by 1",
-              "refId": "A",
-              "select": [
-                [
-                  {
-                    "params": ["usd_value"],
-                    "type": "column"
-                  }
-                ]
-              ],
-              "table": "oracle_price_ts",
-              "timeColumn": "datetime",
-              "timeColumnType": "timestamp",
-              "where": [
-                {
-                  "name": "$__timeFilter",
-                  "params": [],
-                  "type": "macro"
-                }
-              ]
-            }
-          ],
-          "title": "Investment size group by user by vault",
-          "type": "barchart"
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with range_counts_ts as (\n    select time_bucket('4h', datetime) as datetime,\n        intarray_sum_elements_agg(balance_usd_ranges_counts) as balance_usd_ranges_counts\n    from data_report.chain_stats_4h_ts\n    where $__timeFilter(datetime)\n      and chain in ($chain)\n    group by 1\n)\nselect datetime as time,\n    case \n        when ranges.investment_range is null then null\n        when ranges.investment_range = 1 then '01) < $0'\n        when ranges.investment_range = 2 then '02) = $0'\n        when ranges.investment_range = 3 then '03) ($0 ; $10)'\n        when ranges.investment_range = 4 then '04) [$10 ; $100)'\n        when ranges.investment_range = 5 then '05) [$100 ; $1k)'\n        when ranges.investment_range = 6 then '06) [$1k ; $5k)'\n        when ranges.investment_range = 7 then '07) [$5k ; $10k)'\n        when ranges.investment_range = 8 then '08) [$10k ; $25k)'\n        when ranges.investment_range = 9 then '09) [$25k ; $50k)'\n        when ranges.investment_range = 10 then '10) [$50k ; $100k)'\n        when ranges.investment_range = 11 then '11) [$100k ; $500k)'\n        when ranges.investment_range = 12 then '12) [$500k ; $1m)'\n        when ranges.investment_range = 13 then '13) [$1m ; $10m)'\n        when ranges.investment_range = 14 then '14) +$10m'\n                                          else 'error'\n    end as investment_range,\n  sum(ranges.investor_count) as investor_count\nfrom range_counts_ts, lateral (\n    select investor_count, investment_range\n    from unnest(range_counts_ts.balance_usd_ranges_counts) with ordinality as ranges(investor_count, investment_range)\n) as ranges\nwhere ranges.investor_count is not null\ngroup by 1,2\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "repeat": "chain",
-      "repeatDirection": "h",
-      "title": "Chain: $chain",
-      "type": "row"
+      "title": "Investment size group by user by vault",
+      "type": "barchart"
     }
   ],
   "schemaVersion": 36,
@@ -492,7 +239,7 @@
             "cronos",
             "fantom",
             "fuse",
-            "harmony",
+            "heco",
             "metis",
             "moonbeam",
             "moonriver",
@@ -508,7 +255,7 @@
             "cronos",
             "fantom",
             "fuse",
-            "harmony",
+            "heco",
             "metis",
             "moonbeam",
             "moonriver",
@@ -516,17 +263,14 @@
             "polygon"
           ]
         },
-        "datasource": {
-          "type": "postgres",
-          "uid": "P1A7A05C63CAD1F73"
-        },
-        "definition": "select distinct chain from data_report.vault_investor_usd_balance_buckets_4h_ts",
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct chain from data_report.vault_stats_4h_ts",
         "hide": 0,
         "includeAll": false,
         "multi": true,
         "name": "chain",
         "options": [],
-        "query": "select distinct chain from data_report.vault_investor_usd_balance_buckets_4h_ts",
+        "query": "select distinct chain from data_report.vault_stats_4h_ts",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -535,14 +279,11 @@
       }
     ]
   },
-  "time": {
-    "from": "now-30d",
-    "to": "now"
-  },
+  "time": { "from": "now-2y", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Investment size buckets",
   "uid": "rMsP0ce7k",
-  "version": 6,
+  "version": 7,
   "weekStart": ""
 }

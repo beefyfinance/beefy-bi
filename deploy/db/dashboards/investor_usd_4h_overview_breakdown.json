@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 8,
-  "iteration": 1657269338163,
+  "iteration": 1657584808315,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -150,7 +150,7 @@
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "$vault_id $token_symbol amount",
+      "title": "$vault_id LP amount",
       "type": "timeseries"
     }
   ],
@@ -162,24 +162,24 @@
       {
         "current": {
           "selected": false,
-          "text": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
-          "value": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63"
+          "text": "0x650c0ed459d82335afdad70794b9a61b7795aa6a",
+          "value": "0x650c0ed459d82335afdad70794b9a61b7795aa6a"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
-            "value": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63"
+            "text": "0x650c0ed459d82335afdad70794b9a61b7795aa6a",
+            "value": "0x650c0ed459d82335afdad70794b9a61b7795aa6a"
           }
         ],
-        "query": "0x8d309dE16A745C15FfA00A46dA4EB3E044c54d63",
+        "query": "0x650c0ed459d82335afdad70794b9a61b7795aa6a",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
-        "current": { "selected": false, "text": "bsc", "value": "bsc" },
+        "current": { "selected": true, "text": "avax", "value": "avax" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain\nfrom data_derived.erc20_owner_balance_diff_4h_ts\nwhere owner_address = evm_address_to_bytea('$investor_address')",
         "hide": 0,
@@ -209,26 +209,6 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "cakev2-belt-bnb",
-          "value": "cakev2-belt-bnb"
-        },
-        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-        "definition": "select want_price_oracle_id\nfrom data_raw.vault\nwhere chain = '$chain'\nand vault_id in ($vault_id)",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "token_symbol",
-        "options": [],
-        "query": "select want_price_oracle_id\nfrom data_raw.vault\nwhere chain = '$chain'\nand vault_id in ($vault_id)",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
       }
     ]
   },
@@ -237,6 +217,6 @@
   "timezone": "",
   "title": "Investment By Vault Overview",
   "uid": "o_EouSenk",
-  "version": 7,
+  "version": 9,
   "weekStart": ""
 }

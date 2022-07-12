@@ -45,9 +45,13 @@ export async function getBeefyVaultV6StrategiesWriteStream(
   contractAddress: string
 ): Promise<{
   writeBatch: (events: BeefyVaultV6StrategiesData[]) => Promise<void>;
+  close: () => Promise<void>;
 }> {
   const filePath = getBeefyVaultV6StrategiesFilePath(chain, contractAddress);
   await makeDataDirRecursive(filePath);
+  logger.debug(
+    `[VAULT.s.STORE] Opening write stream for strategies for ${chain}:${contractAddress}`
+  );
   const writeStream = fs.createWriteStream(filePath, { flags: "a" });
 
   let closed = false;
@@ -71,6 +75,16 @@ export async function getBeefyVaultV6StrategiesWriteStream(
         },
       });
       writeStream.write(csvData);
+    },
+    close: async () => {
+      if (closed) {
+        logger.warn(`[VAULT.PPFS.STORE] stream already closed`);
+      }
+      logger.debug(
+        `[VAULT.s.STORE] closing write stream for strategies for ${chain}:${contractAddress}`
+      );
+      closed = true;
+      writeStream.close();
     },
   };
 }

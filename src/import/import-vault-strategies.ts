@@ -46,13 +46,9 @@ async function main() {
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
   const vaultId = argv.vaultId || null;
 
-  const useExplorerFor: Chain[] = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS;
-
   const chainPromises = chains.map(async (chain) => {
-    const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
     try {
-      const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
-      await importChain(chain, source, vaultId);
+      await importChain(chain, vaultId);
     } catch (error) {
       logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
@@ -66,11 +62,7 @@ async function main() {
   await sleep(1000 * 60 * 60 * 24);
 }
 
-async function importChain(
-  chain: Chain,
-  source: "rpc" | "explorer",
-  vaultId: string | null
-) {
+async function importChain(chain: Chain, vaultId: string | null) {
   logger.info(`[STRATS] Importing ${chain} vault strategies...`);
   // find out which vaults we need to parse
   const vaults = shuffle(await fetchBeefyVaultList(chain));
@@ -83,7 +75,7 @@ async function importChain(
     }
 
     try {
-      await importVault(chain, source, vault);
+      await importVault(chain, vault);
     } catch (error) {
       if (error instanceof ArchiveNodeNeededError) {
         logger.error(
@@ -105,11 +97,7 @@ async function importChain(
   logger.info(`[STRATS] Done importing strategies for ${chain}`);
 }
 
-async function importVault(
-  chain: Chain,
-  source: "rpc" | "explorer",
-  vault: BeefyVault
-) {
+async function importVault(chain: Chain, vault: BeefyVault) {
   const contractAddress = normalizeAddress(vault.token_address);
   logger.info(`[STRATS] Processing ${chain}:${vault.id} (${contractAddress})`);
 
@@ -164,47 +152,53 @@ async function importVault(
   logger.info(
     `[STRATS] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
   );
-  const { writeBatch } = await getBeefyVaultV6StrategiesWriteStream(
+  const { writeBatch, close } = await getBeefyVaultV6StrategiesWriteStream(
     chain,
     contractAddress
   );
 
-  if (source === "explorer") {
-    // Fuse and metis explorer requires an end block to be set
-    // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
-    // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
-    const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
-    const stream = streamBifiVaultUpgradeStratEventsFromExplorer(
-      chain,
-      contractAddress,
-      startBlock,
-      stopBlock
-    );
-    for await (const eventBatch of batchAsyncStream(stream, 1000)) {
-      logger.debug("[STRATS] Writing batch");
-      await writeBatch(
-        eventBatch.map((event) => ({
-          blockNumber: event.blockNumber,
-          datetime: event.datetime,
-          implementation: event.data.implementation,
-        }))
+  const useExplorer = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+
+  try {
+    if (useExplorer) {
+      // Fuse and metis explorer requires an end block to be set
+      // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+      // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
+      const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
+      const stream = streamBifiVaultUpgradeStratEventsFromExplorer(
+        chain,
+        contractAddress,
+        startBlock,
+        stopBlock
       );
-    }
-  } else {
-    const stream = streamBifiVaultUpgradeStratEventsFromRpc(
-      chain,
-      contractAddress
-    );
-    for await (const eventBatch of batchAsyncStream(stream, 100)) {
-      logger.debug("[STRATS] Writing batch");
-      await writeBatch(
-        eventBatch.map((event) => ({
-          blockNumber: event.blockNumber,
-          datetime: event.datetime,
-          implementation: event.data.implementation,
-        }))
+      for await (const eventBatch of batchAsyncStream(stream, 1000)) {
+        logger.debug("[STRATS] Writing batch");
+        await writeBatch(
+          eventBatch.map((event) => ({
+            blockNumber: event.blockNumber,
+            datetime: event.datetime,
+            implementation: event.data.implementation,
+          }))
+        );
+      }
+    } else {
+      const stream = streamBifiVaultUpgradeStratEventsFromRpc(
+        chain,
+        contractAddress
       );
+      for await (const eventBatch of batchAsyncStream(stream, 100)) {
+        logger.debug("[STRATS] Writing batch");
+        await writeBatch(
+          eventBatch.map((event) => ({
+            blockNumber: event.blockNumber,
+            datetime: event.datetime,
+            implementation: event.data.implementation,
+          }))
+        );
+      }
     }
+  } finally {
+    await close();
   }
 }
 
