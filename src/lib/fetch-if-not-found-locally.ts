@@ -211,7 +211,11 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
       "contracts",
       normalizeAddress(contractAddress),
       "creation_date.json"
-    )
+    ),
+  {
+    getResourceId: (chain: Chain, contractAddress: string) =>
+      `${chain}:${contractAddress}:creation_date`,
+  }
 );
 
 export async function getLocalContractCreationInfos(
@@ -273,7 +277,11 @@ export const getBeefyStrategyFeeRecipients = fetchIfNotFoundLocally(
       "contracts",
       normalizeAddress(contractAddress),
       "fee_recipients.json"
-    )
+    ),
+  {
+    getResourceId: (chain: Chain, contractAddress: string) =>
+      `${chain}:${contractAddress}:fee_recipients`,
+  }
 );
 
 export async function getLocalBeefyStrategyFeeRecipients(
