@@ -34,7 +34,6 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
     ? [process.env.BSC_RPC]
     : [
         //https://snapshot-networks.on.fleek.co/56
-        "https://speedy-nodes-nyc.moralis.io/b9aed21e7bb7bdeb35972c9a/bsc/mainnet/archive",
         "https://bsc-private-dataseed1.nariox.org",
         //"https://bsc-dataseed.binance.org",
         //"https://bsc-dataseed1.defibit.io",
@@ -175,7 +174,7 @@ export const RPC_BACH_CALL_COUNT: {
   arbitrum: 100,
   aurora: 100,
   avax: 100,
-  bsc: 100,
+  bsc: 40, // current RPC don't like too big batches
   celo: 100,
   cronos: 1, // cronos doesn't look it supports batching or ethers don't understand the response
   emerald: 100,

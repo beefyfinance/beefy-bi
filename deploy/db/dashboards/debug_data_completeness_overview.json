@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 18,
-  "iteration": 1657614659536,
+  "iteration": 1657636822413,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -44,7 +44,10 @@
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
-                "steps": [{ "color": "green" }, { "color": "red", "value": 80 }]
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
               }
             },
             "overrides": []
@@ -125,7 +128,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  v.chain, format_evm_address(token_address) as contract_address, v.vault_id, min(datetime) as first_erc20_transfer, max(datetime) as last_erc20_transfer\nFROM data_raw.vault v\n  left join data_raw.erc20_balance_diff_ts b on b.contract_address = v.token_address\nWHERE\n  v.chain in ($chain)\n  and v.vault_id in ($vault_id)\ngroup by 1,2,3\nORDER BY 1",
+          "rawSql": "SELECT\n  v.chain, format_evm_address(token_address) as contract_address, v.vault_id, min(datetime) as first_erc20_transfer, max(datetime) as last_erc20_transfer\nFROM data_raw.vault v\n  left join data_raw.erc20_balance_diff_ts b on b.contract_address = v.token_address and b.chain = v.chain\nWHERE\n  v.chain in ($chain)\n  and v.vault_id in ($vault_id)\ngroup by 1,2,3\nORDER BY 1",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -173,7 +176,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  v.chain, format_evm_address(token_address) as contract_address, v.vault_id, min(datetime) as first_ppfs, max(datetime) as last_ppfs\nFROM data_raw.vault v\n  left join data_raw.vault_ppfs_ts p on p.contract_address = v.token_address\nWHERE\n  v.chain in ($chain)\n  and v.vault_id in ($vault_id)\ngroup by 1,2,3\nORDER BY 1",
+          "rawSql": "SELECT\n  v.chain, format_evm_address(token_address) as contract_address, v.vault_id, min(datetime) as first_ppfs, max(datetime) as last_ppfs\nFROM data_raw.vault v\n  left join data_raw.vault_ppfs_ts p on p.contract_address = v.token_address and p.chain = v.chain\nWHERE\n  v.chain in ($chain)\n  and v.vault_id in ($vault_id)\ngroup by 1,2,3\nORDER BY 1",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -211,7 +214,7 @@
       "options": {
         "footer": { "fields": "", "reducer": ["sum"], "show": false },
         "showHeader": true,
-        "sortBy": [{ "desc": false, "displayName": "last_price" }]
+        "sortBy": [{ "desc": false, "displayName": "first_price" }]
       },
       "pluginVersion": "9.0.2",
       "targets": [
@@ -241,7 +244,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["aurora"],
           "value": ["aurora"]
         },
@@ -262,68 +265,8 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "aurora-bifi-gov",
-            "aurora-bifi-maxi",
-            "rose-mai-3pool",
-            "rose-ust-3pool-eol",
-            "solace-solace",
-            "tri-atust-near-eol",
-            "tri-aurora-near",
-            "tri-aurora-tri",
-            "tri-aurora-weth",
-            "tri-ausdo-usdt",
-            "tri-avax-near-eol",
-            "tri-bnb-near-eol",
-            "tri-bstn-near",
-            "tri-linear-near",
-            "tri-matic-near-eol",
-            "tri-mecha-near-eol",
-            "tri-near-atluna-eol",
-            "tri-near-flx",
-            "tri-solace-near-eol",
-            "tri-stnear-near",
-            "tri-tri-usdt",
-            "trisolaris-near-tri",
-            "trisolaris-near-wbtc",
-            "trisolaris-near-weth",
-            "trisolaris-usdc-near",
-            "trisolaris-usdc-near-eol",
-            "trisolaris-usdt-near",
-            "trisolaris-usdt-near-eol",
-            "trisolaris-usdt-usdc"
-          ],
-          "value": [
-            "aurora-bifi-gov",
-            "aurora-bifi-maxi",
-            "rose-mai-3pool",
-            "rose-ust-3pool-eol",
-            "solace-solace",
-            "tri-atust-near-eol",
-            "tri-aurora-near",
-            "tri-aurora-tri",
-            "tri-aurora-weth",
-            "tri-ausdo-usdt",
-            "tri-avax-near-eol",
-            "tri-bnb-near-eol",
-            "tri-bstn-near",
-            "tri-linear-near",
-            "tri-matic-near-eol",
-            "tri-mecha-near-eol",
-            "tri-near-atluna-eol",
-            "tri-near-flx",
-            "tri-solace-near-eol",
-            "tri-stnear-near",
-            "tri-tri-usdt",
-            "trisolaris-near-tri",
-            "trisolaris-near-wbtc",
-            "trisolaris-near-weth",
-            "trisolaris-usdc-near",
-            "trisolaris-usdc-near-eol",
-            "trisolaris-usdt-near",
-            "trisolaris-usdt-near-eol",
-            "trisolaris-usdt-usdc"
-          ]
+          "text": ["rose-ust-3pool-eol"],
+          "value": ["rose-ust-3pool-eol"]
         },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct vault_id from data_raw.vault where chain in ($chain)",
@@ -346,6 +289,6 @@
   "timezone": "",
   "title": "Raw data completeness check",
   "uid": "JVMQ0u6nk",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

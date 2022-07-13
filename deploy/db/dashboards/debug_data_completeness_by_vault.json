@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 19,
-  "iteration": 1657616228006,
+  "iteration": 1657636827748,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -125,7 +125,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  balance_after\nFROM data_derived.erc20_contract_balance_diff_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and contract_address in (\n    select token_address\n    from data_raw.vault\n    where vault_id = '$vault_id'\n  )\nORDER BY 1",
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  balance_after\nFROM data_derived.erc20_contract_balance_diff_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain = '$chain'\n  and contract_address in (\n    select token_address\n    from data_raw.vault\n    where vault_id = '$vault_id'\n  )\nORDER BY 1",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -183,7 +183,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  avg_ppfs\nFROM data_derived.vault_ppfs_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and contract_address in (\n    select token_address\n    from data_raw.vault\n    where vault_id = '$vault_id'\n  )\nORDER BY 1",
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  avg_ppfs\nFROM data_derived.vault_ppfs_4h_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain = '$chain'\n  and contract_address in (\n    select token_address\n    from data_raw.vault\n    where vault_id = '$vault_id'\n  )\nORDER BY 1",
           "refId": "A",
           "select": [[{ "params": ["usd_value"], "type": "column" }]],
           "table": "oracle_price_ts",
@@ -220,7 +220,10 @@
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green" }, { "color": "red", "value": 80 }]
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
           },
           "unit": "currencyUSD"
         },
@@ -301,6 +304,6 @@
   "timezone": "",
   "title": "raw data Vault debug",
   "uid": "XXYHxX67k",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
