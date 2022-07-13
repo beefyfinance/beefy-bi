@@ -74,7 +74,10 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   logger.verbose(
     `[ERC20.T.RPC] Iterating through ${ranges.length} ranges for ${chain}:${contractAddress}:${eventName}`
   );
-  const batchSize = RPC_BACH_CALL_COUNT[chain];
+  let batchSize = RPC_BACH_CALL_COUNT[chain];
+  if (batchSize === "no-batching") {
+    batchSize = 1;
+  }
   const rangesBatches = lodash.chunk(ranges, batchSize);
   for (const rangesBatch of rangesBatches) {
     logger.verbose(

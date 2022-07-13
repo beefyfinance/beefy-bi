@@ -5,6 +5,7 @@ import { sleep } from "../../utils/async";
 import {
   LOG_LEVEL,
   MIN_DELAY_BETWEEN_RPC_CALLS_MS,
+  RPC_BACH_CALL_COUNT,
   RPC_URLS,
 } from "../../utils/config";
 import { logger } from "../../utils/logger";
@@ -59,7 +60,7 @@ export async function callLockProtectedRpc<TRes>(
 
         // cronos throws a typeerror when called with a batch provider, and we can't catch those so it crashed the script
         const provider =
-          chain === "cronos"
+          RPC_BACH_CALL_COUNT[chain] === "no-batching"
             ? new ethers.providers.JsonRpcProvider(secretRpcUrl)
             : new ethers.providers.JsonRpcBatchProvider(secretRpcUrl);
         /*

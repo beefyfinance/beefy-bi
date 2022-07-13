@@ -179,3 +179,9 @@ polygon:0xC1A2e8274D390b67A7136708203D71BF3877f158: {
   "newBalance":"-95515847285748"
 }
 ```
+
+```
+Check if PPFS is fixed for banana-guard-bnb-eol (not importing after some point)
+
+Find a way to import the missing historical price data for polygon and BSC
+```

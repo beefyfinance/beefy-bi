@@ -169,15 +169,15 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
 };
 
 export const RPC_BACH_CALL_COUNT: {
-  [chain in Chain]: number;
+  [chain in Chain]: number | "no-batching";
 } = {
   arbitrum: 100,
   aurora: 100,
   avax: 100,
   bsc: 40, // current RPC don't like too big batches
   celo: 100,
-  cronos: 1, // cronos doesn't look it supports batching or ethers don't understand the response
-  emerald: 100,
+  cronos: "no-batching", // cronos doesn't look it supports batching or ethers don't understand the response
+  emerald: "no-batching", // fetching fetch:emerald:0x74d6b1D419556d8A3E3038A9c8096DA0cA4beF24:creation_date: invalid request: max allowed of rounds in logs query is: 100
   fantom: 100,
   fuse: 50, // fuse is a bit slower than the others
   harmony: 50, // harmony is a bit sensitive when batching too much (BUFFER_OVERRUN)
@@ -197,7 +197,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   bsc: 3000,
   celo: 3000,
   cronos: 1000, // 2k for https://evm-cronos.crypto.org
-  emerald: 3000,
+  emerald: 100, // invalid request: max allowed of rounds in logs query is: 100
   fantom: 3000,
   fuse: 3000,
   harmony: 1024, // GetLogs query must be smaller than size 1024

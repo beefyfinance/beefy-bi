@@ -145,9 +145,13 @@ async function importVault(
   );
 
   try {
+    let batchSize = RPC_BACH_CALL_COUNT[chain];
+    if (batchSize === "no-batching") {
+      batchSize = 1;
+    }
     for await (const blockDataBatch of batchAsyncStream(
       blockSampleStream,
-      RPC_BACH_CALL_COUNT[chain]
+      batchSize
     )) {
       logger.verbose(
         `[PPFS] Fetching data of ${chain}:${vault.id} (${contractAddress}) for ${blockDataBatch.length} blocks starting from ${blockDataBatch[0].blockNumber}`
