@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { DATA_DIRECTORY } from "./config";
+import * as readline from "readline";
 
 export async function makeDataDirRecursive(filePath: string) {
   // extract dir path from file path
@@ -22,4 +23,24 @@ export async function fileOrDirExists(filePath: string) {
   } catch (e) {
     return false;
   }
+}
+
+export async function getFirstLineOfFile(pathToFile: string): Promise<string> {
+  const readable = fs.createReadStream(pathToFile);
+  const reader = readline.createInterface({ input: readable });
+  const line = await new Promise<string>((resolve, reject) => {
+    let hasLine = false;
+    reader.on("line", (line) => {
+      reader.close();
+      hasLine = true;
+      resolve(line);
+    });
+    reader.on("error", (err) => reject(err));
+    reader.on("close", () => {
+      if (hasLine) return;
+      else resolve(""); // if file is empty, return empty string
+    });
+  });
+  readable.close();
+  return line;
 }

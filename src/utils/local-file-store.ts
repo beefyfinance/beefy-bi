@@ -5,7 +5,7 @@ import { makeDataDirRecursive } from "./fs";
 import { getRedlock } from "../lib/shared-resources/shared-lock";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { LOG_LEVEL } from "./config";
-import { getFirstLineOfFile } from "./stream";
+import { getFirstLineOfFile } from "./fs";
 import { logger } from "./logger";
 import { fileOrDirExists } from "./fs";
 
