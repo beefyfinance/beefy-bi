@@ -3,10 +3,7 @@ import { LOG_LEVEL } from "../../utils/config";
 import { logger } from "../../utils/logger";
 import { getRedlock } from "./shared-lock";
 
-export async function callLockProtectedGitRepo(
-  repo: string,
-  work: () => Promise<any>
-) {
+export async function callLockProtectedGitRepo(repo: string, work: () => Promise<any>) {
   const redlock = await getRedlock();
   // first, try to acquire a lock as there could be only one call at any time per explorer on the whole system
   const resourceId = `git:repo:${repo}:lock`;
@@ -28,9 +25,10 @@ export async function callLockProtectedGitRepo(
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
         const message = `[GIT.LOCK] Error on attempt ${attemptNumber} calling explorer for ${resourceId}: ${error.message}`;
-        if (attemptNumber < 3) logger.verbose(message);
-        else if (attemptNumber < 5) logger.info(message);
-        else if (attemptNumber < 8) logger.warn(message);
+        if (attemptNumber < 3) logger.debug(message);
+        else if (attemptNumber < 5) logger.verbose(message);
+        else if (attemptNumber < 8) logger.info(message);
+        else if (attemptNumber < 9) logger.warn(message);
         else logger.error(message);
 
         if (LOG_LEVEL === "trace") {

@@ -2,12 +2,7 @@ import { ethers } from "ethers";
 import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
-import {
-  LOG_LEVEL,
-  MIN_DELAY_BETWEEN_RPC_CALLS_MS,
-  RPC_BACH_CALL_COUNT,
-  RPC_URLS,
-} from "../../utils/config";
+import { LOG_LEVEL, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from "../../utils/config";
 import { logger } from "../../utils/logger";
 import { getRedisClient, getRedlock } from "./shared-lock";
 import * as lodash from "lodash";
@@ -35,22 +30,15 @@ export async function callLockProtectedRpc<TRes>(
         // find out the last time we called this explorer
         const lastCallCacheKey = `${chain}:rpc:${rpcIndex}:last-call-date`;
         const lastCallStr = await client.get(lastCallCacheKey);
-        const lastCallDate =
-          lastCallStr && lastCallStr !== ""
-            ? new Date(lastCallStr)
-            : new Date(0);
+        const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
 
         const now = new Date();
-        logger.debug(
-          `[RPC] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
-        );
+        logger.debug(`[RPC] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`);
 
         // wait a bit before calling the rpc again if needed
         if (delayBetweenCalls !== "no-limit") {
           if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-            logger.debug(
-              `[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`
-            );
+            logger.debug(`[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`);
             await sleep(delayBetweenCalls);
             logger.debug(`[RPC] Resuming call to ${publicRpcUrl}`);
           }
@@ -93,13 +81,9 @@ export async function callLockProtectedRpc<TRes>(
         logger.debug(`[RPC] No lock needed for ${publicRpcUrl}`);
         return doWork();
       } else {
-        logger.debug(
-          `[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`
-        );
+        logger.debug(`[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`);
         return redlock.using([resourceId], 2 * 60 * 1000, async () => {
-          logger.debug(
-            `[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`
-          );
+          logger.debug(`[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`);
           return doWork();
         });
       }
@@ -111,9 +95,10 @@ export async function callLockProtectedRpc<TRes>(
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
         const message = `[RPC] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl}: ${error.message}`;
-        if (attemptNumber < 3) logger.verbose(message);
-        else if (attemptNumber < 5) logger.info(message);
-        else if (attemptNumber < 8) logger.warn(message);
+        if (attemptNumber < 3) logger.debug(message);
+        else if (attemptNumber < 5) logger.verbose(message);
+        else if (attemptNumber < 8) logger.info(message);
+        else if (attemptNumber < 9) logger.warn(message);
         else logger.error(message);
 
         if (LOG_LEVEL === "trace") {
