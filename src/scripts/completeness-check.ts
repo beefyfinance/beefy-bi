@@ -8,7 +8,7 @@ import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
 import { erc20TransferStore } from "../lib/csv-transfer-events";
 import { getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
-import { getLastImportedERC20TransferFromEvent } from "../lib/csv-transfer-from-events";
+import { erc20TransferFromStore } from "../lib/csv-transfer-from-events";
 import { getLastImportedBeefyVaultV6Strategy, streamVaultStrategies } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
@@ -113,7 +113,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
 
     // check we got transfer froms
     const wnative = getChainWNativeTokenAddress(chain);
-    const lastTransferFrom = await getLastImportedERC20TransferFromEvent(chain, strategyAddress, wnative);
+    const lastTransferFrom = await erc20TransferFromStore.getLastRow(chain, strategyAddress, wnative);
     if (lastTransferFrom === null) {
       logger.error(`[CC] No TransferFrom events found for vault ${chain}:${strategyAddress}}`);
     } else if (now.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
