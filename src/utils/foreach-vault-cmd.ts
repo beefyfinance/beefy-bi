@@ -46,7 +46,7 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
       const results: TRes[] = [];
       for (const vault of vaults) {
         if (vaultId && vault.id !== vaultId) {
-          logger.debug(`[${options.loggerScope}] Skipping vault ${vault.id}`);
+          //logger.debug(`[${options.loggerScope}] Skipping vault ${vault.id}`);
           continue;
         }
         try {
@@ -57,11 +57,7 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
             logger.error(`[${options.loggerScope}] Archive node needed, skipping vault ${chain}:${vault.id}`);
             continue;
           } else {
-            logger.error(
-              `[${options.loggerScope}] Error fetching transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(
-                e
-              )}`
-            );
+            logger.error(`[${options.loggerScope}] Error, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`);
             console.log(e);
             continue;
           }

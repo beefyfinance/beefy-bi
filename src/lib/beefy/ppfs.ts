@@ -37,8 +37,23 @@ export async function fetchBeefyPPFS(
       }) as Promise<[ethers.BigNumber]>;
     });
   });
-  const ppfs = await Promise.all(ppfsPromises);
-  return ppfs.map(([ppfs]) => ppfs);
+  const ppfsResults = await Promise.allSettled(ppfsPromises);
+  const ppfss: ethers.BigNumber[] = [];
+  for (const ppfsRes of ppfsResults) {
+    if (ppfsRes.status === "fulfilled") {
+      ppfss.push(ppfsRes.value[0]);
+    } else {
+      // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
+      // this means that the totalSupply is 0 so we set ppfs to zero
+      if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
+        ppfss.push(ethers.BigNumber.from("0"));
+      } else {
+        // otherwise, we throw the error
+        throw ppfsRes.reason;
+      }
+    }
+  }
+  return ppfss;
 }
 
 /**
