@@ -2,18 +2,11 @@ import axios from "axios";
 import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
-import {
-  EXPLORER_URLS,
-  LOG_LEVEL,
-  MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS,
-} from "../../utils/config";
+import { EXPLORER_URLS, LOG_LEVEL, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS } from "../../utils/config";
 import { logger } from "../../utils/logger";
 import { getRedisClient, getRedlock } from "./shared-lock";
 
-export async function callLockProtectedExplorerUrl<TRes>(
-  chain: Chain,
-  params: Record<string, string>
-) {
+export async function callLockProtectedExplorerUrl<TRes>(chain: Chain, params: Record<string, string>) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
   // first, try to acquire a lock as there could be only one call at any time per explorer on the whole system
@@ -31,21 +24,14 @@ export async function callLockProtectedExplorerUrl<TRes>(
         // find out the last time we called this explorer
         const lastCallCacheKey = `${chain}:explorer:last-call-date`;
         const lastCallStr = await client.get(lastCallCacheKey);
-        const lastCallDate =
-          lastCallStr && lastCallStr !== ""
-            ? new Date(lastCallStr)
-            : new Date(0);
+        const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
 
         const now = new Date();
-        logger.debug(
-          `[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`
-        );
+        logger.debug(`[EXPLORER] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`);
 
         // wait a bit before calling the explorer again
         if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-          logger.debug(
-            `[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`
-          );
+          logger.debug(`[EXPLORER] Last call too close for ${explorerUrl}, sleeping a bit`);
           await sleep(delayBetweenCalls);
           logger.debug(`[EXPLORER] Resuming call to ${explorerUrl}`);
         }
@@ -75,12 +61,11 @@ export async function callLockProtectedExplorerUrl<TRes>(
           return [];
         }
 
+        if (res.headers && "content-type" in res.headers && !res.headers["content-type"].includes("application/json")) {
+          throw new Error(`[EXPLORER] ${url} returned unexpected content type: ${res.headers["content-type"]}`);
+        }
         if (res.data.status === "0") {
-          logger.error(
-            `[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(
-              res.data
-            )}`
-          );
+          logger.error(`[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(res.data)}`);
           throw new Error(`[EXPLORER] Explorer call failed: ${explorerUrl}`);
         }
         return res.data.result;

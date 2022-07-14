@@ -11,12 +11,10 @@ export async function deleteAllVaultData(chain: Chain, contractAddress: string, 
   // delete strategy data
   await vaultStrategyStore.deleteAllVaultStrategiesData(chain, contractAddress, dryrun);
 
-  logger.info(`[CREATE.DATE.FIX]${dryrun ? "[dryrun]" : ""} Deleting all vault data for ${chain}:${contractAddress}`);
+  logger.info(`[VAULT.STORE]${dryrun ? "[dryrun]" : ""} Deleting all vault data for ${chain}:${contractAddress}`);
   const contractDirectory = path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress));
 
-  logger.verbose(
-    `[VAULT.S.STORE]${dryrun ? "[dryrun]" : ""} Deleting all strategy data for ${chain}:${contractAddress}`
-  );
+  logger.verbose(`[VAULT.STORE]${dryrun ? "[dryrun]" : ""} Deleting all strategy data for ${chain}:${contractAddress}`);
   if (!dryrun) {
     await fs.promises.rmdir(contractDirectory, { recursive: true });
   }
