@@ -27,7 +27,6 @@ const main = foreachVaultCmd({
   parallelize: false,
 });
 
-//AEAZEAZEAZEAZE;
 // for the actual target vault
 // fetch the actual creation date from RPC using OwnershipTransfered logs
 // if local creation date and RPC date are the same, do nothing

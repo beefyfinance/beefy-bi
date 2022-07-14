@@ -11,7 +11,6 @@ interface PriceSnapshot {
 }
 
 export async function* streamBeefyPrices(
-  chain: Chain,
   samplingPeriod: SamplingPeriod,
   oracleId: string,
   options?: {
@@ -25,7 +24,7 @@ export async function* streamBeefyPrices(
   const apiPeriod = samplingPeriod === "15min" ? "minute" : "minute";
   const startDate = options?.startDate || new Date(0);
   const endDate = options?.endDate || new Date(new Date().getTime() + 10000000);
-  logger.debug(`[VAULT_PRICE_STREAM] Fetching prices for ${chain}:${oracleId}`);
+  logger.debug(`[VAULT_PRICE_STREAM] Fetching prices for ${oracleId}`);
   const res = await axios.get(BEEFY_DATA_URL + "/price", {
     params: {
       name: oracleId,

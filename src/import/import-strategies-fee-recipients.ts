@@ -21,7 +21,7 @@ async function main() {
   const chain = argv.chain as Chain | "all";
   const strategyAddress = argv.strategyAddress ? normalizeAddress(argv.strategyAddress) : null;
 
-  logger.info(`[FEE.ADDR] Importing ${chain} ERC20 transfer events...`);
+  logger.info(`[FEE.ADDR] Importing ${chain} fee recipients...`);
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
 
   // fetch all chains in parallel
@@ -48,6 +48,8 @@ async function importChain(chain: Chain, strategyAddress: string | null) {
       if (strategyAddress && strategy.implementation !== strategyAddress) {
         logger.debug(`[FEE.ADDR] Skipping strategy ${strategy.implementation}`);
         continue;
+      } else {
+        logger.info(`[FEE.ADDR] Importing ${chain} ${strategy.implementation}`);
       }
 
       try {
