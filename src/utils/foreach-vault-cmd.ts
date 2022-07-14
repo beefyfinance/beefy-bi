@@ -46,7 +46,7 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
       const results: TRes[] = [];
       for (const vault of vaults) {
         if (vaultId && vault.id !== vaultId) {
-          //logger.debug(`[${options.loggerScope}] Skipping vault ${vault.id}`);
+          logger.debug(`[${options.loggerScope}] Skipping vault ${vault.id}`);
           continue;
         }
         try {
@@ -58,7 +58,9 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
             continue;
           } else {
             logger.error(`[${options.loggerScope}] Error, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`);
-            console.log(e);
+            if (LOG_LEVEL === "trace") {
+              console.log(e);
+            }
             continue;
           }
         }
