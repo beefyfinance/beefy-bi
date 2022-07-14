@@ -9,7 +9,6 @@ import { runMain } from "../utils/process";
 import { getLastImportedERC20TransferEvent } from "../lib/csv-transfer-events";
 import { getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
 import { getLastImportedERC20TransferFromEvent } from "../lib/csv-transfer-from-events";
-import { getLastImportedSampleBlockData } from "../lib/csv-block-samples";
 import {
   getLastImportedBeefyVaultV6Strategy,
   streamVaultStrategies,
@@ -20,6 +19,7 @@ import yargs from "yargs";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { LOG_LEVEL } from "../utils/config";
 import { BeefyVault } from "../lib/git-get-all-vaults";
+import { blockSamplesStore } from "../lib/csv-block-samples";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -62,10 +62,7 @@ async function checkBlockSamples(chain: Chain) {
   const now = new Date();
   const oneDay = 1000 * 60 * 60 * 24;
   const samplingPeriod = "4hour";
-  const latestBlock = await getLastImportedSampleBlockData(
-    chain,
-    samplingPeriod
-  );
+  const latestBlock = await blockSamplesStore.getLastRow(chain, samplingPeriod);
 
   if (latestBlock === null) {
     logger.error(`[CC] No block samples for ${chain}:${samplingPeriod}`);

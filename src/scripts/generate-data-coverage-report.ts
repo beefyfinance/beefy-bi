@@ -1,4 +1,4 @@
-import { flatten, shuffle, sortBy } from "lodash";
+import { flatten, sortBy } from "lodash";
 import {
   fetchBeefyVaultList,
   getLocalContractCreationInfos,
@@ -27,7 +27,7 @@ import * as path from "path";
 import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
 import * as fs from "fs";
-import { SamplingPeriod } from "../lib/csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 

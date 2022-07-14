@@ -1,6 +1,6 @@
 import { from as copyFrom } from "pg-copy-streams";
 import { runMain } from "../utils/process";
-import yargs, { string } from "yargs";
+import yargs from "yargs";
 import { allChainIds } from "../types/chain";
 import { transform } from "stream-transform";
 import { Chain } from "../types/chain";
@@ -34,7 +34,7 @@ import {
   getOraclePricesStream,
   OraclePriceData,
 } from "../lib/csv-oracle-price";
-import { SamplingPeriod } from "../lib/csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
 import { BeefyVault } from "../lib/git-get-all-vaults";

@@ -3,14 +3,11 @@ import { Chain } from "../types/chain";
 import * as ethers from "ethers";
 import { callLockProtectedExplorerUrl } from "./shared-resources/shared-explorer";
 import * as lodash from "lodash";
-import { RPC_URLS } from "../utils/config";
 import axios from "axios";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
-import {
-  getFirstImportedSampleBlockData,
-  SamplingPeriod,
-} from "./csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 import { streamBifiVaultOwnershipTransferedEventsFromRpc } from "./streamContractEventsFromRpc";
+import { blockSamplesStore } from "./csv-block-samples";
 
 export interface ContractCreationInfo {
   chain: Chain;
@@ -70,7 +67,7 @@ export async function getContractCreationInfosFromRPC(
   contractAddress: string,
   samplingPeriodForFirstBlock: SamplingPeriod
 ): Promise<ContractCreationInfo | null> {
-  const firstBlock = await getFirstImportedSampleBlockData(
+  const firstBlock = await blockSamplesStore.getFirstRow(
     chain,
     samplingPeriodForFirstBlock
   );

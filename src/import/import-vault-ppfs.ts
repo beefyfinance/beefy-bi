@@ -6,8 +6,7 @@ import {
   allSamplingPeriods,
   SamplingPeriod,
   samplingPeriodMs,
-  streamBlockSamplesFrom,
-} from "../lib/csv-block-samples";
+} from "../types/sampling";
 import { sleep } from "../utils/async";
 import {
   fetchBeefyVaultList,
@@ -25,6 +24,7 @@ import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
 import { LOG_LEVEL, RPC_BACH_CALL_COUNT } from "../utils/config";
 import { BeefyVault } from "../lib/git-get-all-vaults";
+import { blockSamplesStore } from "../lib/csv-block-samples";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -93,6 +93,7 @@ async function importChain(
             vault.id
           }: ${JSON.stringify(e)}`
         );
+        console.log(e);
         continue;
       }
     }
@@ -132,10 +133,10 @@ async function importVault(
   logger.debug(
     `[PPFS] importing from block ${lastImportedBlock} for ${chain}:${vault.id}`
   );
-  const blockSampleStream = streamBlockSamplesFrom(
+  const blockSampleStream = blockSamplesStore.getReadIteratorFrom(
+    ({ blockNumber }) => !lastImportedBlock || blockNumber >= lastImportedBlock,
     chain,
-    samplingPeriod,
-    lastImportedBlock
+    samplingPeriod
   );
 
   const { writeBatch, close } = await getBeefyVaultV6PPFSWriteStream(

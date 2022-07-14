@@ -1,11 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import { Chain } from "../types/chain";
-import {
-  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
-  DATA_DIRECTORY,
-  LOG_LEVEL,
-} from "../utils/config";
+import { DATA_DIRECTORY, LOG_LEVEL, shouldUseExplorer } from "../utils/config";
 import * as path from "path";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { normalizeAddress } from "../utils/ethers";
@@ -182,7 +178,7 @@ export const fetchContractCreationInfos = fetchIfNotFoundLocally(
     chain: Chain,
     contractAddress: string
   ): Promise<ContractCreationInfo> => {
-    const useExplorer = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+    const useExplorer = shouldUseExplorer(chain);
     if (useExplorer) {
       return fetchContractFirstLastTrxFromExplorer(
         chain,

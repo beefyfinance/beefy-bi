@@ -16,16 +16,12 @@ import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
-import {
-  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
-  LOG_LEVEL,
-} from "../utils/config";
+import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 
 async function main() {
-  const useExplorerFor: Chain[] = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS;
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")
     .options({
@@ -44,8 +40,7 @@ async function main() {
   // fetch all chains in parallel
   const chainPromises = chains.map(async (chain) => {
     try {
-      const source = useExplorerFor.includes(chain) ? "explorer" : "rpc";
-      await importChain(chain, source, strategyAddress);
+      await importChain(chain, strategyAddress);
     } catch (error) {
       logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
@@ -61,11 +56,7 @@ async function main() {
   await sleep(1000 * 60 * 60 * 4);
 }
 
-async function importChain(
-  chain: Chain,
-  source: "rpc" | "explorer",
-  strategyAddress: string | null
-) {
+async function importChain(chain: Chain, strategyAddress: string | null) {
   try {
     const strategies = getAllStrategyAddresses(chain);
     for await (const strategy of strategies) {
@@ -75,7 +66,7 @@ async function importChain(
       }
 
       try {
-        await importStrategyWNativeFrom(chain, source, strategy);
+        await importStrategyWNativeFrom(chain, strategy);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
           logger.error(
@@ -83,7 +74,7 @@ async function importChain(
           );
         } else {
           logger.error(
-            `[ERC20.N.ST] Error importing native transfers from, from ${source}. Skipping ${chain}:${
+            `[ERC20.N.ST] Error importing native transfers from. Skipping ${chain}:${
               strategy.implementation
             }. ${JSON.stringify(e)}`
           );
@@ -92,7 +83,7 @@ async function importChain(
     }
   } catch (e) {
     logger.error(
-      `[ERC20.N.ST] Error importing chain from ${source}. Skipping ${chain}. ${JSON.stringify(
+      `[ERC20.N.ST] Error importing chain. Skipping ${chain}. ${JSON.stringify(
         e
       )}`
     );
@@ -102,7 +93,6 @@ async function importChain(
 
 async function importStrategyWNativeFrom(
   chain: Chain,
-  source: "rpc" | "explorer",
   strategy: { implementation: string }
 ) {
   const nativeAddress = getChainWNativeTokenAddress(chain);
@@ -155,7 +145,8 @@ async function importStrategyWNativeFrom(
     nativeAddress
   );
 
-  if (source === "explorer") {
+  const useExplorer = shouldUseExplorer(chain);
+  if (useExplorer) {
     // Fuse and metis explorer requires an end block to be set
     // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
     // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}

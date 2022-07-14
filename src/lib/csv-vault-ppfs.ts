@@ -8,7 +8,7 @@ import { Chain } from "../types/chain";
 import { DATA_DIRECTORY } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
-import { SamplingPeriod } from "./csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import {

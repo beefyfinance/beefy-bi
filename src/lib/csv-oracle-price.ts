@@ -8,7 +8,7 @@ import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "../utils/logger";
 import { onExit } from "../utils/process";
-import { SamplingPeriod } from "./csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 import { glob } from "glob";
 
 const CSV_SEPARATOR = ",";

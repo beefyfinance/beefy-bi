@@ -10,7 +10,7 @@ import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
-import { allSamplingPeriods, SamplingPeriod } from "../lib/csv-block-samples";
+import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { batchAsyncStream } from "../utils/batch";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 

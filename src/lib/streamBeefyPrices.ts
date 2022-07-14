@@ -2,7 +2,7 @@ import { Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import axios from "axios";
 import { BEEFY_DATA_URL } from "../utils/config";
-import { SamplingPeriod } from "./csv-block-samples";
+import { SamplingPeriod } from "../types/sampling";
 
 interface PriceSnapshot {
   oracleId: string;

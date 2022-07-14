@@ -11,7 +11,11 @@ import { runMain } from "../utils/process";
 import yargs from "yargs";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
-import { DATA_DIRECTORY, shouldUseExplorer } from "../utils/config";
+import {
+  DATA_DIRECTORY,
+  shouldUseExplorer,
+  _forceUseSource,
+} from "../utils/config";
 import { getContractCreationInfosFromRPC } from "../lib/contract-transaction-infos";
 import { deleteAllVaultStrategiesData } from "../lib/csv-vault-strategy";
 import { normalizeAddress } from "../utils/ethers";
@@ -22,27 +26,28 @@ async function main() {
     .usage("Usage: $0 [options]")
     .options({
       chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
-      vaultId: { type: "string", demand: false, alias: "v" },
+      vaultId: { type: "string", demand: true, alias: "v" },
+      forceSource: { choices: ["explorer", "rpc"], demand: false, alias: "s" },
       dryrun: { type: "boolean", demand: true, default: true, alias: "d" },
     }).argv;
 
   const chain = argv.chain as Chain | "all";
   const chains = chain === "all" ? allChainIds : [chain];
-  const vaultId = argv.vaultId || null;
+  const vaultId = argv.vaultId;
   const dryrun = argv.dryrun || true;
+  const forceSource = (argv.forceSource || null) as "explorer" | "rpc" | null;
 
-  logger.info(`[CREATE.DATE.FIX] Dryrun: ${dryrun}`);
+  if (forceSource) {
+    _forceUseSource(forceSource);
+  }
+
+  logger.info(`[ERC20.T.FIX] Dryrun: ${dryrun}`);
 
   for (const chain of chains) {
-    const useExplorer = shouldUseExplorer(chain);
-    if (useExplorer) {
-      logger.info(`[BLOCKS] Skipping ${chain} because it has decent explorer`);
-      continue;
-    }
     const vaults = await fetchBeefyVaultList(chain);
     for (const vault of vaults) {
-      if (vaultId && vault.id !== vaultId) {
-        logger.debug(`[CREATE.DATE.FIX] Skipping vault ${vault.id}`);
+      if (vault.id !== vaultId) {
+        logger.debug(`[ERC20.T.FIX] Skipping vault ${vault.id}`);
         continue;
       }
       try {
@@ -50,12 +55,12 @@ async function main() {
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
           logger.error(
-            `[CREATE.DATE.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`
+            `[ERC20.T.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`
           );
           continue;
         } else {
           logger.error(
-            `[CREATE.DATE.FIX] Error fetching transfers, skipping vault ${chain}:${
+            `[ERC20.T.FIX] Error fixing transfers, skipping vault ${chain}:${
               vault.id
             }: ${JSON.stringify(e)}`
           );
@@ -67,10 +72,8 @@ async function main() {
   }
 }
 
-// for each chain
-// if explorer is decent, do nothing
-// otherwise
-// for each vault
+//AEAZEAZEAZEAZE;
+// for the actual target vault
 // fetch the actual creation date from RPC using OwnershipTransfered logs
 // if local creation date and RPC date are the same, do nothing
 // otherwise
@@ -89,12 +92,12 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
   );
   if (!localCreationInfos) {
     logger.debug(
-      `[CREATE.DATE.FIX] No local creation date for ${chain}:${vault.id}. Skipping.`
+      `[ERC20.T.FIX] No local creation date for ${chain}:${vault.id}. Skipping.`
     );
     return;
   }
   logger.verbose(
-    `[CREATE.DATE.FIX] Local creation date for ${chain}:${
+    `[ERC20.T.FIX] Local creation date for ${chain}:${
       vault.id
     }: ${localCreationInfos.datetime.toISOString()}`
   );
@@ -105,12 +108,12 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
   );
   if (!trueCreationInfos) {
     logger.debug(
-      `[CREATE.DATE.FIX] Could not find RPC creation date for ${chain}:${vault.id}. Skipping.`
+      `[ERC20.T.FIX] Could not find RPC creation date for ${chain}:${vault.id}. Skipping.`
     );
     return;
   }
   logger.verbose(
-    `[CREATE.DATE.FIX] RPC creation date for ${chain}:${
+    `[ERC20.T.FIX] RPC creation date for ${chain}:${
       vault.id
     }: ${trueCreationInfos.datetime.toISOString()}`
   );
@@ -120,7 +123,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
     localCreationInfos.datetime.getTime()
   ) {
     logger.debug(
-      `[CREATE.DATE.FIX] Creation dates are the same for ${chain}:${vault.id}. Skipping.`
+      `[ERC20.T.FIX] Creation dates are the same for ${chain}:${vault.id}. Skipping.`
     );
     return;
   }
@@ -128,7 +131,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
     trueCreationInfos.datetime.getTime() > localCreationInfos.datetime.getTime()
   ) {
     logger.error(
-      `[CREATE.DATE.FIX] RPC creation date is newer than local for ${chain}:${vault.id}. Skipping.`
+      `[ERC20.T.FIX] RPC creation date is newer than local for ${chain}:${vault.id}. Skipping.`
     );
     return;
   }
@@ -138,7 +141,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
 
   // delete vault data
   logger.info(
-    `[CREATE.DATE.FIX]${
+    `[ERC20.T.FIX]${
       dryrun ? "[dryrun]" : ""
     } Deleting all vault data for ${chain}:${contractAddress}`
   );
@@ -172,7 +175,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
 
   // write new creation date
   logger.info(
-    `[CREATE.DATE.FIX] Writing new creation date for ${chain}:${
+    `[ERC20.T.FIX] Writing new creation date for ${chain}:${
       vault.id
     }. Old date: ${localCreationInfos.datetime.toISOString()}, new date: ${trueCreationInfos.datetime.toISOString()}`
   );

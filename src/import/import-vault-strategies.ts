@@ -10,10 +10,7 @@ import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import { sleep } from "../utils/async";
 import { streamBifiVaultUpgradeStratEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import {
-  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
-  LOG_LEVEL,
-} from "../utils/config";
+import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
 import {
   getBeefyVaultV6StrategiesWriteStream,
   getLastImportedBeefyVaultV6Strategy,
@@ -157,7 +154,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
     contractAddress
   );
 
-  const useExplorer = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+  const useExplorer = shouldUseExplorer(chain);
 
   try {
     if (useExplorer) {

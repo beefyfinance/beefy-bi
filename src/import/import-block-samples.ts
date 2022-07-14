@@ -4,15 +4,14 @@ import yargs from "yargs";
 import { BlockDateInfos, fetchBlockData } from "../utils/ethers";
 import {
   allSamplingPeriods,
-  getBlockSamplesStorageWriteStream,
-  getLastImportedSampleBlockData,
   SamplingPeriod,
   samplingPeriodMs,
-} from "../lib/csv-block-samples";
+} from "../types/sampling";
 import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 import * as lodash from "lodash";
 import { runMain } from "../utils/process";
+import { blockSamplesStore } from "../lib/csv-block-samples";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -55,84 +54,89 @@ async function importChainBlockSamples(
     `[BLOCKS] Importing ${chain} block samples with period ${samplingPeriod}.`
   );
 
-  const { writeBatch } = await getBlockSamplesStorageWriteStream(
-    chain,
-    samplingPeriod
-  );
+  const writer = await blockSamplesStore.getWriter(chain, samplingPeriod);
 
-  let lastImported = await getLastImportedSampleBlockData(
-    chain,
-    samplingPeriod
-  );
-  if (lastImported === null) {
-    let firstBlock = await getFirstBlock(chain);
-    // add special case for aurora to speed things up
-    // all blocks before that are set to timestamp 0
-    if (chain === "aurora") {
-      firstBlock = await fetchBlockData(chain, 9820889);
-    }
-    await writeBatch([firstBlock]);
-    lastImported = firstBlock;
-  }
-
-  const ms = samplingPeriodMs[samplingPeriod];
-  const latestBlock = await fetchBlockData(chain, "latest");
-
-  let blockCountToFill = Math.round(
-    samplingPeriodMs[samplingPeriod] / MS_PER_BLOCK_ESTIMATE[chain]
-  );
-  while (
-    latestBlock.datetime.getTime() - lastImported.datetime.getTime() >
-    ms
-  ) {
-    const upperBound = await fetchBlockData(
+  try {
+    let lastImported = await blockSamplesStore.getLastRow(
       chain,
-      Math.min(
-        lastImported.blockNumber + blockCountToFill,
-        latestBlock.blockNumber
-      )
+      samplingPeriod
     );
-    logger.verbose(
-      `[BLOCKS] Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`
-    );
-    const innerBlocks = await fillBlockGaps(
-      chain,
-      samplingPeriod,
-      lastImported,
-      upperBound
-    );
-    if (lastImported.datetime.getTime() !== upperBound.datetime.getTime()) {
-      await writeBatch([...innerBlocks, upperBound]);
-    }
-    lastImported = upperBound as BlockDateInfos;
-
-    // adjust blockCountToFill
-    if (innerBlocks.length < 80) {
-      const multiplier =
-        innerBlocks.length < 10 ? 4 : innerBlocks.length < 30 ? 2 : 1.5;
-      const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
-      logger.debug(
-        `[BLOCKS] Too few blocks imported (${innerBlocks.length}), increasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
-      );
-      blockCountToFill = newBlockCountToFill;
-    } else if (innerBlocks.length > 120) {
-      const multiplier =
-        innerBlocks.length > 200 ? 0.5 : innerBlocks.length > 150 ? 0.65 : 0.8;
-      const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
-      logger.debug(
-        `[BLOCKS] Too many blocks imported (${innerBlocks.length}), decreasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
-      );
-      blockCountToFill = newBlockCountToFill;
+    if (lastImported === null) {
+      let firstBlock = await getFirstBlock(chain);
+      // add special case for aurora to speed things up
+      // all blocks before that are set to timestamp 0
+      if (chain === "aurora") {
+        firstBlock = await fetchBlockData(chain, 9820889);
+      }
+      await writer.writeBatch([firstBlock]);
+      lastImported = firstBlock;
     }
 
-    // add a maximum block count to fill to 500 * period
-    // because some blockchains have many useless blocks in the beginning (aurora)
-    blockCountToFill = Math.min(
-      Math.round((ms * 500) / MS_PER_BLOCK_ESTIMATE[chain]),
-      blockCountToFill
+    const ms = samplingPeriodMs[samplingPeriod];
+    const latestBlock = await fetchBlockData(chain, "latest");
+
+    let blockCountToFill = Math.round(
+      samplingPeriodMs[samplingPeriod] / MS_PER_BLOCK_ESTIMATE[chain]
     );
+
+    while (
+      latestBlock.datetime.getTime() - lastImported.datetime.getTime() >
+      ms
+    ) {
+      const upperBound = await fetchBlockData(
+        chain,
+        Math.min(
+          lastImported.blockNumber + blockCountToFill,
+          latestBlock.blockNumber
+        )
+      );
+      logger.verbose(
+        `[BLOCKS] Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`
+      );
+      const innerBlocks = await fillBlockGaps(
+        chain,
+        samplingPeriod,
+        lastImported,
+        upperBound
+      );
+      if (lastImported.datetime.getTime() !== upperBound.datetime.getTime()) {
+        await writer.writeBatch([...innerBlocks, upperBound]);
+      }
+      lastImported = upperBound as BlockDateInfos;
+
+      // adjust blockCountToFill
+      if (innerBlocks.length < 80) {
+        const multiplier =
+          innerBlocks.length < 10 ? 4 : innerBlocks.length < 30 ? 2 : 1.5;
+        const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
+        logger.debug(
+          `[BLOCKS] Too few blocks imported (${innerBlocks.length}), increasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
+        );
+        blockCountToFill = newBlockCountToFill;
+      } else if (innerBlocks.length > 120) {
+        const multiplier =
+          innerBlocks.length > 200
+            ? 0.5
+            : innerBlocks.length > 150
+            ? 0.65
+            : 0.8;
+        const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
+        logger.debug(
+          `[BLOCKS] Too many blocks imported (${innerBlocks.length}), decreasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
+        );
+        blockCountToFill = newBlockCountToFill;
+      }
+
+      // add a maximum block count to fill to 500 * period
+      // because some blockchains have many useless blocks in the beginning (aurora)
+      blockCountToFill = Math.min(
+        Math.round((ms * 500) / MS_PER_BLOCK_ESTIMATE[chain]),
+        blockCountToFill
+      );
+    }
+  } finally {
+    await writer.close();
   }
-
   logger.info(
     `[BLOCKS] Done importing block samples for ${chain}:${samplingPeriod}`
   );

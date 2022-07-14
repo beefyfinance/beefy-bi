@@ -17,10 +17,7 @@ import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
 import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
-import {
-  CHAINS_WITH_ETHSCAN_BASED_EXPLORERS,
-  LOG_LEVEL,
-} from "../utils/config";
+import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 
@@ -135,7 +132,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
     contractAddress
   );
 
-  const useExplorer = CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+  const useExplorer = shouldUseExplorer(chain);
 
   try {
     if (useExplorer) {

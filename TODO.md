@@ -78,40 +78,6 @@ https://github.com/PureStake/moonbeam/releases/tag/runtime-1503
 
 ERROR:  operand, lower bound, and upper bound cannot be NaN
 
-
-ERROR on vault stats reload
-beefy_db-load-timescaledb-1  | 2022-07-07T18:26:27.266Z [info] [DB] Refreshing vault stats for vault bsc:biswap-fil-usdt (146/597)
-beefy_db-load-timescaledb-1  | 2022-07-07T18:26:27.279Z [error] [MAIN] ERROR
-beefy_db-load-timescaledb-1  | error: operand, lower bound, and upper bound cannot be NaN
-beefy_db-load-timescaledb-1  |     at Parser.parseErrorMessage (/opt/app/node_modules/pg-protocol/dist/parser.js:287:98)
-beefy_db-load-timescaledb-1  |     at Parser.handlePacket (/opt/app/node_modules/pg-protocol/dist/parser.js:126:29)
-beefy_db-load-timescaledb-1  |     at Parser.parse (/opt/app/node_modules/pg-protocol/dist/parser.js:39:38)
-beefy_db-load-timescaledb-1  |     at Socket.<anonymous> (/opt/app/node_modules/pg-protocol/dist/index.js:11:42)
-beefy_db-load-timescaledb-1  |     at Socket.emit (node:events:527:28)
-beefy_db-load-timescaledb-1  |     at addChunk (node:internal/streams/readable:324:12)
-beefy_db-load-timescaledb-1  |     at readableAddChunk (node:internal/streams/readable:297:9)
-beefy_db-load-timescaledb-1  |     at Readable.push (node:internal/streams/readable:234:10)
-beefy_db-load-timescaledb-1  |     at TCP.onStreamRead (node:internal/stream_base_commons:190:23) {
-beefy_db-load-timescaledb-1  |   length: 115,
-beefy_db-load-timescaledb-1  |   severity: 'ERROR',
-beefy_db-load-timescaledb-1  |   code: '2201G',
-beefy_db-load-timescaledb-1  |   detail: undefined,
-beefy_db-load-timescaledb-1  |   hint: undefined,
-beefy_db-load-timescaledb-1  |   position: undefined,
-beefy_db-load-timescaledb-1  |   internalPosition: undefined,
-beefy_db-load-timescaledb-1  |   internalQuery: undefined,
-beefy_db-load-timescaledb-1  |   where: undefined,
-beefy_db-load-timescaledb-1  |   schema: undefined,
-beefy_db-load-timescaledb-1  |   table: undefined,
-beefy_db-load-timescaledb-1  |   column: undefined,
-beefy_db-load-timescaledb-1  |   dataType: undefined,
-beefy_db-load-timescaledb-1  |   constraint: undefined,
-beefy_db-load-timescaledb-1  |   file: 'float.c',
-beefy_db-load-timescaledb-1  |   line: '4033',
-beefy_db-load-timescaledb-1  |   routine: 'width_bucket_float8'
-beefy_db-load-timescaledb-1  | }
-beefy_db-load-timescaledb-1  | 2022-07-07T18:26:27.289Z [error] undefined
-
 -------------
 
 Sometimes, ppfs is zero

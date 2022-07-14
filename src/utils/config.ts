@@ -260,7 +260,7 @@ export const LOG_LEVEL:
   | "warn"
   | "error";
 
-export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
+const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "arbitrum",
   // aurora explorer is missing transfer events
   // ex: this trx is still "indexing" https://aurorascan.dev/tx/0x25baaf56da97b0aff012fcc571476cbb53a6d99c21aed0ae2c7bdb9d217045fe)
@@ -286,6 +286,17 @@ export const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "polygon",
 ];
 
+let forceSource: "explorer" | "rpc" | null = null;
+export function shouldUseExplorer(chain: Chain) {
+  if (forceSource !== null) {
+    return forceSource === "explorer";
+  } else {
+    return CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
+  }
+}
+export function _forceUseSource(source: "explorer" | "rpc") {
+  forceSource = source;
+}
 /**
  * Why we don't use metis explorer api:
  *

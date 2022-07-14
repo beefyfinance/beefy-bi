@@ -8,3 +8,4 @@ export * from "./import/import-strategies-fee-recipients";
 export * from "./scripts/load-timescaledb";
 export * from "./scripts/completeness-check";
 export * from "./scripts/fix-contract-creation-dates";
+export * from "./scripts/fix-erc20-transfers-file";
