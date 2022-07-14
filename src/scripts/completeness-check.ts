@@ -1,21 +1,19 @@
-import { shuffle, sortBy } from "lodash";
-import {
-  fetchCachedContractLastTransaction,
-  getLocalBeefyStrategyFeeRecipients,
-  getLocalBeefyVaultList,
-} from "../lib/fetch-if-not-found-locally";
+import { sortBy } from "lodash";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import { erc20TransferStore } from "../lib/csv-transfer-events";
-import { ppfsStore } from "../lib/csv-vault-ppfs";
-import { erc20TransferFromStore } from "../lib/csv-transfer-from-events";
-import { getLastImportedBeefyVaultV6Strategy, streamVaultStrategies } from "../lib/csv-vault-strategy";
+import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
+import { ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
+import { erc20TransferFromStore } from "../lib/csv-store/csv-transfer-from-events";
+import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { LOG_LEVEL } from "../utils/config";
-import { BeefyVault } from "../lib/git-get-all-vaults";
-import { blockSamplesStore } from "../lib/csv-block-samples";
+import { blockSamplesStore } from "../lib/csv-store/csv-block-samples";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { feeRecipientsStore } from "../lib/beefy/fee-recipients";
+import { contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
+import { BeefyVault } from "../types/beefy";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -43,7 +41,7 @@ async function main() {
 async function checkChain(chain: Chain) {
   await checkBlockSamples(chain);
 
-  const vaults = sortBy(await getLocalBeefyVaultList(chain), (v) => v.token_name);
+  const vaults = sortBy(await vaultListStore.getLocalData(chain), (v) => v.token_name);
   for (const vault of vaults) {
     await checkVault(chain, vault);
   }
@@ -75,7 +73,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     logger.error(`[CC] No ERC20 moo token transfer events found for vault ${chain}:${contractAddress}`);
   } else if (now.getTime() - latestTransfer.datetime.getTime() > oneDay) {
     // check against last transaction
-    const lastTrx = await fetchCachedContractLastTransaction(chain, contractAddress);
+    const lastTrx = await contractLastTrxStore.fetchData(chain, contractAddress);
     if (lastTrx.datetime.getTime() - latestTransfer.datetime.getTime() > oneDay) {
       logger.warn(
         `[CC] ERC20 last transfer is too old for vault ${chain}:${contractAddress}: ${JSON.stringify(latestTransfer)}`
@@ -99,7 +97,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   }
 
   // check we got the vault strategies
-  const latestStrat = await getLastImportedBeefyVaultV6Strategy(chain, contractAddress);
+  const latestStrat = await vaultStrategyStore.getLastRow(chain, contractAddress);
   if (latestStrat === null) {
     logger.error(`[CC] No Strategies found for vault ${chain}:${contractAddress}`);
   } else {
@@ -107,8 +105,8 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   }
 
   // for each strategy
-  const stratStream = streamVaultStrategies(chain, contractAddress);
-  for await (const strat of stratStream) {
+  const rows = vaultStrategyStore.getReadIterator(chain, contractAddress);
+  for await (const strat of rows) {
     const strategyAddress = strat.implementation;
 
     // check we got transfer froms
@@ -118,7 +116,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
       logger.error(`[CC] No TransferFrom events found for vault ${chain}:${strategyAddress}}`);
     } else if (now.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
       // check against last transaction
-      const lastTrx = await fetchCachedContractLastTransaction(chain, contractAddress);
+      const lastTrx = await contractLastTrxStore.fetchData(chain, contractAddress);
       if (lastTrx.datetime.getTime() - lastTransferFrom.datetime.getTime() > oneDay) {
         logger.warn(
           `[CC] TransferFrom events too old for vault ${chain}:${strategyAddress}: ${JSON.stringify(lastTransferFrom)}`
@@ -131,7 +129,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
     }
 
     // check we got fee recipients
-    const feeRecipients = getLocalBeefyStrategyFeeRecipients(chain, strategyAddress);
+    const feeRecipients = feeRecipientsStore.getLocalData(chain, strategyAddress);
     if (feeRecipients === null) {
       logger.error(`[CC] No fee recipients found for vault ${chain}:${strategyAddress}`);
     } else {

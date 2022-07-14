@@ -1,20 +1,21 @@
 import { flatten, sortBy } from "lodash";
-import { fetchBeefyVaultList, getLocalContractCreationInfos } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import { erc20TransferStore } from "../lib/csv-transfer-events";
-import { ppfsStore } from "../lib/csv-vault-ppfs";
-import { BeefyVaultV6StrategiesData, streamVaultStrategies } from "../lib/csv-vault-strategy";
+import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
+import { ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
+import { BeefyVaultV6StrategiesData, vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import * as path from "path";
 import { DATA_DIRECTORY } from "../utils/config";
-import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
+import { makeDataDirRecursive } from "../utils/make-data-dir-recursive";
 import * as fs from "fs";
 import { SamplingPeriod } from "../types/sampling";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
-import { oraclePriceStore } from "../lib/csv-oracle-price";
-import { BeefyVault } from "../lib/git-get-all-vaults";
+import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { BeefyVault } from "../types/beefy";
+import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 
 interface DataCoverageReportRow {
   chain: Chain;
@@ -74,7 +75,7 @@ async function main() {
 }
 
 async function getChainReport(chain: Chain, vaultId: string | null): Promise<DataCoverageReportRow[]> {
-  const vaults = sortBy(await fetchBeefyVaultList(chain), (v) => v.token_name);
+  const vaults = sortBy(await vaultListStore.fetchData(chain), (v) => v.token_name);
 
   const reportRows: DataCoverageReportRow[] = [];
   for (const vault of vaults) {
@@ -128,7 +129,7 @@ async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<
      * VAULT CREATION
      */
     // vault creation
-    const creationInfos = await getLocalContractCreationInfos(chain, contractAddress);
+    const creationInfos = await contractCreationStore.fetchData(chain, contractAddress);
     reportRow.vault_creation_datetime = creationInfos?.datetime || null;
     reportRow.vault_creation_block_number = creationInfos?.blockNumber || null;
     reportRow.vault_creation_transaction = creationInfos?.transactionHash || null;
@@ -188,8 +189,8 @@ async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<
      * STRATEGIES
      */
     const strategies: BeefyVaultV6StrategiesData[] = [];
-    const stratStream = streamVaultStrategies(chain, contractAddress);
-    for await (const strategy of stratStream) {
+    const rows = vaultStrategyStore.getReadIterator(chain, contractAddress);
+    for await (const strategy of rows) {
       strategies.push(strategy);
     }
     reportRow.strategies = strategies.length > 0 ? strategies : null;

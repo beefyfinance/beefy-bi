@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
+import { makeDataDirRecursive } from "./make-data-dir-recursive";
 import { logger } from "./logger";
 import { onExit } from "./process";
 import { CastingContext, parse as syncParser } from "csv-parse/sync";

@@ -1,4 +1,3 @@
-import { fetchBeefyVaultList } from "../lib/fetch-if-not-found-locally";
 import { streamBeefyPrices } from "../lib/streamBeefyPrices";
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
@@ -8,8 +7,9 @@ import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
 import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { batchAsyncStream } from "../utils/batch";
-import { BeefyVault } from "../lib/git-get-all-vaults";
-import { oraclePriceStore } from "../lib/csv-oracle-price";
+import { BeefyVault } from "../types/beefy";
+import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
+import { vaultListStore } from "../lib/beefy/vault-list";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -50,7 +50,7 @@ async function main() {
 }
 
 async function importChain(chain: Chain, samplingPeriod: SamplingPeriod, oracleId: string | null) {
-  const vaults = shuffle(await fetchBeefyVaultList(chain));
+  const vaults = shuffle(await vaultListStore.fetchData(chain));
   for (const vault of vaults) {
     try {
       logger.verbose(`[PRICES] Importing ${chain}:${vault.id} prices`);

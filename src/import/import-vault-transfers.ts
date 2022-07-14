@@ -1,9 +1,4 @@
-import { erc20TransferStore } from "../lib/csv-transfer-events";
-import {
-  fetchBeefyVaultList,
-  fetchCachedContractLastTransaction,
-  fetchContractCreationInfos,
-} from "../lib/fetch-if-not-found-locally";
+import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
@@ -15,8 +10,10 @@ import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEven
 import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
 import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
-import { BeefyVault } from "../lib/git-get-all-vaults";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { contractCreationStore, contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
+import { BeefyVault } from "../types/beefy";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -54,7 +51,7 @@ async function main() {
 async function importChain(chain: Chain, vaultId: string | null) {
   logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
   // find out which vaults we need to parse
-  const vaults = shuffle(await fetchBeefyVaultList(chain));
+  const vaults = shuffle(await vaultListStore.fetchData(chain));
 
   // for each vault, find out the creation date or last imported transfer
   for (const vault of vaults) {
@@ -86,7 +83,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
   if (startBlock === null) {
     logger.debug(`[ERC20.T] No local data for ${chain}:${vault.id}, fetching contract creation info`);
 
-    const { blockNumber } = await fetchContractCreationInfos(chain, contractAddress);
+    const { blockNumber } = await contractCreationStore.fetchData(chain, contractAddress);
     startBlock = blockNumber;
   } else {
     logger.debug(
@@ -95,7 +92,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
     startBlock = startBlock + 1;
   }
 
-  const endBlock = (await fetchCachedContractLastTransaction(chain, contractAddress)).blockNumber;
+  const endBlock = (await contractLastTrxStore.fetchData(chain, contractAddress)).blockNumber;
 
   if (startBlock >= endBlock) {
     logger.info(`[ERC20.T] All data imported for ${contractAddress}`);

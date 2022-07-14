@@ -4,16 +4,17 @@ import yargs from "yargs";
 import { normalizeAddress } from "../utils/ethers";
 import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../types/sampling";
 import { sleep } from "../utils/async";
-import { fetchBeefyVaultList, fetchContractCreationInfos } from "../lib/fetch-if-not-found-locally";
-import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-vault-ppfs";
+import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
 import { batchAsyncStream } from "../utils/batch";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
 import { LOG_LEVEL, RPC_BACH_CALL_COUNT } from "../utils/config";
-import { BeefyVault } from "../lib/git-get-all-vaults";
-import { blockSamplesStore } from "../lib/csv-block-samples";
+import { BeefyVault } from "../types/beefy";
+import { blockSamplesStore } from "../lib/csv-store/csv-block-samples";
 import { fetchBeefyPPFS } from "../lib/beefy/ppfs";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -53,7 +54,7 @@ async function main() {
 async function importChain(chain: Chain, samplingPeriod: SamplingPeriod, vaultId: string | null) {
   logger.info(`[PPFS] Importing ${chain} ppfs with period ${samplingPeriod}.`);
   // find out which vaults we need to parse
-  const vaults = shuffle(await fetchBeefyVaultList(chain));
+  const vaults = shuffle(await vaultListStore.fetchData(chain));
   for (const vault of vaults) {
     if (vaultId && vault.id !== vaultId) {
       logger.debug(`[PPFS] Skipping vault ${vault.id}`);
@@ -85,7 +86,7 @@ async function importVault(chain: Chain, samplingPeriod: SamplingPeriod, vault: 
   let lastImportedBlock = (await ppfsStore.getLastRow(chain, contractAddress, samplingPeriod))?.blockNumber || null;
   if (lastImportedBlock === null) {
     // get creation block of the contract
-    const { blockNumber } = await fetchContractCreationInfos(chain, contractAddress);
+    const { blockNumber } = await contractCreationStore.fetchData(chain, contractAddress);
     // we skip the creation block
     lastImportedBlock = blockNumber;
   }

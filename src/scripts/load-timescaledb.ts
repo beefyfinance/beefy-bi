@@ -13,18 +13,18 @@ import {
   strAddressToPgBytea,
   strArrToPgStrArr,
 } from "../utils/db";
-import { getLocalBeefyVaultList } from "../lib/fetch-if-not-found-locally";
 import { logger } from "../utils/logger";
-import { ERC20EventData, erc20TransferStore } from "../lib/csv-transfer-events";
+import { ERC20EventData, erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
 import { FlattenStream, StreamObjectFilterTransform } from "../utils/stream";
 import { sleep } from "../utils/async";
-import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-vault-ppfs";
+import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
 import { Transform } from "stream";
-import { OraclePriceData, oraclePriceStore } from "../lib/csv-oracle-price";
+import { OraclePriceData, oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
 import { SamplingPeriod } from "../types/sampling";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
-import { BeefyVault } from "../lib/git-get-all-vaults";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { BeefyVault } from "../types/beefy";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -61,7 +61,7 @@ async function main() {
     logger.info(`[LTSDB] Importing ERC20 transfers`);
     for (const chain of chains) {
       logger.info(`[LTSDB] Importing ERC20 transfers for ${chain}`);
-      const vaults = await getLocalBeefyVaultList(chain);
+      const vaults = await vaultListStore.getLocalData(chain);
       for (const vault of vaults) {
         if (vaultId && vault.id !== vaultId) {
           logger.verbose(`[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`);
@@ -81,7 +81,7 @@ async function main() {
     logger.info(`[LTSDB] Importing ppfs`);
     for (const chain of chains) {
       logger.info(`[LTSDB] Importing ppfs for ${chain}`);
-      const vaults = await getLocalBeefyVaultList(chain);
+      const vaults = await vaultListStore.getLocalData(chain);
       for (const vault of vaults) {
         if (vaultId && vault.id !== vaultId) {
           logger.verbose(`[LTSDB] Skipping ppfs for ${chain}:${vault.id}`);
@@ -120,7 +120,7 @@ async function main() {
     logger.info(`[LTSDB] Importing vaults`);
     for (const chain of chains) {
       logger.info(`[LTSDB] Importing vaults for ${chain}`);
-      const vaults = await getLocalBeefyVaultList(chain);
+      const vaults = await vaultListStore.getLocalData(chain);
       if (vaults.length <= 0) {
         logger.verbose(`[LTSDB] No vaults found for ${chain}`);
         continue;

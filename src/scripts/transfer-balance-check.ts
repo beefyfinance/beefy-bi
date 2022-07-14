@@ -1,11 +1,8 @@
 import { shuffle, sortBy } from "lodash";
-import {
-  BeefyVault,
-  fetchBeefyVaultList,
-} from "../lib/fetch-if-not-found-locally";
+import { BeefyVault, vaultListStore.fetchData } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import { streamERC20TransferEvents } from "../lib/csv-transfer-events";
+import { streamERC20TransferEvents } from "../lib/csv-store/csv-transfer-events";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { ethers } from "ethers";
@@ -29,7 +26,7 @@ async function main() {
 }
 
 async function checkChain(chain: Chain, vaultId: string | null) {
-  const vaults = sortBy(await fetchBeefyVaultList(chain), (v) => v.token_name);
+  const vaults = sortBy(await vaultListStore.fetchData(chain), (v) => v.token_name);
   for (const vault of vaults) {
     if (vaultId && vaultId !== vault.id) {
       logger.debug(`[TC] Skipping ${chain}:${vault.id}`);
@@ -42,9 +39,7 @@ async function checkChain(chain: Chain, vaultId: string | null) {
 }
 
 async function checkVault(chain: Chain, vault: BeefyVault) {
-  const mintBurnAddr = normalizeAddress(
-    "0x0000000000000000000000000000000000000000"
-  );
+  const mintBurnAddr = normalizeAddress("0x0000000000000000000000000000000000000000");
   const contractAddress = vault.token_address;
   const eventStream = streamERC20TransferEvents(chain, contractAddress);
 
@@ -53,18 +48,10 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
   for await (const event of eventStream) {
     // check both address are normalized
     if (event.from !== normalizeAddress(event.from)) {
-      logger.error(
-        `[TC] Invalid event.from ${
-          event.from
-        }, proper value should be ${normalizeAddress(event.from)}`
-      );
+      logger.error(`[TC] Invalid event.from ${event.from}, proper value should be ${normalizeAddress(event.from)}`);
     }
     if (event.to !== normalizeAddress(event.to)) {
-      logger.error(
-        `[TC] Invalid event.to ${
-          event.to
-        }, proper value should be ${normalizeAddress(event.to)}`
-      );
+      logger.error(`[TC] Invalid event.to ${event.to}, proper value should be ${normalizeAddress(event.to)}`);
     }
 
     // now compute balances
@@ -86,26 +73,16 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
       if (!investorBalances[investorAddress]) {
         investorBalances[investorAddress] = ethers.BigNumber.from(0);
       }
-      investorBalances[investorAddress] = investorBalances[investorAddress].add(
-        diff.amount
-      );
+      investorBalances[investorAddress] = investorBalances[investorAddress].add(diff.amount);
 
       // balance should only be negative for the mint burn address
-      if (
-        investorBalances[investorAddress].lt(0) &&
-        investorAddress !== mintBurnAddr
-      ) {
-        logger.error(
-          `[TC] ${chain}:${vault.id} ${investorAddress} has negative balance`
-        );
+      if (investorBalances[investorAddress].lt(0) && investorAddress !== mintBurnAddr) {
+        logger.error(`[TC] ${chain}:${vault.id} ${investorAddress} has negative balance`);
       }
     }
 
     // check total balance, should be zero
-    const total = Object.values(investorBalances).reduce(
-      (acc, cur) => acc.add(cur),
-      ethers.BigNumber.from(0)
-    );
+    const total = Object.values(investorBalances).reduce((acc, cur) => acc.add(cur), ethers.BigNumber.from(0));
     if (!total.eq(0)) {
       logger.error(`[TC] ${chain}:${vault.id} total balance is not zero`);
     }

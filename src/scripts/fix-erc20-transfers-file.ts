@@ -1,25 +1,16 @@
-import {
-  fetchBeefyVaultList,
-  getLocalBeefyVaultList,
-  getLocalContractCreationInfos,
-} from "../lib/fetch-if-not-found-locally";
 import * as fs from "fs";
 import * as path from "path";
 import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import yargs from "yargs";
-import { BeefyVault } from "../lib/git-get-all-vaults";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
-import {
-  DATA_DIRECTORY,
-  shouldUseExplorer,
-  _forceUseSource,
-} from "../utils/config";
-import { getContractCreationInfosFromRPC } from "../lib/contract-transaction-infos";
-import { deleteAllVaultStrategiesData } from "../lib/csv-vault-strategy";
+import { DATA_DIRECTORY, _forceUseSource } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
-import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
+import { deleteAllVaultData } from "../lib/csv-store/csv-vault";
+import { vaultListStore } from "../lib/beefy/vault-list";
+import { BeefyVault } from "../types/beefy";
+import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -44,7 +35,7 @@ async function main() {
   logger.info(`[ERC20.T.FIX] Dryrun: ${dryrun}`);
 
   for (const chain of chains) {
-    const vaults = await fetchBeefyVaultList(chain);
+    const vaults = await vaultListStore.fetchData(chain);
     for (const vault of vaults) {
       if (vault.id !== vaultId) {
         logger.debug(`[ERC20.T.FIX] Skipping vault ${vault.id}`);
@@ -54,15 +45,11 @@ async function main() {
         await fixVault(chain, vault, dryrun);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
-          logger.error(
-            `[ERC20.T.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`
-          );
+          logger.error(`[ERC20.T.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`);
           continue;
         } else {
           logger.error(
-            `[ERC20.T.FIX] Error fixing transfers, skipping vault ${chain}:${
-              vault.id
-            }: ${JSON.stringify(e)}`
+            `[ERC20.T.FIX] Error fixing transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`
           );
           console.log(e);
           continue;
@@ -86,92 +73,38 @@ async function main() {
 
 async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
   const contractAddress = vault.token_address;
-  const localCreationInfos = await getLocalContractCreationInfos(
-    chain,
-    contractAddress
-  );
+  const localCreationInfos = await contractCreationStore.fetchData(chain, contractAddress);
   if (!localCreationInfos) {
-    logger.debug(
-      `[ERC20.T.FIX] No local creation date for ${chain}:${vault.id}. Skipping.`
-    );
+    logger.debug(`[ERC20.T.FIX] No local creation date for ${chain}:${vault.id}. Skipping.`);
     return;
   }
   logger.verbose(
-    `[ERC20.T.FIX] Local creation date for ${chain}:${
-      vault.id
-    }: ${localCreationInfos.datetime.toISOString()}`
+    `[ERC20.T.FIX] Local creation date for ${chain}:${vault.id}: ${localCreationInfos.datetime.toISOString()}`
   );
-  const trueCreationInfos = await getContractCreationInfosFromRPC(
-    chain,
-    contractAddress,
-    "4hour"
-  );
+
+  // make sure we use RPC
+  _forceUseSource("rpc");
+
+  const trueCreationInfos = await contractCreationStore.fetchData(chain, contractAddress);
+
   if (!trueCreationInfos) {
-    logger.debug(
-      `[ERC20.T.FIX] Could not find RPC creation date for ${chain}:${vault.id}. Skipping.`
-    );
+    logger.debug(`[ERC20.T.FIX] Could not find RPC creation date for ${chain}:${vault.id}. Skipping.`);
     return;
   }
   logger.verbose(
-    `[ERC20.T.FIX] RPC creation date for ${chain}:${
-      vault.id
-    }: ${trueCreationInfos.datetime.toISOString()}`
+    `[ERC20.T.FIX] RPC creation date for ${chain}:${vault.id}: ${trueCreationInfos.datetime.toISOString()}`
   );
 
-  if (
-    trueCreationInfos.datetime.getTime() ===
-    localCreationInfos.datetime.getTime()
-  ) {
-    logger.debug(
-      `[ERC20.T.FIX] Creation dates are the same for ${chain}:${vault.id}. Skipping.`
-    );
+  if (trueCreationInfos.datetime.getTime() === localCreationInfos.datetime.getTime()) {
+    logger.debug(`[ERC20.T.FIX] Creation dates are the same for ${chain}:${vault.id}. Skipping.`);
     return;
   }
-  if (
-    trueCreationInfos.datetime.getTime() > localCreationInfos.datetime.getTime()
-  ) {
-    logger.error(
-      `[ERC20.T.FIX] RPC creation date is newer than local for ${chain}:${vault.id}. Skipping.`
-    );
+  if (trueCreationInfos.datetime.getTime() > localCreationInfos.datetime.getTime()) {
+    logger.error(`[ERC20.T.FIX] RPC creation date is newer than local for ${chain}:${vault.id}. Skipping.`);
     return;
   }
 
-  // delete strategy data
-  await deleteAllVaultStrategiesData(chain, contractAddress, dryrun);
-
-  // delete vault data
-  logger.info(
-    `[ERC20.T.FIX]${
-      dryrun ? "[dryrun]" : ""
-    } Deleting all vault data for ${chain}:${contractAddress}`
-  );
-  const contractDirectory = path.join(
-    DATA_DIRECTORY,
-    "chain",
-    chain,
-    "contracts",
-    normalizeAddress(contractAddress)
-  );
-
-  logger.verbose(
-    `[VAULT.S.STORE]${
-      dryrun ? "[dryrun]" : ""
-    } Deleting all strategy data for ${chain}:${contractAddress}`
-  );
-  if (!dryrun) {
-    await fs.promises.rmdir(contractDirectory, { recursive: true });
-  }
-
-  // remake the directory for the vault
-  await makeDataDirRecursive(
-    path.join(
-      DATA_DIRECTORY,
-      "chain",
-      chain,
-      "contracts",
-      normalizeAddress(contractAddress)
-    )
-  );
+  await deleteAllVaultData(chain, contractAddress, dryrun);
 
   // write new creation date
   logger.info(
@@ -188,10 +121,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
       normalizeAddress(contractAddress),
       "creation_date.json"
     );
-    await fs.promises.writeFile(
-      creationDatePath,
-      JSON.stringify(trueCreationInfos)
-    );
+    await fs.promises.writeFile(creationDatePath, JSON.stringify(trueCreationInfos));
   }
 }
 

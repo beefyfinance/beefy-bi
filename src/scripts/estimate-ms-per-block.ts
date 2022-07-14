@@ -1,5 +1,5 @@
 import { estimateMsPerBlock } from "../import/import-block-samples";
-import { allChainIds, Chain } from "../types/chain";
+import { allChainIds } from "../types/chain";
 import { runMain } from "../utils/process";
 
 import yargs from "yargs";

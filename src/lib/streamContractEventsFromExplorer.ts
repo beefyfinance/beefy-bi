@@ -2,13 +2,13 @@ import { logger } from "../utils/logger";
 import _ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import _BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { ERC20EventData } from "../lib/csv-transfer-events";
+import { ERC20EventData } from "./csv-store/csv-transfer-events";
 import * as lodash from "lodash";
 import { Chain } from "../types/chain";
 import { callLockProtectedExplorerUrl } from "./shared-resources/shared-explorer";
 import { callLockProtectedRpc } from "./shared-resources/shared-rpc";
-import { fetchContractCreationInfos } from "./fetch-if-not-found-locally";
 import { JsonAbi } from "../types/abi";
+import { contractCreationStore } from "./json-store/contract-first-last-blocks";
 
 const ERC20Abi = _ERC20Abi as any as JsonAbi;
 const BeefyVaultV6Abi = _BeefyVaultV6Abi as any as JsonAbi;
@@ -53,21 +53,15 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
     params.toBlock = toBlock.toString();
     const blockCount = toBlock - fromBlock;
     if (blockCount > 10000) {
-      logger.verbose(
-        `[ERC20.T.EX] Limiting block count to 10k blocks to avoid 504s from explorers`
-      );
+      logger.verbose(`[ERC20.T.EX] Limiting block count to 10k blocks to avoid 504s from explorers`);
       params.toBlock = (fromBlock + 10000).toString();
       didLimitBlockCount = true;
     }
   }
   if (fromAddress) {
-    params.topic1 =
-      "0x000000000000000000000000" + fromAddress.slice(2) /** remove "0x" */;
+    params.topic1 = "0x000000000000000000000000" + fromAddress.slice(2) /** remove "0x" */;
   }
-  const rawLogs = await callLockProtectedExplorerUrl<ExplorerLog[]>(
-    chain,
-    params
-  );
+  const rawLogs = await callLockProtectedExplorerUrl<ExplorerLog[]>(chain, params);
   let logs = rawLogs.map(formatEvent);
   const mayHaveMore = didLimitBlockCount ? true : logs.length === 1000;
 
@@ -89,33 +83,21 @@ async function fetchExplorerLogsPage<TRes extends { blockNumber: number }>(
   return { logs, mayHaveMore };
 }
 
-const getEventTopicFromJsonAbi = lodash.memoize(
-  function _getEventTopicFromJsonAbi(abi: JsonAbi, eventName: string) {
-    const eventTypes = getEventTypesFromJsonAbi(abi, eventName);
-    return ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes(`${eventName}(${eventTypes.join(",")})`)
-    );
-  }
-);
+const getEventTopicFromJsonAbi = lodash.memoize(function _getEventTopicFromJsonAbi(abi: JsonAbi, eventName: string) {
+  const eventTypes = getEventTypesFromJsonAbi(abi, eventName);
+  return ethers.utils.keccak256(ethers.utils.toUtf8Bytes(`${eventName}(${eventTypes.join(",")})`));
+});
 
-const getEventTypesFromJsonAbi = lodash.memoize(
-  function _getEventTypesFromJsonAbi(abi: JsonAbi, eventName: string) {
-    const eventConfig = abi.find(
-      (abi) => abi.name === eventName && abi.type === "event"
-    );
-    if (!eventConfig || !eventConfig.inputs) {
-      throw new Error(`${eventName} not found in abi`);
-    }
-    return eventConfig.inputs.map((input) => input.type);
+const getEventTypesFromJsonAbi = lodash.memoize(function _getEventTypesFromJsonAbi(abi: JsonAbi, eventName: string) {
+  const eventConfig = abi.find((abi) => abi.name === eventName && abi.type === "event");
+  if (!eventConfig || !eventConfig.inputs) {
+    throw new Error(`${eventName} not found in abi`);
   }
-);
+  return eventConfig.inputs.map((input) => input.type);
+});
 
-export function explorerLogToERC20TransferEvent(
-  event: ExplorerLog
-): ERC20EventData {
-  const blockNumber = parseInt(
-    ethers.BigNumber.from(event.blockNumber).toString()
-  );
+export function explorerLogToERC20TransferEvent(event: ExplorerLog): ERC20EventData {
+  const blockNumber = parseInt(ethers.BigNumber.from(event.blockNumber).toString());
   const data =
     "0x" +
     event.topics
@@ -123,13 +105,8 @@ export function explorerLogToERC20TransferEvent(
       .concat([event.data])
       .map((hexData: string | null) => (hexData ? hexData.slice(2) : hexData))
       .join("");
-  const [from, to, value] = ethers.utils.defaultAbiCoder.decode(
-    getEventTypesFromJsonAbi(ERC20Abi, "Transfer"),
-    data
-  );
-  const datetime = new Date(
-    ethers.BigNumber.from(event.timeStamp).toNumber() * 1000
-  );
+  const [from, to, value] = ethers.utils.defaultAbiCoder.decode(getEventTypesFromJsonAbi(ERC20Abi, "Transfer"), data);
+  const datetime = new Date(ethers.BigNumber.from(event.timeStamp).toNumber() * 1000);
   return {
     blockNumber,
     datetime,
@@ -173,12 +150,8 @@ interface BeefyVaultV6StrategyUpgradeEvent {
   data: { implementation: string };
 }
 
-function explorerLogToBeefyVaultV6UpgradeStratEvent(
-  event: ExplorerLog
-): BeefyVaultV6StrategyUpgradeEvent {
-  const blockNumber = parseInt(
-    ethers.BigNumber.from(event.blockNumber).toString()
-  );
+function explorerLogToBeefyVaultV6UpgradeStratEvent(event: ExplorerLog): BeefyVaultV6StrategyUpgradeEvent {
+  const blockNumber = parseInt(ethers.BigNumber.from(event.blockNumber).toString());
   const data =
     "0x" +
     event.topics
@@ -190,9 +163,7 @@ function explorerLogToBeefyVaultV6UpgradeStratEvent(
     getEventTypesFromJsonAbi(BeefyVaultV6Abi, "UpgradeStrat"),
     data
   );
-  const datetime = new Date(
-    ethers.BigNumber.from(event.timeStamp).toNumber() * 1000
-  );
+  const datetime = new Date(ethers.BigNumber.from(event.timeStamp).toNumber() * 1000);
   return {
     blockNumber,
     datetime,
@@ -208,15 +179,16 @@ export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
   startBlock: number,
   endBlock: number | null
 ) {
-  const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
-    await fetchContractCreationInfos(chain, contractAddress);
+  const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } = await contractCreationStore.fetchData(
+    chain,
+    contractAddress
+  );
 
   // first, get all strategy upgrade events
   // it is very unlikely that there are more than 1000 events
   let allStrategyEvents: BeefyVaultV6StrategyUpgradeEvent[] = [];
   let mayHaveMore = true;
-  let fromBlock =
-    startBlock > deployBlockNumber ? startBlock : deployBlockNumber;
+  let fromBlock = startBlock > deployBlockNumber ? startBlock : deployBlockNumber;
   while (mayHaveMore) {
     const pageRes = await fetchExplorerLogsPage(
       chain,
@@ -247,21 +219,11 @@ export async function* streamBifiVaultUpgradeStratEventsFromExplorer(
     const firstUpgradeBlockNumber = allStrategyEvents[0].blockNumber;
     callOptions = { blockTag: firstUpgradeBlockNumber - 1 };
   }
-  logger.debug(
-    `[PPFS] Fetching strategy implem for ${chain}:${contractAddress} (${JSON.stringify(
-      callOptions
-    )})`
-  );
+  logger.debug(`[PPFS] Fetching strategy implem for ${chain}:${contractAddress} (${JSON.stringify(callOptions)})`);
   const strategyImplem = await callLockProtectedRpc(chain, async (provider) => {
-    const contract = new ethers.Contract(
-      contractAddress,
-      BeefyVaultV6Abi,
-      provider
-    );
+    const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
     const [stragegy] =
-      callOptions === undefined
-        ? await contract.functions.strategy()
-        : await contract.functions.strategy(callOptions);
+      callOptions === undefined ? await contract.functions.strategy() : await contract.functions.strategy(callOptions);
     return stragegy;
   });
   // yield the strategy at the deploy block time

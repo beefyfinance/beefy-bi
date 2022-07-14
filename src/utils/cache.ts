@@ -20,11 +20,7 @@ class RedisCache {
     return res;
   }
 
-  public async setJSON(
-    key: string,
-    value: any,
-    ttl_sec?: number
-  ): Promise<void> {
+  public async setJSON(key: string, value: any, ttl_sec?: number): Promise<void> {
     await this.redisClient.set(key, JSON.stringify(value), { EX: ttl_sec });
   }
 }
@@ -47,10 +43,7 @@ async function getCache() {
   return cache;
 }
 
-export function cacheAsyncResultInRedis<
-  TArgs extends any[],
-  TReturn extends object
->(
+export function cacheAsyncResultInRedis<TArgs extends any[], TReturn extends object>(
   fn: (...parameters: TArgs) => Promise<TReturn>,
   options: {
     getKey: (...params: TArgs) => string;

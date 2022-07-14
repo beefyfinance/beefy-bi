@@ -1,10 +1,10 @@
-import { getBeefyStrategyFeeRecipients } from "../lib/fetch-if-not-found-locally";
+import { feeRecipientsStore } from "../lib/beefy/fee-recipients";
 import { allChainIds, Chain } from "../types/chain";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
-import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
+import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
 import { LOG_LEVEL } from "../utils/config";
 import { runMain } from "../utils/process";
 import { shuffle } from "lodash";
@@ -19,9 +19,7 @@ async function main() {
     }).argv;
 
   const chain = argv.chain as Chain | "all";
-  const strategyAddress = argv.strategyAddress
-    ? normalizeAddress(argv.strategyAddress)
-    : null;
+  const strategyAddress = argv.strategyAddress ? normalizeAddress(argv.strategyAddress) : null;
 
   logger.info(`[FEE.ADDR] Importing ${chain} ERC20 transfer events...`);
   const chains = chain === "all" ? shuffle(allChainIds) : [chain];
@@ -39,15 +37,13 @@ async function main() {
   });
   await Promise.allSettled(chainPromises);
 
-  logger.info(
-    `[FEE.ADDR] Done importing ${chain} fee recipients, sleeping 1 day (in case there is new vaults)`
-  );
+  logger.info(`[FEE.ADDR] Done importing ${chain} fee recipients, sleeping 1 day (in case there is new vaults)`);
   await sleep(1000 * 60 * 60 * 24 * 10);
 }
 
 async function importChain(chain: Chain, strategyAddress: string | null) {
   try {
-    const strategies = getAllStrategyAddresses(chain);
+    const strategies = vaultStrategyStore.getAllStrategyAddresses(chain);
     for await (const strategy of strategies) {
       if (strategyAddress && strategy.implementation !== strategyAddress) {
         logger.debug(`[FEE.ADDR] Skipping strategy ${strategy.implementation}`);
@@ -55,27 +51,21 @@ async function importChain(chain: Chain, strategyAddress: string | null) {
       }
 
       try {
-        await getBeefyStrategyFeeRecipients(chain, strategy.implementation);
+        await feeRecipientsStore.fetchData(chain, strategy.implementation);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
-          logger.error(
-            `[FEE.ADDR] Archive node needed, skipping vault ${chain}:${strategy.implementation}`
-          );
+          logger.error(`[FEE.ADDR] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
         } else {
           logger.error(
-            `[FEE.ADDR] Error importing fee recipients. Skipping ${chain}:${
-              strategy.implementation
-            }. ${JSON.stringify(e)}`
+            `[FEE.ADDR] Error importing fee recipients. Skipping ${chain}:${strategy.implementation}. ${JSON.stringify(
+              e
+            )}`
           );
         }
       }
     }
   } catch (e) {
-    logger.error(
-      `[FEE.ADDR] Error importing fee recipients. Skipping ${chain}. ${JSON.stringify(
-        e
-      )}`
-    );
+    logger.error(`[FEE.ADDR] Error importing fee recipients. Skipping ${chain}. ${JSON.stringify(e)}`);
   }
   logger.info(`[FEE.ADDR] Done importing fee recipients for ${chain}`);
 }

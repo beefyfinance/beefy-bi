@@ -2,16 +2,12 @@ import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { BlockDateInfos, fetchBlockData } from "../utils/ethers";
-import {
-  allSamplingPeriods,
-  SamplingPeriod,
-  samplingPeriodMs,
-} from "../types/sampling";
+import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../types/sampling";
 import { LOG_LEVEL, MS_PER_BLOCK_ESTIMATE } from "../utils/config";
 import { sleep } from "../utils/async";
 import * as lodash from "lodash";
 import { runMain } from "../utils/process";
-import { blockSamplesStore } from "../lib/csv-block-samples";
+import { blockSamplesStore } from "../lib/csv-store/csv-block-samples";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -29,9 +25,7 @@ async function main() {
     try {
       await importChainBlockSamples(chain, samplingPeriod);
     } catch (e) {
-      logger.error(
-        `[BLOCKS] Error importing ${chain} block samples. Skipping. ${e}`
-      );
+      logger.error(`[BLOCKS] Error importing ${chain} block samples. Skipping. ${e}`);
       if (LOG_LEVEL === "trace") {
         console.log(e);
       }
@@ -46,21 +40,13 @@ async function main() {
   await sleep(10 * ms);
 }
 
-async function importChainBlockSamples(
-  chain: Chain,
-  samplingPeriod: SamplingPeriod
-) {
-  logger.info(
-    `[BLOCKS] Importing ${chain} block samples with period ${samplingPeriod}.`
-  );
+async function importChainBlockSamples(chain: Chain, samplingPeriod: SamplingPeriod) {
+  logger.info(`[BLOCKS] Importing ${chain} block samples with period ${samplingPeriod}.`);
 
   const writer = await blockSamplesStore.getWriter(chain, samplingPeriod);
 
   try {
-    let lastImported = await blockSamplesStore.getLastRow(
-      chain,
-      samplingPeriod
-    );
+    let lastImported = await blockSamplesStore.getLastRow(chain, samplingPeriod);
     if (lastImported === null) {
       let firstBlock = await getFirstBlock(chain);
       // add special case for aurora to speed things up
@@ -75,30 +61,15 @@ async function importChainBlockSamples(
     const ms = samplingPeriodMs[samplingPeriod];
     const latestBlock = await fetchBlockData(chain, "latest");
 
-    let blockCountToFill = Math.round(
-      samplingPeriodMs[samplingPeriod] / MS_PER_BLOCK_ESTIMATE[chain]
-    );
+    let blockCountToFill = Math.round(samplingPeriodMs[samplingPeriod] / MS_PER_BLOCK_ESTIMATE[chain]);
 
-    while (
-      latestBlock.datetime.getTime() - lastImported.datetime.getTime() >
-      ms
-    ) {
+    while (latestBlock.datetime.getTime() - lastImported.datetime.getTime() > ms) {
       const upperBound = await fetchBlockData(
         chain,
-        Math.min(
-          lastImported.blockNumber + blockCountToFill,
-          latestBlock.blockNumber
-        )
+        Math.min(lastImported.blockNumber + blockCountToFill, latestBlock.blockNumber)
       );
-      logger.verbose(
-        `[BLOCKS] Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`
-      );
-      const innerBlocks = await fillBlockGaps(
-        chain,
-        samplingPeriod,
-        lastImported,
-        upperBound
-      );
+      logger.verbose(`[BLOCKS] Importing blocks between ${lastImported.blockNumber} and ${upperBound.blockNumber}`);
+      const innerBlocks = await fillBlockGaps(chain, samplingPeriod, lastImported, upperBound);
       if (lastImported.datetime.getTime() !== upperBound.datetime.getTime()) {
         await writer.writeBatch([...innerBlocks, upperBound]);
       }
@@ -106,20 +77,14 @@ async function importChainBlockSamples(
 
       // adjust blockCountToFill
       if (innerBlocks.length < 80) {
-        const multiplier =
-          innerBlocks.length < 10 ? 4 : innerBlocks.length < 30 ? 2 : 1.5;
+        const multiplier = innerBlocks.length < 10 ? 4 : innerBlocks.length < 30 ? 2 : 1.5;
         const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
         logger.debug(
           `[BLOCKS] Too few blocks imported (${innerBlocks.length}), increasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
         );
         blockCountToFill = newBlockCountToFill;
       } else if (innerBlocks.length > 120) {
-        const multiplier =
-          innerBlocks.length > 200
-            ? 0.5
-            : innerBlocks.length > 150
-            ? 0.65
-            : 0.8;
+        const multiplier = innerBlocks.length > 200 ? 0.5 : innerBlocks.length > 150 ? 0.65 : 0.8;
         const newBlockCountToFill = Math.round(blockCountToFill * multiplier);
         logger.debug(
           `[BLOCKS] Too many blocks imported (${innerBlocks.length}), decreasing blockCountToFill (${blockCountToFill} -> ${newBlockCountToFill})`
@@ -129,17 +94,12 @@ async function importChainBlockSamples(
 
       // add a maximum block count to fill to 500 * period
       // because some blockchains have many useless blocks in the beginning (aurora)
-      blockCountToFill = Math.min(
-        Math.round((ms * 500) / MS_PER_BLOCK_ESTIMATE[chain]),
-        blockCountToFill
-      );
+      blockCountToFill = Math.min(Math.round((ms * 500) / MS_PER_BLOCK_ESTIMATE[chain]), blockCountToFill);
     }
   } finally {
     await writer.close();
   }
-  logger.info(
-    `[BLOCKS] Done importing block samples for ${chain}:${samplingPeriod}`
-  );
+  logger.info(`[BLOCKS] Done importing block samples for ${chain}:${samplingPeriod}`);
 }
 
 async function fillBlockGaps(
@@ -163,27 +123,13 @@ async function fillBlockGaps(
   }
   // otherwise, pick the block number in the middle and fill gaps
   const midpointBlockNumber =
-    lowerBound.blockNumber +
-    Math.floor((upperBound.blockNumber - lowerBound.blockNumber) / 2);
-  if (
-    midpointBlockNumber <= lowerBound.blockNumber ||
-    midpointBlockNumber >= upperBound.blockNumber
-  ) {
+    lowerBound.blockNumber + Math.floor((upperBound.blockNumber - lowerBound.blockNumber) / 2);
+  if (midpointBlockNumber <= lowerBound.blockNumber || midpointBlockNumber >= upperBound.blockNumber) {
     throw "NOPE";
   }
   const midPointBlockInfos = await fetchBlockData(chain, midpointBlockNumber);
-  const beforeFill = await fillBlockGaps(
-    chain,
-    samplingPeriod,
-    lowerBound,
-    midPointBlockInfos
-  );
-  const afterFill = await fillBlockGaps(
-    chain,
-    samplingPeriod,
-    midPointBlockInfos,
-    upperBound
-  );
+  const beforeFill = await fillBlockGaps(chain, samplingPeriod, lowerBound, midPointBlockInfos);
+  const afterFill = await fillBlockGaps(chain, samplingPeriod, midPointBlockInfos, upperBound);
   if (beforeFill.length <= 0 || afterFill.length <= 0) {
     return [...beforeFill, midPointBlockInfos, ...afterFill];
   }

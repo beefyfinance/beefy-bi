@@ -4,21 +4,15 @@ import * as lodash from "lodash";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import {
-  CHAIN_RPC_MAX_QUERY_BLOCKS,
-  RPC_BACH_CALL_COUNT,
-} from "../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, RPC_BACH_CALL_COUNT } from "../utils/config";
 import {
   ArchiveNodeNeededError,
   callLockProtectedRpc,
   isErrorDueToMissingDataFromNode,
 } from "./shared-resources/shared-rpc";
-import {
-  fetchCachedContractLastTransaction,
-  fetchContractCreationInfos,
-} from "./fetch-if-not-found-locally";
 import axios from "axios";
 import { isNumber } from "lodash";
+import { contractCreationStore, contractLastTrxStore } from "./json-store/contract-first-last-blocks";
 
 async function* streamContractEventsFromRpc<TEventArgs>(
   chain: Chain,
@@ -30,26 +24,18 @@ async function* streamContractEventsFromRpc<TEventArgs>(
     endBlock?: number;
     blockBatchSize?: number;
     mapArgs?: (args: ethers.utils.Result) => TEventArgs;
-    getEventFilters?: (
-      filters: ethers.BaseContract["filters"]
-    ) => ethers.EventFilter;
+    getEventFilters?: (filters: ethers.BaseContract["filters"]) => ethers.EventFilter;
     timeOrder?: "timeline" | "reverse";
   }
 ) {
   let startBlock = options?.startBlock;
   if (!startBlock) {
-    const { blockNumber } = await fetchContractCreationInfos(
-      chain,
-      contractAddress
-    );
+    const { blockNumber } = await contractCreationStore.fetchData(chain, contractAddress);
     startBlock = blockNumber;
   }
   let endBlock = options?.endBlock;
   if (!endBlock) {
-    const { blockNumber } = await fetchCachedContractLastTransaction(
-      chain,
-      contractAddress
-    );
+    const { blockNumber } = await contractLastTrxStore.fetchData(chain, contractAddress);
     endBlock = blockNumber;
   }
 
@@ -57,8 +43,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   const mapArgs = options?.mapArgs || ((x) => x as any as TEventArgs);
 
   // iterate through block ranges
-  const rangeSize =
-    options?.blockBatchSize || CHAIN_RPC_MAX_QUERY_BLOCKS[chain]; // big to speed up, not to big to avoid rpc limitations
+  const rangeSize = options?.blockBatchSize || CHAIN_RPC_MAX_QUERY_BLOCKS[chain]; // big to speed up, not to big to avoid rpc limitations
   const flat_range = lodash.range(startBlock, endBlock + 1, rangeSize);
   flat_range.push(endBlock + 1); // to make sure we get the last block
   let ranges: { fromBlock: number; toBlock: number }[] = [];
@@ -81,37 +66,23 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   const rangesBatches = lodash.chunk(ranges, batchSize);
   for (const rangesBatch of rangesBatches) {
     logger.verbose(
-      `[ERC20.T.RPC] Fetching ERC20 event batch for ${chain}:${contractAddress} (${
-        rangesBatch[0].fromBlock
-      } -> ${rangesBatch[rangesBatch.length - 1].toBlock}, batch rpc: ${
-        rangesBatch.length
-      })`
+      `[ERC20.T.RPC] Fetching ERC20 event batch for ${chain}:${contractAddress} (${rangesBatch[0].fromBlock} -> ${
+        rangesBatch[rangesBatch.length - 1].toBlock
+      }, batch rpc: ${rangesBatch.length})`
     );
-    const eventPromises = await callLockProtectedRpc(
-      chain,
-      async (provider) => {
-        return rangesBatch.map((blockRange) => {
-          // instanciate contract late to shuffle rpcs on error
-          const contract = new ethers.Contract(contractAddress, abi, provider);
-          const eventFilter = options?.getEventFilters
-            ? options?.getEventFilters(contract.filters)
-            : contract.filters[eventName]();
-          return contract.queryFilter(
-            eventFilter,
-            blockRange.fromBlock,
-            blockRange.toBlock
-          );
-        });
-      }
-    );
+    const eventPromises = await callLockProtectedRpc(chain, async (provider) => {
+      return rangesBatch.map((blockRange) => {
+        // instanciate contract late to shuffle rpcs on error
+        const contract = new ethers.Contract(contractAddress, abi, provider);
+        const eventFilter = options?.getEventFilters
+          ? options?.getEventFilters(contract.filters)
+          : contract.filters[eventName]();
+        return contract.queryFilter(eventFilter, blockRange.fromBlock, blockRange.toBlock);
+      });
+    });
     const batchEvents = await Promise.all(eventPromises);
-    const eventCount = batchEvents.reduce(
-      (acc, events) => acc + events.length,
-      0
-    );
-    logger.debug(
-      `[ERC20.T.RPC] Fetched ${eventCount} events, fetching associated block dates`
-    );
+    const eventCount = batchEvents.reduce((acc, events) => acc + events.length, 0);
+    logger.debug(`[ERC20.T.RPC] Fetched ${eventCount} events, fetching associated block dates`);
 
     // shortcut if we have no events for this batch
     if (eventCount === 0) {
@@ -120,18 +91,13 @@ async function* streamContractEventsFromRpc<TEventArgs>(
 
     // now we get all blocks in one batch
     const blockNumbers = lodash.uniq(
-      lodash.flatten(
-        batchEvents.map((events) => events.map((event) => event.blockNumber))
-      )
+      lodash.flatten(batchEvents.map((events) => events.map((event) => event.blockNumber)))
     );
-    const blockPromises = await callLockProtectedRpc(
-      chain,
-      async (provider) => {
-        return blockNumbers.map((blockNumber) => {
-          return provider.getBlock(blockNumber);
-        });
-      }
-    );
+    const blockPromises = await callLockProtectedRpc(chain, async (provider) => {
+      return blockNumbers.map((blockNumber) => {
+        return provider.getBlock(blockNumber);
+      });
+    });
     const blocks = await Promise.all(blockPromises);
 
     logger.debug(`[ERC20.T.RPC] Fetched ${blocks.length} blocks`);
@@ -139,13 +105,9 @@ async function* streamContractEventsFromRpc<TEventArgs>(
 
     for (const [rangeIdx, events] of batchEvents.entries()) {
       if (events.length > 0) {
-        logger.verbose(
-          `[ERC20.T.RPC] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`
-        );
+        logger.verbose(`[ERC20.T.RPC] Got ${events.length} events for range ${rangeIdx}/${ranges.length}`);
       } else {
-        logger.debug(
-          `[ERC20.T.RPC] No events for range ${rangeIdx}/${ranges.length}`
-        );
+        logger.debug(`[ERC20.T.RPC] No events for range ${rangeIdx}/${ranges.length}`);
       }
 
       for (const rawEvent of events) {
@@ -155,9 +117,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
         const mappedEvent = {
           transactionHash: rawEvent.transactionHash,
           blockNumber: rawEvent.blockNumber,
-          datetime: new Date(
-            blockByNumber[rawEvent.blockNumber].timestamp * 1000
-          ),
+          datetime: new Date(blockByNumber[rawEvent.blockNumber].timestamp * 1000),
           data: mapArgs(rawEvent.args),
         };
         yield mappedEvent;
@@ -179,9 +139,7 @@ export const streamERC20TransferEventsFromRpc = (
   }
 ) => {
   logger.debug(
-    `[ERC20.T.RPC] Streaming ERC20 transfer events for ${chain}:${contractAddress} ${JSON.stringify(
-      options
-    )}`
+    `[ERC20.T.RPC] Streaming ERC20 transfer events for ${chain}:${contractAddress} ${JSON.stringify(options)}`
   );
   return streamContractEventsFromRpc<{
     from: string;
@@ -211,39 +169,24 @@ export const streamERC20TransferEventsFromRpc = (
   });
 };
 
-export async function* streamBifiVaultUpgradeStratEventsFromRpc(
-  chain: Chain,
-  contractAddress: string
-) {
+export async function* streamBifiVaultUpgradeStratEventsFromRpc(chain: Chain, contractAddress: string) {
   // add a fake event for the contract creation
-  const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } =
-    await fetchContractCreationInfos(chain, contractAddress);
-  logger.debug(
-    `[BV6.VU.RPC] Fetching BeefyVaultV6 deploy strategy ${chain}:${contractAddress}:${deployBlockNumber}`
-  );
-  const firstStrategyRes = await getBeefyVaultV6StrategyAddress(
+  const { blockNumber: deployBlockNumber, datetime: deployBlockDatetime } = await contractCreationStore.fetchData(
     chain,
-    contractAddress,
-    deployBlockNumber
+    contractAddress
   );
+  logger.debug(`[BV6.VU.RPC] Fetching BeefyVaultV6 deploy strategy ${chain}:${contractAddress}:${deployBlockNumber}`);
+  const firstStrategyRes = await getBeefyVaultV6StrategyAddress(chain, contractAddress, deployBlockNumber);
   yield {
     blockNumber: deployBlockNumber,
     datetime: deployBlockDatetime,
     data: { implementation: firstStrategyRes },
   };
   // add a shortcut if the strategy never changed
-  logger.debug(
-    `[BV6.VU.RPC] Fetching BeefyVaultV6 current strategy ${chain}:${contractAddress}`
-  );
-  const currentStrategyRes = await getBeefyVaultV6StrategyAddress(
-    chain,
-    contractAddress,
-    "latest"
-  );
+  logger.debug(`[BV6.VU.RPC] Fetching BeefyVaultV6 current strategy ${chain}:${contractAddress}`);
+  const currentStrategyRes = await getBeefyVaultV6StrategyAddress(chain, contractAddress, "latest");
   if (firstStrategyRes === currentStrategyRes) {
-    logger.verbose(
-      `[BV6.VU.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`
-    );
+    logger.verbose(`[BV6.VU.RPC] Shortcut: no strategy change events for ${chain}:${contractAddress}`);
     return;
   }
 
@@ -267,13 +210,9 @@ export async function* streamBifiVaultOwnershipTransferedEventsFromRpc(
   contractAddress: string,
   startBlock?: number
 ) {
-  const eventStream = streamContractEventsFromRpc<{}>(
-    chain,
-    contractAddress,
-    BeefyVaultV6Abi,
-    "OwnershipTransferred",
-    { startBlock }
-  );
+  const eventStream = streamContractEventsFromRpc<{}>(chain, contractAddress, BeefyVaultV6Abi, "OwnershipTransferred", {
+    startBlock,
+  });
   // just iteration to the event stream
   yield* eventStream;
 }
@@ -286,21 +225,11 @@ async function getBeefyVaultV6StrategyAddress(
   // it looks like ethers doesn't yet support harmony's special format or smth
   // same for heco
   if (chain === "harmony" || chain === "heco") {
-    return fetchBeefyVaultV6StrategyWithManualRPCCall(
-      chain,
-      contractAddress,
-      blockTag
-    );
+    return fetchBeefyVaultV6StrategyWithManualRPCCall(chain, contractAddress, blockTag);
   }
-  logger.debug(
-    `[BV6.VU.RPC] Fetching strategy for ${chain}:${contractAddress}:${blockTag}`
-  );
+  logger.debug(`[BV6.VU.RPC] Fetching strategy for ${chain}:${contractAddress}:${blockTag}`);
   return callLockProtectedRpc(chain, async (provider) => {
-    const contract = new ethers.Contract(
-      contractAddress,
-      BeefyVaultV6Abi,
-      provider
-    );
+    const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
     let strategyRes: [string];
     if (blockTag !== null) {
       strategyRes = await contract.functions.strategy({ blockTag });
@@ -319,9 +248,7 @@ async function fetchBeefyVaultV6StrategyWithManualRPCCall(
   contractAddress: string,
   blockTag: ethers.providers.BlockTag | null
 ): Promise<string> {
-  logger.debug(
-    `[BV6.VU.RPC] Fetching strategy with manual rpc call for ${chain}:${contractAddress}:${blockTag}`
-  );
+  logger.debug(`[BV6.VU.RPC] Fetching strategy with manual rpc call for ${chain}:${contractAddress}:${blockTag}`);
   return callLockProtectedRpc(chain, async (provider) => {
     const url = provider.connection.url;
 
@@ -357,10 +284,7 @@ async function fetchBeefyVaultV6StrategyWithManualRPCCall(
     if (isErrorDueToMissingDataFromNode(res.data)) {
       throw new ArchiveNodeNeededError(chain, res.data);
     }
-    const address = ethers.utils.defaultAbiCoder.decode(
-      ["address"],
-      res.data.result
-    ) as any as [string];
+    const address = ethers.utils.defaultAbiCoder.decode(["address"], res.data.result) as any as [string];
     return address[0];
   });
 }

@@ -1,5 +1,5 @@
-import { erc20TransferFromStore } from "../lib/csv-transfer-from-events";
-import { fetchCachedContractLastTransaction, fetchContractCreationInfos } from "../lib/fetch-if-not-found-locally";
+import { erc20TransferFromStore } from "../lib/csv-store/csv-transfer-from-events";
+import { contractCreationStore, contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { allChainIds, Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
@@ -8,7 +8,7 @@ import { logger } from "../utils/logger";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import { getAllStrategyAddresses } from "../lib/csv-vault-strategy";
+import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
 import { runMain } from "../utils/process";
@@ -48,7 +48,7 @@ async function main() {
 
 async function importChain(chain: Chain, strategyAddress: string | null) {
   try {
-    const strategies = getAllStrategyAddresses(chain);
+    const strategies = vaultStrategyStore.getAllStrategyAddresses(chain);
     for await (const strategy of strategies) {
       if (strategyAddress && strategy.implementation !== strategyAddress) {
         logger.debug(`[STRAT] Skipping strategy ${strategy.implementation}`);
@@ -86,7 +86,7 @@ async function importStrategyWNativeFrom(chain: Chain, strategy: { implementatio
   if (startBlock === null) {
     logger.debug(`[ERC20.N.ST] No local data for ${chain}:${strategy.implementation}, fetching contract creation info`);
 
-    const { blockNumber } = await fetchContractCreationInfos(chain, contractAddress);
+    const { blockNumber } = await contractCreationStore.fetchData(chain, contractAddress);
     startBlock = blockNumber;
   } else {
     logger.debug(
@@ -97,7 +97,7 @@ async function importStrategyWNativeFrom(chain: Chain, strategy: { implementatio
     startBlock = startBlock + 1;
   }
 
-  const endBlock = (await fetchCachedContractLastTransaction(chain, contractAddress)).blockNumber;
+  const endBlock = (await contractLastTrxStore.fetchData(chain, contractAddress)).blockNumber;
 
   if (startBlock >= endBlock) {
     logger.info(`[ERC20.N.ST] All data imported for ${contractAddress}`);

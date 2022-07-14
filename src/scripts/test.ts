@@ -9,32 +9,20 @@ import * as fs from "fs";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
-import {
-  getFirstImportedSampleBlockData,
-  SamplingPeriod,
-} from "../lib/csv-block-samples";
+import { getFirstImportedSampleBlockData, SamplingPeriod } from "../lib/csv-store/csv-block-samples";
 import { normalizeAddress } from "../utils/ethers";
 
 async function main() {
   const chain: Chain = "aurora";
   const samplingPeriod: SamplingPeriod = "4hour";
-  const contractAddress = normalizeAddress(
-    "0x92E586d7dB14483C103c2e0FE6A596F8b55DA752"
-  );
+  const contractAddress = normalizeAddress("0x92E586d7dB14483C103c2e0FE6A596F8b55DA752");
 
-  const firstBlock = await getFirstImportedSampleBlockData(
-    chain,
-    samplingPeriod
-  );
+  const firstBlock = await getFirstImportedSampleBlockData(chain, samplingPeriod);
   if (!firstBlock) {
     logger.info(`No blocks samples imported yet.`);
     return;
   }
-  logger.info(
-    `Fetching contract creation for ${chain}:${contractAddress} from block: ${JSON.stringify(
-      firstBlock
-    )}`
-  );
+  logger.info(`Fetching contract creation for ${chain}:${contractAddress} from block: ${JSON.stringify(firstBlock)}`);
   const eventStream = streamBifiVaultOwnershipTransferedEventsFromRpc(
     chain,
     contractAddress,
@@ -114,9 +102,7 @@ function mooAmountToOracleAmount(
 
   // go to math representation
   // but we can't return a number with more precision than the oracle precision
-  const oracleAmount = oracleChainAmount
-    .shiftedBy(-depositTokenDecimals)
-    .decimalPlaces(depositTokenDecimals);
+  const oracleAmount = oracleChainAmount.shiftedBy(-depositTokenDecimals).decimalPlaces(depositTokenDecimals);
 
   return oracleAmount;
 }
