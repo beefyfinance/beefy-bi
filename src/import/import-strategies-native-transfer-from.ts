@@ -59,18 +59,22 @@ async function importChain(chain: Chain, strategyAddress: string | null) {
         await importStrategyWNativeFrom(chain, strategy);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
-          logger.error(`[ERC20.N.ST] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
+          logger.warn(`[ERC20.N.ST] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
         } else {
           logger.error(
-            `[ERC20.N.ST] Error importing native transfers from. Skipping ${chain}:${
-              strategy.implementation
-            }. ${JSON.stringify(e)}`
+            `[ERC20.N.ST] Error importing native transfers from. Skipping ${chain}:${strategy.implementation}. ${e}`
           );
+          if (LOG_LEVEL === "trace") {
+            console.log(e);
+          }
         }
       }
     }
   } catch (e) {
-    logger.error(`[ERC20.N.ST] Error importing chain. Skipping ${chain}. ${JSON.stringify(e)}`);
+    logger.error(`[ERC20.N.ST] Error importing chain. Skipping ${chain}. ${e}`);
+    if (LOG_LEVEL === "trace") {
+      console.log(e);
+    }
   }
   logger.info(`[ERC20.N.ST] Done importing native TransferFrom for ${chain}`);
 }

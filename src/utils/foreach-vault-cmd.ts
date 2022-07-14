@@ -54,10 +54,10 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
           results.push(res);
         } catch (e) {
           if (e instanceof ArchiveNodeNeededError) {
-            logger.error(`[${options.loggerScope}] Archive node needed, skipping vault ${chain}:${vault.id}`);
+            logger.warn(`[${options.loggerScope}] Archive node needed, skipping vault ${chain}:${vault.id}`);
             continue;
           } else {
-            logger.error(`[${options.loggerScope}] Error, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`);
+            logger.error(`[${options.loggerScope}] Error, skipping vault ${chain}:${vault.id}: ${e}`);
             if (LOG_LEVEL === "trace") {
               console.log(e);
             }

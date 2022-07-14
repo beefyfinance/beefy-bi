@@ -27,8 +27,8 @@ export async function callLockProtectedGitRepo(repo: string, work: () => Promise
         const message = `[GIT.LOCK] Error on attempt ${attemptNumber} calling explorer for ${resourceId}: ${error.message}`;
         if (attemptNumber < 3) logger.debug(message);
         else if (attemptNumber < 5) logger.verbose(message);
-        else if (attemptNumber < 8) logger.info(message);
-        else if (attemptNumber < 9) logger.warn(message);
+        else if (attemptNumber < 9) logger.info(message);
+        else if (attemptNumber < 10) logger.warn(message);
         else logger.error(message);
 
         if (LOG_LEVEL === "trace") {

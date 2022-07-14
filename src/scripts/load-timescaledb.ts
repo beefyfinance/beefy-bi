@@ -25,6 +25,7 @@ import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
 import { vaultListStore } from "../lib/beefy/vault-list";
 import { BeefyVault } from "../types/beefy";
+import { LOG_LEVEL } from "../utils/config";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -90,7 +91,10 @@ async function main() {
         try {
           await importVaultPPFSToDB(chain, vault);
         } catch (err) {
-          logger.error(`[LTSDB] Skipping ppfs for vault ${chain}:${vault.id}. ${JSON.stringify(err)}`);
+          logger.error(`[LTSDB] Skipping ppfs for vault ${chain}:${vault.id}. ${err}`);
+          if (LOG_LEVEL === "trace") {
+            console.log(err);
+          }
         }
       }
     }
@@ -242,7 +246,6 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
           const newBalance = lastBalance.add(balanceDiff);
           // add a test to avoid inserting garbage
           if (newBalance.lt(0) && ownerAddress !== "0x0000000000000000000000000000000000000000") {
-            logger.error(`Refusing to insert negative balance for ${chain}:${ownerAddress} (${JSON.stringify(data)})`);
             throw new InconsistentUserBalance(chain, contractAddress, lastBalance, newBalance, data);
           }
 

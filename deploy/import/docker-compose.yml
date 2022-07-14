@@ -22,7 +22,7 @@ x-importer: &importer
 
 x-importer-env: &importer-env
   REDIS_URL: redis://redis:6379
-  LOG_LEVEL: "warn"
+  LOG_LEVEL: "error"
   DATA_DIRECTORY: /data
   GIT_WORK_DIRECTORY: /git_work
   WORK_CHAIN: all

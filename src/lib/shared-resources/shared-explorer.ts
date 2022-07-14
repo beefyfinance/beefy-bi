@@ -65,7 +65,10 @@ export async function callLockProtectedExplorerUrl<TRes>(chain: Chain, params: R
           throw new Error(`[EXPLORER] ${url} returned unexpected content type: ${res.headers["content-type"]}`);
         }
         if (res.data.status === "0") {
-          logger.error(`[EXPLORER] Error calling explorer ${explorerUrl}: ${JSON.stringify(res.data)}`);
+          logger.error(`[EXPLORER] Error calling explorer ${explorerUrl}: ${res.data}`);
+          if (LOG_LEVEL === "trace") {
+            console.log(res.data);
+          }
           throw new Error(`[EXPLORER] Explorer call failed: ${explorerUrl}`);
         }
         return res.data.result;
@@ -79,8 +82,8 @@ export async function callLockProtectedExplorerUrl<TRes>(chain: Chain, params: R
         const message = `[EXPLORER] Error on attempt ${attemptNumber} calling explorer for ${explorerUrl}: ${error.message}`;
         if (attemptNumber < 3) logger.debug(message);
         else if (attemptNumber < 5) logger.verbose(message);
-        else if (attemptNumber < 8) logger.info(message);
-        else if (attemptNumber < 9) logger.warn(message);
+        else if (attemptNumber < 9) logger.info(message);
+        else if (attemptNumber < 10) logger.warn(message);
         else logger.error(message);
 
         if (LOG_LEVEL === "trace") {

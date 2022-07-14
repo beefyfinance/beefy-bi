@@ -1,5 +1,5 @@
 import { Chain } from "../../types/chain";
-import { DATA_DIRECTORY } from "../../utils/config";
+import { DATA_DIRECTORY, LOG_LEVEL } from "../../utils/config";
 import { LocalFileStore } from "../../utils/local-file-store";
 import * as fs from "fs";
 import * as path from "path";
@@ -60,7 +60,10 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
 
     for (const vault of vaults) {
       if (!vault.earnedTokenAddress) {
-        logger.error(`[GIT.V] Could not find vault earned token address for v2 vault: ${JSON.stringify(vault)}`);
+        logger.error(`[GIT.V] Could not find vault earned token address for v2 vault: ${vault.id}`);
+        if (LOG_LEVEL === "trace") {
+          console.log(vault);
+        }
         continue;
       }
       const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);
@@ -119,7 +122,10 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
 
       for (const vault of vaults) {
         if (!vault.earnedTokenAddress) {
-          logger.error(`[GIT.V] Could not find vault earned token address for v1 vault ${JSON.stringify(vault)}`);
+          logger.error(`[GIT.V] Could not find vault earned token address for v1 vault: ${vault.id}`);
+          if (LOG_LEVEL === "trace") {
+            console.log(vault);
+          }
           continue;
         }
         const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);

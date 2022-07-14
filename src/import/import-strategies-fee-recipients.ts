@@ -56,18 +56,20 @@ async function importChain(chain: Chain, strategyAddress: string | null) {
         await feeRecipientsStore.fetchData(chain, strategy.implementation);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
-          logger.error(`[FEE.ADDR] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
+          logger.warn(`[FEE.ADDR] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
         } else {
-          logger.error(
-            `[FEE.ADDR] Error importing fee recipients. Skipping ${chain}:${strategy.implementation}. ${JSON.stringify(
-              e
-            )}`
-          );
+          logger.error(`[FEE.ADDR] Error importing fee recipients. Skipping ${chain}:${strategy.implementation}. ${e}`);
+          if (LOG_LEVEL === "trace") {
+            console.log(e);
+          }
         }
       }
     }
   } catch (e) {
-    logger.error(`[FEE.ADDR] Error importing fee recipients. Skipping ${chain}. ${JSON.stringify(e)}`);
+    logger.error(`[FEE.ADDR] Error importing fee recipients. Skipping ${chain}. ${e}`);
+    if (LOG_LEVEL === "trace") {
+      console.log(e);
+    }
   }
   logger.info(`[FEE.ADDR] Done importing fee recipients for ${chain}`);
 }
