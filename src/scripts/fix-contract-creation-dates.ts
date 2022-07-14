@@ -1,62 +1,25 @@
 import * as fs from "fs";
 import * as path from "path";
-import { allChainIds, Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import { runMain } from "../utils/process";
-import yargs from "yargs";
-import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { DATA_DIRECTORY, shouldUseExplorer, _forceUseSource } from "../utils/config";
 import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 import { normalizeAddress } from "../utils/ethers";
 import { deleteAllVaultData } from "../lib/csv-store/csv-vault";
-import { vaultListStore } from "../lib/beefy/vault-list";
 import { BeefyVault } from "../types/beefy";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
+import { Chain } from "../types/chain";
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
-      vaultId: { type: "string", demand: false, alias: "v" },
-      dryrun: { type: "boolean", demand: true, default: true, alias: "d" },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
-  const vaultId = argv.vaultId || null;
-  const dryrun = argv.dryrun || true;
-
-  logger.info(`[CREATE.DATE.FIX] Dryrun: ${dryrun}`);
-
-  for (const chain of chains) {
-    const useExplorer = shouldUseExplorer(chain);
-    if (useExplorer) {
-      logger.info(`[BLOCKS] Skipping ${chain} because it has decent explorer`);
-      continue;
-    }
-    const vaults = await vaultListStore.fetchData(chain);
-    for (const vault of vaults) {
-      if (vaultId && vault.id !== vaultId) {
-        logger.debug(`[CREATE.DATE.FIX] Skipping vault ${vault.id}`);
-        continue;
-      }
-      try {
-        await fixVault(chain, vault, dryrun);
-      } catch (e) {
-        if (e instanceof ArchiveNodeNeededError) {
-          logger.error(`[CREATE.DATE.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`);
-          continue;
-        } else {
-          logger.error(
-            `[CREATE.DATE.FIX] Error fetching transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`
-          );
-          console.log(e);
-          continue;
-        }
-      }
-    }
-  }
-}
+const main = foreachVaultCmd({
+  loggerScope: "CREATE.DATE.FIX",
+  additionalOptions: {
+    dryrun: { type: "boolean", demand: true, default: true, alias: "d" },
+  },
+  skipChain: (chain) => shouldUseExplorer(chain), // skip chains that have a decent explorer configured
+  work: (argv, chain, vault) => fixVault(chain, vault, argv.dryrun),
+  shuffle: false,
+  parallelize: false,
+});
 
 // for each chain
 // if explorer is decent, do nothing
@@ -82,9 +45,6 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
   logger.verbose(
     `[CREATE.DATE.FIX] Local creation date for ${chain}:${vault.id}: ${localCreationInfos.datetime.toISOString()}`
   );
-
-  // make sure we use RPC
-  _forceUseSource("rpc");
 
   const trueCreationInfos = await contractCreationStore.fetchData(chain, contractAddress);
   if (!trueCreationInfos) {

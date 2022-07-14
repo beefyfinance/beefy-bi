@@ -1,63 +1,31 @@
 import * as fs from "fs";
 import * as path from "path";
-import { allChainIds, Chain } from "../types/chain";
+import { Chain } from "../types/chain";
 import { logger } from "../utils/logger";
 import { runMain } from "../utils/process";
-import yargs from "yargs";
-import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { DATA_DIRECTORY, _forceUseSource } from "../utils/config";
 import { normalizeAddress } from "../utils/ethers";
 import { deleteAllVaultData } from "../lib/csv-store/csv-vault";
-import { vaultListStore } from "../lib/beefy/vault-list";
 import { BeefyVault } from "../types/beefy";
 import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
-      vaultId: { type: "string", demand: true, alias: "v" },
-      forceSource: { choices: ["explorer", "rpc"], demand: false, alias: "s" },
-      dryrun: { type: "boolean", demand: true, default: true, alias: "d" },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
-  const vaultId = argv.vaultId;
-  const dryrun = argv.dryrun || true;
-  const forceSource = (argv.forceSource || null) as "explorer" | "rpc" | null;
-
-  if (forceSource) {
-    _forceUseSource(forceSource);
-  }
-
-  logger.info(`[ERC20.T.FIX] Dryrun: ${dryrun}`);
-
-  for (const chain of chains) {
-    const vaults = await vaultListStore.fetchData(chain);
-    for (const vault of vaults) {
-      if (vault.id !== vaultId) {
-        logger.debug(`[ERC20.T.FIX] Skipping vault ${vault.id}`);
-        continue;
-      }
-      try {
-        await fixVault(chain, vault, dryrun);
-      } catch (e) {
-        if (e instanceof ArchiveNodeNeededError) {
-          logger.error(`[ERC20.T.FIX] Archive node needed, skipping vault ${chain}:${vault.id}`);
-          continue;
-        } else {
-          logger.error(
-            `[ERC20.T.FIX] Error fixing transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`
-          );
-          console.log(e);
-          continue;
-        }
-      }
+const main = foreachVaultCmd({
+  loggerScope: "ERC20.T.FIX",
+  additionalOptions: {
+    forceSource: { choices: ["explorer", "rpc"], demand: false, alias: "s" },
+    dryrun: { type: "boolean", demand: true, default: true, alias: "d" },
+  },
+  work: (argv, chain, vault) => {
+    const forceSource = (argv.forceSource || null) as "explorer" | "rpc" | null;
+    if (forceSource) {
+      _forceUseSource(forceSource);
     }
-  }
-}
+    return fixVault(chain, vault, argv.dryrun);
+  },
+  shuffle: false,
+  parallelize: false,
+});
 
 //AEAZEAZEAZEAZE;
 // for the actual target vault

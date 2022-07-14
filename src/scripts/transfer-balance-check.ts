@@ -1,51 +1,28 @@
-import { shuffle, sortBy } from "lodash";
-import { BeefyVault, vaultListStore.fetchData } from "../lib/fetch-if-not-found-locally";
-import { allChainIds, Chain } from "../types/chain";
+import { Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import { streamERC20TransferEvents } from "../lib/csv-store/csv-transfer-events";
 import { logger } from "../utils/logger";
-import yargs from "yargs";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
+import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
+import { BeefyVault } from "../types/beefy";
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
-      vaultId: { type: "string", demand: false, alias: "v" },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
-  const vaultId = argv.vaultId || null;
-
-  for (const chain of chains) {
-    await checkChain(chain, vaultId);
-  }
-}
-
-async function checkChain(chain: Chain, vaultId: string | null) {
-  const vaults = sortBy(await vaultListStore.fetchData(chain), (v) => v.token_name);
-  for (const vault of vaults) {
-    if (vaultId && vaultId !== vault.id) {
-      logger.debug(`[TC] Skipping ${chain}:${vault.id}`);
-      continue;
-    } else {
-      logger.info(`[TC] Checking ${chain}:${vault.id}`);
-    }
-    await checkVault(chain, vault);
-  }
-}
+const main = foreachVaultCmd({
+  loggerScope: "TC",
+  additionalOptions: {},
+  work: (_, chain, vault) => checkVault(chain, vault),
+  shuffle: false,
+  parallelize: false,
+});
 
 async function checkVault(chain: Chain, vault: BeefyVault) {
   const mintBurnAddr = normalizeAddress("0x0000000000000000000000000000000000000000");
   const contractAddress = vault.token_address;
-  const eventStream = streamERC20TransferEvents(chain, contractAddress);
+  const events = erc20TransferStore.getReadIterator(chain, contractAddress);
 
   const investorBalances: Record<string, ethers.BigNumber> = {};
 
-  for await (const event of eventStream) {
+  for await (const event of events) {
     // check both address are normalized
     if (event.from !== normalizeAddress(event.from)) {
       logger.error(`[TC] Invalid event.from ${event.from}, proper value should be ${normalizeAddress(event.from)}`);

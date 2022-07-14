@@ -1,79 +1,28 @@
 import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
 import { streamERC20TransferEventsFromRpc } from "../lib/streamContractEventsFromRpc";
-import { allChainIds, Chain } from "../types/chain";
+import { Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
-import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { streamERC20TransferEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import { shuffle } from "lodash";
 import { runMain } from "../utils/process";
-import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
-import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
-import { vaultListStore } from "../lib/beefy/vault-list";
+import { shouldUseExplorer } from "../utils/config";
 import { contractCreationStore, contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
 import { BeefyVault } from "../types/beefy";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: {
-        choices: ["all"].concat(allChainIds),
-        alias: "c",
-        demand: false,
-        default: "all",
-      },
-      vaultId: { alias: "v", demand: false, string: true },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? shuffle(allChainIds) : [chain];
-  const vaultId = argv.vaultId || null;
-
-  const chainPromises = chains.map(async (chain) => {
-    try {
-      await importChain(chain, vaultId);
-    } catch (error) {
-      logger.error(`[PPFS] Error importing ${chain} ppfs: ${error}`);
-      if (LOG_LEVEL === "trace") {
-        console.log(error);
-      }
-    }
-  });
-  await Promise.allSettled(chainPromises);
-
-  logger.info(`[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 4h`);
-  await sleep(1000 * 60 * 60 * 4);
-}
-
-async function importChain(chain: Chain, vaultId: string | null) {
-  logger.info(`[ERC20.T] Importing ${chain} ERC20 transfer events...`);
-  // find out which vaults we need to parse
-  const vaults = shuffle(await vaultListStore.fetchData(chain));
-
-  // for each vault, find out the creation date or last imported transfer
-  for (const vault of vaults) {
-    if (vaultId && vault.id !== vaultId) {
-      logger.debug(`[ERC20.T] Skipping vault ${vault.id}`);
-      continue;
-    }
-
-    try {
-      await importVault(chain, vault);
-    } catch (e) {
-      if (e instanceof ArchiveNodeNeededError) {
-        logger.error(`[ERC20.T] Archive node needed, skipping vault ${chain}:${vault.id}`);
-        continue;
-      } else {
-        logger.error(`[ERC20.T] Error fetching transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`);
-        continue;
-      }
-    }
-  }
-  logger.info(`[ERC20.T] Done importing ${chain} ERC20 transfer events`);
-}
+const main = foreachVaultCmd({
+  loggerScope: "ERC20.T",
+  additionalOptions: {},
+  work: (_, chain, vault) => importVault(chain, vault),
+  onFinish: async (argv) => {
+    logger.info(`[ERC20.T] Done importing ERC20 transfer events, sleeping 4h`);
+    await sleep(1000 * 60 * 60 * 4);
+  },
+  shuffle: true,
+  parallelize: true,
+});
 
 async function importVault(chain: Chain, vault: BeefyVault) {
   const contractAddress = normalizeAddress(vault.token_address);

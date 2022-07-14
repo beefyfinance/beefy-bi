@@ -1,11 +1,10 @@
-import { flatten, sortBy } from "lodash";
-import { allChainIds, Chain } from "../types/chain";
+import { flatten } from "lodash";
+import { Chain } from "../types/chain";
 import { runMain } from "../utils/process";
 import { erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
 import { ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
 import { BeefyVaultV6StrategiesData, vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
 import { logger } from "../utils/logger";
-import yargs from "yargs";
 import * as path from "path";
 import { DATA_DIRECTORY } from "../utils/config";
 import { makeDataDirRecursive } from "../utils/make-data-dir-recursive";
@@ -13,9 +12,9 @@ import * as fs from "fs";
 import { SamplingPeriod } from "../types/sampling";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
 import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
-import { vaultListStore } from "../lib/beefy/vault-list";
 import { BeefyVault } from "../types/beefy";
 import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 
 interface DataCoverageReportRow {
   chain: Chain;
@@ -44,52 +43,19 @@ interface DataCoverageReportRow {
   strategies: BeefyVaultV6StrategiesData[] | null;
 }
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: { choices: [...allChainIds, "all"], alias: "c", demand: true },
-      vaultId: { type: "string", demand: false, alias: "v" },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? allChainIds : [chain];
-  const vaultId = argv.vaultId || null;
-
-  const reportPromises = chains.map((chain) => getChainReport(chain, vaultId));
-  const result = await Promise.allSettled(reportPromises);
-  const reportRows = flatten(
-    result.map((r) => {
-      if (r.status === "fulfilled") {
-        return r.value;
-      } else {
-        logger.error(r.reason);
-        return [];
-      }
-    })
-  );
-
-  const filePath = path.join(DATA_DIRECTORY, "report", "data-coverage.jsonl");
-  await makeDataDirRecursive(filePath);
-  await fs.promises.writeFile(filePath, reportRows.map((row) => JSON.stringify(row)).join("\n"));
-}
-
-async function getChainReport(chain: Chain, vaultId: string | null): Promise<DataCoverageReportRow[]> {
-  const vaults = sortBy(await vaultListStore.fetchData(chain), (v) => v.token_name);
-
-  const reportRows: DataCoverageReportRow[] = [];
-  for (const vault of vaults) {
-    if (vaultId && vaultId !== vault.id) {
-      logger.debug(`[DCR] Skipping ${chain}:${vault.id}`);
-      continue;
-    } else {
-      logger.info(`[DCR] Checking ${chain}:${vault.id}`);
-    }
-    const report = await getVaultCoverageReport(chain, vault);
-    reportRows.push(report);
-  }
-  return reportRows;
-}
+const main = foreachVaultCmd({
+  loggerScope: "DCR",
+  additionalOptions: {},
+  work: (_, chain, vault) => getVaultCoverageReport(chain, vault),
+  onFinish: async (_, results) => {
+    const reportRows = flatten(Object.values(results));
+    const filePath = path.join(DATA_DIRECTORY, "report", "data-coverage.jsonl");
+    await makeDataDirRecursive(filePath);
+    await fs.promises.writeFile(filePath, reportRows.map((row) => JSON.stringify(row)).join("\n"));
+  },
+  shuffle: false,
+  parallelize: false,
+});
 
 async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<DataCoverageReportRow> {
   const reportRow: DataCoverageReportRow = {

@@ -66,18 +66,13 @@ export function strArrToPgStrArr(strings: string[]) {
 
 // postgresql don't have "create type/domain if not exists"
 async function typeExists(typeName: string) {
-  const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [
-    typeName,
-  ]);
+  const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [typeName]);
   return res !== null;
 }
 
 // avoid error ERROR:  cannot change configuration on already compressed chunks
 // on alter table set compression
-async function isCompressionEnabled(
-  hyperTableSchema: string,
-  hypertableName: string
-) {
+async function isCompressionEnabled(hyperTableSchema: string, hypertableName: string) {
   const res = await db_query_one<{ compression_enabled: boolean }>(
     `SELECT compression_enabled 
       FROM timescaledb_information.hypertables 
@@ -524,11 +519,7 @@ export async function rebuildVaultStatsReportTable() {
     );
 
     // create a target table so we don't lock the main one
-    await db_query(
-      `CREATE TEMPORARY TABLE vault_stats_4h_ts_import (LIKE data_report.vault_stats_4h_ts);`,
-      [],
-      client
-    );
+    await db_query(`CREATE TEMPORARY TABLE vault_stats_4h_ts_import (LIKE data_report.vault_stats_4h_ts);`, [], client);
 
     // prepare the complex query to avoid ~1s of JIT compilation each time
     await db_query(
@@ -616,7 +607,7 @@ export async function rebuildVaultStatsReportTable() {
       client
     );
 
-    for (const [idx, contract] of Object.entries(contracts)) {
+    for (const [idx, contract] of contracts.entries()) {
       logger.info(
         `[DB] Refreshing vault stats for vault ${contract.chain}:${
           contract.vault_id
@@ -648,9 +639,7 @@ export async function rebuildVaultStatsReportTable() {
       );
     }
 
-    logger.info(
-      `[DB] Transfering imported data to the data_report.vault_stats_4h_ts table`
-    );
+    logger.info(`[DB] Transfering imported data to the data_report.vault_stats_4h_ts table`);
     // now transfer to the main table
     await db_query(
       `

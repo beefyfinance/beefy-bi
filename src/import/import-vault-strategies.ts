@@ -1,83 +1,31 @@
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import { allChainIds, Chain } from "../types/chain";
+import { Chain } from "../types/chain";
 import { batchAsyncStream } from "../utils/batch";
 import { normalizeAddress } from "../utils/ethers";
 import { logger } from "../utils/logger";
 import { sleep } from "../utils/async";
 import { streamBifiVaultUpgradeStratEventsFromExplorer } from "../lib/streamContractEventsFromExplorer";
-import { LOG_LEVEL, shouldUseExplorer } from "../utils/config";
+import { shouldUseExplorer } from "../utils/config";
 import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
-import { shuffle } from "lodash";
-import { ArchiveNodeNeededError, callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
+import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import { ethers } from "ethers";
 import { runMain } from "../utils/process";
-import yargs from "yargs";
 import { streamBifiVaultUpgradeStratEventsFromRpc } from "../lib/streamContractEventsFromRpc";
 import { BeefyVault } from "../types/beefy";
-import { vaultListStore } from "../lib/beefy/vault-list";
 import { contractCreationStore, contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
+import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 
-async function main() {
-  const argv = await yargs(process.argv.slice(2))
-    .usage("Usage: $0 [options]")
-    .options({
-      chain: {
-        choices: ["all"].concat(allChainIds),
-        alias: "c",
-        demand: false,
-        default: "all",
-      },
-      vaultId: { alias: "v", demand: false, string: true },
-    }).argv;
-
-  const chain = argv.chain as Chain | "all";
-  const chains = chain === "all" ? shuffle(allChainIds) : [chain];
-  const vaultId = argv.vaultId || null;
-
-  const chainPromises = chains.map(async (chain) => {
-    try {
-      await importChain(chain, vaultId);
-    } catch (error) {
-      logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
-      if (LOG_LEVEL === "trace") {
-        console.log(error);
-      }
-    }
-  });
-  await Promise.allSettled(chainPromises);
-
-  logger.info(`[STRATS] Done importing vault strategies, sleeping 24h`);
-  await sleep(1000 * 60 * 60 * 24);
-}
-
-async function importChain(chain: Chain, vaultId: string | null) {
-  logger.info(`[STRATS] Importing ${chain} vault strategies...`);
-  // find out which vaults we need to parse
-  const vaults = shuffle(await vaultListStore.fetchData(chain));
-
-  // for each vault, find out the creation date or last imported transfer
-  for (const vault of vaults) {
-    if (vaultId && vault.id !== vaultId) {
-      logger.debug(`[STRATS] Skipping vault ${vault.id}`);
-      continue;
-    }
-
-    try {
-      await importVault(chain, vault);
-    } catch (error) {
-      if (error instanceof ArchiveNodeNeededError) {
-        logger.error(`[STRATS] Archive node needed, skipping vault ${chain}:${vault.id}`);
-      } else {
-        logger.error(`[STRATS] Error importing ${chain}:${vault.id} strategies: ${JSON.stringify(error)}`);
-      }
-      if (LOG_LEVEL === "trace") {
-        console.log(error);
-      }
-    }
-  }
-
-  logger.info(`[STRATS] Done importing strategies for ${chain}`);
-}
+const main = foreachVaultCmd({
+  loggerScope: "STRATS",
+  additionalOptions: {},
+  work: (_, chain, vault) => importVault(chain, vault),
+  onFinish: async (argv) => {
+    logger.info(`[STRATS] Done importing vault strategies, sleeping 24h`);
+    await sleep(1000 * 60 * 60 * 24);
+  },
+  shuffle: true,
+  parallelize: true,
+});
 
 async function importVault(chain: Chain, vault: BeefyVault) {
   const contractAddress = normalizeAddress(vault.token_address);
