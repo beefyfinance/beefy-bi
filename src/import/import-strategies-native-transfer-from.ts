@@ -34,7 +34,7 @@ async function main() {
     try {
       await importChain(chain, strategyAddress);
     } catch (error) {
-      logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
+      logger.error(`[ERC20.N.ST] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
         console.log(error);
       }
@@ -59,7 +59,7 @@ async function importChain(chain: Chain, strategyAddress: string | null) {
         await importStrategyWNativeFrom(chain, strategy);
       } catch (e) {
         if (e instanceof ArchiveNodeNeededError) {
-          logger.error(`[STRATS] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
+          logger.error(`[ERC20.N.ST] Archive node needed, skipping vault ${chain}:${strategy.implementation}`);
         } else {
           logger.error(
             `[ERC20.N.ST] Error importing native transfers from. Skipping ${chain}:${

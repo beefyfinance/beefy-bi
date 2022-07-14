@@ -29,7 +29,7 @@ async function main() {
     try {
       await importChain(chain, strategyAddress);
     } catch (error) {
-      logger.error(`[STRATS] Error importing ${chain} strategies: ${error}`);
+      logger.error(`[FEE.ADDR] Error importing ${chain} strategies: ${error}`);
       if (LOG_LEVEL === "trace") {
         console.log(error);
       }

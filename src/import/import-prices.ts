@@ -31,7 +31,7 @@ async function main() {
   const oracleId = argv.oracleId || null;
 
   if (samplingPeriod !== "15min") {
-    logger.error(`Sampling period ${samplingPeriod} is not supported. Sleeping 4h.`);
+    logger.error(`[PRICES] Sampling period ${samplingPeriod} is not supported. Sleeping 4h.`);
     return sleep(1000 * 60 * 60 * 4);
   }
 
