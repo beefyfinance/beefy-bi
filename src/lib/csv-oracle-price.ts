@@ -9,19 +9,10 @@ export interface OraclePriceData {
   usdValue: number;
 }
 
-class PriceCsvStore extends CsvStore<
-  OraclePriceData,
-  [string, SamplingPeriod]
-> {
+class PriceCsvStore extends CsvStore<OraclePriceData, [string, SamplingPeriod]> {
   async *getAllAvailableOracleIds(samplingPeriod: SamplingPeriod) {
     const filePaths = await new Promise<string[]>((resolve, reject) => {
-      const globPath = path.join(
-        DATA_DIRECTORY,
-        "price",
-        "beefy",
-        "*",
-        `price_${samplingPeriod}.csv`
-      );
+      const globPath = path.join(DATA_DIRECTORY, "price", "beefy", "*", `price_${samplingPeriod}.csv`);
 
       // options is optional
       glob(globPath, function (er, filePaths) {
@@ -39,13 +30,7 @@ class PriceCsvStore extends CsvStore<
 export const oraclePriceStore = new PriceCsvStore({
   loggerScope: "OraclePriceStore",
   getFilePath: (oracleId: string, samplingPeriod: SamplingPeriod) =>
-    path.join(
-      DATA_DIRECTORY,
-      "price",
-      "beefy",
-      oracleId,
-      `price_${samplingPeriod}.csv`
-    ),
+    path.join(DATA_DIRECTORY, "price", "beefy", oracleId, `price_${samplingPeriod}.csv`),
   csvColumns: [
     { name: "datetime", type: "date" },
     { name: "usdValue", type: "float" },

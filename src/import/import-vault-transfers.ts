@@ -1,7 +1,4 @@
-import {
-  getERC20TransferStorageWriteStream,
-  getLastImportedERC20TransferEvent,
-} from "../lib/csv-transfer-events";
+import { erc20TransferStore } from "../lib/csv-transfer-events";
 import {
   fetchBeefyVaultList,
   fetchCachedContractLastTransaction,
@@ -50,9 +47,7 @@ async function main() {
   });
   await Promise.allSettled(chainPromises);
 
-  logger.info(
-    `[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 4h`
-  );
+  logger.info(`[ERC20.T] Done importing ${chain} ERC20 transfer events, sleeping 4h`);
   await sleep(1000 * 60 * 60 * 4);
 }
 
@@ -72,16 +67,10 @@ async function importChain(chain: Chain, vaultId: string | null) {
       await importVault(chain, vault);
     } catch (e) {
       if (e instanceof ArchiveNodeNeededError) {
-        logger.error(
-          `[ERC20.T] Archive node needed, skipping vault ${chain}:${vault.id}`
-        );
+        logger.error(`[ERC20.T] Archive node needed, skipping vault ${chain}:${vault.id}`);
         continue;
       } else {
-        logger.error(
-          `[ERC20.T] Error fetching transfers, skipping vault ${chain}:${
-            vault.id
-          }: ${JSON.stringify(e)}`
-        );
+        logger.error(`[ERC20.T] Error fetching transfers, skipping vault ${chain}:${vault.id}: ${JSON.stringify(e)}`);
         continue;
       }
     }
@@ -93,44 +82,28 @@ async function importVault(chain: Chain, vault: BeefyVault) {
   const contractAddress = normalizeAddress(vault.token_address);
   logger.info(`[ERC20.T] Processing ${chain}:${vault.id} (${contractAddress})`);
 
-  let startBlock =
-    (await getLastImportedERC20TransferEvent(chain, contractAddress))
-      ?.blockNumber || null;
+  let startBlock = (await erc20TransferStore.getLastRow(chain, contractAddress))?.blockNumber || null;
   if (startBlock === null) {
-    logger.debug(
-      `[ERC20.T] No local data for ${chain}:${vault.id}, fetching contract creation info`
-    );
+    logger.debug(`[ERC20.T] No local data for ${chain}:${vault.id}, fetching contract creation info`);
 
-    const { blockNumber } = await fetchContractCreationInfos(
-      chain,
-      contractAddress
-    );
+    const { blockNumber } = await fetchContractCreationInfos(chain, contractAddress);
     startBlock = blockNumber;
   } else {
     logger.debug(
-      `[ERC20.T] Found local data for ${chain}:${
-        vault.id
-      }, fetching data starting from block ${startBlock + 1}`
+      `[ERC20.T] Found local data for ${chain}:${vault.id}, fetching data starting from block ${startBlock + 1}`
     );
     startBlock = startBlock + 1;
   }
 
-  const endBlock = (
-    await fetchCachedContractLastTransaction(chain, contractAddress)
-  ).blockNumber;
+  const endBlock = (await fetchCachedContractLastTransaction(chain, contractAddress)).blockNumber;
 
   if (startBlock >= endBlock) {
     logger.info(`[ERC20.T] All data imported for ${contractAddress}`);
     return;
   }
 
-  logger.info(
-    `[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`
-  );
-  const { writeBatch, close } = await getERC20TransferStorageWriteStream(
-    chain,
-    contractAddress
-  );
+  logger.info(`[ERC20.T] Importing data for ${chain}:${vault.id} (${startBlock} -> ${endBlock})`);
+  const writer = await erc20TransferStore.getWriter(chain, contractAddress);
 
   const useExplorer = shouldUseExplorer(chain);
 
@@ -140,15 +113,10 @@ async function importVault(chain: Chain, vault: BeefyVault) {
       // Error calling explorer https://explorer.fuse.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
       // Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: toBlock","result":null,"status":"0"}
       const stopBlock = ["fuse", "metis"].includes(chain) ? endBlock : null;
-      const stream = streamERC20TransferEventsFromExplorer(
-        chain,
-        contractAddress,
-        startBlock,
-        stopBlock
-      );
+      const stream = streamERC20TransferEventsFromExplorer(chain, contractAddress, startBlock, stopBlock);
       for await (const eventBatch of batchAsyncStream(stream, 1000)) {
         logger.debug("[ERC20.T] Writing batch");
-        await writeBatch(
+        await writer.writeBatch(
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
             datetime: event.datetime,
@@ -171,7 +139,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
       // it's an exercise for the reader.
       for await (const event of stream) {
         logger.debug("[ERC20.T] Writing batch");
-        await writeBatch([
+        await writer.writeBatch([
           {
             blockNumber: event.blockNumber,
             datetime: event.datetime,
@@ -183,7 +151,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
       }
     }
   } finally {
-    await close();
+    await writer.close();
   }
 }
 

@@ -15,11 +15,7 @@ import {
 } from "../utils/db";
 import { getLocalBeefyVaultList } from "../lib/fetch-if-not-found-locally";
 import { logger } from "../utils/logger";
-import {
-  ERC20EventData,
-  getErc20TransferEventsStream,
-  getLastImportedERC20TransferEvent,
-} from "../lib/csv-transfer-events";
+import { ERC20EventData, erc20TransferStore } from "../lib/csv-transfer-events";
 import { FlattenStream, StreamObjectFilterTransform } from "../utils/stream";
 import { sleep } from "../utils/async";
 import {
@@ -198,7 +194,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         balance_diff, balance_before, balance_after
         ) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () => getErc20TransferEventsStream(chain, contractAddress),
+    getFileStream: async () => erc20TransferStore.getReadStream(chain, contractAddress),
 
     getLastDbRowDate: async () =>
       (
@@ -211,7 +207,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         )
       )?.last_imported || null,
 
-    getLastFileDate: async () => (await getLastImportedERC20TransferEvent(chain, contractAddress))?.datetime || null,
+    getLastFileDate: async () => (await erc20TransferStore.getLastRow(chain, contractAddress))?.datetime || null,
 
     rowToDbTransformer: await (async () => {
       // get latest balance from db per owner to propate it

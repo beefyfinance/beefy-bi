@@ -2,7 +2,7 @@ import { flatten, sortBy } from "lodash";
 import { fetchBeefyVaultList, getLocalContractCreationInfos } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import { getFirstImportedERC20TransferEvent, getLastImportedERC20TransferEvent } from "../lib/csv-transfer-events";
+import { erc20TransferStore } from "../lib/csv-transfer-events";
 import { getFirstImportedBeefyVaultV6PPFSData, getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
 import { BeefyVaultV6StrategiesData, streamVaultStrategies } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
@@ -137,12 +137,12 @@ async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<
      * ERC20 Transfer events
      */
     // first transfer
-    const firstTransferEvent = await getFirstImportedERC20TransferEvent(chain, contractAddress);
+    const firstTransferEvent = await erc20TransferStore.getFirstRow(chain, contractAddress);
     reportRow.first_moo_erc_20_transfer_datetime = firstTransferEvent?.datetime || null;
     reportRow.first_moo_erc_20_transfer_block_number = firstTransferEvent?.blockNumber || null;
 
     // last transfer
-    const lastTransferEvent = await getLastImportedERC20TransferEvent(chain, contractAddress);
+    const lastTransferEvent = await erc20TransferStore.getLastRow(chain, contractAddress);
     reportRow.last_moo_erc_20_transfer_datetime = lastTransferEvent?.datetime || null;
     reportRow.last_moo_erc_20_transfer_block_number = lastTransferEvent?.blockNumber || null;
 
