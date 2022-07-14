@@ -37,7 +37,7 @@ const main = foreachVaultCmd({
 
 async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
   const contractAddress = vault.token_address;
-  const localCreationInfos = await contractCreationStore.fetchData(chain, contractAddress);
+  const localCreationInfos = await contractCreationStore.getLocalData(chain, contractAddress);
   if (!localCreationInfos) {
     logger.debug(`[CREATE.DATE.FIX] No local creation date for ${chain}:${vault.id}. Skipping.`);
     return;
@@ -46,7 +46,7 @@ async function fixVault(chain: Chain, vault: BeefyVault, dryrun: boolean) {
     `[CREATE.DATE.FIX] Local creation date for ${chain}:${vault.id}: ${localCreationInfos.datetime.toISOString()}`
   );
 
-  const trueCreationInfos = await contractCreationStore.fetchData(chain, contractAddress);
+  const trueCreationInfos = await contractCreationStore.forceFetchData(chain, contractAddress);
   if (!trueCreationInfos) {
     logger.debug(`[CREATE.DATE.FIX] Could not find RPC creation date for ${chain}:${vault.id}. Skipping.`);
     return;

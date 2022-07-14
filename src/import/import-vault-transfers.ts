@@ -62,15 +62,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
       const stream = streamERC20TransferEventsFromExplorer(chain, contractAddress, startBlock, stopBlock);
       for await (const eventBatch of batchAsyncStream(stream, 1000)) {
         logger.debug("[ERC20.T] Writing batch");
-        await writer.writeBatch(
-          eventBatch.map((event) => ({
-            blockNumber: event.blockNumber,
-            datetime: event.datetime,
-            from: event.from,
-            to: event.to,
-            value: event.value,
-          }))
-        );
+        await writer.writeBatch(eventBatch);
       }
     } else {
       const stream = streamERC20TransferEventsFromRpc(chain, contractAddress, {
@@ -85,15 +77,7 @@ async function importVault(chain: Chain, vault: BeefyVault) {
       // it's an exercise for the reader.
       for await (const event of stream) {
         logger.debug("[ERC20.T] Writing batch");
-        await writer.writeBatch([
-          {
-            blockNumber: event.blockNumber,
-            datetime: event.datetime,
-            from: event.data.from,
-            to: event.data.to,
-            value: event.data.value,
-          },
-        ]);
+        await writer.writeBatch([event]);
       }
     }
   } finally {

@@ -145,8 +145,8 @@ async function importStrategyWNativeFrom(chain: Chain, strategy: { implementatio
           eventBatch.map((event) => ({
             blockNumber: event.blockNumber,
             datetime: event.datetime,
-            to: event.data.to,
-            value: event.data.value,
+            to: event.to,
+            value: event.value,
           }))
         );
       }

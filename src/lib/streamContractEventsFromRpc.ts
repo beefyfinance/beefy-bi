@@ -13,6 +13,7 @@ import {
 import axios from "axios";
 import { isNumber } from "lodash";
 import { contractCreationStore, contractLastTrxStore } from "./json-store/contract-first-last-blocks";
+import { ERC20EventData } from "./csv-store/csv-transfer-events";
 
 async function* streamContractEventsFromRpc<TEventArgs>(
   chain: Chain,
@@ -126,7 +127,7 @@ async function* streamContractEventsFromRpc<TEventArgs>(
   }
 }
 
-export const streamERC20TransferEventsFromRpc = (
+export async function* streamERC20TransferEventsFromRpc(
   chain: Chain,
   contractAddress: string,
   options?: {
@@ -137,11 +138,11 @@ export const streamERC20TransferEventsFromRpc = (
     blockBatchSize?: number;
     timeOrder?: "timeline" | "reverse";
   }
-) => {
+): AsyncGenerator<ERC20EventData> {
   logger.debug(
     `[ERC20.T.RPC] Streaming ERC20 transfer events for ${chain}:${contractAddress} ${JSON.stringify(options)}`
   );
-  return streamContractEventsFromRpc<{
+  const events = streamContractEventsFromRpc<{
     from: string;
     to: string;
     value: string;
@@ -167,7 +168,16 @@ export const streamERC20TransferEventsFromRpc = (
     blockBatchSize: options?.blockBatchSize,
     timeOrder: options?.timeOrder,
   });
-};
+  for await (const event of events) {
+    yield {
+      blockNumber: event.blockNumber,
+      datetime: event.datetime,
+      from: event.data.from,
+      to: event.data.to,
+      value: event.data.value,
+    };
+  }
+}
 
 export async function* streamBifiVaultUpgradeStratEventsFromRpc(chain: Chain, contractAddress: string) {
   // add a fake event for the contract creation
