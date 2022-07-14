@@ -79,7 +79,7 @@ export async function callLockProtectedExplorerUrl<TRes>(chain: Chain, params: R
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling explorer for ${explorerUrl}: ${error.message}`;
+        const message = `[EXPLORER] Error on attempt ${attemptNumber} calling explorer for ${explorerUrl} ${explorerResourceId}: ${error.message}`;
         if (attemptNumber < 3) logger.debug(message);
         else if (attemptNumber < 5) logger.verbose(message);
         else if (attemptNumber < 9) logger.info(message);

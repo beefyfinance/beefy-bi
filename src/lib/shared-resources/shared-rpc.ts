@@ -94,7 +94,7 @@ export async function callLockProtectedRpc<TRes>(
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        const message = `[RPC] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl}: ${error.message}`;
+        const message = `[RPC] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl} ${resourceId}: ${error.message}`;
         if (attemptNumber < 3) logger.debug(message);
         else if (attemptNumber < 5) logger.verbose(message);
         else if (attemptNumber < 9) logger.info(message);
