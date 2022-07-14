@@ -7,7 +7,7 @@ import {
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
 import { erc20TransferStore } from "../lib/csv-transfer-events";
-import { getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
+import { ppfsStore } from "../lib/csv-vault-ppfs";
 import { erc20TransferFromStore } from "../lib/csv-transfer-from-events";
 import { getLastImportedBeefyVaultV6Strategy, streamVaultStrategies } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
@@ -89,7 +89,7 @@ async function checkVault(chain: Chain, vault: BeefyVault) {
 
   // check we get a recent ppfs
   const sampling = "4hour";
-  const latestPPFS = await getLastImportedBeefyVaultV6PPFSData(chain, contractAddress, sampling);
+  const latestPPFS = await ppfsStore.getLastRow(chain, contractAddress, sampling);
   if (latestPPFS === null) {
     logger.error(`[CC] No PPFS found for vault ${chain}:${contractAddress} and sampling ${sampling}`);
   } else if (now.getTime() - latestPPFS.datetime.getTime() > oneDay * 2) {

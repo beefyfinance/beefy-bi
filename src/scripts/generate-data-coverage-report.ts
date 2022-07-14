@@ -3,7 +3,7 @@ import { fetchBeefyVaultList, getLocalContractCreationInfos } from "../lib/fetch
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
 import { erc20TransferStore } from "../lib/csv-transfer-events";
-import { getFirstImportedBeefyVaultV6PPFSData, getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
+import { ppfsStore } from "../lib/csv-vault-ppfs";
 import { BeefyVaultV6StrategiesData, streamVaultStrategies } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
@@ -175,12 +175,12 @@ async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<
      */
 
     // first
-    const firstPPFS = await getFirstImportedBeefyVaultV6PPFSData(chain, contractAddress, ppfsSamplingPeriod);
+    const firstPPFS = await ppfsStore.getFirstRow(chain, contractAddress, ppfsSamplingPeriod);
     reportRow.first_ppfs_datetime = firstPPFS?.datetime || null;
     reportRow.first_ppfs_block_number = firstPPFS?.blockNumber || null;
 
     // last
-    const lastPPFS = await getLastImportedBeefyVaultV6PPFSData(chain, contractAddress, ppfsSamplingPeriod);
+    const lastPPFS = await ppfsStore.getLastRow(chain, contractAddress, ppfsSamplingPeriod);
     reportRow.last_ppfs_datetime = lastPPFS?.datetime || null;
     reportRow.last_ppfs_block_number = lastPPFS?.blockNumber || null;
 

@@ -18,11 +18,7 @@ import { logger } from "../utils/logger";
 import { ERC20EventData, erc20TransferStore } from "../lib/csv-transfer-events";
 import { FlattenStream, StreamObjectFilterTransform } from "../utils/stream";
 import { sleep } from "../utils/async";
-import {
-  BeefyVaultV6PPFSData,
-  getBeefyVaultV6PPFSDataStream,
-  getLastImportedBeefyVaultV6PPFSData,
-} from "../lib/csv-vault-ppfs";
+import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-vault-ppfs";
 import { Transform } from "stream";
 import { OraclePriceData, oraclePriceStore } from "../lib/csv-oracle-price";
 import { SamplingPeriod } from "../types/sampling";
@@ -277,7 +273,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
 
     dbCopyQuery: `COPY data_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () => getBeefyVaultV6PPFSDataStream(chain, contractAddress, samplingPeriod),
+    getFileStream: async () => ppfsStore.getReadStream(chain, contractAddress, samplingPeriod),
 
     getLastDbRowDate: async () =>
       (
@@ -290,8 +286,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
         )
       )?.last_imported || null,
 
-    getLastFileDate: async () =>
-      (await getLastImportedBeefyVaultV6PPFSData(chain, contractAddress, samplingPeriod))?.datetime || null,
+    getLastFileDate: async () => (await ppfsStore.getLastRow(chain, contractAddress, samplingPeriod))?.datetime || null,
 
     rowToDbTransformer: (data: BeefyVaultV6PPFSData) => {
       return [

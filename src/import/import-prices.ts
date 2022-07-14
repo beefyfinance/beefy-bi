@@ -110,7 +110,7 @@ async function importOracleId(chain: Chain, samplingPeriod: SamplingPeriod, orac
           priceBatch.length
         } prices starting from ${priceBatch[0].datetime.toISOString()}`
       );
-      writer.writeBatch(
+      await writer.writeBatch(
         priceBatch.map((p) => ({
           datetime: p.datetime,
           usdValue: p.value,
