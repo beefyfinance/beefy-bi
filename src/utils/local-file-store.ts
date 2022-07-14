@@ -25,6 +25,7 @@ export class LocalFileStore<
       format: "json" | "jsonl";
       getResourceId: (...parameters: TArgs) => string;
       ttl_ms: number | null;
+      retryOnFetchError: boolean;
     }
   ) {
     this.empty = (this.options.format === "jsonl" ? [] : null) as any as TEmpty;
@@ -138,34 +139,34 @@ export class LocalFileStore<
     const localPath = this.options.getLocalPath(...args);
     const redlock = await getRedlock();
     const resourceId = "fetch:" + this.options.getResourceId(...args);
-    const data = await backOff(
-      () => redlock.using([resourceId], 2 * 60 * 1000, async () => this.options.doFetch(...args)),
-      {
-        delayFirstAttempt: false,
-        jitter: "full",
-        maxDelay: 5 * 60 * 1000,
-        numOfAttempts: 10,
-        retry: (error, attemptNumber) => {
-          const message = `[${this.options.loggerScope}] Error on attempt ${attemptNumber} fetching ${resourceId}: ${error.message}`;
-          if (attemptNumber < 3) logger.debug(message);
-          else if (attemptNumber < 5) logger.verbose(message);
-          else if (attemptNumber < 9) logger.info(message);
-          else if (attemptNumber < 10) logger.warn(message);
-          else logger.error(message);
+    const work = () => redlock.using([resourceId], 2 * 60 * 1000, async () => this.options.doFetch(...args));
+    const data = !this.options.retryOnFetchError
+      ? await work()
+      : await backOff(work, {
+          delayFirstAttempt: false,
+          jitter: "full",
+          maxDelay: 5 * 60 * 1000,
+          numOfAttempts: 10,
+          retry: (error, attemptNumber) => {
+            const message = `[${this.options.loggerScope}] Error on attempt ${attemptNumber} fetching ${resourceId}: ${error.message}`;
+            if (attemptNumber < 3) logger.debug(message);
+            else if (attemptNumber < 5) logger.verbose(message);
+            else if (attemptNumber < 9) logger.info(message);
+            else if (attemptNumber < 10) logger.warn(message);
+            else logger.error(message);
 
-          if (LOG_LEVEL === "trace") {
-            console.error(error);
-          }
-          // some errors are not recoverable
-          if (error instanceof ArchiveNodeNeededError) {
-            return false;
-          }
-          return true;
-        },
-        startingDelay: 200,
-        timeMultiple: 2,
-      }
-    );
+            if (LOG_LEVEL === "trace") {
+              console.error(error);
+            }
+            // some errors are not recoverable
+            if (error instanceof ArchiveNodeNeededError) {
+              return false;
+            }
+            return true;
+          },
+          startingDelay: 200,
+          timeMultiple: 2,
+        });
     logger.debug(`[${this.options.loggerScope}] Got new data for ${resourceId}, writing it and returning it`);
     await makeDataDirRecursive(localPath);
 

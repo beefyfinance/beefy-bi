@@ -22,6 +22,7 @@ export const feeRecipientsStore = new LocalFileStore({
     path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress), "fee_recipients.json"),
   getResourceId: (chain: Chain, contractAddress: string) => `${chain}:${contractAddress}:fee_recipients`,
   ttl_ms: null, // should never expire
+  retryOnFetchError: false, // we already have a retry on the work function
 });
 
 async function fetchBeefyStrategyFeeRecipients(chain: Chain, contractAddress: string): Promise<BeefyFeeRecipientInfo> {
@@ -33,8 +34,13 @@ async function fetchBeefyStrategyFeeRecipients(chain: Chain, contractAddress: st
     const contract = new ethers.Contract(contractAddress, BeefyStrategyFeeRecipientAbi, provider);
 
     // get the fee recipients
-    const beefyFeeRecipient = await contract.beefyFeeRecipient();
     const strategist = await contract.strategist();
+
+    // beefy maxi strat don't have this field
+    let beefyFeeRecipient = null;
+    try {
+      await contract.beefyFeeRecipient();
+    } catch (e) {}
 
     return {
       chain,

@@ -19,5 +19,5 @@ export interface BeefyFeeRecipientInfo {
   chain: Chain;
   contractAddress: string;
   strategist: string;
-  beefyFeeRecipient: string;
+  beefyFeeRecipient: string | null;
 }

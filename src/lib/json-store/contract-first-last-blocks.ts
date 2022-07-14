@@ -33,7 +33,8 @@ export const contractCreationStore = new LocalFileStore({
   getLocalPath: (chain: Chain, contractAddress: string) =>
     path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress), "creation_date.json"),
   getResourceId: (chain: Chain, contractAddress: string) => `${chain}:${contractAddress}:creation_date`,
-  ttl_ms: null, // never expires
+  ttl_ms: null, // never expires,
+  retryOnFetchError: false, // work function already implement retry
 });
 
 // store last transaction in redis as it changes frequently
