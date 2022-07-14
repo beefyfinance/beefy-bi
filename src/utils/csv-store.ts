@@ -17,7 +17,7 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
       getFilePath: (...args: TArgs) => string;
       csvColumns: {
         name: keyof RowType & string;
-        type: "integer" | "address" | "date" | "string";
+        type: "integer" | "address" | "date" | "float" | "string";
       }[];
     }
   ) {}
@@ -36,11 +36,7 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
     let closed = false;
     onExit(async () => {
       if (closed) return;
-      logger.info(
-        `[${
-          this.options.loggerScope
-        }] SIGINT, closing write object for ${JSON.stringify(args)}`
-      );
+      logger.info(`[${this.options.loggerScope}] SIGINT, closing write object for ${JSON.stringify(args)}`);
       closed = true;
       writeStream.close();
     });
@@ -48,11 +44,7 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
     return {
       writeBatch: async (events) => {
         if (closed) {
-          logger.debug(
-            `[${
-              this.options.loggerScope
-            }] write object closed for ${JSON.stringify(args)}, ignoring batch`
-          );
+          logger.debug(`[${this.options.loggerScope}] write object closed for ${JSON.stringify(args)}, ignoring batch`);
           return;
         }
         const csvData = stringifySync(events, {
@@ -65,19 +57,11 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
       },
       close: async () => {
         if (closed) {
-          logger.warn(
-            `[${
-              this.options.loggerScope
-            }] write object already closed for ${JSON.stringify(args)}`
-          );
+          logger.warn(`[${this.options.loggerScope}] write object already closed for ${JSON.stringify(args)}`);
           return;
         }
         closed = true;
-        logger.debug(
-          `[${
-            this.options.loggerScope
-          }] closing write object for ${JSON.stringify(args)}`
-        );
+        logger.debug(`[${this.options.loggerScope}] closing write object for ${JSON.stringify(args)}`);
         writeStream.close();
       },
     };
@@ -99,6 +83,8 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
         const coltype = this.options.csvColumns[context.index].type;
         if (coltype === "integer") {
           return parseInt(value);
+        } else if (coltype === "float") {
+          return parseFloat(value);
         } else if (coltype === "address") {
           return normalizeAddress(value);
         } else if (coltype === "date") {
@@ -130,6 +116,8 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
           const coltype = this.options.csvColumns[context.index].type;
           if (coltype === "integer") {
             return parseInt(value);
+          } else if (coltype === "float") {
+            return parseFloat(value);
           } else if (coltype === "address") {
             return normalizeAddress(value);
           } else if (coltype === "date") {
@@ -154,10 +142,7 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
     readStream.destroy();
   }
 
-  public async *getReadIteratorFrom(
-    condition: (row: RowType) => boolean,
-    ...args: TArgs
-  ) {
+  public async *getReadIteratorFrom(condition: (row: RowType) => boolean, ...args: TArgs) {
     const rows = this.getReadIterator(...args);
     if (!rows) {
       return;

@@ -1,26 +1,10 @@
 import { flatten, sortBy } from "lodash";
-import {
-  fetchBeefyVaultList,
-  getLocalContractCreationInfos,
-} from "../lib/fetch-if-not-found-locally";
+import { fetchBeefyVaultList, getLocalContractCreationInfos } from "../lib/fetch-if-not-found-locally";
 import { allChainIds, Chain } from "../types/chain";
 import { runMain } from "../utils/process";
-import {
-  getFirstImportedERC20TransferEvent,
-  getLastImportedERC20TransferEvent,
-} from "../lib/csv-transfer-events";
-import {
-  getFirstImportedOraclePrice,
-  getLastImportedOraclePrice,
-} from "../lib/csv-oracle-price";
-import {
-  getFirstImportedBeefyVaultV6PPFSData,
-  getLastImportedBeefyVaultV6PPFSData,
-} from "../lib/csv-vault-ppfs";
-import {
-  BeefyVaultV6StrategiesData,
-  streamVaultStrategies,
-} from "../lib/csv-vault-strategy";
+import { getFirstImportedERC20TransferEvent, getLastImportedERC20TransferEvent } from "../lib/csv-transfer-events";
+import { getFirstImportedBeefyVaultV6PPFSData, getLastImportedBeefyVaultV6PPFSData } from "../lib/csv-vault-ppfs";
+import { BeefyVaultV6StrategiesData, streamVaultStrategies } from "../lib/csv-vault-strategy";
 import { logger } from "../utils/logger";
 import yargs from "yargs";
 import * as path from "path";
@@ -29,6 +13,7 @@ import { makeDataDirRecursive } from "../lib/make-data-dir-recursive";
 import * as fs from "fs";
 import { SamplingPeriod } from "../types/sampling";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
+import { oraclePriceStore } from "../lib/csv-oracle-price";
 import { BeefyVault } from "../lib/git-get-all-vaults";
 
 interface DataCoverageReportRow {
@@ -85,16 +70,10 @@ async function main() {
 
   const filePath = path.join(DATA_DIRECTORY, "report", "data-coverage.jsonl");
   await makeDataDirRecursive(filePath);
-  await fs.promises.writeFile(
-    filePath,
-    reportRows.map((row) => JSON.stringify(row)).join("\n")
-  );
+  await fs.promises.writeFile(filePath, reportRows.map((row) => JSON.stringify(row)).join("\n"));
 }
 
-async function getChainReport(
-  chain: Chain,
-  vaultId: string | null
-): Promise<DataCoverageReportRow[]> {
+async function getChainReport(chain: Chain, vaultId: string | null): Promise<DataCoverageReportRow[]> {
   const vaults = sortBy(await fetchBeefyVaultList(chain), (v) => v.token_name);
 
   const reportRows: DataCoverageReportRow[] = [];
@@ -111,10 +90,7 @@ async function getChainReport(
   return reportRows;
 }
 
-async function getVaultCoverageReport(
-  chain: Chain,
-  vault: BeefyVault
-): Promise<DataCoverageReportRow> {
+async function getVaultCoverageReport(chain: Chain, vault: BeefyVault): Promise<DataCoverageReportRow> {
   const reportRow: DataCoverageReportRow = {
     chain,
     vault_id: vault.id,
@@ -152,55 +128,34 @@ async function getVaultCoverageReport(
      * VAULT CREATION
      */
     // vault creation
-    const creationInfos = await getLocalContractCreationInfos(
-      chain,
-      contractAddress
-    );
+    const creationInfos = await getLocalContractCreationInfos(chain, contractAddress);
     reportRow.vault_creation_datetime = creationInfos?.datetime || null;
     reportRow.vault_creation_block_number = creationInfos?.blockNumber || null;
-    reportRow.vault_creation_transaction =
-      creationInfos?.transactionHash || null;
+    reportRow.vault_creation_transaction = creationInfos?.transactionHash || null;
 
     /**
      * ERC20 Transfer events
      */
     // first transfer
-    const firstTransferEvent = await getFirstImportedERC20TransferEvent(
-      chain,
-      contractAddress
-    );
-    reportRow.first_moo_erc_20_transfer_datetime =
-      firstTransferEvent?.datetime || null;
-    reportRow.first_moo_erc_20_transfer_block_number =
-      firstTransferEvent?.blockNumber || null;
+    const firstTransferEvent = await getFirstImportedERC20TransferEvent(chain, contractAddress);
+    reportRow.first_moo_erc_20_transfer_datetime = firstTransferEvent?.datetime || null;
+    reportRow.first_moo_erc_20_transfer_block_number = firstTransferEvent?.blockNumber || null;
 
     // last transfer
-    const lastTransferEvent = await getLastImportedERC20TransferEvent(
-      chain,
-      contractAddress
-    );
-    reportRow.last_moo_erc_20_transfer_datetime =
-      lastTransferEvent?.datetime || null;
-    reportRow.last_moo_erc_20_transfer_block_number =
-      lastTransferEvent?.blockNumber || null;
+    const lastTransferEvent = await getLastImportedERC20TransferEvent(chain, contractAddress);
+    reportRow.last_moo_erc_20_transfer_datetime = lastTransferEvent?.datetime || null;
+    reportRow.last_moo_erc_20_transfer_block_number = lastTransferEvent?.blockNumber || null;
 
     /**
      * WANT oracle price
      */
 
     // first want oracle price
-    const firstWantPrice = await getFirstImportedOraclePrice(
-      wantOracleId,
-      priceSamplingPeriod
-    );
-    reportRow.want_oracle_first_price_datetime =
-      firstWantPrice?.datetime || null;
+    const firstWantPrice = await oraclePriceStore.getFirstRow(wantOracleId, priceSamplingPeriod);
+    reportRow.want_oracle_first_price_datetime = firstWantPrice?.datetime || null;
 
     // last want oracle price
-    const lastWantPrice = await getLastImportedOraclePrice(
-      wantOracleId,
-      priceSamplingPeriod
-    );
+    const lastWantPrice = await oraclePriceStore.getLastRow(wantOracleId, priceSamplingPeriod);
     reportRow.want_oracle_last_price_datetime = lastWantPrice?.datetime || null;
 
     /**
@@ -208,40 +163,24 @@ async function getVaultCoverageReport(
      */
 
     // first wnative oracle price
-    const firstWNativePrice = await getFirstImportedOraclePrice(
-      wnativeOracleId,
-      priceSamplingPeriod
-    );
-    reportRow.wnative_oracle_first_price_datetime =
-      firstWNativePrice?.datetime || null;
+    const firstWNativePrice = await oraclePriceStore.getFirstRow(wnativeOracleId, priceSamplingPeriod);
+    reportRow.wnative_oracle_first_price_datetime = firstWNativePrice?.datetime || null;
 
     // last wnative oracle price
-    const lastWNativePrice = await getLastImportedOraclePrice(
-      wnativeOracleId,
-      priceSamplingPeriod
-    );
-    reportRow.wnative_oracle_last_price_datetime =
-      lastWNativePrice?.datetime || null;
+    const lastWNativePrice = await oraclePriceStore.getLastRow(wnativeOracleId, priceSamplingPeriod);
+    reportRow.wnative_oracle_last_price_datetime = lastWNativePrice?.datetime || null;
 
     /**
      * PPFS
      */
 
     // first
-    const firstPPFS = await getFirstImportedBeefyVaultV6PPFSData(
-      chain,
-      contractAddress,
-      ppfsSamplingPeriod
-    );
+    const firstPPFS = await getFirstImportedBeefyVaultV6PPFSData(chain, contractAddress, ppfsSamplingPeriod);
     reportRow.first_ppfs_datetime = firstPPFS?.datetime || null;
     reportRow.first_ppfs_block_number = firstPPFS?.blockNumber || null;
 
     // last
-    const lastPPFS = await getLastImportedBeefyVaultV6PPFSData(
-      chain,
-      contractAddress,
-      ppfsSamplingPeriod
-    );
+    const lastPPFS = await getLastImportedBeefyVaultV6PPFSData(chain, contractAddress, ppfsSamplingPeriod);
     reportRow.last_ppfs_datetime = lastPPFS?.datetime || null;
     reportRow.last_ppfs_block_number = lastPPFS?.blockNumber || null;
 
@@ -255,11 +194,7 @@ async function getVaultCoverageReport(
     }
     reportRow.strategies = strategies.length > 0 ? strategies : null;
   } catch (e) {
-    logger.error(
-      `[DCR] Error generating coverage report for ${chain}:${
-        vault.id
-      } : ${JSON.stringify(e)}`
-    );
+    logger.error(`[DCR] Error generating coverage report for ${chain}:${vault.id} : ${JSON.stringify(e)}`);
   }
   return reportRow;
 }

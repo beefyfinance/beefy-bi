@@ -28,12 +28,7 @@ import {
   getLastImportedBeefyVaultV6PPFSData,
 } from "../lib/csv-vault-ppfs";
 import { Transform } from "stream";
-import {
-  getAllAvailableOracleIds,
-  getLastImportedOraclePrice,
-  getOraclePricesStream,
-  OraclePriceData,
-} from "../lib/csv-oracle-price";
+import { OraclePriceData, oraclePriceStore } from "../lib/csv-oracle-price";
 import { SamplingPeriod } from "../types/sampling";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
@@ -77,17 +72,13 @@ async function main() {
       const vaults = await getLocalBeefyVaultList(chain);
       for (const vault of vaults) {
         if (vaultId && vault.id !== vaultId) {
-          logger.verbose(
-            `[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`
-          );
+          logger.verbose(`[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`);
           continue;
         }
         try {
           await importVaultERC20TransfersToDB(chain, vault);
         } catch (err) {
-          logger.error(
-            `[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`
-          );
+          logger.error(`[LTSDB] Skipping ERC20 transfers for ${chain}:${vault.id}`);
           console.log(err);
         }
       }
@@ -107,11 +98,7 @@ async function main() {
         try {
           await importVaultPPFSToDB(chain, vault);
         } catch (err) {
-          logger.error(
-            `[LTSDB] Skipping ppfs for vault ${chain}:${
-              vault.id
-            }. ${JSON.stringify(err)}`
-          );
+          logger.error(`[LTSDB] Skipping ppfs for vault ${chain}:${vault.id}. ${JSON.stringify(err)}`);
         }
       }
     }
@@ -120,7 +107,7 @@ async function main() {
   if (!importOnly || importOnly === "prices") {
     logger.info(`[LTSDB] Importing prices`);
 
-    const oracleIds = getAllAvailableOracleIds("15min");
+    const oracleIds = oraclePriceStore.getAllAvailableOracleIds("15min");
     // get the latest import date for all oracles in one go
     const res = await db_query<{ oracle_id: string; last_imported: Date }>(
       `SELECT oracle_id, max(datetime) as last_imported
@@ -187,12 +174,8 @@ async function main() {
   }
 
   if (!importOnly || importOnly === "refresh_materialized_views") {
-    logger.info(
-      `[LTSDB] Refreshing materialized view: data_derived.vault_ppfs_and_price_4h_ts`
-    );
-    await db_query(
-      `REFRESH MATERIALIZED VIEW data_derived.vault_ppfs_and_price_4h_ts`
-    );
+    logger.info(`[LTSDB] Refreshing materialized view: data_derived.vault_ppfs_and_price_4h_ts`);
+    await db_query(`REFRESH MATERIALIZED VIEW data_derived.vault_ppfs_and_price_4h_ts`);
   }
 
   if (!importOnly || importOnly === "refresh_vault_stats_view") {
@@ -215,8 +198,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         balance_diff, balance_before, balance_after
         ) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () =>
-      getErc20TransferEventsStream(chain, contractAddress),
+    getFileStream: async () => getErc20TransferEventsStream(chain, contractAddress),
 
     getLastDbRowDate: async () =>
       (
@@ -229,10 +211,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         )
       )?.last_imported || null,
 
-    getLastFileDate: async () =>
-      (
-        await getLastImportedERC20TransferEvent(chain, contractAddress)
-      )?.datetime || null,
+    getLastFileDate: async () => (await getLastImportedERC20TransferEvent(chain, contractAddress))?.datetime || null,
 
     rowToDbTransformer: await (async () => {
       // get latest balance from db per owner to propate it
@@ -251,9 +230,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
       const lastBalancePerOwner = rows.reduce(
         (agg, row) =>
           Object.assign(agg, {
-            [normalizeAddress(row.owner_address)]: ethers.BigNumber.from(
-              row.balance_after
-            ),
+            [normalizeAddress(row.owner_address)]: ethers.BigNumber.from(row.balance_after),
           }),
         {} as Record<string, ethers.BigNumber>
       );
@@ -261,9 +238,7 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
 
       return (data: ERC20EventData) => {
         if (data.from === data.to) {
-          logger.verbose(
-            `Ignoring self transfer from ${data.from} at block ${data.blockNumber}`
-          );
+          logger.verbose(`Ignoring self transfer from ${data.from} at block ${data.blockNumber}`);
         }
         const newDiffRows = [
           { owner: data.from, balance_diff: "-" + data.value },
@@ -274,22 +249,9 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
           const balanceDiff = ethers.BigNumber.from(cfg.balance_diff);
           const newBalance = lastBalance.add(balanceDiff);
           // add a test to avoid inserting garbage
-          if (
-            newBalance.lt(0) &&
-            ownerAddress !== "0x0000000000000000000000000000000000000000"
-          ) {
-            logger.error(
-              `Refusing to insert negative balance for ${chain}:${ownerAddress} (${JSON.stringify(
-                data
-              )})`
-            );
-            throw new InconsistentUserBalance(
-              chain,
-              contractAddress,
-              lastBalance,
-              newBalance,
-              data
-            );
+          if (newBalance.lt(0) && ownerAddress !== "0x0000000000000000000000000000000000000000") {
+            logger.error(`Refusing to insert negative balance for ${chain}:${ownerAddress} (${JSON.stringify(data)})`);
+            throw new InconsistentUserBalance(chain, contractAddress, lastBalance, newBalance, data);
           }
 
           lastBalancePerOwner[ownerAddress] = newBalance;
@@ -319,8 +281,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
 
     dbCopyQuery: `COPY data_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () =>
-      getBeefyVaultV6PPFSDataStream(chain, contractAddress, samplingPeriod),
+    getFileStream: async () => getBeefyVaultV6PPFSDataStream(chain, contractAddress, samplingPeriod),
 
     getLastDbRowDate: async () =>
       (
@@ -334,13 +295,7 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
       )?.last_imported || null,
 
     getLastFileDate: async () =>
-      (
-        await getLastImportedBeefyVaultV6PPFSData(
-          chain,
-          contractAddress,
-          samplingPeriod
-        )
-      )?.datetime || null,
+      (await getLastImportedBeefyVaultV6PPFSData(chain, contractAddress, samplingPeriod))?.datetime || null,
 
     rowToDbTransformer: (data: BeefyVaultV6PPFSData) => {
       return [
@@ -355,25 +310,15 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
   });
 }
 
-async function importPricesToDB(
-  oracleId: string,
-  lastImportedOraclePrices: Record<string, Date>
-) {
+async function importPricesToDB(oracleId: string, lastImportedOraclePrices: Record<string, Date>) {
   const samplingPeriod: SamplingPeriod = "15min";
 
   return loadCSVStreamToTimescaleTable({
     logKey: `prices for ${oracleId}`,
-
     dbCopyQuery: `COPY data_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
-
-    getFileStream: async () => getOraclePricesStream(oracleId, samplingPeriod),
-
+    getFileStream: async () => oraclePriceStore.getReadStream(oracleId, samplingPeriod),
     getLastDbRowDate: async () => lastImportedOraclePrices[oracleId] || null,
-
-    getLastFileDate: async () =>
-      (await getLastImportedOraclePrice(oracleId, samplingPeriod))?.datetime ||
-      null,
-
+    getLastFileDate: async () => (await oraclePriceStore.getLastRow(oracleId, samplingPeriod))?.datetime || null,
     rowToDbTransformer: (data: OraclePriceData) => {
       return [
         // these should match the order of the copy cmd
@@ -386,9 +331,7 @@ async function importPricesToDB(
   });
 }
 
-async function loadCSVStreamToTimescaleTable<
-  CSVObjType extends { datetime: Date }
->(opts: {
+async function loadCSVStreamToTimescaleTable<CSVObjType extends { datetime: Date }>(opts: {
   logKey: string;
   getFileStream: () => Promise<Transform | null>;
   getLastDbRowDate: () => Promise<Date | null>;
@@ -406,18 +349,12 @@ async function loadCSVStreamToTimescaleTable<
   if (lastImportedDate) {
     const lastLocalTransfer = await opts.getLastFileDate();
     if (lastLocalTransfer && lastLocalTransfer > lastImportedDate) {
-      logger.verbose(
-        `[LTSDB] Only importing ${
-          opts.logKey
-        } events after ${lastImportedDate.toISOString()}`
-      );
+      logger.verbose(`[LTSDB] Only importing ${opts.logKey} events after ${lastImportedDate.toISOString()}`);
     } else {
       logger.verbose(`[LTSDB] Nothing to import for ${opts.logKey}`);
     }
   } else {
-    logger.verbose(
-      `[LTSDB] No data in database for ${opts.logKey}, importing all events`
-    );
+    logger.verbose(`[LTSDB] No data in database for ${opts.logKey}, importing all events`);
   }
 
   const fileReadStream = await opts.getFileStream();
@@ -426,14 +363,12 @@ async function loadCSVStreamToTimescaleTable<
     return;
   }
 
-  const onlyLatestRowsFilter = new StreamObjectFilterTransform<CSVObjType>(
-    (row) => {
-      if (!lastImportedDate) {
-        return true;
-      }
-      return row.datetime > lastImportedDate;
+  const onlyLatestRowsFilter = new StreamObjectFilterTransform<CSVObjType>((row) => {
+    if (!lastImportedDate) {
+      return true;
     }
-  );
+    return row.datetime > lastImportedDate;
+  });
 
   await new Promise((resolve, reject) => {
     pgPool.connect(function (err, client, poolCallback) {
@@ -493,13 +428,11 @@ export class InconsistentUserBalance extends Error {
     data: ERC20EventData
   ) {
     super(
-      `Refusing to insert negative balance for non-mintburn address ${chain}:${contractAddress}: ${JSON.stringify(
-        {
-          data,
-          lastBalance: lastBalance.toString(),
-          newBalance: newBalance.toString(),
-        }
-      )}`
+      `Refusing to insert negative balance for non-mintburn address ${chain}:${contractAddress}: ${JSON.stringify({
+        data,
+        lastBalance: lastBalance.toString(),
+        newBalance: newBalance.toString(),
+      })}`
     );
   }
 }

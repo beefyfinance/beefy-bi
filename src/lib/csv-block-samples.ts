@@ -4,8 +4,15 @@ import { DATA_DIRECTORY } from "../utils/config";
 import { CsvStore } from "../utils/csv-store";
 import { SamplingPeriod } from "../types/sampling";
 
-export const blockSamplesStore = new CsvStore({
-  loggerScope: "BLOCKS",
+interface BlockSampleData {
+  blockNumber: number;
+  datetime: Date;
+}
+export const blockSamplesStore = new CsvStore<
+  BlockSampleData,
+  [Chain, SamplingPeriod]
+>({
+  loggerScope: "BlocksStore",
   getFilePath: (chain: Chain, samplingPeriod: SamplingPeriod) =>
     path.join(
       DATA_DIRECTORY,
