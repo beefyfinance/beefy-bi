@@ -7,7 +7,7 @@ import { BeefyVaultV6StrategiesData, vaultStrategyStore } from "../lib/csv-store
 import { logger } from "../utils/logger";
 import * as path from "path";
 import { DATA_DIRECTORY } from "../utils/config";
-import { makeDataDirRecursive } from "../utils/make-data-dir-recursive";
+import { makeDataDirRecursive } from "../utils/fs";
 import * as fs from "fs";
 import { SamplingPeriod } from "../types/sampling";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";

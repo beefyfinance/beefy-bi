@@ -1,12 +1,13 @@
 import { backOff } from "exponential-backoff";
 import * as fs from "fs";
 import { cloneDeep, isArray } from "lodash";
-import { makeDataDirRecursive } from "./make-data-dir-recursive";
+import { makeDataDirRecursive } from "./fs";
 import { getRedlock } from "../lib/shared-resources/shared-lock";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { LOG_LEVEL } from "./config";
 import { getFirstLineOfFile } from "./stream";
 import { logger } from "./logger";
+import { fileOrDirExists } from "./fs";
 
 export class LocalFileStore<
   TRes,
@@ -61,7 +62,7 @@ export class LocalFileStore<
   protected async localDataExists(...args: TArgs) {
     const filePath = this.options.getLocalPath(...args);
 
-    if (!fs.existsSync(filePath)) {
+    if (!(await fileOrDirExists(filePath))) {
       return false;
     }
 
@@ -110,6 +111,7 @@ export class LocalFileStore<
         );
       }
     }
+
     const resourceId = "fetch:" + this.options.getResourceId(...args);
     try {
       return this.forceFetchData(...args);

@@ -7,7 +7,6 @@ import { shuffle, uniq } from "lodash";
 import { runMain } from "../utils/process";
 import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { batchAsyncStream } from "../utils/batch";
-import { BeefyVault } from "../types/beefy";
 import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
 import { vaultListStore } from "../lib/beefy/vault-list";
 
@@ -35,17 +34,15 @@ async function main() {
     return sleep(1000 * 60 * 60 * 4);
   }
 
-  const allOracleIds = new Set<string>();
+  let allOracleIds: string[] = [];
   if (oracleId) {
-    allOracleIds.add(oracleId);
+    allOracleIds.push(oracleId);
   } else {
     for (const chain of chains) {
       const vaults = await vaultListStore.fetchData(chain);
       for (const vault of vaults) {
         const vaultOracleIds = [vault.price_oracle.want_oracleId].concat(shuffle(vault.price_oracle.assets));
-        for (const vaultOracleId of vaultOracleIds) {
-          allOracleIds.add(vaultOracleId);
-        }
+        allOracleIds = uniq(allOracleIds.concat(vaultOracleIds));
       }
     }
   }

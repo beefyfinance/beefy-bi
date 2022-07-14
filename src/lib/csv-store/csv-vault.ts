@@ -5,7 +5,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { normalizeAddress } from "../../utils/ethers";
 import { vaultStrategyStore } from "./csv-vault-strategy";
-import { makeDataDirRecursive } from "../../utils/make-data-dir-recursive";
+import { makeDataDirRecursive } from "../../utils/fs";
 
 export async function deleteAllVaultData(chain: Chain, contractAddress: string, dryrun: boolean) {
   // delete strategy data

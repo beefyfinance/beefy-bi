@@ -11,6 +11,7 @@ import { normalizeAddress } from "../../utils/ethers";
 import { getChainWNativeTokenAddress } from "../../utils/addressbook";
 import { callLockProtectedGitRepo } from "./../shared-resources/shared-gitrepo";
 import { BeefyVault } from "../../types/beefy";
+import { fileOrDirExists } from "../../utils/fs";
 import prettier from "prettier";
 
 export const vaultListStore = new LocalFileStore<BeefyVault[], [Chain], "jsonl", BeefyVault[]>({
@@ -183,7 +184,7 @@ async function* gitStreamFileVersions(options: {
   // we can't make concurrent pulls
   await callLockProtectedGitRepo(options.workdir, async () => {
     // pull latest changes from remote or just clone remote
-    if (!fs.existsSync(options.workdir)) {
+    if (!(await fileOrDirExists(options.workdir))) {
       logger.debug(`[GIT.V] cloning ${options.remote} into ${options.workdir}`);
       const git: SimpleGit = simpleGit({
         ...baseOptions,
@@ -207,7 +208,8 @@ async function* gitStreamFileVersions(options: {
     logger.debug(`[GIT.V] Pulling changes for branch ${options.branch}`);
     await git.pull("origin", options.branch);
   });
-  if (!fs.existsSync(path.join(options.workdir, options.filePath))) {
+
+  if (!(await fileOrDirExists(path.join(options.workdir, options.filePath)))) {
     logger.debug(`[GIT.V] File ${options.filePath} not found`);
     return;
   }

@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { makeDataDirRecursive } from "./make-data-dir-recursive";
+import { makeDataDirRecursive } from "./fs";
 import { logger } from "./logger";
 import { onExit } from "./process";
 import { CastingContext, parse as syncParser } from "csv-parse/sync";
@@ -7,6 +7,7 @@ import { stringify as stringifySync } from "csv-stringify/sync";
 import { parse as asyncParser } from "csv-parse";
 import * as readLastLines from "read-last-lines";
 import { normalizeAddress } from "./ethers";
+import { fileOrDirExists } from "./fs";
 
 const CSV_SEPARATOR = ",";
 
@@ -72,7 +73,7 @@ export class CsvStore<RowType extends { datetime: Date }, TArgs extends any[]> {
    */
   async getLastRow(...args: TArgs): Promise<RowType | null> {
     const filePath = this.options.getFilePath(...args);
-    if (!fs.existsSync(filePath)) {
+    if (!(await fileOrDirExists(filePath))) {
       return null;
     }
     const lastImportedCSVRows = await readLastLines.read(filePath, 5);

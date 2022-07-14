@@ -1,15 +1,14 @@
 import dotenv from "dotenv";
 import { Chain } from "../types/chain";
+import { allLogLevels, LogLevels } from "../types/logger";
 import * as path from "path";
 dotenv.config();
 
-export const TIMESCALEDB_URL =
-  process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
+export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
-export const BEEFY_DATA_URL =
-  process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
+export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
 
 export const RPC_URLS: { [chain in Chain]: string[] } = {
   arbitrum: process.env.ARBITRUM_RPC
@@ -21,15 +20,10 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
       ],
   aurora: process.env.AURORA_RPC
     ? [process.env.AURORA_RPC]
-    : [
-        "https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek",
-      ],
+    : ["https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek"],
   avax: process.env.AVAX_RPC
     ? [process.env.AVAX_RPC]
-    : [
-        "https://api.avax.network/ext/bc/C/rpc",
-        "https://rpc.ankr.com/avalanche",
-      ],
+    : ["https://api.avax.network/ext/bc/C/rpc", "https://rpc.ankr.com/avalanche"],
   bsc: process.env.BSC_RPC
     ? [process.env.BSC_RPC]
     : [
@@ -62,9 +56,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         //"https://rpc.vvs.finance",
         //"https://evm.cronos.org",
       ],
-  emerald: process.env.EMERALD_RPC
-    ? [process.env.EMERALD_RPC]
-    : ["https://emerald.oasis.dev"],
+  emerald: process.env.EMERALD_RPC ? [process.env.EMERALD_RPC] : ["https://emerald.oasis.dev"],
   fantom: process.env.FANTOM_RPC
     ? [process.env.FANTOM_RPC]
     : ["https://rpc.ftm.tools", "https://rpcapi.fantom.network"],
@@ -86,12 +78,8 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         "https://http-mainnet.hecochain.com",
         //"https://http-mainnet-node.huobichain.com",
       ],
-  metis: process.env.METIS_RPC
-    ? [process.env.METIS_RPC]
-    : ["https://andromeda.metis.io/?owner=1088"],
-  moonbeam: process.env.MOONBEAM_RPC
-    ? [process.env.MOONBEAM_RPC]
-    : ["https://rpc.api.moonbeam.network"],
+  metis: process.env.METIS_RPC ? [process.env.METIS_RPC] : ["https://andromeda.metis.io/?owner=1088"],
+  moonbeam: process.env.MOONBEAM_RPC ? [process.env.MOONBEAM_RPC] : ["https://rpc.api.moonbeam.network"],
   moonriver: process.env.MOONRIVER_RPC
     ? [process.env.MOONRIVER_RPC]
     : [
@@ -101,12 +89,8 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   optimism: process.env.OPTIMISM_RPC
     ? [process.env.OPTIMISM_RPC]
     : ["https://opt-mainnet.g.alchemy.com/v2/JzmIL4Q3jBj7it2duxLFeuCa9Wobmm7D"],
-  polygon: process.env.POLYGON_RPC
-    ? [process.env.POLYGON_RPC]
-    : ["https://polygon-rpc.com/"],
-  syscoin: process.env.SYSCOIN_RPC
-    ? [process.env.SYSCOIN_RPC]
-    : ["https://rpc.syscoin.org/"],
+  polygon: process.env.POLYGON_RPC ? [process.env.POLYGON_RPC] : ["https://polygon-rpc.com/"],
+  syscoin: process.env.SYSCOIN_RPC ? [process.env.SYSCOIN_RPC] : ["https://rpc.syscoin.org/"],
 };
 
 export const EXPLORER_URLS: { [chain in Chain]: string } = {
@@ -134,8 +118,7 @@ export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 6000;
 // 0 means no delay but one call at a time (locking)
 // > 0 is is minimum delay in ms between calls
 function _getDelayFromEnv(chain: Chain) {
-  const delay =
-    process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
+  const delay = process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
   if (delay) {
     const delayMs = parseInt(delay, 10);
     if (delayMs < 0) {
@@ -230,35 +213,19 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   syscoin: 100000,
 };
 
-export const DATA_DIRECTORY =
-  process.env.DATA_DIRECTORY ||
-  path.join(__dirname, "..", "..", "data", "indexed-data");
+export const DATA_DIRECTORY = process.env.DATA_DIRECTORY || path.join(__dirname, "..", "..", "data", "indexed-data");
 
 export const GIT_WORK_DIRECTORY =
-  process.env.GIT_WORK_DIRECTORY ||
-  path.join(__dirname, "..", "..", "data", "git-work");
+  process.env.GIT_WORK_DIRECTORY || path.join(__dirname, "..", "..", "data", "git-work");
 
-export const GITHUB_RO_AUTH_TOKEN: string | null =
-  process.env.GITHUB_RO_AUTH_TOKEN || null;
+export const GITHUB_RO_AUTH_TOKEN: string | null = process.env.GITHUB_RO_AUTH_TOKEN || null;
 
 const log_level = process.env.LOG_LEVEL || "info";
-if (!["info", "debug", "verbose", "warn", "error"].includes(log_level)) {
+if (!allLogLevels.includes(log_level)) {
   throw new Error(`Invalid log level ${log_level}`);
 }
 
-export const LOG_LEVEL:
-  | "info"
-  | "debug"
-  | "verbose"
-  | "trace"
-  | "warn"
-  | "error" = log_level as any as
-  | "info"
-  | "debug"
-  | "verbose"
-  | "trace"
-  | "warn"
-  | "error";
+export const LOG_LEVEL: LogLevels = log_level as LogLevels;
 
 const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
   "arbitrum",
