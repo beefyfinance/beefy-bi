@@ -25,7 +25,7 @@ export const feeRecipientsStore = new LocalFileStore({
     path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress), "fee_recipients.json"),
   getResourceId: (chain: Chain, contractAddress: string) => `${chain}:${contractAddress}:fee_recipients`,
   datefields: [],
-  ttl_ms: null, // should never expire
+  ttl_ms: 1000 * 60 * 60 * 24 * 7, // should expire in case we update fee recipients, set to 1 week
   retryOnFetchError: false, // we already have a retry on the work function
 });
 
