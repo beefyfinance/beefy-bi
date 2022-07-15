@@ -66,6 +66,7 @@ export class LocalFileStore<
             // @ts-ignore
             obj[datefield] = new Date(obj[datefield]);
           }
+          return obj;
         }) as any as TRes;
       return data;
     }
