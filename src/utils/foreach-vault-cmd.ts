@@ -99,12 +99,16 @@ export function foreachVaultCmd<O extends { [key: string]: yargs.Options }, TRes
         await options.onFinish(argv as any, successes);
       }
     } else {
+      const successes = {} as any as { [chain in Chain]: TRes[] };
       for (const chain of chains) {
         if (options.skipChain && options.skipChain(chain)) {
           logger.info(`[${options.loggerScope}] Skipping ${chain}`);
           continue;
         }
-        await processChain(chain);
+        successes[chain] = await processChain(chain);
+      }
+      if (options.onFinish) {
+        await options.onFinish(argv as any, successes);
       }
     }
   };

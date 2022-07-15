@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import { DATA_DIRECTORY } from "./config";
-import * as readline from "readline";
 import nReadline from "n-readlines";
 
 export async function makeDataDirRecursive(filePath: string) {

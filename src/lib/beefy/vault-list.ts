@@ -1,7 +1,6 @@
 import { Chain } from "../../types/chain";
 import { DATA_DIRECTORY, LOG_LEVEL } from "../../utils/config";
 import { LocalFileStore } from "../../utils/local-file-store";
-import * as fs from "fs";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../utils/config";
