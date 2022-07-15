@@ -214,6 +214,7 @@ async function getVaultFeeReport(chain: Chain, vault: BeefyVault): Promise<FeeRe
               `[FR] No caller transfer found for ${strategy.implementation} and block ${transferBatch[0].blockNumber}`
             );
           }
+          console.log({ beefyTransferAmount, transferBatch, addressRoleMap, strategy });
           reportRow.total_beefy_fee_wnative = reportRow.total_beefy_fee_wnative.add(beefyTransferAmount);
           reportRow.total_strategist_fee_wnative = reportRow.total_strategist_fee_wnative.add(strategistTransferAmount);
           reportRow.total_caller_fee_wnative = reportRow.total_caller_fee_wnative.add(callerTransfer.value);

@@ -15,9 +15,16 @@ export interface BeefyVault {
   };
 }
 
+export interface BeefyFeeRecipientInfoAtBlock {
+  chain: Chain;
+  contractAddress: string;
+  blockTag: number | "latest";
+  beefyFeeRecipient: string | null;
+  strategist: string;
+}
+
 export interface BeefyFeeRecipientInfo {
   chain: Chain;
   contractAddress: string;
-  strategist: string;
-  beefyFeeRecipient: string | null;
+  recipientsAtBlock: BeefyFeeRecipientInfoAtBlock[];
 }

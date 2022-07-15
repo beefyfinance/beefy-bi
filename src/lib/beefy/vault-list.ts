@@ -23,6 +23,7 @@ export const vaultListStore = new LocalFileStore<BeefyVault[], [Chain], "jsonl",
   format: "jsonl",
   getLocalPath: (chain: Chain) => path.join(DATA_DIRECTORY, "chain", chain, "beefy", "vaults.jsonl"),
   getResourceId: (chain: Chain) => `vault-list:${chain}`,
+  datefields: [],
   ttl_ms: 1000 * 60 * 60 * 24 /* reload vault list every 24h */,
   retryOnFetchError: true,
 });

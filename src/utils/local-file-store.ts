@@ -24,6 +24,7 @@ export class LocalFileStore<
       getLocalPath: (...parameters: TArgs) => string;
       format: "json" | "jsonl";
       getResourceId: (...parameters: TArgs) => string;
+      datefields: (keyof TRes)[];
       ttl_ms: number | null;
       retryOnFetchError: boolean;
     }
@@ -49,13 +50,23 @@ export class LocalFileStore<
     if (this.options.format === "json") {
       const content = await fs.promises.readFile(filePath, "utf8");
       const data: TRes = JSON.parse(content);
+      for (const datefield of this.options.datefields) {
+        // @ts-ignore
+        data[datefield] = new Date(data[datefield]);
+      }
       return data;
     } else {
       let content = await fs.promises.readFile(filePath, "utf8");
       const data: TRes = content
         .trim()
         .split("\n")
-        .map((obj) => JSON.parse(obj)) as any as TRes;
+        .map((obj) => JSON.parse(obj))
+        .map((obj) => {
+          for (const datefield of this.options.datefields) {
+            // @ts-ignore
+            obj[datefield] = new Date(obj[datefield]);
+          }
+        }) as any as TRes;
       return data;
     }
   }

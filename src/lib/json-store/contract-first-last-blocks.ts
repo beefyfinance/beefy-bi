@@ -30,6 +30,7 @@ export const contractCreationStore = new LocalFileStore({
     }
   },
   format: "json",
+  datefields: ["datetime"],
   getLocalPath: (chain: Chain, contractAddress: string) =>
     path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress), "creation_date.json"),
   getResourceId: (chain: Chain, contractAddress: string) => `${chain}:${contractAddress}:creation_date`,
