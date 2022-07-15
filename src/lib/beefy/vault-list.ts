@@ -17,7 +17,7 @@ import prettier from "prettier";
 export const vaultListStore = new LocalFileStore<BeefyVault[], [Chain], "jsonl", BeefyVault[]>({
   loggerScope: "VAULT.LIST.STORE",
   doFetch: async (chain: Chain) => {
-    logger.info(`[FETCH] Fetching updated vault list for ${chain}`);
+    logger.info(`[VAULT.LIST.STORE] Fetching updated vault list for ${chain}`);
 
     return getAllVaultsFromGitHistory(chain);
   },
