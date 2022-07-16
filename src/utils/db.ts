@@ -482,6 +482,26 @@ async function migrate() {
       if_not_exists => true
     );
   `);
+
+  // vault harvests table
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS data_raw.vault_harvest_1d_ts (
+      chain chain_enum NOT NULL,
+      vault_id varchar NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL check datetime = date_trunc('day', datetime), -- ensure that datetime is at midnight
+      strategy_address event_address NOT NULL,
+      caller_wnative_amount numeric not null,
+      strategist_wnative_amount numeric not null,
+      beefy_wnative_amount numeric not null,
+      compound_wnative_amount numeric not null
+    );
+    SELECT create_hypertable(
+      relation => 'data_raw.vault_harvest_1d_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '7 days', 
+      if_not_exists => true
+    );
+  `);
 }
 
 // this is kind of a continuous aggregate

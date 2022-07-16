@@ -26,6 +26,10 @@ import { normalizeAddress } from "../utils/ethers";
 import { vaultListStore } from "../lib/beefy/vault-list";
 import { BeefyVault } from "../types/beefy";
 import { LOG_LEVEL } from "../utils/config";
+import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";
+import { ERC20TransferFromEventData, erc20TransferFromStore } from "../lib/csv-store/csv-transfer-from-events";
+import { getChainWNativeTokenAddress } from "../utils/addressbook";
+import { feeRecipientsStore } from "../lib/beefy/fee-recipients";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -323,6 +327,69 @@ async function importPricesToDB(oracleId: string, lastImportedOraclePrices: Reco
     },
     flatten: false,
   });
+}
+
+async function importHarvestsToDB(chain: Chain, vault: BeefyVault) {
+  const samplingPeriod: SamplingPeriod = "15min";
+
+  const strategies = vaultStrategyStore.getReadIterator(chain, vault.token_address);
+  const wnativeTokenAddress = getChainWNativeTokenAddress(chain);
+
+  for await (const strategy of strategies) {
+    const feeRecipientsData = await feeRecipientsStore.getLocalData(chain, strategy.implementation);
+    if (!feeRecipientsData) {
+      logger.debug(`[FR] No fee recipients found for ${strategy.implementation}`);
+      continue;
+    }
+    const addressRoleMap: Record<string, "beefy" | "strategist"> = {};
+    for (const feeRecipients of feeRecipientsData.recipientsAtBlock) {
+      if (feeRecipients.beefyFeeRecipient) {
+        addressRoleMap[normalizeAddress(feeRecipients.beefyFeeRecipient)] = "beefy";
+      }
+      addressRoleMap[normalizeAddress(feeRecipients.strategist)] = "strategist";
+    }
+    logger.verbose(`[FR] addressRoleMap for ${chain}:${vault.id}: ${JSON.stringify(addressRoleMap)}`);
+    const roleAddressMap: Record<"beefy" | "strategist", string[]> = { beefy: [], strategist: [] };
+    for (const [address, role] of Object.entries(addressRoleMap)) {
+      roleAddressMap[role].push(address);
+    }
+
+    let strategyHarvestTransferCount: null | number = null;
+    let currentBlockNumber: number = 0;
+    let blockTransfers: ERC20TransferFromEventData[] = [];
+
+    await loadCSVStreamToTimescaleTable({
+      logKey: `harvests for ${chain}:${vault.id}`,
+      dbCopyQuery: `COPY data_raw.vault_harvest_1d_ts(
+        chain, vault_id, datetime, caller_wnative_amount, strategist_wnative_amount, beefy_wnative_amount, compound_wnative_amount
+      ) FROM STDIN WITH CSV DELIMITER ',';`,
+      getFileStream: async () =>
+        erc20TransferFromStore.getReadStream(chain, strategy.implementation, wnativeTokenAddress),
+      getLastDbRowDate: async () =>
+        (
+          await db_query_one<{ last_imported: Date }>(
+            `SELECT max(datetime) as last_imported
+          FROM data_raw.vault_ppfs_ts
+          WHERE chain = %L
+            AND vault_id = %L
+            and strategy_address = %L`,
+            [chain, vault.id, strAddressToPgBytea(strategy.implementation)]
+          )
+        )?.last_imported || null,
+      getLastFileDate: async () =>
+        (await erc20TransferFromStore.getLastRow(chain, strategy.implementation, wnativeTokenAddress))?.datetime ||
+        null,
+      rowToDbTransformer: (data: ERC20TransferFromEventData) => {
+        return [
+          // these should match the order of the copy cmd
+          oracleId,
+          data.datetime.toISOString(),
+          data.usdValue,
+        ];
+      },
+      flatten: false,
+    });
+  }
 }
 
 async function loadCSVStreamToTimescaleTable<CSVObjType extends { datetime: Date }>(opts: {

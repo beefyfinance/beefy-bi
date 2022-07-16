@@ -1,4 +1,4 @@
-import { flatten, groupBy, keyBy, maxBy } from "lodash";
+import { chunk, flatten, groupBy, keyBy, maxBy } from "lodash";
 import { Chain } from "../types/chain";
 import { runMain } from "../utils/process";
 import { ERC20TransferFromEventData, erc20TransferFromStore } from "../lib/csv-store/csv-transfer-from-events";
@@ -16,9 +16,7 @@ import {
   getChainWNativeTokenOracleId,
   getChainWNativeTokenSymbol,
 } from "../utils/addressbook";
-import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
 import { BeefyVault } from "../types/beefy";
-import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
@@ -30,8 +28,9 @@ interface FeeReportRow {
   wnative_oracle_id: string;
   wnative_symbol: string;
   wnative_decimals: number;
-  strategies: string[] | null;
+  strategies: BeefyVaultV6StrategiesData[] | null;
   transfer_from_count: Record<string, number>;
+  harvest_count: Record<string, number>;
   start_date: Date;
   end_date: Date;
   total_strategist_fee_wnative: ethers.BigNumber;
@@ -90,6 +89,7 @@ async function getVaultFeeReport(chain: Chain, vault: BeefyVault): Promise<FeeRe
     wnative_decimals: wnativeTokenDecimals,
     strategies: [],
     transfer_from_count: {},
+    harvest_count: {},
     start_date: new Date(),
     end_date: new Date(0),
     total_strategist_fee_wnative: ethers.BigNumber.from(0),
@@ -107,30 +107,36 @@ async function getVaultFeeReport(chain: Chain, vault: BeefyVault): Promise<FeeRe
     for await (const strategy of rows) {
       strategies.push(strategy);
     }
-    reportRow.strategies = strategies.map((s) => s.implementation);
+    reportRow.strategies = strategies;
     logger.debug(`[FR] Found ${strategies.length} strategies for ${chain}:${vault.id}`);
 
     // get strategy address map
     const addressRoleMap: Record<string, "beefy" | "strategist"> = {};
     for (const strategy of strategies) {
-      const feeRecipients = await feeRecipientsStore.getLocalData(chain, strategy.implementation);
-      if (!feeRecipients) {
+      const feeRecipientsData = await feeRecipientsStore.getLocalData(chain, strategy.implementation);
+      if (!feeRecipientsData) {
         logger.debug(`[FR] No fee recipients found for ${strategy.implementation}`);
         continue;
       }
-      if (feeRecipients.beefyFeeRecipient) {
-        addressRoleMap[normalizeAddress(feeRecipients.beefyFeeRecipient)] = "beefy";
+      for (const feeRecipients of feeRecipientsData.recipientsAtBlock) {
+        if (feeRecipients.beefyFeeRecipient) {
+          addressRoleMap[normalizeAddress(feeRecipients.beefyFeeRecipient)] = "beefy";
+        }
+        addressRoleMap[normalizeAddress(feeRecipients.strategist)] = "strategist";
       }
-      addressRoleMap[normalizeAddress(feeRecipients.strategist)] = "strategist";
     }
-    logger.verbose(`[FR] addressRoleMap for ${chain}:${vault.id}: ${JSON.stringify(addressRoleMap)}`);
-    const roleAddressMap = Object.entries(addressRoleMap).reduce(
-      (acc, [address, role]) => Object.assign(acc, { [role]: address }),
-      {} as Record<"beefy" | "strategist", string>
-    );
 
+    logger.verbose(`[FR] addressRoleMap for ${chain}:${vault.id}: ${JSON.stringify(addressRoleMap)}`);
+    const roleAddressMap: Record<"beefy" | "strategist", string[]> = { beefy: [], strategist: [] };
+    for (const [address, role] of Object.entries(addressRoleMap)) {
+      roleAddressMap[role].push(address);
+    }
+
+    let isMaxiVault = vault.id.endsWith("bifi-maxi");
+    let strategyHarvestTransferCount: null | number = null;
     for (const strategy of strategies) {
       reportRow.transfer_from_count[strategy.implementation] = 0;
+      reportRow.harvest_count[strategy.implementation] = 0;
 
       const nativeTransferFromStrategyRows = erc20TransferFromStore.getReadIterator(
         chain,
@@ -160,71 +166,101 @@ async function getVaultFeeReport(chain: Chain, vault: BeefyVault): Promise<FeeRe
         blockTransfers = [transfer];
         currentBlockNumber = transfer.blockNumber;
 
-        // then, process the batch
+        // skip the first empty batch
+        if (transferBatch.length === 0) {
+          continue;
+        }
 
-        // if we have 4 transfers exactly, it's easy
-        // there should be 2 addresses in the address map (strategist and beefy)
-        // there should be 1 transfer larger than the other ones, it's the compound
-        // the last one is the caller
-        // with 3 transfers, there is no wnative compound but the logic is the same
-        if (transferBatch.length === 4 || transferBatch.length === 3) {
-          const cleanTransferBatch = transferBatch.map((transfer) => ({
+        // now we have identified our first batch, remember his size
+        // this is how much transfers per harvest there should be
+        if (strategyHarvestTransferCount === null) {
+          strategyHarvestTransferCount = transferBatch.length;
+          if (
+            !(
+              strategyHarvestTransferCount % 4 === 0 ||
+              strategyHarvestTransferCount % 3 === 0 ||
+              (isMaxiVault && strategyHarvestTransferCount === 2)
+            )
+          ) {
+            throw new Error(
+              `[FR] Invalid strategy harvest transfer count for ${chain}:${vault.id}:${contractAddress}:${strategy.implementation}: ${strategyHarvestTransferCount}`
+            );
+          }
+        }
+
+        console.log(transferBatch);
+        // then, process the batch, there could be multiple harvests is a single block
+        if (transferBatch.length % strategyHarvestTransferCount !== 0) {
+          throw new Error(
+            `[FR] Unexpected number of transfers (${transferBatch.length}) in block ${currentBlockNumber}, expecting a multiple of ${strategyHarvestTransferCount} for ${chain}:${vault.id}:${strategy.implementation}`
+          );
+        }
+
+        const transferPerHarvest = chunk(transferBatch, strategyHarvestTransferCount);
+
+        for (const harvest of transferPerHarvest) {
+          reportRow.harvest_count[strategy.implementation] += 1;
+
+          // if we have 4 transfers exactly, it's easy
+          // there should be 2 addresses in the address map (strategist and beefy)
+          // there should be 1 transfer larger than the other ones, it's the compound
+          // the last one is the caller
+          // with 3 transfers, there is no wnative compound but the logic is the same
+          // with 2 transfers (maxi vault), there is no treasury transfer (only compound and caller)
+          let cleanTransferBatch: TransferToValue[] = harvest.map((transfer) => ({
             to: normalizeAddress(transfer.to),
             value: ethers.BigNumber.from(transfer.value),
           }));
-          // sum by address
-          const transfersBatchByAddr = groupBy(cleanTransferBatch, (transfer) => transfer.to);
-          const transferBatchByAddr = Object.entries(transfersBatchByAddr).reduce(
-            (acc, [to, transfers]) =>
-              Object.assign(acc, {
-                [to]: transfers.reduce((acc, transfer) => acc.add(transfer.value), ethers.BigNumber.from(0)),
-              }),
-            {} as Record<string, ethers.BigNumber>
+
+          // identify the easy ones
+          var [beefyTransfer, rest] = findFirstAndConsume(cleanTransferBatch.reverse(), (t) =>
+            roleAddressMap["beefy"].includes(t.to)
           );
-          const beefyTransferAmount = transferBatchByAddr[roleAddressMap["beefy"]];
-          const strategistTransferAmount = transferBatchByAddr[roleAddressMap["strategist"]];
-          // find the biggest transfer if we have 4 transfers, otherwise there is no compound
-          let compoundAddr: string | null = null;
-          let compoundAmount = ethers.BigNumber.from(0);
-          if (transferBatch.length === 4) {
-            for (const [addr, amount] of Object.entries(transferBatchByAddr)) {
-              if (addr !== roleAddressMap["beefy"] && addr !== roleAddressMap["strategist"]) {
-                if (amount.gt(compoundAmount)) {
-                  compoundAddr = addr;
-                  compoundAmount = amount;
-                }
-              }
-            }
-            if (compoundAddr === null) {
-              throw new Error(`[FR] No compound address found for ${strategy.implementation}`);
-            }
-          }
-          // last one in the batch should be the caller
-          const callerTransfer = cleanTransferBatch.find(
-            (transfer) =>
-              !(
-                transfer.to === roleAddressMap["beefy"] ||
-                // special case for when the strategist is the caller
-                (transfer.to === roleAddressMap["strategist"] && transfer.value.eq(strategistTransferAmount)) ||
-                transfer.to === compoundAddr
-              )
-          );
-          if (!callerTransfer) {
+          cleanTransferBatch = rest.reverse();
+          if ((strategyHarvestTransferCount === 4 || strategyHarvestTransferCount === 3) && !beefyTransfer) {
             throw new Error(
-              `[FR] No caller transfer found for ${strategy.implementation} and block ${transferBatch[0].blockNumber}`
+              `[FR] No beefy treasury transfer found for ${chain}:${strategy.implementation} on block ${currentBlockNumber}`
             );
           }
-          console.log({ beefyTransferAmount, transferBatch, addressRoleMap, strategy });
-          reportRow.total_beefy_fee_wnative = reportRow.total_beefy_fee_wnative.add(beefyTransferAmount);
-          reportRow.total_strategist_fee_wnative = reportRow.total_strategist_fee_wnative.add(strategistTransferAmount);
-          reportRow.total_caller_fee_wnative = reportRow.total_caller_fee_wnative.add(callerTransfer.value);
-          reportRow.total_vault_compound_wnative = reportRow.total_vault_compound_wnative.add(compoundAmount);
-        } else if (transferBatch.length === 0) {
-          // first batch
-          continue;
-        } else {
-          throw new Error(
-            `[FR] Unexpected number of transfers in block ${currentBlockNumber} for ${chain}:${vault.id}:${strategy.implementation}`
+
+          // we need to identify the strategist transfer idx for later
+          var [strategistTransfer, rest] = findFirstAndConsume(cleanTransferBatch.reverse(), (t) =>
+            roleAddressMap["strategist"].includes(t.to)
+          );
+          cleanTransferBatch = rest.reverse();
+          if (!strategistTransfer && !isMaxiVault) {
+            throw new Error(
+              `[FR] No strategist transfer found for ${chain}:${strategy.implementation} on block ${currentBlockNumber}`
+            );
+          }
+
+          // find the biggest transfer if we have 4 transfers, otherwise there is no compound
+          const maxValue = maxBy(cleanTransferBatch, (t) => t.value);
+          var [compoundTransfer, rest] = findFirstAndConsume(cleanTransferBatch, (t) => t === maxValue);
+          cleanTransferBatch = rest;
+
+          // last one in the batch should be the caller
+          var [callerTransfer, rest] = findFirstAndConsume(cleanTransferBatch, () => true);
+          cleanTransferBatch = rest;
+
+          if (cleanTransferBatch.length > 0) {
+            throw new Error(
+              `[FR] Not all transfers were consumed for ${chain}:${strategy.implementation} on block ${currentBlockNumber}`
+            );
+          }
+
+          //console.log({ beefyTransferAmount, transferBatch, addressRoleMap, strategy });
+          reportRow.total_beefy_fee_wnative = reportRow.total_beefy_fee_wnative.add(
+            beefyTransfer ? beefyTransfer.value : ethers.BigNumber.from(0)
+          );
+          reportRow.total_strategist_fee_wnative = reportRow.total_strategist_fee_wnative.add(
+            strategistTransfer ? strategistTransfer.value : ethers.BigNumber.from(0)
+          );
+          reportRow.total_caller_fee_wnative = reportRow.total_caller_fee_wnative.add(
+            callerTransfer ? callerTransfer.value : ethers.BigNumber.from(0)
+          );
+          reportRow.total_vault_compound_wnative = reportRow.total_vault_compound_wnative.add(
+            compoundTransfer ? compoundTransfer.value : ethers.BigNumber.from(0)
           );
         }
       }
@@ -248,6 +284,23 @@ async function getVaultFeeReport(chain: Chain, vault: BeefyVault): Promise<FeeRe
     }
   }
   return reportRow;
+}
+
+interface TransferToValue {
+  to: string;
+  value: ethers.BigNumber;
+}
+
+function findFirstAndConsume(
+  transfers: TransferToValue[],
+  condition: (transfer: TransferToValue) => boolean
+): [TransferToValue | null, TransferToValue[]] {
+  const first = transfers.find(condition);
+  if (first) {
+    const rest = transfers.filter((t) => t !== first);
+    return [first, rest];
+  }
+  return [null, transfers];
 }
 
 function formatBigNumber(value: ethers.BigNumber, decimals: number): string {
