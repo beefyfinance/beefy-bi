@@ -488,12 +488,14 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS data_raw.vault_harvest_1d_ts (
       chain chain_enum NOT NULL,
       vault_id varchar NOT NULL,
-      datetime TIMESTAMPTZ NOT NULL check datetime = date_trunc('day', datetime), -- ensure that datetime is at midnight
-      strategy_address event_address NOT NULL,
+      datetime TIMESTAMPTZ NOT NULL check (datetime = date_trunc('day', datetime)), -- ensure that datetime is at midnight
+      strategy_address evm_address NOT NULL,
+      harvest_count integer NOT NULL,
       caller_wnative_amount numeric not null,
       strategist_wnative_amount numeric not null,
       beefy_wnative_amount numeric not null,
-      compound_wnative_amount numeric not null
+      compound_wnative_amount numeric not null,
+      ukn_wnative_amount numeric not null
     );
     SELECT create_hypertable(
       relation => 'data_raw.vault_harvest_1d_ts', 

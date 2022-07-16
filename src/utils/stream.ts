@@ -37,3 +37,63 @@ export class FlattenStream<RowType> extends Transform {
     next();
   }
 }
+
+export class StreamBatchBy<RowType> extends Transform {
+  protected currentBatchKey: string | number | null = null;
+  protected currentBatch: RowType[] = [];
+
+  constructor(protected getBatchKey: (row: RowType) => string | number) {
+    super({
+      readableObjectMode: true,
+      writableObjectMode: true,
+    });
+  }
+
+  _transform(row: RowType, encoding: string, next: TransformCallback): void {
+    const rowKey = this.getBatchKey(row);
+    if (this.currentBatchKey === null) {
+      this.currentBatchKey = rowKey;
+    }
+    if (rowKey === this.currentBatchKey) {
+      this.currentBatch.push(row);
+      return next();
+    }
+    // flush current batch
+    this.push(this.currentBatch);
+    this.currentBatch = [row];
+    this.currentBatchKey = rowKey;
+    next();
+  }
+}
+
+export class StreamAggBy<RowType> extends Transform {
+  protected currentBatchKey: string | number | null = null;
+  protected currentBatch: RowType[] = [];
+
+  constructor(
+    protected getBatchKey: (row: RowType) => string | number,
+    protected aggregate: (rows: RowType[]) => RowType
+  ) {
+    super({
+      readableObjectMode: true,
+      writableObjectMode: true,
+    });
+  }
+
+  _transform(row: RowType, encoding: string, next: TransformCallback): void {
+    const rowKey = this.getBatchKey(row);
+    if (this.currentBatchKey === null) {
+      this.currentBatchKey = rowKey;
+    }
+    if (rowKey === this.currentBatchKey) {
+      this.currentBatch.push(row);
+      return next();
+    }
+    // flush current batch
+    const aggregatedRow = this.aggregate(this.currentBatch);
+    this.push(aggregatedRow);
+    this.currentBatch = [row];
+    this.currentBatchKey = rowKey;
+    next();
+  }
+}
