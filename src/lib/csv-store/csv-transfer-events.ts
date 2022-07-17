@@ -12,6 +12,7 @@ export interface ERC20EventData {
   value: string;
 }
 export const erc20TransferStore = new CsvStore<ERC20EventData, [Chain, string]>({
+  dateFieldPosition: 1,
   loggerScope: "ERC20.T.STORE",
   getFilePath: (chain: Chain, contractAddress: string) =>
     path.join(DATA_DIRECTORY, "chain", chain, "contracts", normalizeAddress(contractAddress), "ERC20", "Transfer.csv"),

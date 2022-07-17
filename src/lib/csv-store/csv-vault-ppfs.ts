@@ -12,6 +12,7 @@ export interface BeefyVaultV6PPFSData {
 }
 
 export const ppfsStore = new CsvStore<BeefyVaultV6PPFSData, [Chain, string, SamplingPeriod]>({
+  dateFieldPosition: 1,
   loggerScope: "PPFS.STORE",
   getFilePath: (chain: Chain, contractAddress: string, samplingPeriod: SamplingPeriod) =>
     path.join(

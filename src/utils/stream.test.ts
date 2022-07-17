@@ -1,5 +1,11 @@
-import { PassThrough } from "stream";
-import { FlattenStream, StreamAggBy, StreamBatchBy } from "./stream";
+import { PassThrough, Readable } from "stream";
+import {
+  FlattenStream,
+  StreamAggBy,
+  StreamBatchBy,
+  StreamBufferToLinesTransform,
+  StreamLinesToBufferTransform,
+} from "./stream";
 
 describe("test stream helpers", () => {
   it("FlattenStream: should batch rows by key", () => {
@@ -77,5 +83,45 @@ describe("test stream helpers", () => {
     }
     expect(res.length).toEqual(3); // we don't yield the last batch as we don't know if it's finished
     expect(res).toMatchSnapshot();
+  });
+
+  it("StreamBufferToLinesTransform: parses buffer to lines properly", () => {
+    const buffer = Buffer.from("hello\nworld\nlorem ipsum\nbut not this one");
+    const toLines = new StreamBufferToLinesTransform();
+
+    const res: string[] = [];
+    toLines.on("data", (line) => res.push(line));
+
+    toLines.write(buffer);
+
+    // we don't want to yield last one yet as it may be truncated
+    expect(res.length).toBe(3);
+    expect(res).toMatchSnapshot();
+
+    toLines.end();
+
+    // now we expect the last one
+    expect(res.length).toBe(4);
+    expect(res).toMatchSnapshot();
+  });
+
+  it("StreamLinesToBufferTransform: should transform lines to buffer", () => {
+    const lines = "hello\nworld\nlorem ipsum\nlorem ipsum\none more line";
+    const toBuffer = new StreamLinesToBufferTransform("\n", 2 /* line count */);
+
+    const res: Buffer[] = [];
+    toBuffer.on("data", (buffer) => res.push(buffer));
+
+    for (const line of lines.split("\n")) {
+      toBuffer.write(line);
+    }
+
+    expect(res.length).toBe(2);
+    expect(Buffer.concat(res).toString("utf8")).toMatchSnapshot();
+
+    toBuffer.end();
+    // now we expect the last one
+    expect(res.length).toBe(3);
+    expect(Buffer.concat(res).toString("utf8")).toMatchSnapshot();
   });
 });

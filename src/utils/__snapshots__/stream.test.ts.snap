@@ -116,3 +116,37 @@ Array [
   ],
 ]
 `;
+
+exports[`test stream helpers StreamBufferToLinesTransform: parses buffer to lines properly 1`] = `
+Array [
+  "hello",
+  "world",
+  "lorem ipsum",
+]
+`;
+
+exports[`test stream helpers StreamBufferToLinesTransform: parses buffer to lines properly 2`] = `
+Array [
+  "hello",
+  "world",
+  "lorem ipsum",
+  "but not this one",
+]
+`;
+
+exports[`test stream helpers StreamLinesToBufferTransform: should transform lines to buffer 1`] = `
+"hello
+world
+lorem ipsum
+lorem ipsum
+"
+`;
+
+exports[`test stream helpers StreamLinesToBufferTransform: should transform lines to buffer 2`] = `
+"hello
+world
+lorem ipsum
+lorem ipsum
+one more line
+"
+`;

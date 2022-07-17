@@ -67,6 +67,7 @@ class VaultStrategyCsvStore extends CsvStore<BeefyVaultV6StrategiesData, [Chain,
 }
 
 export const vaultStrategyStore = new VaultStrategyCsvStore({
+  dateFieldPosition: 1,
   loggerScope: "VaultStrategyStore",
   getFilePath: (chain: Chain, contractAddress: string) =>
     path.join(

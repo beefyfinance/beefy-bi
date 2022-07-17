@@ -9,6 +9,7 @@ interface BlockSampleData {
   datetime: Date;
 }
 export const blockSamplesStore = new CsvStore<BlockSampleData, [Chain, SamplingPeriod]>({
+  dateFieldPosition: 1,
   loggerScope: "BlocksStore",
   getFilePath: (chain: Chain, samplingPeriod: SamplingPeriod) =>
     path.join(DATA_DIRECTORY, "chain", chain, "blocks", "samples", `${samplingPeriod}.csv`),

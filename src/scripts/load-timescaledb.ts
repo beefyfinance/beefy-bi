@@ -16,7 +16,13 @@ import {
 } from "../utils/db";
 import { logger } from "../utils/logger";
 import { ERC20EventData, erc20TransferStore } from "../lib/csv-store/csv-transfer-events";
-import { FlattenStream, StreamAggBy, StreamBatchBy, StreamObjectFilterTransform } from "../utils/stream";
+import {
+  FlattenStream,
+  StreamAggBy,
+  StreamBatchBy,
+  StreamConsoleLogDebug,
+  StreamFilterTransform,
+} from "../utils/stream";
 import { sleep } from "../utils/async";
 import { BeefyVaultV6PPFSData, ppfsStore } from "../lib/csv-store/csv-vault-ppfs";
 import { Transform } from "stream";
@@ -223,7 +229,10 @@ async function importVaultERC20TransfersToDB(chain: Chain, vault: BeefyVault) {
         balance_diff, balance_before, balance_after
         ) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () => erc20TransferStore.getReadStream(chain, contractAddress),
+    getFileStreamAfterDate: async (date) =>
+      date
+        ? erc20TransferStore.getReadStreamAfterDate(date, chain, contractAddress)
+        : erc20TransferStore.getReadStream(chain, contractAddress),
 
     getLastDbRowDate: async () =>
       (
@@ -305,7 +314,10 @@ async function importVaultPPFSToDB(chain: Chain, vault: BeefyVault) {
 
     dbCopyQuery: `COPY data_raw.vault_ppfs_ts (chain, contract_address, datetime, ppfs) FROM STDIN WITH CSV DELIMITER ',';`,
 
-    getFileStream: async () => ppfsStore.getReadStream(chain, contractAddress, samplingPeriod),
+    getFileStreamAfterDate: async (date) =>
+      date
+        ? ppfsStore.getReadStreamAfterDate(date, chain, contractAddress, samplingPeriod)
+        : ppfsStore.getReadStream(chain, contractAddress, samplingPeriod),
 
     getLastDbRowDate: async () =>
       (
@@ -339,7 +351,10 @@ async function importPricesToDB(oracleId: string, lastImportedOraclePrices: Reco
   return loadCSVStreamToTimescaleTable({
     logKey: `prices for ${oracleId}`,
     dbCopyQuery: `COPY data_raw.oracle_price_ts(oracle_id, datetime, usd_value) FROM STDIN WITH CSV DELIMITER ',';`,
-    getFileStream: async () => oraclePriceStore.getReadStream(oracleId, samplingPeriod),
+    getFileStreamAfterDate: async (date) =>
+      date
+        ? oraclePriceStore.getReadStreamAfterDate(date, oracleId, samplingPeriod)
+        : oraclePriceStore.getReadStream(oracleId, samplingPeriod),
     getLastDbRowDate: async () => lastImportedOraclePrices[oracleId] || null,
     getLastFileDate: async () => (await oraclePriceStore.getLastRow(oracleId, samplingPeriod))?.datetime || null,
     rowToDbTransformer: (data: OraclePriceData) => {
@@ -406,8 +421,11 @@ async function importFeeReportsToDb(chain: Chain, vault: BeefyVault) {
         chain, vault_id, datetime, strategy_address, harvest_count,
         caller_wnative_amount, strategist_wnative_amount, beefy_wnative_amount, compound_wnative_amount, ukn_wnative_amount
       ) FROM STDIN WITH CSV DELIMITER ',';`,
-      getFileStream: async () => {
-        const fileStream = erc20TransferFromStore.getReadStream(chain, strategy.implementation, wnativeTokenAddress);
+      getFileStreamAfterDate: async (date) => {
+        const fileStream = date
+          ? erc20TransferFromStore.getReadStreamAfterDate(date, chain, strategy.implementation, wnativeTokenAddress)
+          : erc20TransferFromStore.getReadStream(chain, strategy.implementation, wnativeTokenAddress);
+
         if (!fileStream) {
           return null;
         }
@@ -417,14 +435,14 @@ async function importFeeReportsToDb(chain: Chain, vault: BeefyVault) {
           fileStream
             // don't bother processing if we've already imported this date
             .pipe(
-              new StreamObjectFilterTransform<ERC20TransferFromEventData>((row) => {
+              new StreamFilterTransform<ERC20TransferFromEventData>((row) => {
                 if (!lastImportedDate) {
                   return true;
                 }
                 return dateTruncToDay(row.datetime) > lastImportedDate;
               })
             )
-            .pipe(new StreamObjectFilterTransform<ERC20TransferFromEventData>((row) => row.value !== "0"))
+            .pipe(new StreamFilterTransform<ERC20TransferFromEventData>((row) => row.value !== "0"))
             .pipe(new StreamBatchBy<ERC20TransferFromEventData>((row) => row.blockNumber))
             .pipe(
               transform((transferBatch: ERC20TransferFromEventData[]) => {
@@ -494,7 +512,7 @@ async function importFeeReportsToDb(chain: Chain, vault: BeefyVault) {
 
 async function loadCSVStreamToTimescaleTable<CSVObjType extends { datetime: Date }>(opts: {
   logKey: string;
-  getFileStream: () => Promise<Transform | null>;
+  getFileStreamAfterDate: (date: Date | null) => Promise<Transform | null>;
   getLastDbRowDate: () => Promise<Date | null>;
   getLastFileDate: () => Promise<Date | null>;
   dbCopyQuery: string;
@@ -518,18 +536,11 @@ async function loadCSVStreamToTimescaleTable<CSVObjType extends { datetime: Date
     logger.verbose(`[LTSDB] No data in database for ${opts.logKey}, importing all events`);
   }
 
-  const fileReadStream = await opts.getFileStream();
+  const fileReadStream = await opts.getFileStreamAfterDate(lastImportedDate);
   if (!fileReadStream) {
     logger.verbose(`[LTSDB] No data in input stream for ${opts.logKey}`);
     return;
   }
-
-  const onlyLatestRowsFilter = new StreamObjectFilterTransform<CSVObjType>((row) => {
-    if (!lastImportedDate) {
-      return true;
-    }
-    return row.datetime > lastImportedDate;
-  });
 
   await new Promise((resolve, reject) => {
     pgPool.connect(function (err, client, poolCallback) {
@@ -556,8 +567,6 @@ async function loadCSVStreamToTimescaleTable<CSVObjType extends { datetime: Date
       dbCopyStream.on("finish", onOk);
       // start the work
       let stream: Transform = fileReadStream
-        // only relevant rows
-        .pipe(onlyLatestRowsFilter)
         // transform js obj to something the db understands
         .pipe(transform(opts.rowToDbTransformer));
 

@@ -28,6 +28,7 @@ class PriceCsvStore extends CsvStore<OraclePriceData, [string, SamplingPeriod]> 
 }
 
 export const oraclePriceStore = new PriceCsvStore({
+  dateFieldPosition: 0,
   loggerScope: "OraclePriceStore",
   getFilePath: (oracleId: string, samplingPeriod: SamplingPeriod) =>
     path.join(DATA_DIRECTORY, "price", "beefy", oracleId, `price_${samplingPeriod}.csv`),
