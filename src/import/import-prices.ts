@@ -9,6 +9,7 @@ import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { batchAsyncStream } from "../utils/batch";
 import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
 import { vaultListStore } from "../lib/beefy/vault-list";
+import { getChainWNativeTokenOracleId } from "../utils/addressbook";
 
 async function main() {
   const argv = await yargs(process.argv.slice(2))
@@ -46,6 +47,16 @@ async function main() {
       }
     }
   }
+
+  // also import wnative tokens
+  for (const chain of chains) {
+    const wnativeOracleId = getChainWNativeTokenOracleId(chain);
+    allOracleIds.push(wnativeOracleId);
+    if (wnativeOracleId.startsWith("W")) {
+      allOracleIds.push(wnativeOracleId.substr(1));
+    }
+  }
+  allOracleIds = uniq(allOracleIds);
 
   for (const oracleId of allOracleIds) {
     await importOracleId(samplingPeriod, oracleId);

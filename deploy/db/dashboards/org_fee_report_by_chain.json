@@ -1,0 +1,644 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 21,
+  "iteration": 1658049576997,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 5,
+      "panels": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 1 },
+          "id": 3,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    time_bucket('1d', datetime) as datetime,\n    avg(usd_value) as avg_usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1, 2\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  --sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\n    sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.86) * avg(avg_usd_value) as bifi_stakers_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.14) * avg(avg_usd_value) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.datetime = h.datetime and p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Daily Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 1 },
+          "id": 2,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    time_bucket('1d', datetime) as datetime,\n    avg(usd_value) as avg_usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1, 2\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.86) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.14) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.datetime = h.datetime and p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+          "id": 6,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    last(usd_value, datetime) as usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  --sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\n    sum(h.strategist_wnative_amount) * avg(usd_value) as strategist_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.86) * avg(usd_value) as bifi_stakers_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.14) * avg(usd_value) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Daily Fees Collected in USD at the price of today",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+          "id": 7,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    last(usd_value, datetime) as usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  sum(sum(h.strategist_wnative_amount) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.86) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.14) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        }
+      ],
+      "title": "All chains overview",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 1 },
+      "id": 9,
+      "panels": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 2 },
+          "id": 14,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  --sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\n    sum(h.strategist_wnative_amount) as strategist_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.86) as bifi_stakers_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.14) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Daily Fees Collected in WNative token",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 2 },
+          "id": 15,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Fees Collected in WNative Token",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 9 },
+          "id": 10,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    time_bucket('1d', datetime) as datetime,\n    avg(usd_value) as avg_usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1, 2\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  --sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\n    sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.86) * avg(avg_usd_value) as bifi_stakers_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.14) * avg(avg_usd_value) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.datetime = h.datetime and p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Daily Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 9 },
+          "id": 11,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    time_bucket('1d', datetime) as datetime,\n    avg(usd_value) as avg_usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1, 2\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.86) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.14) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.datetime = h.datetime and p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 16 },
+          "id": 12,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    last(usd_value, datetime) as usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  --sum(sum(h.strategist_wnative_amount)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.86)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  --sum(sum(h.beefy_wnative_amount * 0.14)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\n    sum(h.strategist_wnative_amount) * avg(usd_value) as strategist_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.86) * avg(usd_value) as bifi_stakers_wnative_amount,\n    sum(h.beefy_wnative_amount * 0.14) * avg(usd_value) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Daily Fees Collected in USD at the price of today",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
+              "unit": "currencyUSD"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 16 },
+          "id": 13,
+          "options": {
+            "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
+            "tooltip": { "mode": "multi", "sort": "none" }
+          },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with price_1d as (\n  select --chain, \n    oracle_id,\n    last(usd_value, datetime) as usd_value\n  FROM data_raw.oracle_price_ts\n  where oracle_id in (\n    'WETH', -- arbitrum\n    'WETH', -- aurora\n    'AVAX', -- avax\n    'WBNB', -- bsc\n    'CELO', -- celo\n    'WCRO', -- cronos\n    'ROSE', -- emerald\n    'WFTM', -- fantom\n    'WFUSE', -- fuse\n    'ONE', -- harmony\n    'WHT', -- heco\n    'METIS', -- metis\n    'WGLMR', -- moonbeam\n    'MOVR', -- moonriver\n    'WETH', -- optimism\n    'WMATIC', -- polygon\n    'WSYS' -- syscoin\n  )\n  group by 1\n)\nSELECT\n  time_bucket('1d', h.datetime) as time,\n  --sum(h.strategist_wnative_amount) * avg(avg_usd_value) as strategist_usd_amount,\n  --sum(h.beefy_wnative_amount) * avg(avg_usd_value)  as beefy_usd_amount,\n  --sum(sum(h.strategist_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_usd_amount,\n  --sum(sum(h.beefy_wnative_amount) * avg(avg_usd_value)) over (order by time_bucket('1d', h.datetime)) as beefy_usd_amount\n  sum(sum(h.strategist_wnative_amount) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as strategist_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.86) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_stakers_wnative_amount,\n  sum(sum(h.beefy_wnative_amount * 0.14) * avg(usd_value)) over (order by time_bucket('1d', h.datetime)) as bifi_treasury_wnative_amount\nFROM\n  data_raw.vault_harvest_1d_ts h\n     left join price_1d p on p.oracle_id = \n        case \n            when h.chain = 'arbitrum' then 'WETH'\n            when h.chain = 'aurora' then 'WETH'\n            when h.chain = 'avax' then 'AVAX'\n            when h.chain = 'bsc' then 'WBNB'\n            when h.chain = 'celo' then 'CELO'\n            when h.chain = 'cronos' then 'WCRO'\n            when h.chain = 'emerald' then 'ROSE'\n            when h.chain = 'fantom' then 'WFTM'\n            when h.chain = 'fuse' then 'WFUSE'\n            when h.chain = 'harmony' then 'ONE'\n            when h.chain = 'heco' then 'WHT'\n            when h.chain = 'metis' then 'METIS'\n            when h.chain = 'moonbeam' then 'WGLMR'\n            when h.chain = 'moonriver' then 'MOVR'\n            when h.chain = 'optimism' then 'WETH'\n            when h.chain = 'polygon' then 'WMATIC'\n            when h.chain = 'syscoin' then 'WSYS'\n            else null\n        end\nWHERE\n  $__timeFilter(h.datetime)\n  and h.chain in ($chain)\ngroup by 1\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["usd_value"], "type": "column" }]],
+              "table": "oracle_price_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Fees Collected in USD at the price of collection",
+          "type": "timeseries"
+        }
+      ],
+      "repeat": "chain",
+      "repeatDirection": "h",
+      "title": "$chain",
+      "type": "row"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "emerald",
+            "fantom",
+            "fuse",
+            "harmony",
+            "heco",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ],
+          "value": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "celo",
+            "cronos",
+            "emerald",
+            "fantom",
+            "fuse",
+            "harmony",
+            "heco",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ]
+        },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct chain from data_raw.vault_harvest_1d_ts",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from data_raw.vault_harvest_1d_ts",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "2021-04-09T19:39:17.682Z", "to": "2022-07-17T09:15:25.420Z" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Fee Report by chain",
+  "uid": "un81oNg4z",
+  "version": 1,
+  "weekStart": ""
+}
