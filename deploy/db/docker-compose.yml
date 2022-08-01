@@ -29,7 +29,7 @@ services:
       WORK_CHAIN: all
 
   timescaledb:
-    image: timescale/timescaledb-ha:pg14-latest
+    image: timescale/timescaledb-ha:pg14.4-ts2.7.2-latest
     volumes:
       - timescaledb_data:/home/postgres/pgdata/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
