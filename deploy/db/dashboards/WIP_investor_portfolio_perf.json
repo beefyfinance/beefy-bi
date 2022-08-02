@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 10,
-  "iteration": 1659432090002,
+  "iteration": 1659457714656,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -72,6 +72,53 @@
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "continuous-GrYlRd" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0 }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["diff"], "fields": "", "values": true },
+        "textMode": "value"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nwith vaults as (\n    select chain, token_address, vault_id\n    from data_raw.vault\n    where vault_id in ($vault_ids)\n      and chain in ($chains)\n),\nbalance_ts as (\n    select chain, contract_address, datetime, balance_diff, balance_after\n    from data_derived.erc20_owner_balance_diff_4h_ts\n    where owner_address = evm_address_to_bytea('$investor_address')\n      and (chain, contract_address) in (select chain, token_address from vaults)\n),\nvpt_now as materialized (\n    select chain, vault_id, contract_address, want_decimals, \n        last(avg_ppfs, datetime) as avg_ppfs_now, \n        last(avg_want_usd_value, datetime) as avg_want_usd_value_now,\n        last(avg_want_usd_value, datetime) as lp_price_now\n    from data_derived.vault_ppfs_and_price_4h_ts vpt\n    where vault_id in (select vault_id from vaults)\n    group by 1,2,3,4\n),\nbalance_metrics_now as (\n    select b.chain, b.contract_address, vpt.lp_price_now, vpt.avg_want_usd_value_now,\n        last(balance_after, datetime) as moo_amount_now,\n        (last(balance_after, datetime)::NUMERIC * vpt.avg_ppfs_now) / POW(10, 18 + vpt.want_decimals)::NUMERIC as lp_amount_now,\n        (\n            (last(balance_after, datetime)::NUMERIC * vpt.avg_ppfs_now) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n        ) * vpt.avg_want_usd_value_now as usd_value_now\n    from balance_ts b\n    left join vpt_now vpt on b.chain = vpt.chain and b.contract_address = vpt.contract_address\n    group by b.chain, b.contract_address, vpt.lp_price_now, vpt.avg_ppfs_now, vpt.avg_want_usd_value_now, vpt.want_decimals\n),\nbalance_metrics_staked as (\n    select \n        b.chain, b.contract_address,\n        sum(b.balance_diff) as moo_amount_staked,\n        sum(\n            (\n                (b.balance_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n            )\n        ) as lp_amount_staked,\n        sum(\n            (\n                (b.balance_diff::NUMERIC * vpt.avg_ppfs::NUMERIC) / POW(10, 18 + vpt.want_decimals)::NUMERIC\n            )\n            * vpt.avg_want_usd_value\n        ) as usd_value_staked\n    from balance_ts b\n    left join data_derived.vault_ppfs_and_price_4h_ts vpt \n        on vpt.chain = b.chain\n        and vpt.contract_address = b.contract_address\n        and b.datetime = vpt.datetime\n    group by 1, 2\n),\nderived_metrics as (\n    select \n        bs.chain, bs.contract_address, \n        bs.moo_amount_staked, bs.lp_amount_staked, bs.usd_value_staked,\n        bn.moo_amount_now, bn.lp_amount_now, bn.usd_value_now, \n        bn.lp_price_now,\n        case when lp_amount_staked = 0 then 0 else usd_value_staked/lp_amount_staked end as lp_price_staked\n    from balance_metrics_staked bs \n        full outer join balance_metrics_now bn on bs.chain = bn.chain and bs.contract_address = bn.contract_address\n    where lp_amount_now <> 0\n)\nselect sum(usd_value_now - usd_value_staked) as usd_value_delta\nfrom derived_metrics b",
+          "refId": "A",
+          "select": [[{ "params": ["usd_value"], "type": "column" }]],
+          "table": "oracle_price_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Net Yield",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
           "color": { "mode": "palette-classic" },
           "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
           "mappings": [],
@@ -79,7 +126,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
       "id": 5,
       "options": {
         "displayLabels": ["name", "percent"],
@@ -118,7 +165,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
       "id": 4,
       "options": {
         "displayLabels": ["name", "percent"],
@@ -163,7 +210,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 15, "w": 24, "x": 0, "y": 7 },
+      "gridPos": { "h": 15, "w": 24, "x": 0, "y": 16 },
       "id": 2,
       "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
       "pluginVersion": "9.0.2",
@@ -229,6 +276,7 @@
       },
       {
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain\nfrom data_derived.erc20_owner_balance_diff_4h_ts\nwhere owner_address = evm_address_to_bytea('$investor_address')",
         "hide": 0,
         "includeAll": true,
@@ -249,6 +297,6 @@
   "timezone": "",
   "title": "[WIP] Investor P&L 4h Overview",
   "uid": "JsNq9Ienk",
-  "version": 13,
+  "version": 14,
   "weekStart": ""
 }
