@@ -329,6 +329,8 @@ async function migrate() {
         count(*) filter (where balance_diff < 0) as withdraw_count
       from data_raw.erc20_balance_diff_ts
       group by 1,2,3,4;
+
+      CREATE INDEX IF NOT EXISTS idx_owner_eobd4h ON data_derived.erc20_owner_balance_diff_4h_ts(owner_address);
   `);
   await db_query(`
     SELECT add_continuous_aggregate_policy('data_derived.erc20_owner_balance_diff_4h_ts',
@@ -357,7 +359,7 @@ async function migrate() {
       -- only consider the minted tokens because it makes it easier to group
       -- just inverse the numbers to get the positive value
       where owner_address = evm_address_to_bytea('0x0000000000000000000000000000000000000000')
-      group by 1,2,3;
+      group by 1,2,3;    
   `);
   await db_query(`
     SELECT add_continuous_aggregate_policy('data_derived.erc20_contract_balance_diff_4h_ts',
