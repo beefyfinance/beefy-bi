@@ -1,42 +1,46 @@
 import { Chain } from "../../types/chain";
 import BeefyVaultV6Abi from "../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import {
-  ArchiveNodeNeededError,
-  callLockProtectedRpc,
-  isErrorDueToMissingDataFromNode,
-} from "../shared-resources/shared-rpc";
-import { logger } from "../../utils/logger";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../lib/shared-resources/shared-rpc";
+import { rootLogger } from "../../utils/logger2";
 import axios from "axios";
 import { sortBy } from "lodash";
+
+const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
 export async function fetchBeefyPPFS(
   chain: Chain,
   contractAddress: string,
+  provider: ethers.providers.JsonRpcProvider,
   blockNumbers: number[]
 ): Promise<ethers.BigNumber[]> {
-  const ppfsPromises = await callLockProtectedRpc(chain, async (provider) => {
-    const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
+  const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
 
-    logger.debug(
-      `[PPFS] Batch fetching PPFS for ${chain}:${contractAddress} (${blockNumbers[0]} -> ${
-        blockNumbers[blockNumbers.length - 1]
-      }) (${blockNumbers.length} blocks)`
-    );
-    // it looks like ethers doesn't yet support harmony's special format or smth
-    // same for heco
-    if (chain === "harmony" || chain === "heco") {
-      return fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers);
-    }
-    return blockNumbers.map((blockNumber) => {
-      return contract.functions.getPricePerFullShare({
-        // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
-        // note that many backends do not support this, or may require paid plans to access as the node
-        // database storage and processing requirements are much higher
-        blockTag: blockNumber,
-      }) as Promise<[ethers.BigNumber]>;
-    });
+  logger.debug({
+    msg: "Batch fetching PPFS",
+    data: {
+      chain,
+      contractAddress,
+      from: blockNumbers[0],
+      to: blockNumbers[blockNumbers.length - 1],
+      length: blockNumbers.length,
+    },
   });
+
+  // it looks like ethers doesn't yet support harmony's special format or smth
+  // same for heco
+  const ppfsPromises =
+    chain === "harmony" || chain === "heco"
+      ? await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers)
+      : blockNumbers.map((blockNumber) => {
+          return contract.functions.getPricePerFullShare({
+            // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
+            // note that many backends do not support this, or may require paid plans to access as the node
+            // database storage and processing requirements are much higher
+            blockTag: blockNumber,
+          }) as Promise<[ethers.BigNumber]>;
+        });
+
   const ppfsResults = await Promise.allSettled(ppfsPromises);
   const ppfss: ethers.BigNumber[] = [];
   for (const ppfsRes of ppfsResults) {

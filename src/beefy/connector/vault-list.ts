@@ -1,32 +1,17 @@
 import { Chain } from "../../types/chain";
-import { DATA_DIRECTORY, LOG_LEVEL } from "../../utils/config";
-import { LocalFileStore } from "../../utils/local-file-store";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../utils/config";
-import { logger } from "../../utils/logger";
 import { sortBy } from "lodash";
 import { normalizeAddress } from "../../utils/ethers";
 import { getChainWNativeTokenAddress } from "../../utils/addressbook";
-import { callLockProtectedGitRepo } from "./../shared-resources/shared-gitrepo";
+import { callLockProtectedGitRepo } from "../../lib/shared-resources/shared-gitrepo";
 import { BeefyVault } from "../../types/beefy";
 import { fileOrDirExists } from "../../utils/fs";
 import prettier from "prettier";
+import { rootLogger } from "../../utils/logger2";
 
-export const vaultListStore = new LocalFileStore<BeefyVault[], [Chain], "jsonl", BeefyVault[]>({
-  loggerScope: "VAULT.LIST.STORE",
-  doFetch: async (chain: Chain) => {
-    logger.info(`[VAULT.LIST.STORE] Fetching updated vault list for ${chain}`);
-
-    return getAllVaultsFromGitHistory(chain);
-  },
-  format: "jsonl",
-  getLocalPath: (chain: Chain) => path.join(DATA_DIRECTORY, "chain", chain, "beefy", "vaults.jsonl"),
-  getResourceId: (chain: Chain) => `vault-list:${chain}`,
-  datefields: [],
-  ttl_ms: 1000 * 60 * 60 * 24 /* reload vault list every 24h */,
-  retryOnFetchError: true,
-});
+const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 
 interface RawBeefyVault {
   id: string;
@@ -41,12 +26,11 @@ interface RawBeefyVault {
   assets?: string[];
 }
 
-async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
-  logger.info(`[GIT.V] Fetching updated vault list for ${chain}`);
-
+export async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
   const vaultsByAddress: Record<string, RawBeefyVault> = {};
-  // import v2 vaults first
-  logger.verbose(`[GIT.V] Fetching vault list for ${chain} from v2`);
+
+  logger.debug({ msg: "Fetching vault list from beefy-v2 repo git history", data: { chain } });
+
   const fileContentStreamV2 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
@@ -62,10 +46,8 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
 
     for (const vault of vaults) {
       if (!vault.earnedTokenAddress) {
-        logger.error(`[GIT.V] Could not find vault earned token address for v2 vault: ${vault.id}`);
-        if (LOG_LEVEL === "trace") {
-          console.log(vault);
-        }
+        logger.error({ msg: "Could not find vault earned token address for v2 vault", data: { vaultId: vault.id } });
+        logger.trace(vault);
         continue;
       }
       const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);
@@ -76,7 +58,7 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
   }
 
   // then v1 vaults
-  logger.verbose(`[GIT.V] Fetching vault list for ${chain} from v1`);
+  logger.debug({ msg: "Fetching vault list from beefy-v1 repo git history", data: { chain } });
   const v1Chain = chain === "avax" ? "avalanche" : chain;
   const fileContentStreamV1 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
@@ -94,9 +76,10 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
   for await (const fileVersion of fileContentStreamV1) {
     const month = fileVersion.date.toISOString().slice(0, 7);
     if (includedMonths[month]) {
-      logger.debug(
-        `[GIT.V] Skipping v1 vault for hash ${fileVersion.commitHash} as we already imported one for ${month}`
-      );
+      logger.debug({
+        msg: "Skipping v1 vault for hash as we already imported one for this month",
+        data: { commitHash: fileVersion.commitHash, month },
+      });
       continue;
     }
     includedMonths[month] = true;
@@ -124,10 +107,8 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
 
       for (const vault of vaults) {
         if (!vault.earnedTokenAddress) {
-          logger.error(`[GIT.V] Could not find vault earned token address for v1 vault: ${vault.id}`);
-          if (LOG_LEVEL === "trace") {
-            console.log(vault);
-          }
+          logger.error({ msg: "Could not find vault earned token address for v1 vault", data: { vaultId: vault.id } });
+          logger.trace(vault);
           continue;
         }
         const earnedTokenAddress = normalizeAddress(vault.earnedTokenAddress);
@@ -135,14 +116,17 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
           vaultsByAddress[earnedTokenAddress] = vault;
         }
       }
-    } catch (e) {
-      logger.error(
-        `[GIT.V] Could not parse vault list for v1 hash ${chain}:${fileVersion.commitHash}:${fileVersion.date}: ${e}`
-      );
+    } catch (error) {
+      logger.error({
+        msg: "Could not parse vault list for v1 hash",
+        data: { chain, commitHash: fileVersion.commitHash, date: fileVersion.date },
+        error,
+      });
+      logger.debug(error);
     }
   }
 
-  logger.verbose(`[GIT.V] All raw vaults found for ${chain} mapping to schema`);
+  logger.debug({ msg: "All raw vaults found for chain, mapping to expected format", data: { chain } });
   const vaults = Object.values(vaultsByAddress).map((rawVault) => {
     try {
       const wnative = getChainWNativeTokenAddress(chain);
@@ -161,11 +145,12 @@ async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVault[]> {
         },
       };
     } catch (error) {
-      logger.debug(JSON.stringify({ vault: rawVault, error }));
+      logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault }, error });
+      logger.debug(error);
       throw error;
     }
   });
-  logger.info(`[GIT.V] Fetched ${vaults.length} vaults for ${chain}`);
+  logger.info({ msg: "Fetched vault configs", data: { total: vaults.length, chain } });
   return vaults;
 }
 
@@ -186,14 +171,14 @@ async function* gitStreamFileVersions(options: {
   await callLockProtectedGitRepo(options.workdir, async () => {
     // pull latest changes from remote or just clone remote
     if (!(await fileOrDirExists(options.workdir))) {
-      logger.debug(`[GIT.V] cloning ${options.remote} into ${options.workdir}`);
+      logger.debug({ msg: "cloning remote locally", data: { remote: options.remote, workdir: options.workdir } });
       const git: SimpleGit = simpleGit({
         ...baseOptions,
         baseDir: GIT_WORK_DIRECTORY,
       });
       await git.clone(options.remote, options.workdir);
     } else {
-      logger.debug(`[GIT.V] Local repo found at ${options.workdir}.`);
+      logger.debug({ msg: "Local repo found", data: { remote: options.remote, workdir: options.workdir } });
     }
   });
 
@@ -204,19 +189,22 @@ async function* gitStreamFileVersions(options: {
   });
   // switch to the target branch
   await callLockProtectedGitRepo(options.workdir, async () => {
-    logger.debug(`[GIT.V] Changing branch to ${options.branch}`);
+    logger.debug({ msg: "Changing branch to", data: { branch: options.branch } });
     await git.checkout(options.branch);
-    logger.debug(`[GIT.V] Pulling changes for branch ${options.branch}`);
+    logger.debug({ msg: "Pulling changes", data: { branch: options.branch } });
     await git.pull("origin", options.branch);
   });
 
   if (!(await fileOrDirExists(path.join(options.workdir, options.filePath)))) {
-    logger.debug(`[GIT.V] File ${options.filePath} not found`);
+    logger.debug({ msg: "No file found", data: { filePath: options.filePath, branch: options.branch } });
     return;
   }
 
   // get all commit hashes for the target file
-  logger.debug(`[GIT.V] Pulling all commit hash for file ${options.filePath}`);
+  logger.debug({
+    msg: "Pulling all commit hashes for file",
+    data: { filePath: options.filePath, branch: options.branch },
+  });
   const log = await git.log({
     file: options.filePath,
     format: "%H",
@@ -231,20 +219,26 @@ async function* gitStreamFileVersions(options: {
 
   // for each hash, get the file content
   for (const log of logs) {
-    logger.debug(`[GIT.V] Pulling file content for hash ${log.hash} (${log.date}): ${options.filePath}`);
+    logger.debug({ msg: "Pulling file content", data: { hash: log.hash, date: log.date, filePath: options.filePath } });
     try {
       const fileContent = await git.show([`${log.hash}:${options.filePath}`]);
       yield { commitHash: log.hash, date: new Date(log.date), fileContent };
-    } catch (e) {
-      if (e instanceof Error && e.message.includes("exists on disk, but not in")) {
-        logger.debug(
-          `[GIT.V] File ${options.filePath} not found in commit ${log.hash}, most likely the file was renamed`
-        );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("exists on disk, but not in")) {
+        logger.debug({
+          msg: "File not found in commit, most likely the file was renamed",
+          data: { hash: log.hash, filePath: options.filePath },
+        });
       } else {
-        logger.error(`[GIT.V] Could not get file content for hash ${log.hash}: ${e}`);
+        logger.error({
+          msg: "Could not get file content",
+          data: { hash: log.hash, filePath: options.filePath },
+          error,
+        });
+        logger.trace(error);
       }
       if (options.throwOnError) {
-        throw e;
+        throw error;
       }
     }
   }

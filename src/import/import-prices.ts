@@ -8,7 +8,7 @@ import { runMain } from "../utils/process";
 import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { batchAsyncStream } from "../utils/batch";
 import { oraclePriceStore } from "../lib/csv-store/csv-oracle-price";
-import { vaultListStore } from "../lib/beefy/vault-list";
+import { vaultListStore } from "../beefy/connector/vault-list";
 import { getChainWNativeTokenOracleId } from "../utils/addressbook";
 
 async function main() {

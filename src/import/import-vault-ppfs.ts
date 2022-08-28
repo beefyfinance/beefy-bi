@@ -9,7 +9,7 @@ import { runMain } from "../utils/process";
 import { RPC_BACH_CALL_COUNT } from "../utils/config";
 import { BeefyVault } from "../types/beefy";
 import { blockSamplesStore } from "../lib/csv-store/csv-block-samples";
-import { fetchBeefyPPFS } from "../lib/beefy/ppfs";
+import { fetchBeefyPPFS } from "../beefy/connector/ppfs";
 import { contractCreationStore } from "../lib/json-store/contract-first-last-blocks";
 import { foreachVaultCmd } from "../utils/foreach-vault-cmd";
 

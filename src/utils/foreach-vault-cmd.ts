@@ -2,7 +2,7 @@ import yargs from "yargs";
 import { allChainIds, Chain } from "../types/chain";
 import { BeefyVault } from "../types/beefy";
 import { logger } from "../utils/logger";
-import { vaultListStore } from "../lib/beefy/vault-list";
+import { vaultListStore } from "../beefy/connector/vault-list";
 import { ArchiveNodeNeededError } from "../lib/shared-resources/shared-rpc";
 import { shuffle, sortBy } from "lodash";
 import { LOG_LEVEL } from "./config";

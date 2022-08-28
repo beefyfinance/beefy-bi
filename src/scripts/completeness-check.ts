@@ -10,7 +10,7 @@ import yargs from "yargs";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { LOG_LEVEL } from "../utils/config";
 import { blockSamplesStore } from "../lib/csv-store/csv-block-samples";
-import { vaultListStore } from "../lib/beefy/vault-list";
+import { vaultListStore } from "../beefy/connector/vault-list";
 import { feeRecipientsStore } from "../lib/beefy/fee-recipients";
 import { contractLastTrxStore } from "../lib/json-store/contract-first-last-blocks";
 import { BeefyVault } from "../types/beefy";

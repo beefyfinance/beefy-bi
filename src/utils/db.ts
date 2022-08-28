@@ -11,10 +11,16 @@ import { allChainIds } from "../types/chain";
  * 
 beefy=# select 
     octet_length('\x2BdfBd329984Cf0DC9027734681A16f542cF3bB4'::bytea) as bytea_addr_size, 
-    octet_length('0x2BdfBd329984Cf0DC9027734681A16f542cF3bB4') as str_addr_size;
--[ RECORD 1 ]---+---
-bytea_addr_size | 20
-str_addr_size   | 42
+    octet_length('0x2BdfBd329984Cf0DC9027734681A16f542cF3bB4') as str_addr_size,
+    (select typlen from pg_type where oid = 'bigint'::regtype::oid) as bigint_addr_size,
+    (select typlen from pg_type where oid = 'int'::regtype::oid) as int_addr_size
+    ;
+    
+ bytea_addr_size | str_addr_size | bigint_addr_size | int_addr_size 
+-----------------+---------------+------------------+---------------
+              20 |            42 |                8 |             4
+
+(1 row)
  */
 
 let pool: Pool | null = null;
@@ -99,14 +105,14 @@ async function migrate() {
 
   if (!(await typeExists("evm_address"))) {
     await db_query(`
-      CREATE DOMAIN evm_address AS BYTEA NOT NULL;
+      CREATE DOMAIN evm_address AS BYTEA;
     `);
   }
 
   if (!(await typeExists("uint_256"))) {
     await db_query(`
       CREATE DOMAIN uint_256 
-        AS NUMERIC NOT NULL
+        AS NUMERIC
         CHECK (VALUE >= 0 AND VALUE < 2^256)
         CHECK (SCALE(VALUE) = 0)
     `);
@@ -115,9 +121,16 @@ async function migrate() {
   if (!(await typeExists("int_256"))) {
     await db_query(`
       CREATE DOMAIN int_256 
-        AS NUMERIC NOT NULL
+        AS NUMERIC
         CHECK (VALUE >= -2^255 AND VALUE < (2^255)-1)
         CHECK (SCALE(VALUE) = 0)
+    `);
+  }
+
+  if (!(await typeExists("evm_decimal_256"))) {
+    await db_query(`
+      CREATE DOMAIN evm_decimal_256 
+        AS NUMERIC(78, 24) -- 24 is the max decimals in current addressbook
     `);
   }
 
@@ -168,6 +181,222 @@ async function migrate() {
       );
   `);
 
+  if (!(await typeExists("evm_trait_erc20"))) {
+    await db_query(`
+      CREATE TYPE evm_trait_erc20 AS (
+          decimals integer not null CHECK (decimals >= 0 AND decimals <= 78),
+          name character varying not null,
+      );
+    `);
+  }
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS evm_address (
+      evm_address_id serial PRIMARY KEY,
+      chain chain_enum NOT NULL,
+      address evm_address NOT NULL,
+      creation_datetime TIMESTAMPTZ NOT NULL,
+      trait_erc20 evm_trait_erc20,
+      metadata jsonb NOT NULL
+    );
+    CREATE UNIQUE INDEX evm_address_uniq ON evm_address(chain, address);
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS evm_transaction (
+      evm_transaction_id serial PRIMARY KEY,
+      chain chain_enum NOT NULL,
+      hash bytea NOT NULL,
+      block_number integer not null,
+      block_datetime TIMESTAMPTZ NOT NULL
+    );
+    CREATE UNIQUE INDEX evm_transaction_uniq ON evm_address(chain, hash);
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS vault_shares_change_ts (
+      datetime timestamptz not null,
+      evm_transaction_id integer not null references evm_transaction(evm_transaction_id),
+      owner_evm_address_id integer not null references evm_address(evm_address_id),
+      vault_evm_address_id integer not null references evm_address(evm_address_id),
+
+      -- all numeric fields have decimals applied
+      shares_balance_diff evm_decimal_256 not null,
+      shares_balance_after evm_decimal_256 null, -- can be null if we can't query the archive node
+    );
+    CREATE UNIQUE INDEX vault_shares_change_ts_uniq ON vault_shares_change_ts(owner_evm_address_id, vault_evm_address_id, evm_transaction_id);
+
+    SELECT create_hypertable(
+      relation => 'vault_shares_change_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '7 days',
+      if_not_exists => true
+    );
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS vault_to_underlying_rate_ts (
+      datetime timestamptz not null,
+      vault_evm_address_id integer not null references evm_address(evm_address_id),
+
+      -- all numeric fields have decimals applied
+      shares_to_underlying_rate evm_decimal_256 not null,
+      shares_to_usd_rate evm_decimal_256 not null,
+    );
+    CREATE UNIQUE INDEX vault_to_underlying_rate_ts_uniq ON vault_to_underlying_rate_ts(vault_evm_address_id, datetime);
+
+    SELECT create_hypertable(
+      relation => 'vault_to_underlying_rate_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '7 days',
+      if_not_exists => true
+    );
+  `);
+
+  // token price
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS asset_price_ts (
+      datetime TIMESTAMPTZ NOT NULL,
+      asset_key varchar NOT NULL,
+      usd_value double precision not null
+    );
+    CREATE UNIQUE INDEX asset_price_ts_uniq ON asset_price_ts(asset_key, datetime);
+    SELECT create_hypertable(
+      relation => 'asset_price_ts',
+      time_column_name => 'datetime', 
+      chunk_time_interval => INTERVAL '7 days', 
+      if_not_exists => true
+    );
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_vault (
+      vault_id serial PRIMARY KEY,
+      vault_key varchar NOT NULL,
+      contract_evm_address_id integer not null references evm_address(evm_address_id),
+      underlying_evm_address_id integer not null references evm_address(evm_address_id),
+      end_of_life boolean not null,
+      has_erc20_shares_token boolean not null,
+      last_sync_datetime TIMESTAMPTZ NOT NULL,
+      assets_oracle_id varchar[] not null,
+    );
+
+    CREATE UNIQUE INDEX beefy_vault_uniq ON beefy_vault(contract_evm_address_id);
+  `);
+
+  /**
+   
+    evm_address:
+      evm_address_id: serial
+      chain: chain_enum
+      address: bytea
+      metadata: jsonb (
+          token decimals, 
+          underlying assets, 
+          role (erc20|vault|wallet| ...), 
+          type (user|contract|vault|boost), 
+          protocol, 
+          url, 
+          ingestion fields (min ingested block, max ingested block), 
+          etc
+      )
+      UNIQUE INDEX: (chain, address)
+
+    evm_transaction:
+      evm_transaction_id: serial
+      chain: chain_enum
+      hash: bytea
+      block_number: integer
+      block_timestamp: datetime
+
+      -- handle upserts
+      unique index: (chain, hash)
+
+    vault_shares_balance_change: 
+      datetime timestamptz not null,
+      evm_transaction_id integer not null references evm_transaction(evm_transaction_id),
+      owner_evm_address_id integer not null references evm_address(evm_address_id),
+      vault_evm_address_id integer not null references evm_address(evm_address_id),
+      
+      // all numeric fields have decimals applied
+      shares_balance_diff numeric not null,
+      shares_balance_after numeric null, // can be null if we can't query the archive node
+
+      // used to upsert and to find by owner_address_id
+      UNIQUE INDEX (owner_evm_address_id, vault_evm_address_id, evm_transaction_id (nullable))
+    
+    
+    vault_to_underlying_rate:
+      datetime timestamptz not null,
+      vault_evm_address_id integer not null references evm_address(evm_address_id),
+      
+      // shared to underlying can be multiplied with shares_amounts directly so they are not ppfs directly
+      // all these can be null if we can't query the archive node
+      shares_to_underlying_rate numeric null
+
+      shares_to_token_breakdown_rate numeric[] null
+
+
+    
+Storage design decision:
+- separate amount of token and price of token: allow to display data when price is not available and avoid updating rows
+- have a daily/weekly token amount checkpoint for all users: allow to display current amount of token of a user without looking at an unbounded history
+- separate vault shares price from other prices (partition?): reduce the amount of data pages to be loaded
+- have raw data tables with all debug data separated from smaller view tables (no transaction hash), where data fits in memory so query is faster 
+
+
+SharesAmountChange -> 
+  chain -> params.chain
+  vault_id -> params.vault_id
+  investor_address -> event.from / event.to
+  block_number -> event.block_number
+  block_timestamp -> getBlock(event.block).timestamp
+  transaction_hash -> event.transaction_hash
+
+  shares_diff_amount -> event.value
+  shares_balance_after -> balanceOf(blockTag: event.block)
+
+  sharedToUnderlyingRate -> pricePerFullShare()
+  underlying_balance_diff -> shares_diff_amount * sharedToUnderlyingRate
+  underlying_balance_after -> shares_balance_after * sharedToUnderlyingRate
+
+  investment_usd_value -> price_feed.getPrice(underlying, datetime)
+
+Price ->
+  token_a_id -> params.token_a_id
+  token_b_id -> params.token_b_id
+  datetime -> feed.datetime
+  rate -> feed.rate
+
+
+
+TimeRange: blockNumberRange | blockNumber[] | dateRange
+
+price_feed_connector:
+  - fetch_price(Token[], TimeRange) -> Stream<Price>
+  - live_price(Token[]) -> Stream<Price> // maybe optional
+
+protocol_connector (chain: Chain):
+  - fetch_vault_list() -> Stream<Vault>
+
+  - fetch_investment_changes(Vault[], TimeRange) -> Stream<SharesAmountChange>
+  - fetch_shares_to_underlying_rate(Vault[], TimeRange) -> Stream<SharesToUnderlyingRate>
+  - subscribe_to_shares_amount_changes(Vault[]) -> Stream<SharesAmountChange>
+
+  - fetch_underlying_breakdown(Vault[], TimeRange) -> Stream<VaultUnderlyingBreakdown>
+
+
+vault
+vault_shares_amount_change
+vault_shares_to_underlying_rate
+
+price
+  - partition: vault_shares_to_underlying_rate (ppfs) 
+  - partition: vault_underlying_price
+  - partition: token_price
+
+
+ */
   // balance diff table
   await db_query(`
     CREATE TABLE IF NOT EXISTS data_raw.erc20_balance_diff_ts (
