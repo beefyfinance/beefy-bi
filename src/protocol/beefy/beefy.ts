@@ -1,4 +1,4 @@
-import { TokenizedVaultConnector } from "../lib/connector";
+import { TokenizedVaultConnector } from "../../lib/connector";
 
 export interface BeefyVault {
   vaultKey: string;

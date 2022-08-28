@@ -1,8 +1,8 @@
-import { Chain } from "../../types/chain";
-import BeefyVaultV6Abi from "../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
+import { Chain } from "../../../types/chain";
+import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../lib/shared-resources/shared-rpc";
-import { rootLogger } from "../../utils/logger2";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/shared-resources/shared-rpc";
+import { rootLogger } from "../../../utils/logger2";
 import axios from "axios";
 import { sortBy } from "lodash";
 

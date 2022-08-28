@@ -1,15 +1,15 @@
-import { Chain } from "../../types/chain";
+import { Chain } from "../../../types/chain";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
-import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../utils/config";
+import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { sortBy } from "lodash";
-import { normalizeAddress } from "../../utils/ethers";
-import { getChainWNativeTokenAddress } from "../../utils/addressbook";
-import { callLockProtectedGitRepo } from "../../lib/shared-resources/shared-gitrepo";
-import { BeefyVault } from "../../types/beefy";
-import { fileOrDirExists } from "../../utils/fs";
+import { normalizeAddress } from "../../../utils/ethers";
+import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
+import { callLockProtectedGitRepo } from "../../../lib/shared-resources/shared-gitrepo";
+import { BeefyVault } from "../../../types/beefy";
+import { fileOrDirExists } from "../../../utils/fs";
 import prettier from "prettier";
-import { rootLogger } from "../../utils/logger2";
+import { rootLogger } from "../../../utils/logger2";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 

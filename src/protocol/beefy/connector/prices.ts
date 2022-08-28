@@ -1,16 +1,16 @@
-import { Chain } from "../types/chain";
-import { logger } from "../utils/logger";
 import axios from "axios";
-import { BEEFY_DATA_URL } from "../utils/config";
-import { SamplingPeriod } from "../types/sampling";
+import { BEEFY_DATA_URL } from "../../../utils/config";
+import { SamplingPeriod } from "../../../types/sampling";
+import { rootLogger } from "../../../utils/logger2";
 
 interface PriceSnapshot {
   oracleId: string;
   datetime: Date;
   value: number;
 }
+const logger = rootLogger.child({ module: "beefy", component: "prices" });
 
-export async function* streamBeefyPrices(
+export async function fetchBeefyPrices(
   samplingPeriod: SamplingPeriod,
   oracleId: string,
   options?: {
@@ -24,8 +24,9 @@ export async function* streamBeefyPrices(
   const apiPeriod = samplingPeriod === "15min" ? "minute" : "minute";
   const startDate = options?.startDate || new Date(0);
   const endDate = options?.endDate || new Date(new Date().getTime() + 10000000);
-  logger.debug(`[VAULT_PRICE_STREAM] Fetching prices for ${oracleId}`);
-  const res = await axios.get(BEEFY_DATA_URL + "/price", {
+  logger.debug({ msg: "Fetching prices", data: { oracleId } });
+
+  const res = await axios.get<{ ts: number; name: string; v: number }[]>(BEEFY_DATA_URL + "/price", {
     params: {
       name: oracleId,
       period: apiPeriod,
@@ -35,12 +36,12 @@ export async function* streamBeefyPrices(
     },
   });
 
-  for (const price of res.data) {
-    const event: PriceSnapshot = {
-      datetime: new Date(price.ts),
-      oracleId: price.name,
-      value: price.v,
-    };
-    yield event;
-  }
+  return res.data.map(
+    (price) =>
+      ({
+        datetime: new Date(price.ts),
+        oracleId: price.name,
+        value: price.v,
+      } as PriceSnapshot)
+  );
 }
