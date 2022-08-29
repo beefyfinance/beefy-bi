@@ -1,5 +1,3 @@
-import { TokenizedVaultConnector } from "../../lib/connector";
-
 export interface BeefyVault {
   vaultKey: string;
   token_name: string;
@@ -14,7 +12,3 @@ export interface BeefyVault {
     assets: string[];
   };
 }
-
-export const beefyConnector: TokenizedVaultConnector<BeefyVault> = {
-  fetchVaultConfigs: () => {},
-};

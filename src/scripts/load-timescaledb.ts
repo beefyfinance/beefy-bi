@@ -30,7 +30,7 @@ import { OraclePriceData, oraclePriceStore } from "../lib/csv-store/csv-oracle-p
 import { SamplingPeriod } from "../types/sampling";
 import { ethers } from "ethers";
 import { normalizeAddress } from "../utils/ethers";
-import { vaultListStore } from "../beefy/connector/vault-list";
+import { vaultListStore } from "../protocol/beefy/connector/vault-list";
 import { BeefyVault } from "../types/beefy";
 import { LOG_LEVEL } from "../utils/config";
 import { vaultStrategyStore } from "../lib/csv-store/csv-vault-strategy";

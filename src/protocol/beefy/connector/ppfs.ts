@@ -9,37 +9,47 @@ import { sortBy } from "lodash";
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
 export async function fetchBeefyPPFS(
+  provider: ethers.providers.JsonRpcBatchProvider,
   chain: Chain,
-  contractAddress: string,
-  provider: ethers.providers.JsonRpcProvider,
+  contractAddresses: string[],
   blockNumbers: number[]
 ): Promise<ethers.BigNumber[]> {
-  const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
-
   logger.debug({
     msg: "Batch fetching PPFS",
     data: {
       chain,
-      contractAddress,
+      contractAddresses,
       from: blockNumbers[0],
       to: blockNumbers[blockNumbers.length - 1],
       length: blockNumbers.length,
     },
   });
 
+  let ppfsPromises: Promise<[ethers.BigNumber]>[] = [];
+
   // it looks like ethers doesn't yet support harmony's special format or smth
   // same for heco
-  const ppfsPromises =
-    chain === "harmony" || chain === "heco"
-      ? await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers)
-      : blockNumbers.map((blockNumber) => {
-          return contract.functions.getPricePerFullShare({
-            // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
-            // note that many backends do not support this, or may require paid plans to access as the node
-            // database storage and processing requirements are much higher
-            blockTag: blockNumber,
-          }) as Promise<[ethers.BigNumber]>;
+  if (chain === "harmony" || chain === "heco") {
+    for (const contractAddress of contractAddresses) {
+      const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
+      const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers);
+      ppfsPromises = ppfsPromises.concat(ppfsPromise);
+    }
+  } else {
+    // fetch all ppfs in one go, this will batch calls using jsonrpc batching
+    for (const contractAddress of contractAddresses) {
+      const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
+      for (const blockNumber of blockNumbers) {
+        const ppfsPromise = contract.functions.getPricePerFullShare({
+          // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
+          // note that many backends do not support this, or may require paid plans to access as the node
+          // database storage and processing requirements are much higher
+          blockTag: blockNumber,
         });
+        ppfsPromises.push(ppfsPromise);
+      }
+    }
+  }
 
   const ppfsResults = await Promise.allSettled(ppfsPromises);
   const ppfss: ethers.BigNumber[] = [];
