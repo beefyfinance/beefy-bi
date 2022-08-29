@@ -2,6 +2,7 @@ import { Chain } from "./chain";
 
 export interface BeefyVault {
   id: string;
+  chain: Chain;
   token_name: string;
   token_decimals: number;
   token_address: string;

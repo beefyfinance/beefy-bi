@@ -130,23 +130,12 @@ async function migrate() {
       RETURNS NULL ON NULL INPUT;
   `);
 
-  if (!(await typeExists("evm_trait_erc20"))) {
-    await db_query(`
-      CREATE TYPE evm_trait_erc20 AS (
-          decimals integer not null CHECK (decimals >= 0 AND decimals <= 78),
-          name character varying not null,
-      );
-    `);
-  }
-
   // an address and transaction table to avoid bloating the tables and indices
   await db_query(`
     CREATE TABLE IF NOT EXISTS evm_address (
       evm_address_id serial PRIMARY KEY,
       chain chain_enum NOT NULL,
       address evm_address NOT NULL,
-      creation_datetime TIMESTAMPTZ NOT NULL,
-      trait_erc20 evm_trait_erc20,
       metadata jsonb NOT NULL
     );
     CREATE UNIQUE INDEX evm_address_uniq ON evm_address(chain, address);

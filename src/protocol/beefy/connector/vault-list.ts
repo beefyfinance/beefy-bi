@@ -132,6 +132,7 @@ export async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVau
       const wnative = getChainWNativeTokenAddress(chain);
       return {
         id: rawVault.id,
+        chain,
         token_name: rawVault.earnedToken,
         token_decimals: 18,
         token_address: normalizeAddress(rawVault.earnContractAddress),
