@@ -64,10 +64,15 @@ export async function db_query<RowType>(
   const sql_w_params = pgf(sql, ...params);
   //console.log(sql_w_params);
   const useClient = client || pool;
-  const res = await useClient.query(sql_w_params);
-  const rows = res?.rows || null;
-  logger.trace({ msg: "Query end", data: { sql, params, total: res?.rowCount } });
-  return rows;
+  try {
+    const res = await useClient.query(sql_w_params);
+    const rows = res?.rows || null;
+    logger.trace({ msg: "Query end", data: { sql, params, total: res?.rowCount } });
+    return rows;
+  } catch (error) {
+    logger.error({ msg: "Query error", data: { sql, params, error } });
+    throw error;
+  }
 }
 
 export async function db_query_one<RowType>(
@@ -98,6 +103,7 @@ async function typeExists(typeName: string) {
 }
 
 async function migrate() {
+  logger.info({ msg: "Migrate begin" });
   // types
   if (!(await typeExists("chain_enum"))) {
     await db_query(`
@@ -108,9 +114,9 @@ async function migrate() {
     await db_query(`ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS %L`, [chain]);
   }
 
-  if (!(await typeExists("evm_address"))) {
+  if (!(await typeExists("evm_address_bytea"))) {
     await db_query(`
-      CREATE DOMAIN evm_address AS BYTEA;
+      CREATE DOMAIN evm_address_bytea AS BYTEA;
     `);
   }
 
@@ -126,7 +132,7 @@ async function migrate() {
         -- 24 is the max decimals in current addressbook, might change in the future
         -- 100 is the maximum number of digits stored, not the reserved space
         AS NUMERIC(100, 24)
-        CHECK (VALUE is not 'NaN')
+        CHECK (nullif(VALUE, 'NaN') is not null);
     `);
   }
 
@@ -154,10 +160,10 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS evm_address (
       evm_address_id serial PRIMARY KEY,
       chain chain_enum NOT NULL,
-      address evm_address NOT NULL,
+      address evm_address_bytea NOT NULL,
       metadata jsonb NOT NULL
     );
-    CREATE UNIQUE INDEX evm_address_uniq ON evm_address(chain, address);
+    CREATE UNIQUE INDEX IF NOT EXISTS evm_address_uniq ON evm_address(chain, address);
   `);
 
   await db_query(`
@@ -168,7 +174,7 @@ async function migrate() {
       block_number integer not null,
       block_datetime TIMESTAMPTZ NOT NULL
     );
-    CREATE UNIQUE INDEX evm_transaction_uniq ON evm_address(chain, hash);
+    CREATE UNIQUE INDEX IF NOT EXISTS evm_transaction_uniq ON evm_transaction(chain, hash);
   `);
 
   // stores vault transfers of shares
@@ -183,12 +189,12 @@ async function migrate() {
 
       -- all numeric fields have decimals applied
       shares_balance_diff evm_decimal_256 not null,
-      shares_balance_after evm_decimal_256 null, -- can be null if we can't query the archive node
+      shares_balance_after evm_decimal_256 null -- can be null if we can't query the archive node
     );
-    CREATE UNIQUE INDEX vault_shares_transfer_ts_uniq ON vault_shares_transfer_ts(owner_evm_address_id, vault_evm_address_id, evm_transaction_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS vault_shares_transfer_ts_uniq ON vault_shares_transfer_ts(owner_evm_address_id, vault_evm_address_id, evm_transaction_id, datetime);
 
     SELECT create_hypertable(
-      relation => 'vault_shares_transfer', 
+      relation => 'vault_shares_transfer_ts', 
       time_column_name => 'datetime',
       chunk_time_interval => INTERVAL '7 days',
       if_not_exists => true
@@ -205,7 +211,7 @@ async function migrate() {
       -- all numeric fields have decimals applied
       shares_to_underlying_rate evm_decimal_256 not null
     );
-    CREATE UNIQUE INDEX vault_to_underlying_rate_ts_uniq ON vault_to_underlying_rate_ts(vault_evm_address_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS vault_to_underlying_rate_ts_uniq ON vault_to_underlying_rate_ts(vault_evm_address_id, datetime);
 
     SELECT create_hypertable(
       relation => 'vault_to_underlying_rate_ts', 
@@ -222,7 +228,7 @@ async function migrate() {
       price_feed_key varchar NOT NULL,
       usd_value double precision not null
     );
-    CREATE UNIQUE INDEX asset_price_ts_uniq ON asset_price_ts(asset_key, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(price_feed_key, datetime);
     SELECT create_hypertable(
       relation => 'asset_price_ts',
       time_column_name => 'datetime', 
@@ -242,7 +248,7 @@ async function migrate() {
       assets_price_feed_keys varchar[] not null
     );
 
-    CREATE UNIQUE INDEX beefy_vault_uniq ON beefy_vault(contract_evm_address_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS beefy_vault_uniq ON beefy_vault(contract_evm_address_id);
   `);
 
   // a table to store which vault we already imported and which range needs to be retried
@@ -254,9 +260,11 @@ async function migrate() {
       imported_range int4range NOT NULL,
       
       -- those are ranges with errors that need to be retried
-      ranges_to_retry int4range[] NOT NULL,
+      ranges_to_retry int4range[] NOT NULL
     );
   `);
+
+  logger.info({ msg: "Migrate done" });
 
   /**
    

@@ -1,12 +1,14 @@
 import Client from "ioredis";
 import Redlock from "redlock";
 import { REDIS_URL } from "../../utils/config";
-import { logger } from "../../utils/logger";
+import { rootLogger } from "../../utils/logger2";
+
+const logger = rootLogger.child({ module: "shared-resources", component: "redis-lock" });
 
 let client: Client | null = null;
 export async function getRedisClient() {
   if (!client) {
-    logger.verbose(`[LOCK] Creating redis client`);
+    logger.debug({ msg: "Creating redis client" });
     client = new Client(REDIS_URL);
   }
   return client;
@@ -15,7 +17,7 @@ export async function getRedisClient() {
 let redlock: Redlock | null = null;
 export async function getRedlock() {
   if (!redlock) {
-    logger.verbose(`[LOCK] Creating redlock client`);
+    logger.debug({ msg: "Creating redlock client" });
     const client = await getRedisClient();
     redlock = new Redlock(
       // You should have one client for each independent redis node

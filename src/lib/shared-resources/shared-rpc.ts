@@ -2,10 +2,10 @@ import { ethers } from "ethers";
 import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
-import { LOG_LEVEL, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from "../../utils/config";
+import { MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from "../../utils/config";
 import { getRedisClient, getRedlock } from "./shared-lock";
 import { rootLogger } from "../../utils/logger2";
-import * as lodash from "lodash";
+import { get, isObjectLike, isString, sample } from "lodash";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 
@@ -18,7 +18,7 @@ export async function callLockProtectedRpc<TRes>(
   const delayBetweenCalls = MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain];
 
   // create a loggable string as raw rpc url may contain an api key
-  const secretRpcUrl = lodash.sample(RPC_URLS[chain]) as string; // pick one at random
+  const secretRpcUrl = sample(RPC_URLS[chain]) as string; // pick one at random
   const urlObj = new URL(secretRpcUrl);
   const publicRpcUrl = urlObj.protocol + "//" + urlObj.hostname;
   const rpcIndex = RPC_URLS[chain].indexOf(secretRpcUrl);
@@ -127,15 +127,15 @@ export class ArchiveNodeNeededError extends Error {
 }
 export function isErrorDueToMissingDataFromNode(error: any) {
   // parse from ehter-wrapped rpc calls
-  const errorRpcBody = lodash.get(error, "error.body");
-  if (errorRpcBody && lodash.isString(errorRpcBody)) {
+  const errorRpcBody = get(error, "error.body");
+  if (errorRpcBody && isString(errorRpcBody)) {
     const rpcBodyError = JSON.parse(errorRpcBody);
-    const errorCode = lodash.get(rpcBodyError, "error.code");
-    const errorMessage = lodash.get(rpcBodyError, "error.message");
+    const errorCode = get(rpcBodyError, "error.code");
+    const errorMessage = get(rpcBodyError, "error.message");
 
     if (
       errorCode === -32000 &&
-      lodash.isString(errorMessage) &&
+      isString(errorMessage) &&
       (errorMessage.includes("Run with --pruning=archive") ||
         // Cf: https://github.com/ethereum/go-ethereum/issues/20557
         errorMessage.startsWith("missing trie node"))
@@ -145,12 +145,12 @@ export function isErrorDueToMissingDataFromNode(error: any) {
   }
 
   // also parse from direct rpc responses
-  const directRpcError = lodash.get(error, "error");
+  const directRpcError = get(error, "error");
   if (
     directRpcError &&
-    lodash.isObjectLike(directRpcError) &&
-    lodash.get(directRpcError, "code") === -32000 &&
-    lodash.get(directRpcError, "message")?.startsWith("missing trie node")
+    isObjectLike(directRpcError) &&
+    get(directRpcError, "code") === -32000 &&
+    get(directRpcError, "message")?.startsWith("missing trie node")
   ) {
     return true;
   }
