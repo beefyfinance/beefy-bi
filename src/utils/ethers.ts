@@ -4,7 +4,9 @@ import { cacheAsyncResultInRedis } from "./cache";
 import { callLockProtectedRpc } from "../lib/shared-resources/shared-rpc";
 import axios from "axios";
 import { isNumber } from "lodash";
-import { logger } from "./logger";
+import { rootLogger } from "./logger2";
+
+const logger = rootLogger.child({ module: "utils", component: "ethers" });
 
 export interface BlockDateInfos {
   blockNumber: number;
@@ -15,14 +17,13 @@ export async function fetchBlockData(
   chain: Chain,
   blockNumber: ethers.ethers.providers.BlockTag
 ): Promise<BlockDateInfos> {
-  logger.debug(`[BLOCKS] Fetching block ${chain}:${blockNumber}`);
+  logger.debug({ msg: "Fetching block", data: { chain, blockNumber } });
+
   return callLockProtectedRpc(chain, async (provider) => {
     // for some reason ethers don't understand celo's response
     if (chain === "celo") {
       // documentation: https://www.quicknode.com/docs/ethereum/eth_getBlockByNumber
-      let blockParam = isNumber(blockNumber)
-        ? ethers.utils.hexlify(blockNumber)
-        : blockNumber;
+      let blockParam = isNumber(blockNumber) ? ethers.utils.hexlify(blockNumber) : blockNumber;
       // FIXES: invalid argument 0: hex number with leading zero digits
       if (blockParam.startsWith("0x0")) {
         blockParam = blockParam.replace(/^0x0+/, "0x");
@@ -38,17 +39,11 @@ export async function fetchBlockData(
       });
       const blockRes = res.data.result;
       if (!blockRes || blockRes?.number === undefined) {
-        throw new Error(
-          `Invalid block result for celo ${chain}:${blockNumber} ${JSON.stringify(
-            res.data
-          )}`
-        );
+        throw new Error(`Invalid block result for celo ${chain}:${blockNumber} ${JSON.stringify(res.data)}`);
       }
       const blocknum = ethers.BigNumber.from(blockRes.number).toNumber();
 
-      const datetime = new Date(
-        ethers.BigNumber.from(blockRes.timestamp).toNumber() * 1000
-      );
+      const datetime = new Date(ethers.BigNumber.from(blockRes.timestamp).toNumber() * 1000);
       return {
         blockNumber: blocknum,
         datetime,

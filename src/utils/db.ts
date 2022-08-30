@@ -9,7 +9,9 @@ import { rootLogger } from "./logger2";
 const logger = rootLogger.child({ module: "db", component: "query" });
 
 /**
- * evm_address: It's a bit more difficult to use but half the size using bytea instead of string
+ * evm_address: 
+ *  It's a bit more difficult to use but half the size using bytea instead of string
+ *  also, there is no case weirdness with bytea
  * 
 beefy=# select 
     octet_length('\x2BdfBd329984Cf0DC9027734681A16f542cF3bB4'::bytea) as bytea_addr_size, 
@@ -33,6 +35,23 @@ export async function getPgPool() {
     await migrate();
   }
   return pool;
+}
+
+// inject pg client as first argument
+export function withPgClient<TArgs extends any[], TRes>(
+  fn: (client: PoolClient, ...args: TArgs) => Promise<TRes>
+): (...args: TArgs) => Promise<TRes> {
+  return async (...args: TArgs) => {
+    const pgPool = await getPgPool();
+    const client = await pgPool.connect();
+    let res: TRes;
+    try {
+      res = await fn(client, ...args);
+    } finally {
+      client.release();
+    }
+    return res;
+  };
 }
 
 export async function db_query<RowType>(
@@ -220,8 +239,7 @@ async function migrate() {
       underlying_evm_address_id integer not null references evm_address(evm_address_id),
       end_of_life boolean not null,
       has_erc20_shares_token boolean not null,
-      last_sync_datetime TIMESTAMPTZ NOT NULL,
-      assets_oracle_id varchar[] not null
+      assets_price_feed_keys varchar[] not null
     );
 
     CREATE UNIQUE INDEX beefy_vault_uniq ON beefy_vault(contract_evm_address_id);

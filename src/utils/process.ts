@@ -1,4 +1,6 @@
-import { logger } from "./logger";
+import { rootLogger } from "./logger2";
+
+const logger = rootLogger.child({ module: "process", component: "exit-handler" });
 
 type ExitCallback = () => Promise<any>;
 const exitCallbacks: ExitCallback[] = [];
@@ -15,10 +17,10 @@ async function exitHandler() {
   called = true;
   try {
     await Promise.allSettled(exitCallbacks.map((cb) => cb()));
-    logger.info(`[PROCESS] All exit handlers done. Bye.`);
+    logger.info("All exit handlers done. Bye.");
     process.exit(0);
   } catch (e) {
-    logger.error(`[PROCESS] Exit handlers didn't work properly.`);
+    logger.error(`Exit handlers didn't work properly`);
     logger.error(e);
     process.exit(1);
   }
@@ -31,11 +33,10 @@ export async function runMain(main: () => Promise<any>) {
   try {
     await main();
     await exitHandler();
-    logger.info("[MAIN] Done");
+    logger.info("Done");
     process.exit(0);
   } catch (e) {
-    logger.error("[MAIN] ERROR");
-    console.log(e);
+    logger.error("ERROR");
     logger.error(e);
     await exitHandler();
     process.exit(1);

@@ -1,6 +1,8 @@
 import * as redis from "redis";
 import { REDIS_URL } from "./config";
-import { logger } from "./logger";
+import { rootLogger } from "./logger2";
+
+const logger = rootLogger.child({ module: "cache", component: "redis" });
 
 // I can't believe this doesn't exists already
 class RedisCache {
@@ -31,9 +33,10 @@ async function getCache() {
     const client = redis.createClient({ url: REDIS_URL });
     client.on("error", (error) => {
       if (error) {
-        logger.error("[REDIS] client error", error);
+        logger.error("client error");
+        logger.error(error);
       } else {
-        logger.info("[REDIS] client connected");
+        logger.info("client connected");
       }
     });
     await client.connect();
@@ -59,7 +62,7 @@ export function cacheAsyncResultInRedis<TArgs extends any[], TReturn extends obj
     // @ts-ignore
     const key = options.getKey(...args);
     if (await cache.has(key)) {
-      //logger.debug(`[REDIS] Cache hit for ${key}`);
+      //logger.debug({msg: 'Cache hit', data: {key} });
       const obj = await cache.getJSON<TReturn>(key);
       for (const field of dateFields) {
         // @ts-ignore
@@ -68,7 +71,7 @@ export function cacheAsyncResultInRedis<TArgs extends any[], TReturn extends obj
       // @ts-ignore
       return obj;
     }
-    logger.verbose(`[REDIS] Cache miss for ${key}`);
+    logger.debug({ msg: "Cache miss", data: { key } });
     // @ts-ignore
     const res: TReturn = await fn(...args);
     await cache.setJSON(key, res, ttl_sec);

@@ -3,9 +3,11 @@ import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
 import { LOG_LEVEL, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from "../../utils/config";
-import { logger } from "../../utils/logger";
 import { getRedisClient, getRedlock } from "./shared-lock";
+import { rootLogger } from "../../utils/logger2";
 import * as lodash from "lodash";
+
+const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 
 export async function callLockProtectedRpc<TRes>(
   chain: Chain,
@@ -33,14 +35,17 @@ export async function callLockProtectedRpc<TRes>(
         const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
 
         const now = new Date();
-        logger.debug(`[RPC] Last call was ${lastCallDate.toISOString()} (now: ${now.toISOString()})`);
+        logger.debug({
+          msg: "Last call was",
+          data: { lastCallDate: lastCallDate.toISOString(), now: now.toISOString() },
+        });
 
         // wait a bit before calling the rpc again if needed
         if (delayBetweenCalls !== "no-limit") {
           if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-            logger.debug(`[RPC] Last call too close for ${publicRpcUrl}, sleeping a bit`);
+            logger.debug({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId } });
             await sleep(delayBetweenCalls);
-            logger.debug(`[RPC] Resuming call to ${publicRpcUrl}`);
+            logger.debug({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId } });
           }
         }
         // now we are going to call, so set the last call date
@@ -78,12 +83,12 @@ export async function callLockProtectedRpc<TRes>(
       };
 
       if (delayBetweenCalls === "no-limit") {
-        logger.debug(`[RPC] No lock needed for ${publicRpcUrl}`);
+        logger.debug({ msg: "No lock needed for", data: { publicRpcUrl, resourceId } });
         return doWork();
       } else {
-        logger.debug(`[RPC] Trying to acquire lock for ${resourceId} (${publicRpcUrl})`);
+        logger.debug({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId } });
         return redlock.using([resourceId], 2 * 60 * 1000, async () => {
-          logger.debug(`[RPC] Acquired lock for ${resourceId} (${publicRpcUrl})`);
+          logger.debug({ msg: " Acquired lock for", data: { publicRpcUrl, resourceId } });
           return doWork();
         });
       }
@@ -94,16 +99,15 @@ export async function callLockProtectedRpc<TRes>(
       maxDelay: 5 * 60 * 1000,
       numOfAttempts: 10,
       retry: (error, attemptNumber) => {
-        const message = `[RPC] Error on attempt ${attemptNumber} calling rpc for ${publicRpcUrl} ${resourceId}: ${error.message}`;
+        const message = {
+          msg: "RPC error, retrying",
+          data: { attemptNumber, publicRpcUrl, resourceId, error: error.message },
+        };
         if (attemptNumber < 3) logger.debug(message);
-        else if (attemptNumber < 5) logger.verbose(message);
         else if (attemptNumber < 9) logger.info(message);
         else if (attemptNumber < 10) logger.warn(message);
         else logger.error(message);
 
-        if (LOG_LEVEL === "trace") {
-          console.error(error);
-        }
         // some errors are not recoverable
         if (error instanceof ArchiveNodeNeededError) {
           return false;
