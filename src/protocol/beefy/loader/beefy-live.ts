@@ -1,15 +1,19 @@
-import { keyBy, uniqBy, zipWith } from "lodash";
 import { runMain } from "../../../utils/process";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { db_query, strAddressToPgBytea, strArrToPgStrArr, withPgClient } from "../../../utils/db";
+import { db_query, mapAddressToEvmAddressId, strArrToPgStrArr, withPgClient } from "../../../utils/db";
 import { getAllVaultsFromGitHistory } from "../connector/vault-list";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
+import { consumeObservable } from "../../../utils/observable";
+import { ethers } from "ethers";
+import { flatten, sample } from "lodash";
+import { RPC_URLS, WS_RPC_URLS } from "../../../utils/config";
+import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
-async function main(client: PoolClient) {
+async function main() {
   // ---
   // from time to time, refresh vaults
   //
@@ -19,47 +23,160 @@ async function main(client: PoolClient) {
   // emit to the pipeline on new log
   //
 
-  const pipeline = Rx.of(...allChainIds).pipe(
+  await withPgClient(subsribeToSharesAmountChanges)();
+  //await withPgClient(upsertVauts)();
+}
+
+runMain(main);
+
+function subsribeToSharesAmountChanges(client: PoolClient) {
+  const providers: Record<string, ethers.providers.JsonRpcProvider> = {};
+  const getProvider = (chain: Chain) => {
+    if (providers[chain] === undefined) {
+      const rpcUrl = sample(RPC_URLS[chain]) as string;
+      providers[chain] = new ethers.providers.JsonRpcProvider(rpcUrl);
+    }
+    return providers[chain];
+  };
+
+  // every now and then
+  const pipeline$ = Rx.interval(/*2 * 60 * */ 5 * 1_000).pipe(
+    // start immediately, otherwise we have to wait for the interval to start
+    Rx.startWith(-1),
+
+    Rx.tap((i) => logger.info({ msg: "subscribing to shares amount changes", data: { i } })),
+
+    // start a new observable for each chain
+    Rx.map(() =>
+      Rx.from(allChainIds).pipe(
+        Rx.mergeMap(async (chain) => {
+          const provider = getProvider(chain);
+          try {
+            const blockNumber = await provider.getBlockNumber();
+            return { chain, blockNumber };
+          } catch (error) {
+            logger.error({ msg: "error getting block number", data: { chain, error } });
+            logger.trace(error);
+          }
+          return { chain, blockNumber: null };
+        }),
+
+        Rx.tap(({ blockNumber, chain }) =>
+          logger.info({ msg: "subscribing to shares amount changes", data: { blockNumber, chain } }),
+        ),
+      ),
+    ),
+
+    Rx.tap((chain) => logger.info({ msg: "subscribing to shares amount changes", data: { chain } })),
+
+    // flatten the results
+    Rx.mergeAll(),
+  );
+  /*
+  const pipeline$ = vaultListUpdates$(client).pipe(
+    //Rx.take(50), // debug
+    //Rx.filter((v) => v.chain === "fantom"), //debug
+
+    // group by chain
+    Rx.groupBy((v) => v.chain),
+
+    // consume all the vaults for this chain
+    Rx.mergeMap((group$) =>
+      group$.pipe(
+        // get 500 contracts or wait some time
+        Rx.bufferTime(5_000, 5_000, 100),
+
+        // only get groups with a size, as bufferTime can produce empty groups
+        Rx.filter((vaults) => vaults.length > 0),
+
+        // for each batch of contracts, register an event handler
+        Rx.mergeMap((vaults) => {
+          return new Rx.Observable<{ event: any; chain: Chain }>((subscriber) => {
+            const provider = getProvider(group$.key);
+            provider.getBlockNumber();
+
+            const topics = flatten(
+              vaults.map((v) => {
+                const contract = new ethers.Contract(v.contract_evm_address.address, ERC20Abi, provider);
+                const eventFilter = contract.filters.Transfer(null, contract.address);
+                return eventFilter.topics as string[];
+              })
+            );
+
+            logger.info({
+              msg: "Registering wss connection",
+              data: { chain: group$.key, total: topics.length, topics },
+            });
+            provider.on({ topics }, (event) => {
+              logger.info({ msg: "event handler", data: { event } });
+              subscriber.next({ chain: group$.key, event });
+              throw new Error("HERE");
+            });
+          });
+        }),
+
+        Rx.tap((v) => logger.info({ msg: "event", data: v }))
+      )
+    ),
+
+    Rx.tap((event) => logger.info({ msg: "Got event", data: { event } })),
+
+    // batch all events
+    Rx.bufferTime(5_000, 5_000, 500),
+    // only get groups with a size, as bufferTime can produce empty groups
+    Rx.filter((events) => events.length > 0),
+
+    // push to database
+    Rx.mergeMap((events) => {
+      logger.info({ msg: "Got event batch", data: { events } });
+      return Rx.of(events.length);
+    })
+  );*/
+  return consumeObservable(pipeline$);
+}
+
+function upsertVauts(client: PoolClient) {
+  const pipeline$ = Rx.of(...allChainIds).pipe(
     Rx.tap((chain) => logger.info({ msg: "importing chain", data: { chain } })),
 
     // fetch vaults from git file history
     Rx.mergeMap(getAllVaultsFromGitHistory, 1 /* concurrent = 1, we don't want concurrency here */),
+    Rx.mergeMap((vaults) => Rx.from(vaults)), // flatten
 
     // batch by some reasonable amount
-    Rx.windowCount(500),
-    Rx.mergeAll(),
+    Rx.bufferCount(200),
 
     Rx.tap((vaults) =>
-      logger.info({ msg: "inserting vaults", data: { total: vaults.length, chain: vaults?.[0]?.chain } })
+      logger.info({ msg: "inserting vaults", data: { total: vaults.length, chain: vaults?.[0]?.chain } }),
     ),
 
     // map the contract address and underlying address to db ids
     Rx.mergeMap((vaults) =>
-      mapEvmAddressId(
+      mapAddressToEvmAddressId(
         client,
         vaults,
         (vault) => ({
           chain: vault.chain,
           address: vault.token_address,
-          metadata: { erc20: { name: vault.token_name, decimals: vault.token_decimals, price_feed_id: vault.id } },
+          metadata: { erc20: { name: vault.token_name, decimals: vault.token_decimals, price_feed_key: vault.id } },
         }),
-        "contract_evm_address_id"
-      )
+        "contract_evm_address_id",
+      ),
     ),
 
     Rx.mergeMap((vaults) =>
-      mapEvmAddressId(
+      mapAddressToEvmAddressId(
         client,
         vaults,
         (vault) => ({
           chain: vault.chain,
           address: vault.want_address,
           metadata: {
-            erc20: { name: null, decimals: vault.want_decimals, price_feed_id: vault.price_oracle.want_oracleId },
+            erc20: { name: null, decimals: vault.want_decimals, price_feed_key: vault.price_oracle.want_oracleId },
           },
         }),
-        "underlying_evm_address_id"
-      )
+        "underlying_evm_address_id",
+      ),
     ),
 
     // insert to the vault table
@@ -72,6 +189,7 @@ async function main(client: PoolClient) {
       const result = await db_query<{ beefy_vault_id: number }>(
         `INSERT INTO beefy_vault (
             vault_key,
+            chain,
             contract_evm_address_id,
             underlying_evm_address_id,
             end_of_life,
@@ -88,6 +206,7 @@ async function main(client: PoolClient) {
         [
           vaults.map((vault) => [
             vault.id,
+            vault.chain,
             vault.contract_evm_address_id,
             vault.underlying_evm_address_id,
             vault.eol,
@@ -95,64 +214,11 @@ async function main(client: PoolClient) {
             strArrToPgStrArr(vault.price_oracle.assets),
           ]),
         ],
-        client
+        client,
       );
       return result;
-    })
+    }),
   );
 
-  return consumeObservable(pipeline);
-}
-
-runMain(withPgClient(main));
-
-function consumeObservable<TRes>(observable: Rx.Observable<TRes>) {
-  return new Promise<TRes | null>((resolve, reject) => {
-    let lastValue: TRes | null = null;
-    observable.subscribe({
-      error: reject,
-      next: (value) => (lastValue = value),
-      complete: () => resolve(lastValue),
-    });
-  });
-}
-
-// upsert the address of all objects and return the id in the specified field
-async function mapEvmAddressId<TObj, TKey extends string>(
-  client: PoolClient,
-  objs: TObj[],
-  getAddrData: (obj: TObj) => { chain: Chain; address: string; metadata: object },
-  toKey: TKey
-): Promise<(TObj & { [key in TKey]: number })[]> {
-  // short circuit if there's nothing to do
-  if (objs.length === 0) {
-    return [];
-  }
-
-  const addressesToInsert = objs.map(getAddrData);
-  const uniqueAddresses = uniqBy(addressesToInsert, ({ chain, address }) => `${chain}-${address}`);
-
-  const result = await db_query<{ evm_address_id: number }>(
-    `INSERT INTO evm_address (chain, address, metadata) VALUES %L
-      ON CONFLICT (chain, address) DO UPDATE SET metadata = EXCLUDED.metadata
-      RETURNING evm_address_id`,
-    [uniqueAddresses.map((addr) => [addr.chain, strAddressToPgBytea(addr.address), addr.metadata])],
-    client
-  );
-  const addressIdMap = keyBy(
-    zipWith(uniqueAddresses, result, (addr, row) => ({ addr, evm_address_id: row.evm_address_id })),
-    (res) => `${res.addr.chain}-${res.addr.address}`
-  );
-
-  const objsWithId = zipWith(
-    objs,
-    addressesToInsert,
-    (obj, addr) =>
-      ({
-        ...obj,
-        [toKey]: addressIdMap[`${addr.chain}-${addr.address}`].evm_address_id,
-      } as TObj & { [key in TKey]: number })
-  );
-
-  return objsWithId;
+  return consumeObservable(pipeline$);
 }

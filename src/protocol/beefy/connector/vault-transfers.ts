@@ -22,7 +22,7 @@ export async function fetchBeefyVaultV6Transfers(
   const eventsPromises: Promise<ethers.Event[]>[] = [];
   for (const contractAddress of contractAddresses) {
     const contract = new ethers.Contract(contractAddress, ERC20Abi, provider);
-    const eventFilter = contract.filters.Transfer(fromBlock, toBlock);
+    const eventFilter = contract.filters.Transfer();
     const eventsPromise = contract.queryFilter(eventFilter, fromBlock, toBlock);
     eventsPromises.push(eventsPromise);
   }

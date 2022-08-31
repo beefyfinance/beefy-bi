@@ -3,8 +3,10 @@ import pgf from "pg-format";
 import * as pgcs from "pg-connection-string";
 import { TIMESCALEDB_URL } from "./config";
 import { normalizeAddress } from "./ethers";
-import { allChainIds } from "../types/chain";
+import { allChainIds, Chain } from "../types/chain";
 import { rootLogger } from "./logger2";
+import { keyBy, uniqBy, zipWith } from "lodash";
+import * as Rx from "rxjs";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -39,7 +41,7 @@ export async function getPgPool() {
 
 // inject pg client as first argument
 export function withPgClient<TArgs extends any[], TRes>(
-  fn: (client: PoolClient, ...args: TArgs) => Promise<TRes>
+  fn: (client: PoolClient, ...args: TArgs) => Promise<TRes>,
 ): (...args: TArgs) => Promise<TRes> {
   return async (...args: TArgs) => {
     const pgPool = await getPgPool();
@@ -57,9 +59,9 @@ export function withPgClient<TArgs extends any[], TRes>(
 export async function db_query<RowType>(
   sql: string,
   params: any[] = [],
-  client: PoolClient | null = null
+  client: PoolClient | null = null,
 ): Promise<RowType[]> {
-  logger.debug({ msg: "Executing query", data: { sql, params } });
+  logger.trace({ msg: "Executing query", data: { sql, params } });
   const pool = await getPgPool();
   const sql_w_params = pgf(sql, ...params);
   //console.log(sql_w_params);
@@ -78,7 +80,7 @@ export async function db_query<RowType>(
 export async function db_query_one<RowType>(
   sql: string,
   params: any[] = [],
-  client: PoolClient | null = null
+  client: PoolClient | null = null,
 ): Promise<RowType | null> {
   const rows = await db_query<RowType>(sql, params, client);
   if (rows.length === 0) {
@@ -241,6 +243,7 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS beefy_vault (
       vault_id serial PRIMARY KEY,
       vault_key varchar NOT NULL,
+      chain chain_enum NOT NULL,
       contract_evm_address_id integer not null references evm_address(evm_address_id),
       underlying_evm_address_id integer not null references evm_address(evm_address_id),
       end_of_life boolean not null,
@@ -320,4 +323,125 @@ price
 
 
  */
+}
+
+interface DbEvmAddress {
+  evm_address_id: number;
+  chain: Chain;
+  address: string;
+  metadata: {
+    erc20: {
+      name: string | null;
+      decimals: number;
+      price_feed_key: string;
+    };
+  };
+}
+
+// upsert the address of all objects and return the id in the specified field
+export async function mapAddressToEvmAddressId<TObj, TKey extends string>(
+  client: PoolClient,
+  objs: TObj[],
+  getAddrData: (obj: TObj) => Omit<DbEvmAddress, "evm_address_id">,
+  toKey: TKey,
+): Promise<(TObj & { [key in TKey]: number })[]> {
+  // short circuit if there's nothing to do
+  if (objs.length === 0) {
+    return [];
+  }
+
+  const addressesToInsert = objs.map(getAddrData);
+  const uniqueAddresses = uniqBy(addressesToInsert, ({ chain, address }) => `${chain}-${address}`);
+
+  const result = await db_query<{ evm_address_id: number }>(
+    `INSERT INTO evm_address (chain, address, metadata) VALUES %L
+      ON CONFLICT (chain, address) DO UPDATE SET metadata = EXCLUDED.metadata
+      RETURNING evm_address_id`,
+    [uniqueAddresses.map((addr) => [addr.chain, strAddressToPgBytea(addr.address), addr.metadata])],
+    client,
+  );
+  const addressIdMap = keyBy(
+    zipWith(uniqueAddresses, result, (addr, row) => ({ addr, evm_address_id: row.evm_address_id })),
+    (res) => `${res.addr.chain}-${res.addr.address}`,
+  );
+
+  const objsWithId = zipWith(
+    objs,
+    addressesToInsert,
+    (obj, addr) =>
+      ({
+        ...obj,
+        [toKey]: addressIdMap[`${addr.chain}-${addr.address}`].evm_address_id,
+      } as TObj & { [key in TKey]: number }),
+  );
+
+  return objsWithId;
+}
+
+export async function mapEvmAddressIdToAddress<TObj, TKey extends string>(
+  client: PoolClient,
+  objs: TObj[],
+  getAddrId: (obj: TObj) => number,
+  toKey: TKey,
+): Promise<(TObj & { [key in TKey]: DbEvmAddress })[]> {
+  // short circuit if there's nothing to do
+  if (objs.length === 0) {
+    return [];
+  }
+
+  const addressIds = objs.map(getAddrId);
+  const result = await db_query<{ evm_address_id: number }>(
+    `SELECT evm_address_id, chain, bytea_to_hexstr(address) as address, metadata FROM evm_address WHERE evm_address_id IN (%L)`,
+    [addressIds],
+    client,
+  );
+  const addressIdMap = keyBy(result, (res) => res.evm_address_id);
+  return objs.map(
+    (obj) => ({ ...obj, [toKey]: addressIdMap[getAddrId(obj)] } as TObj & { [key in TKey]: DbEvmAddress }),
+  );
+}
+
+interface DbBeefyVault {
+  vault_id: number;
+  chain: Chain;
+  vault_key: string;
+  contract_evm_address_id: number;
+  underlying_evm_address_id: number;
+  end_of_life: boolean;
+  has_erc20_shares_token: boolean;
+  assets_price_feed_keys: string[];
+}
+
+export function vaultListUpdates$(client: PoolClient, pollFrequencyMs: number = 1000 * 60 * 60) {
+  logger.info({ msg: "Listening to vault updates" });
+  // refresh vault list every hour
+  return Rx.interval(pollFrequencyMs).pipe(
+    // start immediately, otherwise we have to wait for the interval to start
+    Rx.startWith(0),
+
+    Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: fetching vault updates" })),
+
+    // fetch the vault list
+    Rx.switchMap(() =>
+      db_query<DbBeefyVault>(
+        `SELECT vault_id, chain, vault_key, contract_evm_address_id, underlying_evm_address_id, end_of_life, has_erc20_shares_token, assets_price_feed_keys FROM beefy_vault`,
+      ),
+    ),
+
+    // add the vault addresses while we are doing batch work
+    Rx.mergeMap((vaults) =>
+      mapEvmAddressIdToAddress(client, vaults, (v) => v.contract_evm_address_id, "contract_evm_address"),
+    ),
+    Rx.mergeMap((vaults) =>
+      mapEvmAddressIdToAddress(client, vaults, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
+    ),
+
+    Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: emitting vault update" })),
+
+    // flatten vault list into a stream of vaults
+    Rx.mergeMap((vaults) => Rx.from(vaults)),
+
+    // only emit if eol changed, only one time per vault
+    Rx.distinct((vault) => `${vault.vault_id}-${vault.end_of_life ? "eol" : "active"}`),
+  );
 }

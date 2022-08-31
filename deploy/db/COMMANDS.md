@@ -81,4 +81,19 @@ CALL refresh_continuous_aggregate('data_derived.erc20_owner_balance_diff_4h_ts',
 CALL refresh_continuous_aggregate('data_derived.erc20_contract_balance_diff_4h_ts', '2018-01-01', now());
 CALL refresh_continuous_aggregate('data_report.chain_stats_4h_ts', '2018-01-01', now());
 CALL refresh_continuous_aggregate('data_report.all_stats_4h_ts', '2018-01-01', now());
+
+
+
+select
+    schemaname, relname,
+      pg_size_pretty(pg_total_relation_size(relid)) as total_size,
+      pg_size_pretty(pg_relation_size(relid, 'main')) as relation_size_main,
+      pg_size_pretty(pg_relation_size(relid, 'fsm')) as relation_size_fsm,
+      pg_size_pretty(pg_relation_size(relid, 'vm')) as relation_size_vm,
+      pg_size_pretty(pg_relation_size(relid, 'init')) as relation_size_init,
+      pg_size_pretty(pg_table_size(relid)) as table_size,
+      pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size
+ from
+      pg_catalog.pg_statio_user_tables
+order by pg_total_relation_size(relid) desc
 ```
