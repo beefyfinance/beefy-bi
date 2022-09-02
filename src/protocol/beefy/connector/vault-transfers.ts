@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger2";
 import { Chain } from "../../../types/chain";
 import { flatten, zipWith } from "lodash";
+import { TokenizedVaultUserAction } from "../../types/connector";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -10,9 +11,9 @@ export async function fetchBeefyVaultV6Transfers(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractAddresses: string[],
-  fromBlock: number,
-  toBlock: number
-): Promise<{ contractAddress: string; blockNumber: number; from: string; to: string; value: string }[]> {
+  fromBlock?: number,
+  toBlock?: number,
+): Promise<TokenizedVaultUserAction[]> {
   logger.debug({
     msg: "Fetching withdraw and deposits for vault",
     data: { chain, contractAddresses, fromBlock, toBlock },
@@ -30,16 +31,27 @@ export async function fetchBeefyVaultV6Transfers(
 
   const events = flatten(
     zipWith(contractAddresses, eventsRes, (contractAddress, events) =>
-      events.map((event) => ({
-        contractAddress,
-        from: event.args?.from,
-        to: event.args?.to,
-        value: event.args?.value,
-        args: event.args,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-      }))
-    )
+      flatten(
+        events.map((event): [TokenizedVaultUserAction, TokenizedVaultUserAction] => [
+          {
+            chain: chain,
+            vaultAddress: contractAddress,
+            ownerAddress: event.args?.from,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            sharesDiffAmount: event.args?.value.mul(-1),
+          },
+          {
+            chain: chain,
+            vaultAddress: contractAddress,
+            ownerAddress: event.args?.to,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            sharesDiffAmount: event.args?.value,
+          },
+        ]),
+      ),
+    ),
   );
 
   logger.debug({

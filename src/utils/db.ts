@@ -339,10 +339,14 @@ interface DbEvmAddress {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export async function mapAddressToEvmAddressId<TObj, TKey extends string>(
+export async function mapAddressToEvmAddressId<
+  TObj,
+  TKey extends string,
+  TParams extends Omit<DbEvmAddress, "evm_address_id">,
+>(
   client: PoolClient,
   objs: TObj[],
-  getAddrData: (obj: TObj) => Omit<DbEvmAddress, "evm_address_id">,
+  getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Promise<(TObj & { [key in TKey]: number })[]> {
   // short circuit if there's nothing to do
@@ -350,8 +354,9 @@ export async function mapAddressToEvmAddressId<TObj, TKey extends string>(
     return [];
   }
 
-  const addressesToInsert = objs.map(getAddrData);
-  const uniqueAddresses = uniqBy(addressesToInsert, ({ chain, address }) => `${chain}-${address}`);
+  const getKey = ({ chain, address }: TParams) => `${chain}-${address}`;
+  const addressesToInsert = objs.map(getParams);
+  const uniqueAddresses = uniqBy(addressesToInsert, getKey);
 
   const result = await db_query<{ evm_address_id: number }>(
     `INSERT INTO evm_address (chain, address, metadata) VALUES %L
@@ -362,7 +367,7 @@ export async function mapAddressToEvmAddressId<TObj, TKey extends string>(
   );
   const addressIdMap = keyBy(
     zipWith(uniqueAddresses, result, (addr, row) => ({ addr, evm_address_id: row.evm_address_id })),
-    (res) => `${res.addr.chain}-${res.addr.address}`,
+    (res) => getKey(res.addr),
   );
 
   const objsWithId = zipWith(
@@ -371,7 +376,7 @@ export async function mapAddressToEvmAddressId<TObj, TKey extends string>(
     (obj, addr) =>
       ({
         ...obj,
-        [toKey]: addressIdMap[`${addr.chain}-${addr.address}`].evm_address_id,
+        [toKey]: addressIdMap[getKey(addr)].evm_address_id,
       } as TObj & { [key in TKey]: number }),
   );
 
@@ -390,12 +395,15 @@ export async function mapEvmAddressIdToAddress<TObj, TKey extends string>(
   }
 
   const addressIds = objs.map(getAddrId);
-  const result = await db_query<{ evm_address_id: number }>(
+  const result = await db_query<{ evm_address_id: number; chain: Chain; address: string; metadata: object }>(
     `SELECT evm_address_id, chain, bytea_to_hexstr(address) as address, metadata FROM evm_address WHERE evm_address_id IN (%L)`,
     [addressIds],
     client,
   );
-  const addressIdMap = keyBy(result, (res) => res.evm_address_id);
+  const addressIdMap = keyBy(
+    result.map((res) => ({ ...res, address: normalizeAddress(res.address) })),
+    (res) => res.evm_address_id,
+  );
   return objs.map(
     (obj) => ({ ...obj, [toKey]: addressIdMap[getAddrId(obj)] } as TObj & { [key in TKey]: DbEvmAddress }),
   );
@@ -443,5 +451,29 @@ export function vaultListUpdates$(client: PoolClient, pollFrequencyMs: number = 
 
     // only emit if eol changed, only one time per vault
     Rx.distinct((vault) => `${vault.vault_id}-${vault.end_of_life ? "eol" : "active"}`),
+  );
+}
+
+export function vaultList$(client: PoolClient) {
+  logger.info({ msg: "Fetching vaults" });
+  return Rx.of(
+    db_query<DbBeefyVault>(
+      `SELECT vault_id, chain, vault_key, contract_evm_address_id, underlying_evm_address_id, end_of_life, has_erc20_shares_token, assets_price_feed_keys FROM beefy_vault`,
+    ),
+  ).pipe(
+    Rx.mergeAll(),
+
+    // add the vault addresses while we are doing batch work
+    Rx.mergeMap((vaults) =>
+      mapEvmAddressIdToAddress(client, vaults, (v) => v.contract_evm_address_id, "contract_evm_address"),
+    ),
+    Rx.mergeMap((vaults) =>
+      mapEvmAddressIdToAddress(client, vaults, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
+    ),
+
+    Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: emitting vault update" })),
+
+    // flatten vault list into a stream of vaults
+    Rx.mergeMap((vaults) => Rx.from(vaults)),
   );
 }
