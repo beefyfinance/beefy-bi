@@ -1,7 +1,14 @@
 import { runMain } from "../../../utils/process";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { db_query, mapAddressToEvmAddressId, strArrToPgStrArr, vaultList$, withPgClient } from "../../../utils/db";
+import {
+  DbBeefyVault,
+  db_query,
+  mapAddressToEvmAddressId,
+  strArrToPgStrArr,
+  vaultList$,
+  withPgClient,
+} from "../../../utils/db";
 import { getAllVaultsFromGitHistory } from "../connector/vault-list";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
@@ -12,8 +19,20 @@ import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
 import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
+import { BeefyVault } from "../types/beefy-vault-config";
+import { TokenizedVaultUserTransfer } from "../../types/connector";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
+
+// remember the last imported block number for each chain so we can reduce the amount of data we fetch
+type ImportState = {
+  [key in Chain]: { lastImportedBlockNumber: number | null; inProgress: boolean; start: Date };
+};
+const importState: ImportState = allChainIds.reduce(
+  (agg, chain) =>
+    Object.assign(agg, { [chain]: { lastImportedBlockNumber: null, inProgress: false, start: new Date() } }),
+  {} as ImportState,
+);
 
 async function main() {
   // ---
@@ -32,7 +51,7 @@ async function main() {
     //await pollVaultData();
     await pollLiveData();
     // then poll every now and then
-    setInterval(pollLiveData, samplingPeriodMs["15min"]);
+    setInterval(pollLiveData, 30 * 1000);
     setInterval(pollVaultData, samplingPeriodMs["1day"]);
   });
 }
@@ -48,6 +67,8 @@ function fetchLatestData(client: PoolClient) {
     }
     return providers[chain];
   };
+
+  logger.info({ msg: "fetching vault transfers" });
 
   const pipeline$ = vaultList$(client)
     // define the scope of our pipeline
@@ -65,58 +86,121 @@ function fetchLatestData(client: PoolClient) {
       Rx.tap((chainVaults$) => logger.debug({ msg: "processing chain", data: { chain: chainVaults$.key } })),
 
       // process each chain separately
-      Rx.mergeMap((chainVaults$) =>
-        chainVaults$
-          // connector data pipeline
-          .pipe(
-            // batch vault config by some reasonable amount that the RPC can handle
-            Rx.bufferCount(200),
+      Rx.mergeMap((chainVaults$) => {
+        if (importState[chainVaults$.key].inProgress) {
+          logger.debug({ msg: "Import still in progress skipping chain", data: { chain: chainVaults$.key } });
+          return Rx.EMPTY;
+        }
+        return importChainVaultTransfers(client, chainVaults$.key, chainVaults$);
+      }),
 
-            // go get the latest block number for this chain
-            Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlockNumber()] as const),
-
-            // call our connector to get the transfers
-            Rx.mergeMap(([vaults, latestBlockNumber]) => {
-              // fetch the last hour of data
-              const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chainVaults$.key];
-              const period = samplingPeriodMs["1hour"];
-              const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[chainVaults$.key]);
-
-              const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate);
-
-              return fetchBeefyVaultV6Transfers(
-                getProvider(chainVaults$.key),
-                chainVaults$.key,
-                vaults.map((vault) => {
-                  if (!vault.contract_evm_address.metadata.erc20) {
-                    throw new Error("no decimals");
-                  }
-                  return {
-                    address: vault.contract_evm_address.address,
-                    decimals: vault.contract_evm_address.metadata.erc20?.decimals,
-                  };
-                }),
-                latestBlockNumber - blockCountToFetch,
-                latestBlockNumber,
-              );
-            }),
-
-            // we want to catch any errors from the RPC
-            Rx.catchError((error) => {
-              logger.error({ msg: "error importing latest chain data", data: { chain: chainVaults$.key, error } });
-              logger.error(error);
-              return Rx.EMPTY;
-            }),
-
-            // flatten the resulting array
-            Rx.mergeMap((transfers) => Rx.from(transfers)),
-
-            // send to the db write pipeline
-            transferEventToDb(client, chainVaults$.key, getProvider(chainVaults$.key)),
-          ),
-      ),
+      Rx.tap({
+        finalize: () => {
+          logger.info({
+            msg: "done importing live data for all chains",
+          });
+        },
+      }),
     );
-  return consumeObservable(pipeline$).then(() => logger.info({ msg: "done importing live data for all chains" }));
+  return consumeObservable(pipeline$);
+}
+
+function importChainVaultTransfers(
+  client: PoolClient,
+  chain: Chain,
+  chainVaults$: ReturnType<typeof vaultList$>,
+): Rx.Observable<TokenizedVaultUserTransfer> {
+  const rpcUrl = sample(RPC_URLS[chain]) as string;
+  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+
+  return (
+    chainVaults$
+      // connector data pipeline
+      .pipe(
+        // make sure we handle the progress state
+        Rx.tap({
+          subscribe: () => {
+            importState[chain].inProgress = true;
+            importState[chain].start = new Date();
+          },
+        }),
+      )
+      .pipe(
+        // batch vault config by some reasonable amount that the RPC can handle
+        Rx.bufferCount(200),
+
+        // go get the latest block number for this chain
+        Rx.mergeMap(async (vaults) => [vaults, await provider.getBlockNumber()] as const),
+
+        // call our connector to get the transfers
+        Rx.mergeMap(async ([vaults, latestBlockNumber]) => {
+          // fetch the last hour of data
+          const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
+          const period = samplingPeriodMs["1hour"];
+          const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[chain]);
+
+          const lastImportedBlockNumber = importState[chain].lastImportedBlockNumber ?? null;
+          const diffBetweenLastImported = lastImportedBlockNumber
+            ? latestBlockNumber - (lastImportedBlockNumber + 1)
+            : Infinity;
+
+          const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
+
+          return [
+            await fetchBeefyVaultV6Transfers(
+              provider,
+              chain,
+              vaults.map((vault) => {
+                if (!vault.contract_evm_address.metadata.erc20) {
+                  throw new Error("no decimals");
+                }
+                return {
+                  address: vault.contract_evm_address.address,
+                  decimals: vault.contract_evm_address.metadata.erc20?.decimals,
+                };
+              }),
+              latestBlockNumber - blockCountToFetch,
+              latestBlockNumber,
+            ),
+            latestBlockNumber,
+          ] as const;
+        }),
+
+        // update import state
+        Rx.tap(([_, latestBlockNumber]) => {
+          importState[chain].lastImportedBlockNumber = latestBlockNumber;
+        }),
+
+        // we want to catch any errors from the RPC
+        Rx.catchError((error) => {
+          logger.error({ msg: "error importing latest chain data", data: { chain, error } });
+          logger.error(error);
+          return Rx.EMPTY;
+        }),
+
+        // flatten the resulting array
+        Rx.mergeMap(([transfers, _]) => Rx.from(transfers)),
+
+        // send to the db write pipeline
+        transferEventToDb(client, chain, provider),
+
+        // mark the ingestion as complete
+        Rx.tap({
+          finalize: () => {
+            importState[chain].inProgress = false;
+            const start = importState[chain].start;
+            const stop = new Date();
+            logger.debug({
+              msg: "done importing live data for chain",
+              data: {
+                chain,
+                duration: ((stop.getTime() - start.getTime()) / 1000).toFixed(2) + "s",
+              },
+            });
+          },
+        }),
+      )
+  );
 }
 
 function upsertVauts(client: PoolClient) {
@@ -202,7 +286,13 @@ function upsertVauts(client: PoolClient) {
       );
       return result;
     }),
+
+    Rx.tap({
+      complete: () => {
+        logger.info({ msg: "done vault configs data for all chains" });
+      },
+    }),
   );
 
-  return consumeObservable(pipeline$).then(() => logger.info({ msg: "done vault configs data for all chains" }));
+  return consumeObservable(pipeline$);
 }

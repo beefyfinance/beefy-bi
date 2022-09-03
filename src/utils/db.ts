@@ -499,7 +499,7 @@ export async function mapTransactionToEvmTransactionId<
   return objsWithId;
 }
 
-interface DbBeefyVault {
+export interface DbBeefyVault {
   vault_id: number;
   chain: Chain;
   vault_key: string;
@@ -545,7 +545,7 @@ export function vaultListUpdates$(client: PoolClient, pollFrequencyMs: number = 
 }
 
 export function vaultList$(client: PoolClient) {
-  logger.info({ msg: "Fetching vaults" });
+  logger.debug({ msg: "Fetching vaults from db" });
   return Rx.of(
     db_query<DbBeefyVault>(
       `SELECT vault_id, chain, vault_key, contract_evm_address_id, underlying_evm_address_id, end_of_life, has_erc20_shares_token, assets_price_feed_keys FROM beefy_vault`,
