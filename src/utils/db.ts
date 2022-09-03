@@ -91,7 +91,7 @@ export async function db_query_one<RowType>(
 
 export function strAddressToPgBytea(evmAddress: string) {
   // 0xABC -> // \xABC
-  return "\\x" + normalizeAddress(evmAddress).slice(2);
+  return "\\x" + evmAddress.slice(2);
 }
 
 export function strArrToPgStrArr(strings: string[]) {
@@ -155,6 +155,31 @@ async function migrate() {
       LANGUAGE SQL
       IMMUTABLE
       RETURNS NULL ON NULL INPUT;
+
+    -- Adapted from https://stackoverflow.com/a/49688529/2523414
+    create or replace function jsonb_merge(CurrentData jsonb,newData jsonb)
+      returns jsonb
+      language sql
+      immutable
+      as $jsonb_merge_func$
+      select case jsonb_typeof(CurrentData)
+        when 'object' then case jsonb_typeof(newData)
+          when 'object' then COALESCE((
+            select    jsonb_object_agg(k, case
+                        when e2.v is null then e1.v
+                        when e1.v is null then e2.v
+                        when e1.v = e2.v then e1.v 
+                        else jsonb_merge(e1.v, e2.v)
+                      end)
+            from      jsonb_each(CurrentData) e1(k, v)
+            full join jsonb_each(newData) e2(k, v) using (k)
+          ), '{}'::jsonb)
+          else newData
+        end
+        when 'array' then CurrentData || newData
+        else newData
+      end
+      $jsonb_merge_func$;
   `);
 
   // an address and transaction table to avoid bloating the tables and indices
@@ -330,7 +355,7 @@ interface DbEvmAddress {
   chain: Chain;
   address: string;
   metadata: {
-    erc20: {
+    erc20?: {
       name: string | null;
       decimals: number;
       price_feed_key: string;
@@ -360,7 +385,7 @@ export async function mapAddressToEvmAddressId<
 
   const result = await db_query<{ evm_address_id: number }>(
     `INSERT INTO evm_address (chain, address, metadata) VALUES %L
-      ON CONFLICT (chain, address) DO UPDATE SET metadata = EXCLUDED.metadata
+      ON CONFLICT (chain, address) DO UPDATE SET metadata = jsonb_merge(evm_address.metadata, EXCLUDED.metadata)
       RETURNING evm_address_id`,
     [uniqueAddresses.map((addr) => [addr.chain, strAddressToPgBytea(addr.address), addr.metadata])],
     client,
@@ -407,6 +432,67 @@ export async function mapEvmAddressIdToAddress<TObj, TKey extends string>(
   return objs.map(
     (obj) => ({ ...obj, [toKey]: addressIdMap[getAddrId(obj)] } as TObj & { [key in TKey]: DbEvmAddress }),
   );
+}
+
+interface DbEvmTransaction {
+  evm_transaction_id: number;
+  chain: Chain;
+  hash: string;
+  block_number: number;
+  block_datetime: Date;
+}
+// upsert the address of all objects and return the id in the specified field
+export async function mapTransactionToEvmTransactionId<
+  TObj,
+  TKey extends string,
+  TParams extends Omit<DbEvmTransaction, "evm_transaction_id">,
+>(
+  client: PoolClient,
+  objs: TObj[],
+  getParams: (obj: TObj) => TParams,
+  toKey: TKey,
+): Promise<(TObj & { [key in TKey]: number })[]> {
+  // short circuit if there's nothing to do
+  if (objs.length === 0) {
+    return [];
+  }
+
+  const getKey = ({ chain, hash }: TParams) => `${chain}-${hash}`;
+  const trxToInsert = objs.map(getParams);
+  const uniqueTrxs = uniqBy(trxToInsert, getKey);
+
+  const result = await db_query<{ evm_transaction_id: number }>(
+    `INSERT INTO evm_transaction (chain, hash, block_number, block_datetime) VALUES %L
+      ON CONFLICT (chain, hash) 
+      -- DO NOTHING -- can't use DO NOTHING because we need to return the id
+      DO UPDATE SET block_number = EXCLUDED.block_number, block_datetime = EXCLUDED.block_datetime
+      RETURNING evm_transaction_id`,
+    [
+      uniqueTrxs.map((trx) => [
+        trx.chain,
+        strAddressToPgBytea(trx.hash),
+        trx.block_number,
+        trx.block_datetime.toISOString(),
+      ]),
+    ],
+    client,
+  );
+  const trxIdMap = keyBy(
+    zipWith(uniqueTrxs, result, (trx, row) => ({ trx, evm_transaction_id: row.evm_transaction_id })),
+    (res) => getKey(res.trx),
+  );
+
+  const objsWithId = zipWith(
+    objs,
+    trxToInsert,
+    (obj, addr) =>
+      ({
+        ...obj,
+        [toKey]: trxIdMap[getKey(addr)].evm_transaction_id,
+      } as TObj & { [key in TKey]: number }),
+  );
+
+  return objsWithId;
 }
 
 interface DbBeefyVault {

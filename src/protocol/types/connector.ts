@@ -21,7 +21,7 @@ export interface TokenizedVaultUserAction {
   blockNumber: number;
   transactionHash: string;
 
-  sharesDiffAmount: ethers.BigNumber;
+  sharesBalanceDiff: ethers.BigNumber;
 }
 
 export interface TokenizedVaultConnector<VaultConfig extends { vaultKey: string }> {

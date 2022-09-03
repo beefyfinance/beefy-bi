@@ -39,7 +39,7 @@ export async function fetchBeefyVaultV6Transfers(
             ownerAddress: event.args?.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesDiffAmount: event.args?.value.mul(-1),
+            sharesBalanceDiff: event.args?.value.mul(-1),
           },
           {
             chain: chain,
@@ -47,7 +47,7 @@ export async function fetchBeefyVaultV6Transfers(
             ownerAddress: event.args?.to,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesDiffAmount: event.args?.value,
+            sharesBalanceDiff: event.args?.value,
           },
         ]),
       ),

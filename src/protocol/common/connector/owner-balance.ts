@@ -21,7 +21,7 @@ export async function mapERC20TokenBalance<
   const callsToMake = uniqBy(params, getKey);
 
   // fetch all balances in one call
-  const balancePromises: Promise<[ethers.BigNumber]>[] = [];
+  const balancePromises: Promise<ethers.BigNumber>[] = [];
   for (const param of callsToMake) {
     const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
     const balancePromise = contract.balanceOf(param.ownerAddress, { blockTag: param.blockNumber });
@@ -29,9 +29,8 @@ export async function mapERC20TokenBalance<
   }
 
   const balancesRes = await Promise.all(balancePromises);
-
   const balanceMap = keyBy(
-    zipWith(callsToMake, balancesRes, (param, balance) => ({ param, balance: balance[0] })),
+    zipWith(callsToMake, balancesRes, (param, balance) => ({ param, balance })),
     (res) => getKey(res.param),
   );
 
