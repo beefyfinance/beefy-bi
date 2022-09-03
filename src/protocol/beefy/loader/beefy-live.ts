@@ -59,15 +59,6 @@ async function main() {
 runMain(main);
 
 function fetchLatestData(client: PoolClient) {
-  const providers: Record<string, ethers.providers.JsonRpcProvider> = {};
-  const getProvider = (chain: Chain) => {
-    if (providers[chain] === undefined) {
-      const rpcUrl = sample(RPC_URLS[chain]) as string;
-      providers[chain] = new ethers.providers.JsonRpcProvider(rpcUrl);
-    }
-    return providers[chain];
-  };
-
   logger.info({ msg: "fetching vault transfers" });
 
   const pipeline$ = vaultList$(client)
