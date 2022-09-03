@@ -12,7 +12,7 @@ export async function fetchBeefyPPFS(
   provider: ethers.providers.JsonRpcBatchProvider,
   chain: Chain,
   contractAddresses: string[],
-  blockNumbers: number[]
+  blockNumbers: number[],
 ): Promise<ethers.BigNumber[]> {
   logger.debug({
     msg: "Batch fetching PPFS",
@@ -31,7 +31,6 @@ export async function fetchBeefyPPFS(
   // same for heco
   if (chain === "harmony" || chain === "heco") {
     for (const contractAddress of contractAddresses) {
-      const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
       const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers);
       ppfsPromises = ppfsPromises.concat(ppfsPromise);
     }
@@ -77,7 +76,7 @@ async function fetchBeefyPPFSWithManualRPCCall(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractAddress: string,
-  blockNumbers: number[]
+  blockNumbers: number[],
 ): Promise<Promise<[ethers.BigNumber]>[]> {
   const url = provider.connection.url;
 

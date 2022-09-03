@@ -1,5 +1,6 @@
 import ethers from "ethers";
 import { Observable } from "rxjs";
+import { Decimal } from "decimal.js";
 import { Chain } from "../../types/chain";
 
 export type TimeFilterBlockNumbers = number[];
@@ -9,7 +10,7 @@ export type TimeFilterLatest = "latest";
 
 export type TimeFilter = TimeFilterBlockNumberRange | TimeFilterBlockNumbers | TimeFilterDateRange | TimeFilterLatest;
 
-export interface TokenizedVaultUserAction {
+export interface TokenizedVaultUserTransfer {
   chain: Chain;
 
   vaultAddress: string;
@@ -21,14 +22,14 @@ export interface TokenizedVaultUserAction {
   blockNumber: number;
   transactionHash: string;
 
-  sharesBalanceDiff: ethers.BigNumber;
+  sharesBalanceDiff: Decimal;
 }
 
 export interface TokenizedVaultConnector<VaultConfig extends { vaultKey: string }> {
   fetchVaultConfigs(): Observable<VaultConfig>;
-  streamVaultUserActions(vaultConfig: VaultConfig, timeFilter: TimeFilter): Observable<TokenizedVaultUserAction>;
+  streamVaultUserActions(vaultConfig: VaultConfig, timeFilter: TimeFilter): Observable<TokenizedVaultUserTransfer>;
   streamVaultSharesToUnderlyingRate(
     vaultConfig: VaultConfig,
     timeFilter: TimeFilter,
-  ): Observable<TokenizedVaultUserAction>;
+  ): Observable<TokenizedVaultUserTransfer>;
 }

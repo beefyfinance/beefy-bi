@@ -1,14 +1,7 @@
 import { runMain } from "../../../utils/process";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import {
-  db_query,
-  mapAddressToEvmAddressId,
-  mapTransactionToEvmTransactionId,
-  strArrToPgStrArr,
-  vaultList$,
-  withPgClient,
-} from "../../../utils/db";
+import { db_query, mapAddressToEvmAddressId, strArrToPgStrArr, vaultList$, withPgClient } from "../../../utils/db";
 import { getAllVaultsFromGitHistory } from "../connector/vault-list";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
@@ -17,8 +10,7 @@ import { ethers } from "ethers";
 import { sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
 import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
-import { mapERC20TokenBalance } from "../../common/connector/owner-balance";
-import { mapBlockDatetime } from "../../common/connector/block-datetime";
+import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -48,172 +40,66 @@ function fetchLatestData(client: PoolClient) {
     return providers[chain];
   };
 
-  const pipeline$ = vaultList$(client).pipe(
-    //Rx.filter((vault) => vault.chain === "fantom"), //debug
+  const pipeline$ = vaultList$(client)
+    // define the scope of our pipeline
+    .pipe(
+      //Rx.filter((vault) => vault.chain === "fantom"), //debug
 
-    Rx.filter((vault) => vault.end_of_life === false), // only live vaults
-    Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
+      Rx.filter((vault) => vault.end_of_life === false), // only live vaults
+      Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
+      Rx.filter((vault) => !!vault.contract_evm_address.metadata.erc20), // only vaults with a shares token
+    )
+    .pipe(
+      // create a different sub-pipeline for each chain
+      Rx.groupBy((vault) => vault.chain),
 
-    Rx.groupBy((vault) => vault.chain),
+      Rx.tap((chainVaults$) => logger.info({ msg: "processing chain", data: { chain: chainVaults$.key } })),
 
-    Rx.tap((chainVaults$) => logger.info({ msg: "processing chain", data: { chain: chainVaults$.key } })),
+      // process each chain separately
+      Rx.mergeMap((chainVaults$) =>
+        chainVaults$
+          // connector data pipeline
+          .pipe(
+            // batch vault config by some reasonable amount that the RPC can handle
+            Rx.bufferCount(200),
 
-    // process each chain separately
-    Rx.mergeMap((chainVaults$) =>
-      chainVaults$
-        // connector data pipeline
-        .pipe(
-          // batch vault config by some reasonable amount that the RPC can handle
-          Rx.bufferCount(200),
+            // go get the latest block  for this chain
+            Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlock("latest")] as const),
 
-          // go get the latest block  for this chain
-          Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlock("latest")] as const),
-
-          // call our connector to get the transfers
-          Rx.mergeMap(([vaults, latestBlock]) =>
-            fetchBeefyVaultV6Transfers(
-              getProvider(chainVaults$.key),
-              chainVaults$.key,
-              vaults.map((vault) => vault.contract_evm_address.address),
-              latestBlock.number - 1000,
-              latestBlock.number,
+            // call our connector to get the transfers
+            Rx.mergeMap(([vaults, latestBlock]) =>
+              fetchBeefyVaultV6Transfers(
+                getProvider(chainVaults$.key),
+                chainVaults$.key,
+                vaults.map((vault) => {
+                  if (!vault.contract_evm_address.metadata.erc20) {
+                    throw new Error("no decimals");
+                  }
+                  return {
+                    address: vault.contract_evm_address.address,
+                    decimals: vault.contract_evm_address.metadata.erc20?.decimals,
+                  };
+                }),
+                latestBlock.number - 1000,
+                latestBlock.number,
+              ),
             ),
-          ),
 
-          // flatten the resulting array
-          Rx.mergeMap((transfers) => Rx.from(transfers)),
-        )
-        .pipe(
-          Rx.tap((userAction) => logger.info({ msg: "processing user action", data: { userAction } })),
-
-          // remove mint burn events
-          Rx.filter((transfer) => transfer.ownerAddress !== "0x0000000000000000000000000000000000000000"),
-
-          // batch transfer events before fetching additional infos
-          Rx.bufferCount(200),
-
-          // we need the balance of each owner
-          Rx.mergeMap((transfers) =>
-            mapERC20TokenBalance(
-              getProvider(chainVaults$.key),
-              transfers,
-              (t) => ({
-                blockNumber: t.blockNumber,
-                contractAddress: t.vaultAddress,
-                ownerAddress: t.ownerAddress,
-              }),
-              "ownerBalance",
-            ),
-          ),
-
-          // we also need the date of each block
-          Rx.mergeMap((transfers) =>
-            mapBlockDatetime(getProvider(chainVaults$.key), transfers, (t) => t.blockNumber, "blockDatetime"),
-          ),
-
-          // we want to catch any errors from the RPC
-          Rx.catchError((error) => {
-            logger.error({ msg: "error importing latest chain data", data: { chain: chainVaults$.key, error } });
-            return Rx.EMPTY;
-          }),
-
-          // flatten the resulting array
-          Rx.mergeMap((transfers) => Rx.from(transfers)),
-        )
-        // insert relational data pipe
-        .pipe(
-          // batch by an amount more suitable for batch inserts
-          Rx.bufferCount(2000),
-
-          Rx.tap((transfers) =>
-            logger.info({
-              msg: "inserting transfer batch",
-              data: { chain: chainVaults$.key, count: transfers.length },
+            // we want to catch any errors from the RPC
+            Rx.catchError((error) => {
+              logger.error({ msg: "error importing latest chain data", data: { chain: chainVaults$.key, error } });
+              logger.trace(error);
+              return Rx.EMPTY;
             }),
+
+            // flatten the resulting array
+            Rx.mergeMap((transfers) => Rx.from(transfers)),
+
+            // send to the db write pipeline
+            transferEventToDb(client, chainVaults$.key, getProvider(chainVaults$.key)),
           ),
-
-          // insert the owner addresses
-          Rx.mergeMap((transfers) =>
-            mapAddressToEvmAddressId(
-              client,
-              transfers,
-              (transfer) => ({
-                chain: chainVaults$.key,
-                address: transfer.ownerAddress,
-                metadata: {},
-              }),
-              "owner_evm_address_id",
-            ),
-          ),
-
-          // fetch the vault addresses
-          Rx.mergeMap((transfers) =>
-            mapAddressToEvmAddressId(
-              client,
-              transfers,
-              (transfer) => ({
-                chain: chainVaults$.key,
-                address: transfer.vaultAddress,
-                metadata: {},
-              }),
-              "vault_evm_address_id",
-            ),
-          ),
-
-          // insert the transactions if needed
-          Rx.mergeMap((transfers) =>
-            mapTransactionToEvmTransactionId(
-              client,
-              transfers,
-              (transfer) => ({
-                chain: chainVaults$.key,
-                hash: transfer.transactionHash,
-                block_number: transfer.blockNumber,
-                block_datetime: transfer.blockDatetime,
-              }),
-              "evm_transaction_id",
-            ),
-          ),
-        )
-        // insert the actual shares updates data
-        .pipe(
-          // insert to the vault table
-          Rx.mergeMap(async (transfers) => {
-            // short circuit if there's nothing to do
-            if (transfers.length === 0) {
-              return [];
-            }
-
-            const result = await db_query<{ beefy_vault_id: number }>(
-              `INSERT INTO vault_shares_transfer_ts (
-                datetime,
-                evm_transaction_id,
-                owner_evm_address_id,
-                vault_evm_address_id,
-                shares_balance_diff,
-                shares_balance_after
-              ) VALUES %L
-              ON CONFLICT (owner_evm_address_id, vault_evm_address_id, evm_transaction_id, datetime) 
-              DO NOTHING`,
-              [
-                transfers.map((transfer) => [
-                  transfer.blockDatetime.toISOString(),
-                  transfer.evm_transaction_id,
-                  transfer.owner_evm_address_id,
-                  transfer.vault_evm_address_id,
-                  transfer.sharesBalanceDiff.toString(),
-                  transfer.ownerBalance.toString(),
-                ]),
-              ],
-              client,
-            );
-            return result;
-          }),
-
-          Rx.tap(() => logger.info({ msg: "done processing chain", data: { chain: chainVaults$.key } })),
-        ),
-    ),
-  );
+      ),
+    );
   return consumeObservable(pipeline$);
 }
 

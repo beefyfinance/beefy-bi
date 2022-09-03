@@ -93,26 +93,6 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   syscoin: process.env.SYSCOIN_RPC ? [process.env.SYSCOIN_RPC] : ["https://rpc.syscoin.org/"],
 };
 
-export const WS_RPC_URLS: { [chain in Chain]: string[] | null } = {
-  arbitrum: process.env.ARBITRUM_WS_RPC ? [process.env.ARBITRUM_WS_RPC] : null,
-  aurora: process.env.AURORA_WS_RPC ? [process.env.AURORA_WS_RPC] : null,
-  avax: process.env.AVAX_WS_RPC ? [process.env.AVAX_WS_RPC] : null,
-  bsc: process.env.BSC_WS_RPC ? [process.env.BSC_WS_RPC] : null,
-  celo: process.env.CELO_WS_RPC ? [process.env.CELO_WS_RPC] : null,
-  cronos: process.env.CRONOS_WS_RPC ? [process.env.CRONOS_WS_RPC] : null,
-  emerald: process.env.EMERALD_WS_RPC ? [process.env.EMERALD_WS_RPC] : null,
-  fantom: process.env.FANTOM_WS_RPC ? [process.env.FANTOM_WS_RPC] : null,
-  fuse: process.env.FUSE_WS_RPC ? [process.env.FUSE_WS_RPC] : null,
-  harmony: process.env.HARMONY_WS_RPC ? [process.env.HARMONY_WS_RPC] : null,
-  heco: process.env.HECO_WS_RPC ? [process.env.HECO_WS_RPC] : null,
-  metis: process.env.METIS_WS_RPC ? [process.env.METIS_WS_RPC] : null,
-  moonbeam: process.env.MOONBEAM_WS_RPC ? [process.env.MOONBEAM_WS_RPC] : null,
-  moonriver: process.env.MOONRIVER_WS_RPC ? [process.env.MOONRIVER_WS_RPC] : null,
-  optimism: process.env.OPTIMISM_WS_RPC ? [process.env.OPTIMISM_WS_RPC] : null,
-  polygon: process.env.POLYGON_WS_RPC ? [process.env.POLYGON_WS_RPC] : null,
-  syscoin: process.env.SYSCOIN_WS_RPC ? [process.env.SYSCOIN_WS_RPC] : null,
-};
-
 export const EXPLORER_URLS: { [chain in Chain]: string } = {
   arbitrum: "https://api.arbiscan.io/api",
   aurora: "https://api.aurorascan.dev/api", //"https://explorer.mainnet.aurora.dev/",

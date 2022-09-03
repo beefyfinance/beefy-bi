@@ -1,53 +1,70 @@
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger2";
+import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, zipWith } from "lodash";
-import { TokenizedVaultUserAction } from "../../types/connector";
+import { TokenizedVaultUserTransfer } from "../../types/connector";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
 export async function fetchBeefyVaultV6Transfers(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
-  contractAddresses: string[],
+  erc20Contracts: { address: string; decimals: number }[],
   fromBlock?: number,
   toBlock?: number,
-): Promise<TokenizedVaultUserAction[]> {
+): Promise<TokenizedVaultUserTransfer[]> {
   logger.debug({
     msg: "Fetching withdraw and deposits for vault",
-    data: { chain, contractAddresses, fromBlock, toBlock },
+    data: { chain, count: erc20Contracts.length, fromBlock, toBlock },
   });
 
   // fetch all contract logs in one call
-  const eventsPromises: Promise<ethers.Event[]>[] = [];
-  for (const contractAddress of contractAddresses) {
-    const contract = new ethers.Contract(contractAddress, ERC20Abi, provider);
+  interface TransferEvent {
+    transactionHash: string;
+    from: string;
+    to: string;
+    value: Decimal;
+    blockNumber: number;
+  }
+  const eventsPromises: Promise<TransferEvent[]>[] = [];
+  for (const erc20Contract of erc20Contracts) {
+    const valueMultiplier = new Decimal(10).pow(-erc20Contract.decimals);
+    const contract = new ethers.Contract(erc20Contract.address, ERC20Abi, provider);
     const eventFilter = contract.filters.Transfer();
-    const eventsPromise = contract.queryFilter(eventFilter, fromBlock, toBlock);
+    const eventsPromise = contract.queryFilter(eventFilter, fromBlock, toBlock).then((events) =>
+      events.map((event) => ({
+        transactionHash: event.transactionHash,
+        from: event.args?.from,
+        to: event.args?.to,
+        value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
+        blockNumber: event.blockNumber,
+      })),
+    );
     eventsPromises.push(eventsPromise);
   }
   const eventsRes = await Promise.all(eventsPromises);
 
   const events = flatten(
-    zipWith(contractAddresses, eventsRes, (contractAddress, events) =>
+    zipWith(erc20Contracts, eventsRes, (contract, events) =>
       flatten(
-        events.map((event): [TokenizedVaultUserAction, TokenizedVaultUserAction] => [
+        events.map((event): [TokenizedVaultUserTransfer, TokenizedVaultUserTransfer] => [
           {
             chain: chain,
-            vaultAddress: contractAddress,
-            ownerAddress: event.args?.from,
+            vaultAddress: contract.address,
+            ownerAddress: event.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesBalanceDiff: event.args?.value.mul(-1),
+            sharesBalanceDiff: event.value.negated(),
           },
           {
             chain: chain,
-            vaultAddress: contractAddress,
-            ownerAddress: event.args?.to,
+            vaultAddress: contract.address,
+            ownerAddress: event.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesBalanceDiff: event.args?.value,
+            sharesBalanceDiff: event.value,
           },
         ]),
       ),
@@ -56,7 +73,7 @@ export async function fetchBeefyVaultV6Transfers(
 
   logger.debug({
     msg: "Got events for range",
-    data: { chain, contractAddresses, fromBlock, toBlock, total: events.length },
+    data: { chain, count: erc20Contracts.length, fromBlock, toBlock, total: events.length },
   });
 
   return events;
