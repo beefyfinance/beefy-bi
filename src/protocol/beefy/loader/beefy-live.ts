@@ -1,14 +1,7 @@
 import { runMain } from "../../../utils/process";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import {
-  DbBeefyVault,
-  db_query,
-  mapAddressToEvmAddressId,
-  strArrToPgStrArr,
-  vaultList$,
-  withPgClient,
-} from "../../../utils/db";
+import { db_query, mapAddressToEvmAddressId, strArrToPgStrArr, vaultList$, withPgClient } from "../../../utils/db";
 import { getAllVaultsFromGitHistory } from "../connector/vault-list";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
@@ -19,7 +12,6 @@ import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
 import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
-import { BeefyVault } from "../types/beefy-vault-config";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });

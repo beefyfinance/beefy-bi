@@ -499,7 +499,7 @@ export async function mapTransactionToEvmTransactionId<
   return objsWithId;
 }
 
-export interface DbBeefyVault {
+interface DbBeefyVault {
   vault_id: number;
   chain: Chain;
   vault_key: string;
