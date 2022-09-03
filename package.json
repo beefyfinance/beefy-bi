@@ -7,7 +7,8 @@
     "grafana:open": "open http://localhost:3000",
     "pg:console": "docker exec -it dev-timescaledb-1 psql -U beefy",
     "redis:console": "docker exec -it redis-dev redis-cli",
-    "redis:clear": "docker exec -it redis-dev redis-cli flushall"
+    "redis:clear": "docker exec -it redis-dev redis-cli flushall",
+    "test:outdated": "ncu"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.1.0",

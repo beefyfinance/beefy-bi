@@ -1,4 +1,3 @@
-import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ethers } from "ethers";
 import { keyBy, uniqBy, zipWith } from "lodash";
 

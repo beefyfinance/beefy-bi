@@ -52,7 +52,7 @@ function fetchLatestData(client: PoolClient) {
   const pipeline$ = vaultList$(client)
     // define the scope of our pipeline
     .pipe(
-      Rx.filter((vault) => vault.chain === "celo"), //debug
+      //Rx.filter((vault) => vault.chain === "celo"), //debug
 
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
@@ -72,11 +72,11 @@ function fetchLatestData(client: PoolClient) {
             // batch vault config by some reasonable amount that the RPC can handle
             Rx.bufferCount(200),
 
-            // go get the latest block  for this chain
-            Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlock("latest")] as const),
+            // go get the latest block number for this chain
+            Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlockNumber()] as const),
 
             // call our connector to get the transfers
-            Rx.mergeMap(([vaults, latestBlock]) => {
+            Rx.mergeMap(([vaults, latestBlockNumber]) => {
               // fetch the last hour of data
               const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chainVaults$.key];
               const period = samplingPeriodMs["1hour"];
@@ -96,8 +96,8 @@ function fetchLatestData(client: PoolClient) {
                     decimals: vault.contract_evm_address.metadata.erc20?.decimals,
                   };
                 }),
-                latestBlock.number - blockCountToFetch,
-                latestBlock.number,
+                latestBlockNumber - blockCountToFetch,
+                latestBlockNumber,
               );
             }),
 
