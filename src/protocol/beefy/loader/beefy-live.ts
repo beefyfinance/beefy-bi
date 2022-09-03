@@ -24,9 +24,17 @@ async function main() {
   // register logs for all contracts
   // emit to the pipeline on new log
   //
+  const pollLiveData = withPgClient(fetchLatestData);
+  const pollVaultData = withPgClient(upsertVauts);
 
-  await withPgClient(fetchLatestData)();
-  //await withPgClient(upsertVauts)();
+  return new Promise(async () => {
+    // start polling live data immediately
+    //await pollVaultData();
+    await pollLiveData();
+    // then poll every now and then
+    setInterval(pollLiveData, samplingPeriodMs["15min"]);
+    setInterval(pollVaultData, samplingPeriodMs["1day"]);
+  });
 }
 
 runMain(main);
@@ -44,7 +52,7 @@ function fetchLatestData(client: PoolClient) {
   const pipeline$ = vaultList$(client)
     // define the scope of our pipeline
     .pipe(
-      //Rx.filter((vault) => vault.chain === "fantom"), //debug
+      Rx.filter((vault) => vault.chain === "celo"), //debug
 
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
@@ -54,7 +62,7 @@ function fetchLatestData(client: PoolClient) {
       // create a different sub-pipeline for each chain
       Rx.groupBy((vault) => vault.chain),
 
-      Rx.tap((chainVaults$) => logger.info({ msg: "processing chain", data: { chain: chainVaults$.key } })),
+      Rx.tap((chainVaults$) => logger.debug({ msg: "processing chain", data: { chain: chainVaults$.key } })),
 
       // process each chain separately
       Rx.mergeMap((chainVaults$) =>
@@ -96,7 +104,7 @@ function fetchLatestData(client: PoolClient) {
             // we want to catch any errors from the RPC
             Rx.catchError((error) => {
               logger.error({ msg: "error importing latest chain data", data: { chain: chainVaults$.key, error } });
-              logger.trace(error);
+              logger.error(error);
               return Rx.EMPTY;
             }),
 
@@ -108,12 +116,12 @@ function fetchLatestData(client: PoolClient) {
           ),
       ),
     );
-  return consumeObservable(pipeline$);
+  return consumeObservable(pipeline$).then(() => logger.info({ msg: "done importing live data for all chains" }));
 }
 
 function upsertVauts(client: PoolClient) {
   const pipeline$ = Rx.of(...allChainIds).pipe(
-    Rx.tap((chain) => logger.info({ msg: "importing chain", data: { chain } })),
+    Rx.tap((chain) => logger.info({ msg: "importing chain vaults", data: { chain } })),
 
     // fetch vaults from git file history
     Rx.mergeMap(getAllVaultsFromGitHistory, 1 /* concurrent = 1, we don't want concurrency here */),
@@ -196,5 +204,5 @@ function upsertVauts(client: PoolClient) {
     }),
   );
 
-  return consumeObservable(pipeline$);
+  return consumeObservable(pipeline$).then(() => logger.info({ msg: "done vault configs data for all chains" }));
 }

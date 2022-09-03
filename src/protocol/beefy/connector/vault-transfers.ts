@@ -53,6 +53,7 @@ export async function fetchBeefyVaultV6Transfers(
           {
             chain: chain,
             vaultAddress: contract.address,
+            sharesDecimals: contract.decimals,
             ownerAddress: event.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
@@ -61,6 +62,7 @@ export async function fetchBeefyVaultV6Transfers(
           {
             chain: chain,
             vaultAddress: contract.address,
+            sharesDecimals: contract.decimals,
             ownerAddress: event.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,

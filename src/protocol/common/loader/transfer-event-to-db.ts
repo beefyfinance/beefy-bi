@@ -34,6 +34,7 @@ export const transferEventToDb: (
               transfers,
               (t) => ({
                 blockNumber: t.blockNumber,
+                decimals: t.sharesDecimals,
                 contractAddress: t.vaultAddress,
                 ownerAddress: t.ownerAddress,
               }),
@@ -112,6 +113,7 @@ export const transferEventToDb: (
             await db_query<{ beefy_vault_id: number }>(
               `INSERT INTO vault_shares_transfer_ts (
                 datetime,
+                chain,
                 evm_transaction_id,
                 owner_evm_address_id,
                 vault_evm_address_id,
@@ -123,6 +125,7 @@ export const transferEventToDb: (
               [
                 transfers.map((transfer) => [
                   transfer.blockDatetime.toISOString(),
+                  transfer.chain,
                   transfer.evm_transaction_id,
                   transfer.owner_evm_address_id,
                   transfer.vault_evm_address_id,

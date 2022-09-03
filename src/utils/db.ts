@@ -210,6 +210,10 @@ async function migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS vault_shares_transfer_ts (
       datetime timestamptz not null,
+
+      -- have the chain on the table to make it easier to debug and/or partition later
+      chain chain_enum not null,
+
       evm_transaction_id integer not null references evm_transaction(evm_transaction_id),
       owner_evm_address_id integer not null references evm_address(evm_address_id),
       vault_evm_address_id integer not null references evm_address(evm_address_id),
@@ -545,7 +549,7 @@ export function vaultList$(client: PoolClient) {
   return Rx.of(
     db_query<DbBeefyVault>(
       `SELECT vault_id, chain, vault_key, contract_evm_address_id, underlying_evm_address_id, end_of_life, has_erc20_shares_token, assets_price_feed_keys FROM beefy_vault`,
-    ),
+    ).then((vaults) => (vaults.length > 0 ? vaults : Promise.reject("No vaults found"))),
   ).pipe(
     Rx.mergeAll(),
 

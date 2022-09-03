@@ -14,6 +14,7 @@ export interface TokenizedVaultUserTransfer {
   chain: Chain;
 
   vaultAddress: string;
+  sharesDecimals: number;
 
   // owner infos
   ownerAddress: string;
