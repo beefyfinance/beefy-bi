@@ -8,7 +8,8 @@ import { rootLogger } from "../../../utils/logger2";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
 import { sample } from "lodash";
-import { RPC_URLS } from "../../../utils/config";
+import { samplingPeriodMs } from "../../../types/sampling";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
 import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
 
@@ -67,8 +68,15 @@ function fetchLatestData(client: PoolClient) {
             Rx.mergeMap(async (vaults) => [vaults, await getProvider(chainVaults$.key).getBlock("latest")] as const),
 
             // call our connector to get the transfers
-            Rx.mergeMap(([vaults, latestBlock]) =>
-              fetchBeefyVaultV6Transfers(
+            Rx.mergeMap(([vaults, latestBlock]) => {
+              // fetch the last hour of data
+              const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chainVaults$.key];
+              const period = samplingPeriodMs["1hour"];
+              const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[chainVaults$.key]);
+
+              const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate);
+
+              return fetchBeefyVaultV6Transfers(
                 getProvider(chainVaults$.key),
                 chainVaults$.key,
                 vaults.map((vault) => {
@@ -80,10 +88,10 @@ function fetchLatestData(client: PoolClient) {
                     decimals: vault.contract_evm_address.metadata.erc20?.decimals,
                   };
                 }),
-                latestBlock.number - 1000,
+                latestBlock.number - blockCountToFetch,
                 latestBlock.number,
-              ),
-            ),
+              );
+            }),
 
             // we want to catch any errors from the RPC
             Rx.catchError((error) => {
