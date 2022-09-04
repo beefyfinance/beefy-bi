@@ -6,12 +6,13 @@ import { MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from ".
 import { getRedisClient, getRedlock } from "./shared-lock";
 import { rootLogger } from "../../utils/logger2";
 import { get, isObjectLike, isString, sample } from "lodash";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../rpc/archive-node-needed";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 
 export async function callLockProtectedRpc<TRes>(
   chain: Chain,
-  work: (provider: ethers.providers.JsonRpcProvider) => Promise<TRes>
+  work: (provider: ethers.providers.JsonRpcProvider) => Promise<TRes>,
 ) {
   const client = await getRedisClient();
   const redlock = await getRedlock();
@@ -116,43 +117,6 @@ export async function callLockProtectedRpc<TRes>(
       },
       startingDelay: delayBetweenCalls !== "no-limit" ? delayBetweenCalls : 0,
       timeMultiple: 5,
-    }
+    },
   );
-}
-
-export class ArchiveNodeNeededError extends Error {
-  constructor(public readonly chain: Chain, public readonly error: any) {
-    super(`Archive node needed for ${chain}`);
-  }
-}
-export function isErrorDueToMissingDataFromNode(error: any) {
-  // parse from ehter-wrapped rpc calls
-  const errorRpcBody = get(error, "error.body");
-  if (errorRpcBody && isString(errorRpcBody)) {
-    const rpcBodyError = JSON.parse(errorRpcBody);
-    const errorCode = get(rpcBodyError, "error.code");
-    const errorMessage = get(rpcBodyError, "error.message");
-
-    if (
-      errorCode === -32000 &&
-      isString(errorMessage) &&
-      (errorMessage.includes("Run with --pruning=archive") ||
-        // Cf: https://github.com/ethereum/go-ethereum/issues/20557
-        errorMessage.startsWith("missing trie node"))
-    ) {
-      return true;
-    }
-  }
-
-  // also parse from direct rpc responses
-  const directRpcError = get(error, "error");
-  if (
-    directRpcError &&
-    isObjectLike(directRpcError) &&
-    get(directRpcError, "code") === -32000 &&
-    get(directRpcError, "message")?.startsWith("missing trie node")
-  ) {
-    return true;
-  }
-  return false;
 }

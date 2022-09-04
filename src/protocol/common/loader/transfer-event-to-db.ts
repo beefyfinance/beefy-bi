@@ -4,6 +4,7 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { db_query, mapAddressToEvmAddressId, mapTransactionToEvmTransactionId } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger2";
+import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
 import { mapBlockDatetime } from "../connector/block-datetime";
 import { mapERC20TokenBalance } from "../connector/owner-balance";
@@ -39,11 +40,13 @@ export const transferEventToDb: (
             }),
             "ownerBalance",
           ),
+          retryRpcErrors({ method: "mapERC20TokenBalance", chain }),
 
           // we also need the date of each block
           mapBlockDatetime(provider, (t) => t.blockNumber, "blockDatetime"),
 
           // we want to catch any errors from the RPC
+          retryRpcErrors({ method: "mapBlockDatetime", chain }),
           Rx.catchError((error) => {
             logger.error({ msg: "error importing latest chain data", data: { chain, error } });
             return Rx.EMPTY;

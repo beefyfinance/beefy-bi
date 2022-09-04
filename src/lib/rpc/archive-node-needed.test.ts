@@ -1,11 +1,10 @@
-import { isErrorDueToMissingDataFromNode } from "./shared-rpc";
+import { isErrorDueToMissingDataFromNode } from "./archive-node-needed";
 
 describe("test archive node needed error parsing", () => {
   it("should not detect unrelated errors as matching", () => {
     expect(
       isErrorDueToMissingDataFromNode({
-        reason:
-          "missing revert data in call exception; Transaction reverted without a reason string",
+        reason: "missing revert data in call exception; Transaction reverted without a reason string",
         code: "CALL_EXCEPTION",
         data: "0x",
         transaction: {
@@ -25,15 +24,14 @@ describe("test archive node needed error parsing", () => {
           requestMethod: "POST",
           url: "https://rpc.ftm.tools",
         },
-      })
+      }),
     ).toBe(false);
   });
 
   it("should detect missing errors as matching", () => {
     expect(
       isErrorDueToMissingDataFromNode({
-        reason:
-          "missing revert data in call exception; Transaction reverted without a reason string",
+        reason: "missing revert data in call exception; Transaction reverted without a reason string",
         code: "CALL_EXCEPTION",
         data: "0x",
         transaction: {
@@ -53,13 +51,12 @@ describe("test archive node needed error parsing", () => {
           requestMethod: "POST",
           url: "https://rpc.fuse.io",
         },
-      })
+      }),
     ).toBe(true);
 
     expect(
       isErrorDueToMissingDataFromNode({
-        reason:
-          "missing revert data in call exception; Transaction reverted without a reason string",
+        reason: "missing revert data in call exception; Transaction reverted without a reason string",
         code: "CALL_EXCEPTION",
         data: "0x",
         transaction: {
@@ -79,7 +76,7 @@ describe("test archive node needed error parsing", () => {
           requestMethod: "POST",
           url: "https://rpc.ftm.tools",
         },
-      })
+      }),
     ).toBe(true);
   });
 
@@ -87,8 +84,7 @@ describe("test archive node needed error parsing", () => {
     // this one is not the exact same error, I just replaced the error body
     expect(
       isErrorDueToMissingDataFromNode({
-        reason:
-          "missing revert data in call exception; Transaction reverted without a reason string",
+        reason: "missing revert data in call exception; Transaction reverted without a reason string",
         code: "CALL_EXCEPTION",
         data: "0x",
         transaction: {
@@ -108,7 +104,7 @@ describe("test archive node needed error parsing", () => {
           requestMethod: "POST",
           url: "https://rpc.fuse.io",
         },
-      })
+      }),
     ).toBe(true);
   });
 
@@ -119,10 +115,9 @@ describe("test archive node needed error parsing", () => {
         id: 1,
         error: {
           code: -32000,
-          message:
-            "missing trie node df83afcfbf76279a8c108917d7c1f1cdb192a969eecd638d78e6de2bed779a61 (path )",
+          message: "missing trie node df83afcfbf76279a8c108917d7c1f1cdb192a969eecd638d78e6de2bed779a61 (path )",
         },
-      })
+      }),
     ).toBe(true);
   });
 });

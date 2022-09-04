@@ -14,6 +14,7 @@ import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
 import { normalizeAddress } from "../../../utils/ethers";
+import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -72,7 +73,7 @@ function fetchLatestData(client: PoolClient) {
       // process each chain separately
       Rx.mergeMap((chainVaults$) => {
         if (importState[chainVaults$.key].inProgress) {
-          logger.debug({ msg: "Import still in progress skipping chain", data: { chain: chainVaults$.key } });
+          logger.error({ msg: "Import still in progress skipping chain", data: { chain: chainVaults$.key } });
           return Rx.EMPTY;
         }
         return importChainVaultTransfers(client, chainVaults$.key, chainVaults$);
@@ -156,6 +157,7 @@ function importChainVaultTransfers(
         }),
 
         // we want to catch any errors from the RPC
+        retryRpcErrors({ method: "fetchBeefyVaultV6Transfers", chain }),
         Rx.catchError((error) => {
           logger.error({ msg: "error importing latest chain data", data: { chain, error } });
           logger.error(error);
