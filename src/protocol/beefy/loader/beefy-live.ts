@@ -59,7 +59,6 @@ function fetchLatestData(client: PoolClient) {
     .pipe(
       //Rx.filter((vault) => vault.chain === "polygon"), //debug
 
-      Rx.tap((vault) => logger.info({ msg: "processing vault", data: { vault } })),
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
       Rx.filter((vault) => !!vault.contract_evm_address.metadata.erc20), // only vaults with a shares token
