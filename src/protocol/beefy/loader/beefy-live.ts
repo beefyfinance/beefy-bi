@@ -57,11 +57,8 @@ function fetchLatestData(client: PoolClient) {
   const pipeline$ = vaultList$(client)
     // define the scope of our pipeline
     .pipe(
-      Rx.filter((vault) => vault.chain === "polygon"), //debug
-      Rx.filter(
-        (vault) =>
-          vault.contract_evm_address.address === normalizeAddress("0x8829ADf1a9a7facE44c8FAb3Bc454f93F330E492"),
-      ), //debug
+      //Rx.filter((vault) => vault.chain === "polygon"), //debug
+
       Rx.tap((vault) => logger.info({ msg: "processing vault", data: { vault } })),
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
