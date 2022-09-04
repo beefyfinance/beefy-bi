@@ -114,7 +114,7 @@ function importChainVaultTransfers(
         Rx.bufferCount(200),
 
         // go get the latest block number for this chain
-        Rx.mergeMap(async (vaults) => [vaults, 1 == 1 ? 32639192 : await provider.getBlockNumber()] as const),
+        Rx.mergeMap(async (vaults) => [vaults, await provider.getBlockNumber()] as const),
 
         // call our connector to get the transfers
         Rx.mergeMap(async ([vaults, latestBlockNumber]) => {
