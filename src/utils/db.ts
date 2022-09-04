@@ -384,8 +384,8 @@ export function mapAddressToEvmAddressId<
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
-  const getKey = (param: TObj) => {
-    const { chain, address } = getParams(param);
+  const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
+  const getKeyFromParams = ({ chain, address }: TParams) => {
     return `${chain}-${address.toLocaleLowerCase()}`;
   };
   const process = async (params: TParams[]) => {
@@ -393,19 +393,19 @@ export function mapAddressToEvmAddressId<
     const results = await db_query<TRes>(
       `INSERT INTO evm_address (chain, address, metadata) VALUES %L
         ON CONFLICT (chain, address) DO UPDATE SET metadata = jsonb_merge(evm_address.metadata, EXCLUDED.metadata)
-        RETURNING evm_address_id, chain, bytea_to_hexstr(address)`,
+        RETURNING evm_address_id, chain, bytea_to_hexstr(address) as address`,
       [params.map(({ chain, address, metadata }) => [chain, strAddressToPgBytea(address), metadata])],
       client,
     );
     // ensure results are in the same order as the params
-    const addressIdMap = keyBy(results, getKey) as Dictionary<TRes>;
-    return params.map(({ chain, address }) => {
-      const key = `${chain}-${address.toLocaleLowerCase()}`;
+    const addressIdMap = keyBy(results, getKeyFromParams) as Dictionary<TRes>;
+    return params.map((param) => {
+      const key = getKeyFromParams(param);
       return addressIdMap[key].evm_address_id;
     });
   };
 
-  return batchQueryGroup(getParams, getKey, process, toKey);
+  return batchQueryGroup(getParams, getKeyFromObj, process, toKey);
 }
 
 export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
@@ -421,7 +421,7 @@ export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
     );
     // ensure results are in the same order as the params
     const addressIdMap = keyBy(results, (r) => r.evm_address_id) as Dictionary<DbEvmAddress>;
-    return ids.map((id) => addressIdMap[id]);
+    return ids.map((id) => ({ ...addressIdMap[id], address: normalizeAddress(addressIdMap[id].address) }));
   };
 
   return batchQueryGroup(getAddrId, getAddrId, process, toKey);
@@ -445,8 +445,8 @@ export function mapTransactionToEvmTransactionId<
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
-  const getKey = (param: TObj) => {
-    const { chain, hash } = getParams(param);
+  const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
+  const getKeyFromParams = ({ chain, hash }: TParams) => {
     return `${chain}-${hash.toLocaleLowerCase()}`;
   };
 
@@ -457,7 +457,7 @@ export function mapTransactionToEvmTransactionId<
         ON CONFLICT (chain, hash) 
         -- DO NOTHING -- can't use DO NOTHING because we need to return the id
         DO UPDATE SET block_number = EXCLUDED.block_number, block_datetime = EXCLUDED.block_datetime
-        RETURNING evm_transaction_id, chain, bytea_to_hexstr(hash)`,
+        RETURNING evm_transaction_id, chain, bytea_to_hexstr(hash) as hash`,
       [
         params.map(({ chain, hash, block_number, block_datetime }) => [
           chain,
@@ -469,14 +469,14 @@ export function mapTransactionToEvmTransactionId<
       client,
     );
     // ensure results are in the same order as the params
-    const addressIdMap = keyBy(results, getKey) as Dictionary<TRes>;
-    return params.map(({ chain, hash }) => {
-      const key = `${chain}-${hash.toLocaleLowerCase()}`;
+    const addressIdMap = keyBy(results, getKeyFromParams) as Dictionary<TRes>;
+    return params.map((params) => {
+      const key = getKeyFromParams(params);
       return addressIdMap[key].evm_transaction_id;
     });
   };
 
-  return batchQueryGroup(getParams, getKey, process, toKey);
+  return batchQueryGroup(getParams, getKeyFromObj, process, toKey);
 }
 
 interface DbBeefyVault {
@@ -533,7 +533,7 @@ export function vaultList$(client: PoolClient) {
     mapEvmAddressIdToAddress(client, (v) => v.contract_evm_address_id, "contract_evm_address"),
     mapEvmAddressIdToAddress(client, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
 
-    Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: emitting vault update" })),
+    Rx.tap((vaults) => logger.debug({ msg: "emitting vault list", data: { count: vaults.length } })),
 
     // flatten vault list into a stream of vaults
     Rx.mergeMap((vaults) => Rx.from(vaults)),

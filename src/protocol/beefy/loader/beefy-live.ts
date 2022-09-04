@@ -62,7 +62,7 @@ function fetchLatestData(client: PoolClient) {
         (vault) =>
           vault.contract_evm_address.address === normalizeAddress("0x8829ADf1a9a7facE44c8FAb3Bc454f93F330E492"),
       ), //debug
-
+      Rx.tap((vault) => logger.info({ msg: "processing vault", data: { vault } })),
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
       Rx.filter((vault) => !!vault.contract_evm_address.metadata.erc20), // only vaults with a shares token
@@ -118,7 +118,7 @@ function importChainVaultTransfers(
         Rx.bufferCount(200),
 
         // go get the latest block number for this chain
-        Rx.mergeMap(async (vaults) => [vaults, await provider.getBlockNumber()] as const),
+        Rx.mergeMap(async (vaults) => [vaults, 1 == 1 ? 32639192 : await provider.getBlockNumber()] as const),
 
         // call our connector to get the transfers
         Rx.mergeMap(async ([vaults, latestBlockNumber]) => {

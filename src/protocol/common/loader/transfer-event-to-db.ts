@@ -19,10 +19,10 @@ export const transferEventToDb: (
     return (
       transfers$
         .pipe(
-          Rx.tap((userAction) => logger.debug({ msg: "processing user action", data: { chain, userAction } })),
-
           // remove mint burn events
           Rx.filter((transfer) => transfer.ownerAddress !== "0x0000000000000000000000000000000000000000"),
+
+          Rx.tap((userAction) => logger.debug({ msg: "processing user action", data: { chain, userAction } })),
 
           // batch transfer events before fetching additional infos
           Rx.bufferCount(200),
