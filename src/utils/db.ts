@@ -5,8 +5,9 @@ import { TIMESCALEDB_URL } from "./config";
 import { normalizeAddress } from "./ethers";
 import { allChainIds, Chain } from "../types/chain";
 import { rootLogger } from "./logger2";
-import { keyBy, uniqBy, zipWith } from "lodash";
+import { Dictionary, keyBy, uniqBy, zipWith } from "lodash";
 import * as Rx from "rxjs";
+import { batchQueryGroup } from "./rxjs/utils/batch-query-group";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -211,7 +212,8 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS vault_shares_transfer_ts (
       datetime timestamptz not null,
 
-      -- have the chain on the table to make it easier to debug and/or partition later
+      -- make it easier to debug and/or partition later
+      block_number integer not null,
       chain chain_enum not null,
 
       evm_transaction_id integer not null references evm_transaction(evm_transaction_id),
@@ -237,6 +239,11 @@ async function migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS vault_to_underlying_rate_ts (
       datetime timestamptz not null,
+
+      -- make it easier to debug and/or partition later
+      block_number integer not null,
+      chain chain_enum not null,
+
       vault_evm_address_id integer not null references evm_address(evm_address_id),
 
       -- all numeric fields have decimals applied
@@ -368,74 +375,56 @@ interface DbEvmAddress {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export async function mapAddressToEvmAddressId<
+export function mapAddressToEvmAddressId<
   TObj,
   TKey extends string,
   TParams extends Omit<DbEvmAddress, "evm_address_id">,
 >(
   client: PoolClient,
-  objs: TObj[],
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
-): Promise<(TObj & { [key in TKey]: number })[]> {
-  // short circuit if there's nothing to do
-  if (objs.length === 0) {
-    return [];
-  }
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
+  const getKey = (param: TObj) => {
+    const { chain, address } = getParams(param);
+    return `${chain}-${address.toLocaleLowerCase()}`;
+  };
+  const process = async (params: TParams[]) => {
+    type TRes = { evm_address_id: number; chain: Chain; address: string };
+    const results = await db_query<TRes>(
+      `INSERT INTO evm_address (chain, address, metadata) VALUES %L
+        ON CONFLICT (chain, address) DO UPDATE SET metadata = jsonb_merge(evm_address.metadata, EXCLUDED.metadata)
+        RETURNING evm_address_id, chain, bytea_to_hexstr(address)`,
+      [params.map(({ chain, address, metadata }) => [chain, strAddressToPgBytea(address), metadata])],
+      client,
+    );
+    // ensure results are in the same order as the params
+    const addressIdMap = keyBy(results, getKey) as Dictionary<TRes>;
+    return params.map(({ chain, address }) => {
+      const key = `${chain}-${address.toLocaleLowerCase()}`;
+      return addressIdMap[key].evm_address_id;
+    });
+  };
 
-  const getKey = ({ chain, address }: TParams) => `${chain}-${address}`;
-  const addressesToInsert = objs.map(getParams);
-  const uniqueAddresses = uniqBy(addressesToInsert, getKey);
-
-  const result = await db_query<{ evm_address_id: number }>(
-    `INSERT INTO evm_address (chain, address, metadata) VALUES %L
-      ON CONFLICT (chain, address) DO UPDATE SET metadata = jsonb_merge(evm_address.metadata, EXCLUDED.metadata)
-      RETURNING evm_address_id`,
-    [uniqueAddresses.map((addr) => [addr.chain, strAddressToPgBytea(addr.address), addr.metadata])],
-    client,
-  );
-  const addressIdMap = keyBy(
-    zipWith(uniqueAddresses, result, (addr, row) => ({ addr, evm_address_id: row.evm_address_id })),
-    (res) => getKey(res.addr),
-  );
-
-  const objsWithId = zipWith(
-    objs,
-    addressesToInsert,
-    (obj, addr) =>
-      ({
-        ...obj,
-        [toKey]: addressIdMap[getKey(addr)].evm_address_id,
-      } as TObj & { [key in TKey]: number }),
-  );
-
-  return objsWithId;
+  return batchQueryGroup(getParams, getKey, process, toKey);
 }
 
-export async function mapEvmAddressIdToAddress<TObj, TKey extends string>(
+export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
   client: PoolClient,
-  objs: TObj[],
   getAddrId: (obj: TObj) => number,
   toKey: TKey,
-): Promise<(TObj & { [key in TKey]: DbEvmAddress })[]> {
-  // short circuit if there's nothing to do
-  if (objs.length === 0) {
-    return [];
-  }
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: DbEvmAddress })[]> {
+  const process = async (ids: number[]) => {
+    const results = await db_query<DbEvmAddress>(
+      `SELECT evm_address_id, chain, bytea_to_hexstr(address) as address, metadata FROM evm_address WHERE evm_address_id IN (%L)`,
+      [ids],
+      client,
+    );
+    // ensure results are in the same order as the params
+    const addressIdMap = keyBy(results, (r) => r.evm_address_id) as Dictionary<DbEvmAddress>;
+    return ids.map((id) => addressIdMap[id]);
+  };
 
-  const addressIds = objs.map(getAddrId);
-  const result = await db_query<{ evm_address_id: number; chain: Chain; address: string; metadata: object }>(
-    `SELECT evm_address_id, chain, bytea_to_hexstr(address) as address, metadata FROM evm_address WHERE evm_address_id IN (%L)`,
-    [addressIds],
-    client,
-  );
-  const addressIdMap = keyBy(
-    result.map((res) => ({ ...res, address: normalizeAddress(res.address) })),
-    (res) => res.evm_address_id,
-  );
-  return objs.map(
-    (obj) => ({ ...obj, [toKey]: addressIdMap[getAddrId(obj)] } as TObj & { [key in TKey]: DbEvmAddress }),
-  );
+  return batchQueryGroup(getAddrId, getAddrId, process, toKey);
 }
 
 interface DbEvmTransaction {
@@ -445,58 +434,49 @@ interface DbEvmTransaction {
   block_number: number;
   block_datetime: Date;
 }
+
 // upsert the address of all objects and return the id in the specified field
-export async function mapTransactionToEvmTransactionId<
+export function mapTransactionToEvmTransactionId<
   TObj,
   TKey extends string,
   TParams extends Omit<DbEvmTransaction, "evm_transaction_id">,
 >(
   client: PoolClient,
-  objs: TObj[],
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
-): Promise<(TObj & { [key in TKey]: number })[]> {
-  // short circuit if there's nothing to do
-  if (objs.length === 0) {
-    return [];
-  }
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
+  const getKey = (param: TObj) => {
+    const { chain, hash } = getParams(param);
+    return `${chain}-${hash.toLocaleLowerCase()}`;
+  };
 
-  const getKey = ({ chain, hash }: TParams) => `${chain}-${hash}`;
-  const trxToInsert = objs.map(getParams);
-  const uniqueTrxs = uniqBy(trxToInsert, getKey);
+  const process = async (params: TParams[]) => {
+    type TRes = { evm_transaction_id: number; chain: Chain; hash: string };
+    const results = await db_query<TRes>(
+      `INSERT INTO evm_transaction (chain, hash, block_number, block_datetime) VALUES %L
+        ON CONFLICT (chain, hash) 
+        -- DO NOTHING -- can't use DO NOTHING because we need to return the id
+        DO UPDATE SET block_number = EXCLUDED.block_number, block_datetime = EXCLUDED.block_datetime
+        RETURNING evm_transaction_id, chain, bytea_to_hexstr(hash)`,
+      [
+        params.map(({ chain, hash, block_number, block_datetime }) => [
+          chain,
+          strAddressToPgBytea(hash),
+          block_number,
+          block_datetime.toISOString(),
+        ]),
+      ],
+      client,
+    );
+    // ensure results are in the same order as the params
+    const addressIdMap = keyBy(results, getKey) as Dictionary<TRes>;
+    return params.map(({ chain, hash }) => {
+      const key = `${chain}-${hash.toLocaleLowerCase()}`;
+      return addressIdMap[key].evm_transaction_id;
+    });
+  };
 
-  const result = await db_query<{ evm_transaction_id: number }>(
-    `INSERT INTO evm_transaction (chain, hash, block_number, block_datetime) VALUES %L
-      ON CONFLICT (chain, hash) 
-      -- DO NOTHING -- can't use DO NOTHING because we need to return the id
-      DO UPDATE SET block_number = EXCLUDED.block_number, block_datetime = EXCLUDED.block_datetime
-      RETURNING evm_transaction_id`,
-    [
-      uniqueTrxs.map((trx) => [
-        trx.chain,
-        strAddressToPgBytea(trx.hash),
-        trx.block_number,
-        trx.block_datetime.toISOString(),
-      ]),
-    ],
-    client,
-  );
-  const trxIdMap = keyBy(
-    zipWith(uniqueTrxs, result, (trx, row) => ({ trx, evm_transaction_id: row.evm_transaction_id })),
-    (res) => getKey(res.trx),
-  );
-
-  const objsWithId = zipWith(
-    objs,
-    trxToInsert,
-    (obj, addr) =>
-      ({
-        ...obj,
-        [toKey]: trxIdMap[getKey(addr)].evm_transaction_id,
-      } as TObj & { [key in TKey]: number }),
-  );
-
-  return objsWithId;
+  return batchQueryGroup(getParams, getKey, process, toKey);
 }
 
 interface DbBeefyVault {
@@ -527,12 +507,8 @@ export function vaultListUpdates$(client: PoolClient, pollFrequencyMs: number = 
     ),
 
     // add the vault addresses while we are doing batch work
-    Rx.mergeMap((vaults) =>
-      mapEvmAddressIdToAddress(client, vaults, (v) => v.contract_evm_address_id, "contract_evm_address"),
-    ),
-    Rx.mergeMap((vaults) =>
-      mapEvmAddressIdToAddress(client, vaults, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
-    ),
+    mapEvmAddressIdToAddress(client, (v) => v.contract_evm_address_id, "contract_evm_address"),
+    mapEvmAddressIdToAddress(client, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
 
     Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: emitting vault update" })),
 
@@ -554,12 +530,8 @@ export function vaultList$(client: PoolClient) {
     Rx.mergeAll(),
 
     // add the vault addresses while we are doing batch work
-    Rx.mergeMap((vaults) =>
-      mapEvmAddressIdToAddress(client, vaults, (v) => v.contract_evm_address_id, "contract_evm_address"),
-    ),
-    Rx.mergeMap((vaults) =>
-      mapEvmAddressIdToAddress(client, vaults, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
-    ),
+    mapEvmAddressIdToAddress(client, (v) => v.contract_evm_address_id, "contract_evm_address"),
+    mapEvmAddressIdToAddress(client, (v) => v.underlying_evm_address_id, "underlying_evm_address"),
 
     Rx.tap(() => logger.debug({ msg: "vaultListUpdatesObservable: emitting vault update" })),
 

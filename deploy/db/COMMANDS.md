@@ -95,5 +95,27 @@ select
       pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size
  from
       pg_catalog.pg_statio_user_tables
-order by pg_total_relation_size(relid) desc
+order by pg_total_relation_size(relid) desc;
+
+
+
+
+
+
+select datetime,
+    shares.block_number,
+    shares.chain,
+    trx.hash,
+    owner.address as owner,
+    vault.address as vault,
+    shares.shares_balance_diff,
+    shares.shares_balance_after
+from vault_shares_transfer_ts shares
+    join evm_address owner on shares.owner_evm_address_id = owner.evm_address_id
+    join evm_address vault on shares.vault_evm_address_id = vault.evm_address_id
+    join evm_transaction trx on shares.evm_transaction_id = trx.evm_transaction_id;
+
+
+
+
 ```

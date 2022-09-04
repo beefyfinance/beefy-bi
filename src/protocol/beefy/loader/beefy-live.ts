@@ -13,6 +13,7 @@ import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../
 import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
+import { normalizeAddress } from "../../../utils/ethers";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -56,7 +57,11 @@ function fetchLatestData(client: PoolClient) {
   const pipeline$ = vaultList$(client)
     // define the scope of our pipeline
     .pipe(
-      //Rx.filter((vault) => vault.chain === "celo"), //debug
+      Rx.filter((vault) => vault.chain === "polygon"), //debug
+      Rx.filter(
+        (vault) =>
+          vault.contract_evm_address.address === normalizeAddress("0x8829ADf1a9a7facE44c8FAb3Bc454f93F330E492"),
+      ), //debug
 
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
       Rx.filter((vault) => vault.has_erc20_shares_token), // only vaults with a shares token
@@ -202,32 +207,26 @@ function upsertVauts(client: PoolClient) {
     ),
 
     // map the contract address and underlying address to db ids
-    Rx.mergeMap((vaults) =>
-      mapAddressToEvmAddressId(
-        client,
-        vaults,
-        (vault) => ({
-          chain: vault.chain,
-          address: vault.token_address,
-          metadata: { erc20: { name: vault.token_name, decimals: vault.token_decimals, price_feed_key: vault.id } },
-        }),
-        "contract_evm_address_id",
-      ),
+    mapAddressToEvmAddressId(
+      client,
+      (vault) => ({
+        chain: vault.chain,
+        address: vault.token_address,
+        metadata: { erc20: { name: vault.token_name, decimals: vault.token_decimals, price_feed_key: vault.id } },
+      }),
+      "contract_evm_address_id",
     ),
 
-    Rx.mergeMap((vaults) =>
-      mapAddressToEvmAddressId(
-        client,
-        vaults,
-        (vault) => ({
-          chain: vault.chain,
-          address: vault.want_address,
-          metadata: {
-            erc20: { name: null, decimals: vault.want_decimals, price_feed_key: vault.price_oracle.want_oracleId },
-          },
-        }),
-        "underlying_evm_address_id",
-      ),
+    mapAddressToEvmAddressId(
+      client,
+      (vault) => ({
+        chain: vault.chain,
+        address: vault.want_address,
+        metadata: {
+          erc20: { name: null, decimals: vault.want_decimals, price_feed_key: vault.price_oracle.want_oracleId },
+        },
+      }),
+      "underlying_evm_address_id",
     ),
 
     // insert to the vault table

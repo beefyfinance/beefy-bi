@@ -4,6 +4,11 @@ import { allLogLevels, LogLevels } from "../types/logger";
 import * as path from "path";
 dotenv.config();
 
+const timezone = process.env.TZ;
+if (timezone !== "UTC") {
+  throw new Error("Please set TZ=UTC in your .env file or command line");
+}
+
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";

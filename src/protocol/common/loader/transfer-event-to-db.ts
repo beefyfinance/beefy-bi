@@ -28,22 +28,20 @@ export const transferEventToDb: (
           Rx.bufferCount(200),
 
           // we need the balance of each owner
-          Rx.mergeMap((transfers) =>
-            mapERC20TokenBalance(
-              provider,
-              transfers,
-              (t) => ({
-                blockNumber: t.blockNumber,
-                decimals: t.sharesDecimals,
-                contractAddress: t.vaultAddress,
-                ownerAddress: t.ownerAddress,
-              }),
-              "ownerBalance",
-            ),
+          mapERC20TokenBalance(
+            chain,
+            provider,
+            (t) => ({
+              blockNumber: t.blockNumber,
+              decimals: t.sharesDecimals,
+              contractAddress: t.vaultAddress,
+              ownerAddress: t.ownerAddress,
+            }),
+            "ownerBalance",
           ),
 
           // we also need the date of each block
-          Rx.mergeMap((transfers) => mapBlockDatetime(provider, transfers, (t) => t.blockNumber, "blockDatetime")),
+          mapBlockDatetime(provider, (t) => t.blockNumber, "blockDatetime"),
 
           // we want to catch any errors from the RPC
           Rx.catchError((error) => {
@@ -67,38 +65,29 @@ export const transferEventToDb: (
           ),
 
           // insert the owner addresses
-          Rx.mergeMap((transfers) =>
-            mapAddressToEvmAddressId(
-              client,
-              transfers,
-              (transfer) => ({ chain, address: transfer.ownerAddress, metadata: {} }),
-              "owner_evm_address_id",
-            ),
+          mapAddressToEvmAddressId(
+            client,
+            (transfer) => ({ chain, address: transfer.ownerAddress, metadata: {} }),
+            "owner_evm_address_id",
           ),
 
           // fetch the vault addresses
-          Rx.mergeMap((transfers) =>
-            mapAddressToEvmAddressId(
-              client,
-              transfers,
-              (transfer) => ({ chain, address: transfer.vaultAddress, metadata: {} }),
-              "vault_evm_address_id",
-            ),
+          mapAddressToEvmAddressId(
+            client,
+            (transfer) => ({ chain, address: transfer.vaultAddress, metadata: {} }),
+            "vault_evm_address_id",
           ),
 
           // insert the transactions if needed
-          Rx.mergeMap((transfers) =>
-            mapTransactionToEvmTransactionId(
-              client,
-              transfers,
-              (transfer) => ({
-                chain,
-                hash: transfer.transactionHash,
-                block_number: transfer.blockNumber,
-                block_datetime: transfer.blockDatetime,
-              }),
-              "evm_transaction_id",
-            ),
+          mapTransactionToEvmTransactionId(
+            client,
+            (transfer) => ({
+              chain,
+              hash: transfer.transactionHash,
+              block_number: transfer.blockNumber,
+              block_datetime: transfer.blockDatetime,
+            }),
+            "evm_transaction_id",
           ),
         )
         // insert the actual shares updates data
@@ -114,6 +103,7 @@ export const transferEventToDb: (
               `INSERT INTO vault_shares_transfer_ts (
                 datetime,
                 chain,
+                block_number,
                 evm_transaction_id,
                 owner_evm_address_id,
                 vault_evm_address_id,
@@ -126,6 +116,7 @@ export const transferEventToDb: (
                 transfers.map((transfer) => [
                   transfer.blockDatetime.toISOString(),
                   transfer.chain,
+                  transfer.blockNumber,
                   transfer.evm_transaction_id,
                   transfer.owner_evm_address_id,
                   transfer.vault_evm_address_id,

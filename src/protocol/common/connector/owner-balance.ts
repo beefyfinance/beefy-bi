@@ -1,51 +1,43 @@
+import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ethers } from "ethers";
 import { Decimal } from "decimal.js";
-import { keyBy, uniqBy, zipWith } from "lodash";
+import { Chain } from "../../../types/chain";
+import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
 
-export async function mapERC20TokenBalance<
+export function mapERC20TokenBalance<
   TObj,
   TKey extends string,
   TParams extends { contractAddress: string; decimals: number; ownerAddress: string; blockNumber: number },
 >(
+  chain: Chain,
   provider: ethers.providers.JsonRpcProvider,
-  objs: TObj[],
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
-): Promise<(TObj & { [key in TKey]: Decimal })[]> {
-  // short circuit if there's nothing to do
-  if (objs.length === 0) {
-    return [];
-  }
-  const getKey = (param: TParams) => `${param.contractAddress}-${param.ownerAddress}-${param.blockNumber}`;
-  const params = objs.map(getParams);
-  const callsToMake = uniqBy(params, getKey);
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: Decimal })[]> {
+  const getKey = (param: TObj) => {
+    const { contractAddress, ownerAddress, blockNumber } = getParams(param);
+    return `${contractAddress}-${ownerAddress}-${blockNumber}`;
+  };
+  const process = async (params: TParams[]) => {
+    const balancePromises: Promise<Decimal>[] = [];
+    for (const param of params) {
+      const valueMultiplier = new Decimal(10).pow(-param.decimals);
+      const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
 
-  // fetch all balances in one call
-  const balancePromises: Promise<Decimal>[] = [];
-  for (const param of callsToMake) {
-    const valueMultiplier = new Decimal(10).pow(-param.decimals);
-    const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
-    const balancePromise = contract
-      .balanceOf(param.ownerAddress, { blockTag: param.blockNumber })
-      .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"));
-    balancePromises.push(balancePromise);
-  }
+      // aurora RPC return the state before the transaction is applied
+      let blockTag = param.blockNumber;
+      if (chain === "aurora") {
+        blockTag = param.blockNumber + 1;
+      }
 
-  const balancesRes = await Promise.all(balancePromises);
-  const balanceMap = keyBy(
-    zipWith(callsToMake, balancesRes, (param, balance) => ({ param, balance })),
-    (res) => getKey(res.param),
-  );
+      const balancePromise = contract
+        .balanceOf(param.ownerAddress, { blockTag })
+        .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"));
+      balancePromises.push(balancePromise);
+    }
+    return Promise.all(balancePromises);
+  };
 
-  const result = zipWith(
-    objs,
-    params,
-    (obj, param) =>
-      ({
-        ...obj,
-        [toKey]: balanceMap[getKey(param)].balance,
-      } as TObj & { [key in TKey]: Decimal }),
-  );
-  return result;
+  return batchQueryGroup(getParams, getKey, process, toKey);
 }
