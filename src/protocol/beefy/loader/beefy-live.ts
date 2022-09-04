@@ -166,8 +166,9 @@ function importChainVaultTransfers(
 
         // flatten the resulting array
         Rx.mergeMap(([transfers, _]) => Rx.from(transfers)),
-
-        // send to the db write pipeline
+      )
+      // send to the db write pipeline
+      .pipe(
         transferEventToDb(client, chain, provider),
 
         // mark the ingestion as complete

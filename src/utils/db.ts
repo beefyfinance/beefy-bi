@@ -384,6 +384,7 @@ export function mapAddressToEvmAddressId<
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
+  const toQueryObj = (obj: TObj[]) => getParams(obj[0]);
   const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
   const getKeyFromParams = ({ chain, address }: TParams) => {
     return `${chain}-${address.toLocaleLowerCase()}`;
@@ -405,7 +406,7 @@ export function mapAddressToEvmAddressId<
     });
   };
 
-  return batchQueryGroup(getParams, getKeyFromObj, process, toKey);
+  return batchQueryGroup(toQueryObj, getKeyFromObj, process, toKey);
 }
 
 export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
@@ -413,6 +414,7 @@ export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
   getAddrId: (obj: TObj) => number,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: DbEvmAddress })[]> {
+  const toQueryObj = (obj: TObj[]) => getAddrId(obj[0]);
   const process = async (ids: number[]) => {
     const results = await db_query<DbEvmAddress>(
       `SELECT evm_address_id, chain, bytea_to_hexstr(address) as address, metadata FROM evm_address WHERE evm_address_id IN (%L)`,
@@ -424,7 +426,7 @@ export function mapEvmAddressIdToAddress<TObj, TKey extends string>(
     return ids.map((id) => ({ ...addressIdMap[id], address: normalizeAddress(addressIdMap[id].address) }));
   };
 
-  return batchQueryGroup(getAddrId, getAddrId, process, toKey);
+  return batchQueryGroup(toQueryObj, getAddrId, process, toKey);
 }
 
 interface DbEvmTransaction {
@@ -445,6 +447,7 @@ export function mapTransactionToEvmTransactionId<
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: number })[]> {
+  const toQueryObj = (obj: TObj[]) => getParams(obj[0]);
   const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
   const getKeyFromParams = ({ chain, hash }: TParams) => {
     return `${chain}-${hash.toLocaleLowerCase()}`;
@@ -476,7 +479,7 @@ export function mapTransactionToEvmTransactionId<
     });
   };
 
-  return batchQueryGroup(getParams, getKeyFromObj, process, toKey);
+  return batchQueryGroup(toQueryObj, getKeyFromObj, process, toKey);
 }
 
 interface DbBeefyVault {

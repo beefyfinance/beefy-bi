@@ -15,6 +15,7 @@ export function mapERC20TokenBalance<
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: Decimal })[]> {
+  const toQueryObj = (obj: TObj[]) => getParams(obj[0]);
   const getKey = (param: TObj) => {
     const { contractAddress, ownerAddress, blockNumber } = getParams(param);
     return `${contractAddress}-${ownerAddress}-${blockNumber}`;
@@ -39,5 +40,5 @@ export function mapERC20TokenBalance<
     return Promise.all(balancePromises);
   };
 
-  return batchQueryGroup(getParams, getKey, process, toKey);
+  return batchQueryGroup(toQueryObj, getKey, process, toKey);
 }

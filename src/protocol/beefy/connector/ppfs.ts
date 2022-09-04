@@ -1,27 +1,53 @@
 import { Chain } from "../../../types/chain";
+import * as Rx from "rxjs";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import { ethers } from "ethers";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/shared-resources/shared-rpc";
+import { BigNumber, ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger2";
 import axios from "axios";
-import { sortBy } from "lodash";
+import { flatten, sortBy } from "lodash";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
+import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
-export async function fetchBeefyPPFS(
-  provider: ethers.providers.JsonRpcBatchProvider,
+interface BeefyPPFSCallParams {
+  vaultDecimals: number;
+  underlyingDecimals: number;
+  vaultAddress: string;
+  blockNumbers: number[];
+}
+
+export function mapBeefyPPFS<TObj, TKey extends string, TParams extends BeefyPPFSCallParams>(
+  provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
-  contractAddresses: string[],
-  blockNumbers: number[],
+  getParams: (obj: TObj) => TParams,
+  toKey: TKey,
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: BigNumber })[]> {
+  // we want to make a query for all requested block numbers of this contract
+  const toQueryObj = (objs: TObj[]): TParams => {
+    const params = objs.map(getParams);
+    return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
+  };
+  const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
+  const getKeyFromParams = ({ vaultAddress }: TParams) => {
+    return `${vaultAddress.toLocaleLowerCase()}`;
+  };
+
+  const process = async (params: TParams[]) => fetchBeefyPPFS(provider, chain, params);
+
+  return batchQueryGroup(toQueryObj, getKeyFromObj, process, toKey);
+}
+
+export async function fetchBeefyPPFS(
+  provider: ethers.providers.JsonRpcProvider,
+  chain: Chain,
+  contractCalls: BeefyPPFSCallParams[],
 ): Promise<ethers.BigNumber[]> {
   logger.debug({
     msg: "Batch fetching PPFS",
     data: {
       chain,
-      contractAddresses,
-      from: blockNumbers[0],
-      to: blockNumbers[blockNumbers.length - 1],
-      length: blockNumbers.length,
+      count: contractCalls.length,
     },
   });
 
@@ -30,15 +56,20 @@ export async function fetchBeefyPPFS(
   // it looks like ethers doesn't yet support harmony's special format or smth
   // same for heco
   if (chain === "harmony" || chain === "heco") {
-    for (const contractAddress of contractAddresses) {
-      const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractAddress, blockNumbers);
+    for (const contractCall of contractCalls) {
+      const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(
+        provider,
+        chain,
+        contractCall.vaultAddress,
+        contractCall.blockNumbers,
+      );
       ppfsPromises = ppfsPromises.concat(ppfsPromise);
     }
   } else {
     // fetch all ppfs in one go, this will batch calls using jsonrpc batching
-    for (const contractAddress of contractAddresses) {
-      const contract = new ethers.Contract(contractAddress, BeefyVaultV6Abi, provider);
-      for (const blockNumber of blockNumbers) {
+    for (const contractCall of contractCalls) {
+      const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6Abi, provider);
+      for (const blockNumber of contractCall.blockNumbers) {
         const ppfsPromise = contract.functions.getPricePerFullShare({
           // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
           // note that many backends do not support this, or may require paid plans to access as the node

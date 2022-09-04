@@ -7,6 +7,8 @@ export function mapBlockDatetime<TObj, TKey extends string, TParams extends numb
   getBlockNumber: (obj: TObj) => TParams,
   toKey: TKey,
 ): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: Date })[]> {
+  const toQueryObj = (obj: TObj[]) => getBlockNumber(obj[0]);
+
   const process = async (params: TParams[]) => {
     const promises: Promise<ethers.providers.Block>[] = [];
 
@@ -19,5 +21,5 @@ export function mapBlockDatetime<TObj, TKey extends string, TParams extends numb
     return blocks.map((block) => new Date(block.timestamp * 1000));
   };
 
-  return batchQueryGroup(getBlockNumber, getBlockNumber, process, toKey);
+  return batchQueryGroup(toQueryObj, getBlockNumber, process, toKey);
 }
