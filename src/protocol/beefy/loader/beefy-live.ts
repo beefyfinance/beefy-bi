@@ -7,13 +7,12 @@ import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
-import { sample } from "lodash";
+import { flatten, sample } from "lodash";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
-import { fetchBeefyVaultV6Transfers } from "../connector/vault-transfers";
+import { mapErc20Transfers } from "../../common/connector/erc20-transfers";
 import { transferEventToDb } from "../../common/loader/transfer-event-to-db";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
-import { normalizeAddress } from "../../../utils/ethers";
 import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
@@ -118,7 +117,7 @@ function importChainVaultTransfers(
         Rx.mergeMap(async (vaults) => [vaults, await provider.getBlockNumber()] as const),
 
         // call our connector to get the transfers
-        Rx.mergeMap(async ([vaults, latestBlockNumber]) => {
+        Rx.map(([vaults, latestBlockNumber]) => {
           // fetch the last hour of data
           const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
           const period = samplingPeriodMs["1hour"];
@@ -130,34 +129,42 @@ function importChainVaultTransfers(
             : Infinity;
 
           const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
+          const fromBlock = latestBlockNumber - blockCountToFetch;
+          const toBlock = latestBlockNumber;
+          return [vaults, fromBlock, toBlock] as const;
+        }),
 
-          return [
-            await fetchBeefyVaultV6Transfers(
+        Rx.mergeMap(([vaults, fromBlock, toBlock]) =>
+          Rx.from([vaults]).pipe(
+            mapErc20Transfers(
               provider,
               chain,
-              vaults.map((vault) => {
+              (vault) => {
                 if (!vault.contract_evm_address.metadata.erc20) {
                   throw new Error("no decimals");
                 }
                 return {
                   address: vault.contract_evm_address.address,
                   decimals: vault.contract_evm_address.metadata.erc20?.decimals,
+                  fromBlock,
+                  toBlock,
                 };
-              }),
-              latestBlockNumber - blockCountToFetch,
-              latestBlockNumber,
+              },
+              "transfers",
             ),
-            latestBlockNumber,
-          ] as const;
-        }),
 
-        // update import state
-        Rx.tap(([_, latestBlockNumber]) => {
-          importState[chain].lastImportedBlockNumber = latestBlockNumber;
-        }),
+            // update import state
+            Rx.tap(() => {
+              importState[chain].lastImportedBlockNumber = Math.max(
+                toBlock,
+                importState[chain].lastImportedBlockNumber || -Infinity,
+              );
+            }),
+          ),
+        ),
 
         // we want to catch any errors from the RPC
-        retryRpcErrors({ method: "fetchBeefyVaultV6Transfers", chain }),
+        retryRpcErrors({ method: "mapErc20Transfers", chain }),
         Rx.catchError((error) => {
           logger.error({ msg: "error importing latest chain data", data: { chain, error } });
           logger.error(error);
@@ -165,10 +172,9 @@ function importChainVaultTransfers(
         }),
 
         // flatten the resulting array
-        Rx.mergeMap(([transfers, _]) => Rx.from(transfers)),
-      )
-      // send to the db write pipeline
-      .pipe(
+        Rx.mergeMap((vaults) => flatten(vaults.map((v) => v.transfers))),
+
+        // send to the db write pipeline
         transferEventToDb(client, chain, provider),
 
         // mark the ingestion as complete
