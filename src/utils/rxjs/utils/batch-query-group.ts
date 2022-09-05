@@ -1,5 +1,6 @@
 import * as Rx from "rxjs";
 import { zipWith } from "lodash";
+import { ProgrammerError } from "./programmer-error";
 
 /**
  * Often, we need to take a bunch of objects, make a bunch of query from them, and add the results to the objects.
@@ -32,6 +33,9 @@ export function batchQueryGroup<TInputObj, TQueryObj, TResp, TKey extends string
             Rx.mergeMap(async (queries) => {
               // assuming the process function returns the results in the same order as the input
               const results = await process(queries.map((q) => q.query));
+              if (results.length !== queries.length) {
+                throw new ProgrammerError({ msg: "Query and result length mismatch", queries, results });
+              }
               return zipWith(queries, results, (q, r) => ({ ...q, result: r }));
             }),
             Rx.mergeAll(),

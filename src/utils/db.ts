@@ -304,61 +304,6 @@ async function migrate() {
   `);
 
   logger.info({ msg: "Migrate done" });
-
-  /**
-   
-
-SharesAmountChange -> 
-  chain -> params.chain
-  vault_id -> params.vault_id
-  investor_address -> event.from / event.to
-  block_number -> event.block_number
-  block_timestamp -> getBlock(event.block).timestamp
-  transaction_hash -> event.transaction_hash
-
-  shares_diff_amount -> event.value
-  shares_balance_after -> balanceOf(blockTag: event.block)
-
-  sharedToUnderlyingRate -> pricePerFullShare()
-  underlying_balance_diff -> shares_diff_amount * sharedToUnderlyingRate
-  underlying_balance_after -> shares_balance_after * sharedToUnderlyingRate
-
-
-Price ->
-  token_a_id -> params.token_a_id
-  token_b_id -> params.token_b_id
-  datetime -> feed.datetime
-  rate -> feed.rate
-
-
-
-TimeRange: blockNumberRange | blockNumber[] | dateRange
-
-price_feed_connector:
-  - fetch_price(Token[], TimeRange) -> Stream<Price>
-  - live_price(Token[]) -> Stream<Price> // maybe optional
-
-protocol_connector (chain: Chain):
-  - fetch_vault_list() -> Stream<Vault>
-
-  - fetch_investment_changes(Vault[], TimeRange) -> Stream<SharesAmountChange>
-  - fetch_shares_to_underlying_rate(Vault[], TimeRange) -> Stream<SharesToUnderlyingRate>
-  - subscribe_to_shares_amount_changes(Vault[]) -> Stream<SharesAmountChange>
-
-  - fetch_underlying_breakdown(Vault[], TimeRange) -> Stream<VaultUnderlyingBreakdown>
-
-
-vault
-vault_shares_amount_change
-vault_shares_to_underlying_rate
-
-price
-  - partition: vault_shares_to_underlying_rate (ppfs) 
-  - partition: vault_underlying_price
-  - partition: token_price
-
-
- */
 }
 
 interface DbEvmAddress {

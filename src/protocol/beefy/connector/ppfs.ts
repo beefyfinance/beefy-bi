@@ -1,28 +1,29 @@
 import { Chain } from "../../../types/chain";
 import * as Rx from "rxjs";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import { BigNumber, ethers } from "ethers";
+import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger2";
 import axios from "axios";
 import { flatten, sortBy } from "lodash";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
 import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import Decimal from "decimal.js";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
-interface BeefyPPFSCallParams {
+export interface BeefyPPFSCallParams {
   vaultDecimals: number;
   underlyingDecimals: number;
   vaultAddress: string;
   blockNumbers: number[];
 }
 
-export function mapBeefyPPFS<TObj, TKey extends string, TParams extends BeefyPPFSCallParams>(
+export function mapBeefyVaultShareRate<TObj, TKey extends string, TParams extends BeefyPPFSCallParams>(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   getParams: (obj: TObj) => TParams,
   toKey: TKey,
-): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: BigNumber })[]> {
+): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: Decimal[] })[]> {
   // we want to make a query for all requested block numbers of this contract
   const toQueryObj = (objs: TObj[]): TParams => {
     const params = objs.map(getParams);
@@ -33,16 +34,21 @@ export function mapBeefyPPFS<TObj, TKey extends string, TParams extends BeefyPPF
     return `${vaultAddress.toLocaleLowerCase()}`;
   };
 
-  const process = async (params: TParams[]) => fetchBeefyPPFS(provider, chain, params);
+  const process = (params: TParams[]) => fetchBeefyVaultShareRate(provider, chain, params);
 
   return batchQueryGroup(toQueryObj, getKeyFromObj, process, toKey);
 }
 
-export async function fetchBeefyPPFS(
+export async function fetchBeefyVaultShareRate(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: BeefyPPFSCallParams[],
-): Promise<ethers.BigNumber[]> {
+): Promise<Decimal[][]> {
+  // short circuit if no calls
+  if (contractCalls.length === 0) {
+    return [];
+  }
+
   logger.debug({
     msg: "Batch fetching PPFS",
     data: {
@@ -82,22 +88,63 @@ export async function fetchBeefyPPFS(
   }
 
   const ppfsResults = await Promise.allSettled(ppfsPromises);
-  const ppfss: ethers.BigNumber[] = [];
-  for (const ppfsRes of ppfsResults) {
-    if (ppfsRes.status === "fulfilled") {
-      ppfss.push(ppfsRes.value[0]);
-    } else {
-      // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
-      // this means that the totalSupply is 0 so we set ppfs to zero
-      if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
-        ppfss.push(ethers.BigNumber.from("0"));
+  const rates: Decimal[][] = [];
+  let resultIdx = 0;
+  for (const contractCall of contractCalls) {
+    const contractShareRates: Decimal[] = [];
+    for (const _ of contractCall.blockNumbers) {
+      const ppfsRes = ppfsResults[resultIdx];
+      resultIdx++;
+
+      let ppfs: ethers.BigNumber;
+      if (ppfsRes.status === "fulfilled") {
+        ppfs = ppfsRes.value[0];
       } else {
-        // otherwise, we throw the error
-        throw ppfsRes.reason;
+        // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
+        // this means that the totalSupply is 0 so we set ppfs to zero
+        if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
+          ppfs = ethers.BigNumber.from("0");
+        } else {
+          // otherwise, we throw the error
+          throw ppfsRes.reason;
+        }
       }
+
+      const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
+
+      console.log({
+        vaultShareRate: vaultShareRate.toString(),
+        ppfs: ppfs.toString(),
+        vaultDecimals: contractCall.vaultDecimals,
+        underlyingDecimals: contractCall.underlyingDecimals,
+      });
+      contractShareRates.push(vaultShareRate);
     }
+
+    rates.push(contractShareRates);
   }
-  return ppfss;
+
+  return rates;
+}
+
+// takes ppfs and compute the actual rate which can be directly multiplied by the vault balance
+// this is derived from mooAmountToOracleAmount in beefy-v2 repo
+export function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
+  const mooTokenAmount = new Decimal("1.0");
+
+  // go to chain representation
+  const mooChainAmount = mooTokenAmount.mul(new Decimal(10).pow(mooTokenDecimals)).toDecimalPlaces(0);
+
+  // convert to oracle amount in chain representation
+  const oracleChainAmount = mooChainAmount.mul(new Decimal(ppfs.toString()));
+
+  // go to math representation
+  // but we can't return a number with more precision than the oracle precision
+  const oracleAmount = oracleChainAmount
+    .div(new Decimal(10).pow(mooTokenDecimals + depositTokenDecimals))
+    .toDecimalPlaces(mooTokenDecimals);
+
+  return oracleAmount;
 }
 
 /**
@@ -109,6 +156,11 @@ async function fetchBeefyPPFSWithManualRPCCall(
   contractAddress: string,
   blockNumbers: number[],
 ): Promise<Promise<[ethers.BigNumber]>[]> {
+  // short circuit if no calls
+  if (blockNumbers.length === 0) {
+    return [];
+  }
+
   const url = provider.connection.url;
 
   // get the function call hash
@@ -143,6 +195,7 @@ async function fetchBeefyPPFSWithManualRPCCall(
         error: string;
       };
   const results = await axios.post<BatchResItem[]>(url, batchParams);
+
   return sortBy(results.data, (res) => res.id).map((res) => {
     if (isErrorDueToMissingDataFromNode(res)) {
       throw new ArchiveNodeNeededError(chain, res);

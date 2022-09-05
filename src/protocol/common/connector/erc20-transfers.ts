@@ -37,7 +37,7 @@ export function mapErc20Transfers<TObj, TKey extends string, TParams extends Get
     const transfers = await fetchERC20TransferEvents(provider, chain, params);
     // make sure we return data in the same order as the input
     const grouped = groupBy(transfers, (t) => t.vaultAddress);
-    return params.map((p) => grouped[p.address]);
+    return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
   };
 
   return batchQueryGroup(toQueryObj, getKeyFromObj, process, toKey);
