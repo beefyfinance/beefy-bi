@@ -194,7 +194,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   moonbeam: 3000,
   moonriver: 3000,
   optimism: 3000,
-  polygon: 3000,
+  polygon: 1500, // polygon is a bit slower than usual
   syscoin: 3000,
 };
 

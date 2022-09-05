@@ -14,7 +14,7 @@ import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
-import { keyBy, max, sample, sortBy, uniq } from "lodash";
+import { keyBy, max, sample, sortBy } from "lodash";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
 import { mapErc20Transfers } from "../../common/connector/erc20-transfers";
@@ -23,7 +23,6 @@ import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 import { mapBeefyVaultShareRate } from "../connector/ppfs";
 import { mapERC20TokenBalance } from "../../common/connector/owner-balance";
 import { mapBlockDatetime } from "../../common/connector/block-datetime";
-import { getChainWNativeTokenOracleId } from "../../../utils/addressbook";
 import { fetchBeefyPrices } from "../connector/prices";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
@@ -53,13 +52,14 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    //await pollVaultData();
-    //await pollLiveData();
+    await pollVaultData();
+    await pollLiveData();
     await pollPriceData();
 
-    // then poll every now and then
-    //setInterval(pollLiveData, 30 * 1000);
-    //setInterval(pollVaultData, samplingPeriodMs["1day"]);
+    // then start polling at regular intervals
+    setInterval(pollLiveData, 1000 * 30 /* 30s */);
+    setInterval(pollVaultData, samplingPeriodMs["1day"]);
+    setInterval(pollPriceData, 1000 * 60 * 5 /* 5 minutes */);
   });
 }
 
