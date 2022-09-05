@@ -1,0 +1,200 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "iteration": 1662417181464,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('15min', datetime) as datetime,\n    vault_evm_address_id,\n    locf(last(shares_balance_after::numeric, datetime)) as shares_balance_after\n  from vault_shares_transfer_ts shares\n  WHERE\n    $__timeFilter(datetime)\n    and owner_evm_address_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where shares_balance_after is not null\n),\nshares_gf_ts as (\n  select\n    time_bucket_gapfill('15min', datetime) as datetime,\n    vault_evm_address_id,\n    locf(last(shares_to_underlying_rate::numeric, datetime)) as shares_to_underlying_rate\n  from vault_to_underlying_rate_ts\n  WHERE\n    $__timeFilter(datetime)\n    and vault_evm_address_id in (select vault_evm_address_id from balance_ts)\n  group by 1,2\n),\nshares_ts as (\n  select * from shares_gf_ts where shares_to_underlying_rate is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('15min', datetime) as datetime,\n    v.contract_evm_address_id as vault_evm_address_id,\n    locf(last(usd_value, datetime)) as usd_value\n  from asset_price_ts p\n    join evm_address u on p.price_feed_key = metadata->'erc20'->>'price_feed_key'\n    join beefy_vault v on u.evm_address_id = v.underlying_evm_address_id\n  where\n    $__timeFilter(datetime)\n    and v.contract_evm_address_id in (\n      select vault_evm_address_id\n      from balance_ts\n    )\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  a.metadata->'erc20'->>'price_feed_key' as vault_name,\n  /*b.shares_balance_after,\n  s.shares_to_underlying_rate,\n  p.usd_value,*/\n  (b.shares_balance_after * s.shares_to_underlying_rate * p.usd_value) as \"$\"\nfrom balance_ts b\n  left join shares_ts s on b.datetime = s.datetime and b.vault_evm_address_id = s.vault_evm_address_id\n  left join price_ts p on b.datetime = p.datetime and b.vault_evm_address_id = p.vault_evm_address_id\n  left join evm_address a on b.vault_evm_address_id = a.evm_address_id\norder by 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investor Vault balances",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 36,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "0x0625ad46632162abafb0114503e1f144f078f07b",
+          "value": "0x0625ad46632162abafb0114503e1f144f078f07b"
+        },
+        "hide": 0,
+        "name": "investor_address",
+        "options": [
+          {
+            "selected": true,
+            "text": "0x0625ad46632162abafb0114503e1f144f078f07b",
+            "value": "0x0625ad46632162abafb0114503e1f144f078f07b"
+          }
+        ],
+        "query": "0x0625ad46632162abafb0114503e1f144f078f07b",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "16313",
+          "value": "16313"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select evm_address_id \nfrom evm_address\nwhere hexstr_to_bytea('$investor_address') = address",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "investor_id",
+        "options": [],
+        "query": "select evm_address_id \nfrom evm_address\nwhere hexstr_to_bytea('$investor_address') = address",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "2022-09-05T19:13:01.503Z",
+    "to": "2022-09-05T21:39:55.925Z"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Investor Dashboard",
+  "uid": "JAT_BdMVz",
+  "version": 1,
+  "weekStart": ""
+}

@@ -24,6 +24,7 @@ import { mapBeefyVaultShareRate } from "../connector/ppfs";
 import { mapERC20TokenBalance } from "../../common/connector/owner-balance";
 import { mapBlockDatetime } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
+import { isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -52,9 +53,9 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    await pollVaultData();
+    //await pollVaultData();
     await pollLiveData();
-    await pollPriceData();
+    //await pollPriceData();
 
     // then start polling at regular intervals
     setInterval(pollLiveData, 1000 * 30 /* 30s */);
@@ -149,7 +150,15 @@ function importChainVaultTransfers(
             const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
             const fromBlock = vault.latestBlockNumber - blockCountToFetch;
             const toBlock = vault.latestBlockNumber;
-            return { ...vault, fromBlock, toBlock };
+
+            // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
+            // where the RPC don't know about the block number he just gave us
+            const waitForBlockPropagation = 5;
+            return {
+              ...vault,
+              fromBlock: fromBlock - waitForBlockPropagation,
+              toBlock: toBlock - waitForBlockPropagation,
+            };
           }),
         ),
       )
@@ -172,12 +181,7 @@ function importChainVaultTransfers(
         ),
 
         // we want to catch any errors from the RPC
-        retryRpcErrors({ method: "mapErc20Transfers", chain }),
-        Rx.catchError((error) => {
-          logger.error({ msg: "error importing latest chain data", data: { chain, error } });
-          logger.error(error);
-          return Rx.EMPTY;
-        }),
+        handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
 
         // we also want the shares rate of each involved vault
         mapBeefyVaultShareRate(
@@ -199,6 +203,8 @@ function importChainVaultTransfers(
           },
           "shareToUnderlyingRates",
         ),
+
+        handleRpcErrors({ msg: "mapping vault share rate", data: { chain } }),
       )
       .pipe(
         // now move to transfers representation
@@ -217,7 +223,19 @@ function importChainVaultTransfers(
         // remove mint burn events
         Rx.filter((transfer) => transfer.ownerAddress !== "0x0000000000000000000000000000000000000000"),
 
-        Rx.tap((userAction) => logger.debug({ msg: "processing user action", data: { chain, userAction } })),
+        Rx.tap((userAction) =>
+          logger.debug({
+            msg: "processing user action",
+            data: {
+              chain,
+              vault: userAction.vault.vault_key,
+              transaction: userAction.transactionHash,
+              ownerAddress: userAction.ownerAddress,
+              vaultAddress: userAction.vaultAddress,
+              amount: userAction.sharesBalanceDiff.toString(),
+            },
+          }),
+        ),
       )
       .pipe(
         // batch transfer events before fetching additional infos
@@ -235,18 +253,14 @@ function importChainVaultTransfers(
           }),
           "ownerBalance",
         ),
-        retryRpcErrors({ method: "mapERC20TokenBalance", chain }),
+
+        handleRpcErrors({ msg: "mapping owner balance", data: { chain } }),
 
         // we also need the date of each block
         mapBlockDatetime(provider, (t) => t.blockNumber, "blockDatetime"),
 
         // we want to catch any errors from the RPC
-        retryRpcErrors({ method: "mapBlockDatetime", chain }),
-        Rx.catchError((error) => {
-          logger.error({ msg: "error importing latest chain data", data: { chain, error } });
-          logger.error(error);
-          return Rx.EMPTY;
-        }),
+        handleRpcErrors({ msg: "mapping block datetimes", data: { chain } }),
 
         // flatten the resulting array
         Rx.mergeMap((transfers) => Rx.from(transfers)),
@@ -593,4 +607,24 @@ function fetchPrices(client: PoolClient) {
     );
 
   return consumeObservable(pipeline$).then(() => logger.info({ msg: "done fetching prices" }));
+}
+
+function handleRpcErrors<TInput>(logInfos: { msg: string; data: object }): Rx.OperatorFunction<TInput, TInput> {
+  return ($source) =>
+    $source.pipe(
+      // retry some errors
+      retryRpcErrors(logInfos),
+
+      // or catch the rest
+      Rx.catchError((error) => {
+        // don't show the full stack trace if we know what's going on
+        if (isErrorDueToMissingDataFromNode(error)) {
+          logger.error({ msg: `need archive node for ${logInfos.msg}`, data: logInfos.data });
+        } else {
+          logger.error({ msg: "error mapping token balance", data: { ...logInfos, error } });
+          logger.error(error);
+        }
+        return Rx.EMPTY;
+      }),
+    );
 }

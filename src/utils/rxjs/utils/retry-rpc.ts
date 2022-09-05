@@ -5,7 +5,7 @@ import { shouldRetryProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });
 
-export function retryRpcErrors(logInfos: object) {
+export function retryRpcErrors(logInfos: { msg: string; data: object }) {
   return retryBackoff({
     initialInterval: 100,
     maxInterval: 10_000,
@@ -15,10 +15,13 @@ export function retryRpcErrors(logInfos: object) {
     shouldRetry: (err: any) => {
       const shouldRetry = shouldRetryRpcError(err) && shouldRetryProgrammerError(err);
       if (shouldRetry) {
-        logger.error({ msg: "RPC Error caught, will retry", data: { ...logInfos, error: err } });
+        logger.error({ msg: `RPC Error caught ${logInfos.msg}, will retry`, data: { ...logInfos.data, error: err } });
         logger.error(err);
       } else {
-        logger.debug({ msg: "Unretryable error caught, will not retry", data: { ...logInfos, error: err } });
+        logger.debug({
+          msg: `Unretryable error caught ${logInfos.msg}, will not retry`,
+          data: { ...logInfos.data, error: err },
+        });
         logger.trace(err);
       }
       return shouldRetry;
