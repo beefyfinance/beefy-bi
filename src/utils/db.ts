@@ -99,6 +99,10 @@ export function strArrToPgStrArr(strings: string[]) {
   return "{" + pgf.withArray("%L", strings) + "}";
 }
 
+export function pgStrArrToStrArr(pgArray: string[]) {
+  return pgArray.map((s) => s.slice(1, -1).replace("''", "'"));
+}
+
 // postgresql don't have "create type/domain if not exists"
 async function typeExists(typeName: string) {
   const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [typeName]);
@@ -485,5 +489,7 @@ export function vaultList$(client: PoolClient) {
 
     // flatten vault list into a stream of vaults
     Rx.mergeMap((vaults) => Rx.from(vaults)),
+
+    Rx.map((vault) => ({ ...vault, assets_price_feed_keys: pgStrArrToStrArr(vault.assets_price_feed_keys) })),
   );
 }

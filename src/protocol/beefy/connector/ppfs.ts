@@ -111,13 +111,6 @@ export async function fetchBeefyVaultShareRate(
       }
 
       const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
-
-      console.log({
-        vaultShareRate: vaultShareRate.toString(),
-        ppfs: ppfs.toString(),
-        vaultDecimals: contractCall.vaultDecimals,
-        underlyingDecimals: contractCall.underlyingDecimals,
-      });
       contractShareRates.push(vaultShareRate);
     }
 

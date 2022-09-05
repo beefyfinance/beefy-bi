@@ -14,7 +14,7 @@ import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger2";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
-import { max, sample } from "lodash";
+import { keyBy, max, sample, sortBy, uniq } from "lodash";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
 import { mapErc20Transfers } from "../../common/connector/erc20-transfers";
@@ -23,6 +23,8 @@ import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 import { mapBeefyVaultShareRate } from "../connector/ppfs";
 import { mapERC20TokenBalance } from "../../common/connector/owner-balance";
 import { mapBlockDatetime } from "../../common/connector/block-datetime";
+import { getChainWNativeTokenOracleId } from "../../../utils/addressbook";
+import { fetchBeefyPrices } from "../connector/prices";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -47,14 +49,17 @@ async function main() {
   //
   const pollLiveData = withPgClient(fetchLatestData);
   const pollVaultData = withPgClient(upsertVauts);
+  const pollPriceData = withPgClient(fetchPrices);
 
   return new Promise(async () => {
     // start polling live data immediately
     //await pollVaultData();
-    await pollLiveData();
+    //await pollLiveData();
+    await pollPriceData();
+
     // then poll every now and then
-    setInterval(pollLiveData, 30 * 1000);
-    setInterval(pollVaultData, samplingPeriodMs["1day"]);
+    //setInterval(pollLiveData, 30 * 1000);
+    //setInterval(pollVaultData, samplingPeriodMs["1day"]);
   });
 }
 
@@ -482,4 +487,110 @@ function upsertVauts(client: PoolClient) {
   );
 
   return consumeObservable(pipeline$);
+}
+
+function fetchPrices(client: PoolClient) {
+  logger.info({ msg: "fetching vault transfers" });
+
+  const pipeline$ = vaultList$(client)
+    .pipe(
+      Rx.filter((vault) => vault.end_of_life === false), // only live vaults
+
+      // extract the price feed keys we need to fetch prices for
+      Rx.mergeMap((vault) => {
+        return [
+          vault.contract_evm_address.metadata.erc20?.price_feed_key || null,
+          vault.underlying_evm_address.metadata.erc20?.price_feed_key || null,
+          //getChainWNativeTokenOracleId(vault.chain),
+          //...vault.assets_price_feed_keys,
+        ].filter((k) => !!k) as string[];
+      }),
+
+      // remove duplicates
+      Rx.distinct(),
+
+      // make them into a query object
+      Rx.map((price_feed_key) => ({ price_feed_key })),
+    )
+    .pipe(
+      // work by batches to be kind on the database
+      Rx.bufferCount(200),
+
+      // find out which data is missing
+      Rx.mergeMap(async (priceFeedQueries) => {
+        const sortedPriceFeedQueries = sortBy(priceFeedQueries, "price_feed_key");
+        const results = await db_query<{ price_feed_key: string; last_inserted_datetime: Date }>(
+          `SELECT 
+            price_feed_key,
+            last(datetime, datetime) as last_inserted_datetime
+          FROM asset_price_ts 
+          WHERE price_feed_key IN (%L)
+          GROUP BY price_feed_key`,
+          [sortedPriceFeedQueries.map((q) => q.price_feed_key)],
+          client,
+        );
+        const resultsMap = keyBy(results, "price_feed_key");
+
+        // if we have data already, we want to only fetch new data
+        // otherwise, we aim for the last 24h of data
+        let fromDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24);
+        let toDate = new Date();
+        return priceFeedQueries.map((q) => {
+          if (resultsMap[q.price_feed_key]?.last_inserted_datetime) {
+            fromDate = resultsMap[q.price_feed_key].last_inserted_datetime;
+          }
+          return {
+            ...q,
+            fromDate,
+            toDate,
+          };
+        });
+      }),
+
+      // ok, flatten all price feed queries
+      Rx.mergeMap((priceFeedQueries) => Rx.from(priceFeedQueries)),
+    )
+    .pipe(
+      // now we fetch
+      Rx.mergeMap(async (priceFeedQuery) => {
+        logger.info({ msg: "fetching prices", data: priceFeedQuery });
+        const prices = await fetchBeefyPrices("15min", priceFeedQuery.price_feed_key, {
+          startDate: priceFeedQuery.fromDate,
+          endDate: priceFeedQuery.toDate,
+        });
+        logger.debug({ msg: "got prices", data: { priceFeedQuery, prices: prices.length } });
+        return prices;
+      }, 10 /* concurrency */),
+
+      // flatten the array of prices
+      Rx.mergeMap((prices) => Rx.from(prices)),
+    )
+    .pipe(
+      // batch by some reasonable amount for the database
+      Rx.bufferCount(5000),
+
+      // insert into the prices table
+      Rx.mergeMap(async (prices) => {
+        // short circuit if there's nothing to do
+        if (prices.length === 0) {
+          return [];
+        }
+
+        logger.debug({ msg: "inserting prices", data: { count: prices.length } });
+
+        await db_query<{}>(
+          `INSERT INTO asset_price_ts (
+            datetime,
+            price_feed_key,
+            usd_value
+          ) VALUES %L
+          ON CONFLICT (price_feed_key, datetime) DO NOTHING`,
+          [prices.map((price) => [price.datetime, price.oracleId, price.value])],
+          client,
+        );
+        return prices;
+      }),
+    );
+
+  return consumeObservable(pipeline$).then(() => logger.info({ msg: "done fetching prices" }));
 }
