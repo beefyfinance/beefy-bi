@@ -15,8 +15,8 @@ export function retryRpcErrors(logInfos: { msg: string; data: object }) {
     shouldRetry: (err: any) => {
       const shouldRetry = shouldRetryRpcError(err) && shouldRetryProgrammerError(err);
       if (shouldRetry) {
-        logger.error({ msg: `RPC Error caught ${logInfos.msg}, will retry`, data: { ...logInfos.data, error: err } });
-        logger.error(err);
+        logger.debug({ msg: `RPC Error caught ${logInfos.msg}, will retry`, data: { ...logInfos.data, error: err } });
+        logger.debug(err);
       } else {
         logger.debug({
           msg: `Unretryable error caught ${logInfos.msg}, will not retry`,

@@ -100,7 +100,7 @@ export async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVau
         json5Content
           .replace(/\/\*(\s|\S)*?\*\//gm, "") // remove multiline comments
           .replace(/\/\/( .*\n|\n)/gm, ""), // remove single line comments
-        { parser: "json", semi: false }
+        { parser: "json", semi: false },
       );
 
       const vaults: RawBeefyVault[] = JSON.parse(jsonContent);
@@ -127,7 +127,7 @@ export async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVau
   }
 
   logger.debug({ msg: "All raw vaults found for chain, mapping to expected format", data: { chain } });
-  const vaults = Object.values(vaultsByAddress).map((rawVault) => {
+  const vaults = Object.values(vaultsByAddress).map((rawVault): BeefyVault => {
     try {
       const wnative = getChainWNativeTokenAddress(chain);
       return {
@@ -135,7 +135,7 @@ export async function getAllVaultsFromGitHistory(chain: Chain): Promise<BeefyVau
         chain,
         token_name: rawVault.earnedToken,
         token_decimals: 18,
-        token_address: normalizeAddress(rawVault.earnContractAddress),
+        contract_address: normalizeAddress(rawVault.earnContractAddress),
         want_address: normalizeAddress(rawVault.tokenAddress || wnative),
         want_decimals: rawVault.tokenDecimals,
         eol: rawVault.status === "eol",

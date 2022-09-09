@@ -4,9 +4,10 @@ import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger2";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { flatten, groupBy, min, zipWith } from "lodash";
+import { flatten, groupBy, min, uniq, zipWith } from "lodash";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
 import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -15,6 +16,8 @@ interface GetTransferCallParams {
   decimals: number;
   fromBlock: number;
   toBlock: number;
+  // if provided, we only care about transfers from and to this address
+  trackAddress?: string;
 }
 
 export function mapErc20Transfers<TObj, TKey extends string, TParams extends GetTransferCallParams>(
@@ -26,7 +29,17 @@ export function mapErc20Transfers<TObj, TKey extends string, TParams extends Get
   // we want to make a query for all requested block numbers of this contract
   const toQueryObj = (objs: TObj[]): TParams => {
     const params = objs.map(getParams);
-    return { ...params[0], fromBlock: min(params.map((p) => p.fromBlock)), toBlock: min(params.map((p) => p.toBlock)) };
+    const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
+    if (trackAddresses.length > 1) {
+      throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
+    }
+    const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
+    return {
+      ...params[0],
+      fromBlock: min(params.map((p) => p.fromBlock)),
+      toBlock: min(params.map((p) => p.toBlock)),
+      trackAddress,
+    };
   };
   const getKeyFromObj = (obj: TObj) => getKeyFromParams(getParams(obj));
   const getKeyFromParams = ({ address }: TParams) => {
@@ -66,26 +79,47 @@ async function fetchERC20TransferEvents(
   for (const contractCall of contractCalls) {
     const valueMultiplier = new Decimal(10).pow(-contractCall.decimals);
     const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
-    const eventFilter = contract.filters.Transfer();
-    const eventsPromise = contract
-      .queryFilter(eventFilter, contractCall.fromBlock, contractCall.toBlock)
-      .then((events) =>
-        events.map((event) => ({
-          transactionHash: event.transactionHash,
-          from: event.args?.from,
-          to: event.args?.to,
-          value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
-          blockNumber: event.blockNumber,
-          logIndex: event.logIndex,
-        })),
+    const callPromises: Promise<ethers.Event[]>[] = [];
+
+    if (contractCall.trackAddress) {
+      const fromFilter = contract.filters.Transfer(contractCall.trackAddress, null);
+      const toFilter = contract.filters.Transfer(null, contractCall.trackAddress);
+      const fromPromise = contract.queryFilter(fromFilter, contractCall.fromBlock, contractCall.toBlock);
+      const toPromise = contract.queryFilter(toFilter, contractCall.fromBlock, contractCall.toBlock);
+      callPromises.push(fromPromise);
+      callPromises.push(toPromise);
+    } else {
+      const eventFilter = contract.filters.Transfer();
+      const callPromise = contract.queryFilter(eventFilter, contractCall.fromBlock, contractCall.toBlock);
+      callPromises.push(callPromise);
+      // make sure we have 2 promises to simplify matching code below
+      callPromises.push(Promise.resolve([]));
+    }
+    // map raw events to TransferEvents
+    for (let callPromise of callPromises) {
+      const mappedCallPromise = callPromise.then((events) =>
+        events.map(
+          (event): TransferEvent => ({
+            transactionHash: event.transactionHash,
+            from: event.args?.from,
+            to: event.args?.to,
+            value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
+            blockNumber: event.blockNumber,
+            logIndex: event.logIndex,
+          }),
+        ),
       );
-    eventsPromises.push(eventsPromise);
+      eventsPromises.push(mappedCallPromise);
+    }
   }
   const eventsRes = await Promise.all(eventsPromises);
 
+  const doubledContractCall = Array.from({ length: contractCalls.length * 2 }).map(
+    (_, i) => contractCalls[Math.floor(i / 2)],
+  );
   type TransferWithLogIndex = TokenizedVaultUserTransfer & { logIndex: number };
   const events = flatten(
-    zipWith(contractCalls, eventsRes, (contract, events) =>
+    zipWith(doubledContractCall, eventsRes, (contract, events) =>
       flatten(
         events.map((event): [TransferWithLogIndex, TransferWithLogIndex] => [
           {

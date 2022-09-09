@@ -5,7 +5,7 @@ export interface BeefyVault {
   chain: Chain;
   token_name: string;
   token_decimals: number;
-  token_address: string;
+  contract_address: string;
   want_address: string;
   want_decimals: number;
   eol: boolean;
