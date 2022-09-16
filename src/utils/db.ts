@@ -33,7 +33,7 @@ beefy=# select
 let pool: Pool | null = null;
 export async function getPgPool() {
   if (pool === null) {
-    const config = pgcs.parse(TIMESCALEDB_URL) as PoolConfig;
+    const config = pgcs.parse(TIMESCALEDB_URL) as any as PoolConfig;
     pool = new Pool(config);
     await migrate();
   }

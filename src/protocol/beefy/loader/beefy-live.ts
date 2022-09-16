@@ -26,6 +26,8 @@ import { mapBlockDatetime } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
 import { isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
 import { loaderByChain } from "../../common/loader/loader-by-chain";
+import Decimal from "decimal.js";
+import { normalizeAddress } from "../../../utils/ethers";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -79,11 +81,11 @@ function importChainVaultTransfers(
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
-  const transferQueries$ = chainVaults$
+  const allTransferQueries$ = chainVaults$
     // define the scope of our pipeline
     .pipe(
-      Rx.filter((vault) => vault.chain === "avax"), //debug
-      Rx.filter((vault) => !vault.has_erc20_shares_token), // debug: gov vaults
+      // Rx.filter((vault) => vault.chain === "avax"), //debug
+      // Rx.filter((vault) => !vault.has_erc20_shares_token), // debug: gov vaults
 
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
     )
@@ -92,7 +94,8 @@ function importChainVaultTransfers(
       Rx.bufferCount(200),
       // go get the latest block number for this chain
       Rx.mergeMap(async (vaults) => {
-        const latestBlockNumber = 19666148; // DEBUG // await provider.getBlockNumber();
+        //const latestBlockNumber = 19800507; // DEBUG
+        const latestBlockNumber = await provider.getBlockNumber();
         return vaults.map((vault) => ({ ...vault, latestBlockNumber }));
       }),
 
@@ -125,7 +128,21 @@ function importChainVaultTransfers(
       ),
     );
 
-  const rawUserActions$ = transferQueries$.pipe(
+  const [govTransferQueries$, transferQueries$] = Rx.partition(
+    allTransferQueries$.pipe(Rx.mergeMap((vaults) => Rx.from(vaults))),
+    (vault) => !vault.has_erc20_shares_token,
+  );
+
+  const standardTransfersByVault = transferQueries$.pipe(
+    // for standard vaults, we only ignore the mint-burn addresses
+    Rx.map((vault) => ({
+      ...vault,
+      ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
+    })),
+
+    // batch vault config by some reasonable amount that the RPC can handle
+    Rx.bufferCount(200),
+
     mapErc20Transfers(
       provider,
       chain,
@@ -168,24 +185,82 @@ function importChainVaultTransfers(
     ),
 
     handleRpcErrors({ msg: "mapping vault share rate", data: { chain } }),
+
+    // flatten the result
+    Rx.mergeMap((vaults) => Rx.from(vaults)),
   );
 
-  const userActions$ = rawUserActions$.pipe(
-    // now move to transfers representation
-    Rx.mergeMap((vaults) =>
-      vaults
-        .map((vault) =>
-          vault.transfers.map((transfer, idx) => ({
-            ...transfer,
-            shareToUnderlyingRate: vault.shareToUnderlyingRates[idx],
-            vault,
-          })),
-        )
-        .flat(),
+  const govTransfersByVault$ = govTransferQueries$.pipe(
+    // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
+    Rx.map((vault) => ({
+      ...vault,
+      ignoreAddresses: [
+        normalizeAddress("0x0000000000000000000000000000000000000000"),
+        normalizeAddress(vault.contract_evm_address.address),
+      ],
+    })),
+
+    // batch vault config by some reasonable amount that the RPC can handle
+    Rx.bufferCount(200),
+
+    mapErc20Transfers(
+      provider,
+      chain,
+      (vault) => {
+        if (!vault.underlying_evm_address.metadata.erc20) {
+          throw new Error("Vault contract is not ERC20");
+        }
+        // for gov vaults we don't have a share token so we use the underlying token
+        // transfers and filter on those transfer from and to the contract address
+        return {
+          address: vault.underlying_evm_address.address,
+          decimals: vault.underlying_evm_address.metadata.erc20?.decimals,
+          fromBlock: vault.fromBlock,
+          toBlock: vault.toBlock,
+          trackAddress: vault.contract_evm_address.address,
+        };
+      },
+      "transfers",
     ),
 
-    // remove mint burn events
-    Rx.filter((transfer) => transfer.ownerAddress !== "0x0000000000000000000000000000000000000000"),
+    // we want to catch any errors from the RPC
+    handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
+
+    // flatten
+    Rx.mergeMap((vaults) => Rx.from(vaults)),
+
+    // make is so we are transfering from the user in and out the vault
+    Rx.map((vault) => ({
+      ...vault,
+      transfers: vault.transfers.map(
+        (transfer): TokenizedVaultUserTransfer => ({
+          ...transfer,
+          vaultAddress: vault.contract_evm_address.address,
+        }),
+      ),
+    })),
+
+    // we set the share rate to 1 for gov vaults
+    Rx.map((vault) => ({ ...vault, shareToUnderlyingRates: vault.transfers.map(() => new Decimal(1)) })),
+  );
+
+  // join gov and non gov vaults
+  const rawTransfersByVault$ = Rx.merge(standardTransfersByVault, govTransfersByVault$);
+
+  const transfers$ = rawTransfersByVault$.pipe(
+    // now move to transfers representation
+    Rx.mergeMap((vault) =>
+      vault.transfers.map((transfer, idx) => ({
+        ...transfer,
+        shareToUnderlyingRate: vault.shareToUnderlyingRates[idx],
+        vault,
+      })),
+    ),
+
+    // remove ignored addresses
+    Rx.filter(
+      (transfer) => !transfer.vault.ignoreAddresses.some((ignoreAddr) => normalizeAddress(transfer.ownerAddress)),
+    ),
 
     Rx.tap((userAction) =>
       logger.trace({
@@ -202,7 +277,7 @@ function importChainVaultTransfers(
     ),
   );
 
-  const additionalChainData$ = userActions$.pipe(
+  const enhancedTransfers$ = transfers$.pipe(
     // batch transfer events before fetching additional infos
     Rx.bufferCount(500),
 
@@ -232,7 +307,7 @@ function importChainVaultTransfers(
   );
 
   // insert relational data pipe
-  const insertPipeline$ = additionalChainData$
+  const insertPipeline$ = enhancedTransfers$
     .pipe(
       // batch by an amount more suitable for batch inserts
       Rx.bufferCount(2000),
