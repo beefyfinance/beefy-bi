@@ -84,8 +84,8 @@ function importChainVaultTransfers(
   const allTransferQueries$ = chainVaults$
     // define the scope of our pipeline
     .pipe(
-      // Rx.filter((vault) => vault.chain === "avax"), //debug
-      // Rx.filter((vault) => !vault.has_erc20_shares_token), // debug: gov vaults
+      //Rx.filter((vault) => vault.chain === "avax"), //debug
+      //Rx.filter((vault) => !vault.has_erc20_shares_token), // debug: gov vaults
 
       Rx.filter((vault) => vault.end_of_life === false), // only live vaults
     )
@@ -94,8 +94,8 @@ function importChainVaultTransfers(
       Rx.bufferCount(200),
       // go get the latest block number for this chain
       Rx.mergeMap(async (vaults) => {
-        //const latestBlockNumber = 19800507; // DEBUG
-        const latestBlockNumber = await provider.getBlockNumber();
+        const latestBlockNumber = 19665966; // DEBUG
+        //const latestBlockNumber = await provider.getBlockNumber();
         return vaults.map((vault) => ({ ...vault, latestBlockNumber }));
       }),
 
@@ -236,6 +236,8 @@ function importChainVaultTransfers(
         (transfer): TokenizedVaultUserTransfer => ({
           ...transfer,
           vaultAddress: vault.contract_evm_address.address,
+          // amounts are reversed because we are sending token to the vault, but we then have a positive balance
+          sharesBalanceDiff: transfer.sharesBalanceDiff.negated(),
         }),
       ),
     })),
@@ -253,14 +255,20 @@ function importChainVaultTransfers(
       vault.transfers.map((transfer, idx) => ({
         ...transfer,
         shareToUnderlyingRate: vault.shareToUnderlyingRates[idx],
-        vault,
+        vault: { ...vault, transfers: undefined, shareToUnderlyingRates: undefined },
       })),
     ),
 
     // remove ignored addresses
-    Rx.filter(
-      (transfer) => !transfer.vault.ignoreAddresses.some((ignoreAddr) => normalizeAddress(transfer.ownerAddress)),
-    ),
+    Rx.filter((transfer) => {
+      const shouldIgnore = transfer.vault.ignoreAddresses.some(
+        (ignoreAddr) => ignoreAddr === normalizeAddress(transfer.ownerAddress),
+      );
+      if (shouldIgnore) {
+        logger.debug({ msg: "ignoring transfer", data: { chain, transfer } });
+      }
+      return !shouldIgnore;
+    }),
 
     Rx.tap((userAction) =>
       logger.trace({

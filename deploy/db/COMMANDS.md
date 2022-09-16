@@ -105,15 +105,16 @@ order by pg_total_relation_size(relid) desc;
 select datetime,
     shares.block_number,
     shares.chain,
-    trx.hash,
-    owner.address as owner,
-    vault.address as vault,
+    bytea_to_hexstr(trx.hash) as trx_hash,
+    bytea_to_hexstr(owner.address) as owner,
+    bytea_to_hexstr(vault.address) as vault,
     shares.shares_balance_diff,
     shares.shares_balance_after
 from vault_shares_transfer_ts shares
     join evm_address owner on shares.owner_evm_address_id = owner.evm_address_id
     join evm_address vault on shares.vault_evm_address_id = vault.evm_address_id
-    join evm_transaction trx on shares.evm_transaction_id = trx.evm_transaction_id;
+    join evm_transaction trx on shares.evm_transaction_id = trx.evm_transaction_id
+order by 1, 2, 3, 4, 5;
 
 
 
