@@ -1,4 +1,4 @@
-import { Chain } from "./chain";
+import { Chain } from "../../types/chain";
 
 export interface BeefyVault {
   id: string;
@@ -10,10 +10,7 @@ export interface BeefyVault {
   want_decimals: number;
   eol: boolean;
   is_gov_vault: boolean;
-  price_oracle: {
-    want_oracleId: string;
-    assets: string[];
-  };
+  assets: string[];
 }
 
 export interface BeefyFeeRecipientInfoAtBlock {

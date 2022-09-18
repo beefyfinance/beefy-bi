@@ -187,111 +187,80 @@ async function migrate() {
       $jsonb_merge_func$;
   `);
 
-  // an address and transaction table to avoid bloating the tables and indices
+  // token price registry to avoid manipulating and indexing strings on the other tables
   await db_query(`
-    CREATE TABLE IF NOT EXISTS evm_address (
-      evm_address_id serial PRIMARY KEY,
-      chain chain_enum NOT NULL,
-      address evm_address_bytea NOT NULL,
-      metadata jsonb NOT NULL
+    CREATE TABLE IF NOT EXISTS asset_price_feed (
+      asset_price_feed_id serial PRIMARY KEY,
+      -- unique price feed identifier
+      feed_key varchar NOT NULL UNIQUE,
+      external_id varchar NOT NULL -- the id used by the feed
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS evm_address_uniq ON evm_address(chain, address);
   `);
 
   await db_query(`
-    CREATE TABLE IF NOT EXISTS evm_transaction (
-      evm_transaction_id serial PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS product (
+      product_id serial PRIMARY KEY,
+
+      -- the product unique external key
+      product_key varchar UNIQUE NOT NULL,
+
       chain chain_enum NOT NULL,
-      hash evm_trx_hash NOT NULL,
-      block_number integer not null,
-      block_datetime TIMESTAMPTZ NOT NULL
+      
+      -- product price feed to get usd value
+      -- this should reflect the investement balance currency
+      asset_price_feed_id integer not null references asset_price_feed(asset_price_feed_id),
+      
+      -- all relevant product infos, addresses, type, etc
+      product_data jsonb NOT NULL
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS evm_transaction_uniq ON evm_transaction(chain, hash);
   `);
 
-  // stores vault transfers of shares
-  // may represent a virtual vault (that doesn't give a token back)
-  // in this case we have a 1:1 mapping between the underlying and the share
   await db_query(`
-    CREATE TABLE IF NOT EXISTS vault_shares_transfer_ts (
+    CREATE TABLE IF NOT EXISTS investor (
+      investor_id serial PRIMARY KEY,
+      investor_address evm_address_bytea NOT NULL UNIQUE,
+      investor_data jsonb NOT NULL -- all relevant investor infos
+    );
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS user_investment_ts (
       datetime timestamptz not null,
 
-      -- make it easier to debug and/or partition later
-      block_number integer not null,
-      chain chain_enum not null,
+      -- whatever contract the user is invested with
+      product_id integer not null references product(product_id),
+      investor_id integer not null references investor(investor_id),
 
-      evm_transaction_id integer not null references evm_transaction(evm_transaction_id),
-      owner_evm_address_id integer not null references evm_address(evm_address_id),
-      vault_evm_address_id integer not null references evm_address(evm_address_id),
+      -- the investment details
+      balance evm_decimal_256 not null, -- with decimals applied
 
-      -- all numeric fields have decimals applied
-      shares_balance_diff evm_decimal_256 not null,
-      shares_balance_after evm_decimal_256 null -- can be null if we can't query the archive node
+      -- some debug info to help us understand how we got this data
+      investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS vault_shares_transfer_ts_uniq ON vault_shares_transfer_ts(owner_evm_address_id, vault_evm_address_id, evm_transaction_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS user_investment_ts_uniq ON user_investment_ts(product_id, investor_id, datetime);
 
     SELECT create_hypertable(
-      relation => 'vault_shares_transfer_ts', 
+      relation => 'user_investment_ts', 
       time_column_name => 'datetime',
       chunk_time_interval => INTERVAL '7 days',
       if_not_exists => true
     );
   `);
 
-  // exchange rate betwwen a share and the underlying
-  // also contains the usd rate
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS vault_to_underlying_rate_ts (
-      datetime timestamptz not null,
-
-      -- make it easier to debug and/or partition later
-      block_number integer not null,
-      chain chain_enum not null,
-
-      vault_evm_address_id integer not null references evm_address(evm_address_id),
-
-      -- all numeric fields have decimals applied
-      shares_to_underlying_rate evm_decimal_256 not null
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS vault_to_underlying_rate_ts_uniq ON vault_to_underlying_rate_ts(vault_evm_address_id, datetime);
-
-    SELECT create_hypertable(
-      relation => 'vault_to_underlying_rate_ts', 
-      time_column_name => 'datetime',
-      chunk_time_interval => INTERVAL '7 days',
-      if_not_exists => true
-    );
-  `);
-
-  // token price
+  // price data
   await db_query(`
     CREATE TABLE IF NOT EXISTS asset_price_ts (
       datetime TIMESTAMPTZ NOT NULL,
-      price_feed_key varchar NOT NULL,
-      usd_value double precision not null
+      asset_price_feed_id integer not null references asset_price_feed(asset_price_feed_id),
+      usd_value evm_decimal_256 not null
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(price_feed_key, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(asset_price_feed_id, datetime);
     SELECT create_hypertable(
       relation => 'asset_price_ts',
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '7 days', 
       if_not_exists => true
     );
-  `);
-
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS beefy_vault (
-      vault_id serial PRIMARY KEY,
-      vault_key varchar NOT NULL,
-      chain chain_enum NOT NULL,
-      contract_evm_address_id integer not null references evm_address(evm_address_id),
-      underlying_evm_address_id integer not null references evm_address(evm_address_id),
-      end_of_life boolean not null,
-      has_erc20_shares_token boolean not null,
-      assets_price_feed_keys varchar[] not null
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS beefy_vault_uniq ON beefy_vault(contract_evm_address_id);
   `);
 
   // a table to store which vault we already imported and which range needs to be retried

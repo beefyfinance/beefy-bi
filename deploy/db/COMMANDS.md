@@ -152,7 +152,7 @@ price_gf_ts as (
     v.contract_evm_address_id as vault_evm_address_id,
     locf(last(usd_value, datetime)) as usd_value
   from asset_price_ts p
-    join evm_address u on p.price_feed_key = metadata->'erc20'->>'price_feed_key'
+    join evm_address u on p.price_feed_key = u.metadata->'erc20'->>'price_feed_key'
     join beefy_vault v on u.evm_address_id = v.underlying_evm_address_id
   where
     $__timeFilter(datetime)
