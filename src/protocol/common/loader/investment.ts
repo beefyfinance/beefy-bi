@@ -30,7 +30,7 @@ export function upsertInvestment<TInput, TRes>(options: {
       const objAndData = objs.map((obj) => ({ obj, investment: options.getInvestmentData(obj) }));
 
       await db_query(
-        `INSERT INTO user_investment_ts (
+        `INSERT INTO investment_balance_ts (
               datetime,
               product_id,
               investor_id,
@@ -40,7 +40,7 @@ export function upsertInvestment<TInput, TRes>(options: {
               ON CONFLICT (product_id, investor_id, datetime) 
               DO UPDATE SET 
                 balance = EXCLUDED.balance, 
-                investment_data = jsonb_merge(user_investment_ts.investment_data, EXCLUDED.investment_data)
+                investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
           objAndData.map(({ investment }) => [

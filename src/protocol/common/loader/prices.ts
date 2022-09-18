@@ -9,7 +9,7 @@ const logger = rootLogger.child({ module: "prices" });
 
 interface DbPrice {
   datetime: Date;
-  assetPriceFeedId: number;
+  priceFeedId: number;
   usdValue: Decimal;
 }
 
@@ -36,17 +36,11 @@ export function upsertPrices<TInput, TRes>(options: {
       await db_query<{}>(
         `INSERT INTO asset_price_ts (
             datetime,
-            asset_price_feed_id,
+            price_feed_id,
             usd_value
           ) VALUES %L
-          ON CONFLICT (asset_price_feed_id, datetime) DO NOTHING`,
-        [
-          objAndData.map(({ priceData }) => [
-            priceData.datetime,
-            priceData.assetPriceFeedId,
-            priceData.usdValue.toString(),
-          ]),
-        ],
+          ON CONFLICT (price_feed_id, datetime) DO NOTHING`,
+        [objAndData.map(({ priceData }) => [priceData.datetime, priceData.priceFeedId, priceData.usdValue.toString()])],
         options.client,
       );
 
@@ -68,17 +62,17 @@ export function findMissingPriceRangeInDb<TObj, TRes>(options: {
 
     // find out which data is missing
     Rx.mergeMap(async (objs) => {
-      const results = await db_query<{ assetPriceFeedId: number; lastInsertedDatetime: Date }>(
+      const results = await db_query<{ priceFeedId: number; lastInsertedDatetime: Date }>(
         `SELECT 
-            asset_price_feed_id as "assetPriceFeedId",
+            price_feed_id as "priceFeedId",
             last(datetime, datetime) as "lastInsertedDatetime"
           FROM asset_price_ts 
-          WHERE asset_price_feed_id IN (%L)
-          GROUP BY asset_price_feed_id`,
+          WHERE price_feed_id IN (%L)
+          GROUP BY price_feed_id`,
         [objs.map((o) => options.getFeedId(o))],
         options.client,
       );
-      const resultsMap = keyBy(results, "assetPriceFeedId");
+      const resultsMap = keyBy(results, "priceFeedId");
 
       // if we have data already, we want to only fetch new data
       // otherwise, we aim for the last 24h of data

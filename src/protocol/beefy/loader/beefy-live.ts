@@ -7,7 +7,7 @@ import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
-import { curry, omit, sample } from "lodash";
+import { curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
 import { fetchErc20Transfers } from "../../common/connector/erc20-transfers";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
@@ -31,6 +31,7 @@ import { findMissingPriceRangeInDb, upsertPrices } from "../../common/loader/pri
 import { upsertInvestor } from "../../common/loader/investor";
 import { DbInvestment, upsertInvestment } from "../../common/loader/investment";
 import { addLatestBlockQuery } from "../../common/connector/latest-block-query";
+import { samplingPeriodMs } from "../../../types/sampling";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -63,14 +64,14 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    //await pollBeefyProducts();
+    await pollBeefyProducts();
     await pollLiveData();
     await pollPriceData();
 
     // then start polling at regular intervals
-    setInterval(pollLiveData, 1000 * 30 /* 30s */);
-    //setInterval(pollVaultData, samplingPeriodMs["1day"]);
-    setInterval(pollPriceData, 1000 * 60 * 5 /* 5 minutes */);
+    setInterval(pollLiveData, samplingPeriodMs["30s"]);
+    setInterval(pollBeefyProducts, samplingPeriodMs["1day"]);
+    setInterval(pollPriceData, samplingPeriodMs["5min"]);
   });
 }
 
@@ -253,7 +254,7 @@ function importChainVaultTransfers(
     upsertInvestor({
       client,
       getInvestorData: (transferData) => ({
-        investorAddress: transferData.transfer.ownerAddress,
+        address: transferData.transfer.ownerAddress,
         investorData: {},
       }),
       formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
@@ -307,7 +308,7 @@ function loadBeefyProducts(client: PoolClient) {
           externalId: vaultId, // this is the key that the price feed uses
         };
       },
-      formatOutput: (vaultData, assetPriceFeed) => ({ ...vaultData, assetPriceFeed }),
+      formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
     }),
 
     upsertProduct({
@@ -316,7 +317,7 @@ function loadBeefyProducts(client: PoolClient) {
         const vaultId = normalizeVaultId(vaultData.vault.id);
         return {
           productKey: `beefy:vault:${vaultId}`,
-          assetPriceFeedId: vaultData.assetPriceFeed.assetPriceFeedId,
+          priceFeedId: vaultData.priceFeed.priceFeedId,
           chain: vaultData.vault.chain,
           productData: {
             type: "beefy:vault",
@@ -356,17 +357,17 @@ function fetchPrices(client: PoolClient) {
       // get the price feed infos
       fetchDbPriceFeed({
         client,
-        getId: (productData) => productData.product.assetPriceFeedId,
-        formatOutput: (productData, assetPriceFeed) => ({ ...productData, assetPriceFeed }),
+        getId: (productData) => productData.product.priceFeedId,
+        formatOutput: (productData, priceFeed) => ({ ...productData, priceFeed }),
       }),
 
       // remove duplicates
-      Rx.distinct(({ assetPriceFeed }) => assetPriceFeed.externalId),
+      Rx.distinct(({ priceFeed }) => priceFeed.externalId),
 
       // find which data is missing
       findMissingPriceRangeInDb({
         client,
-        getFeedId: (productData) => productData.assetPriceFeed.assetPriceFeedId,
+        getFeedId: (productData) => productData.priceFeed.priceFeedId,
         formatOutput: (productData, missingData) => ({ ...productData, missingData }),
       }),
     )
@@ -375,12 +376,12 @@ function fetchPrices(client: PoolClient) {
       Rx.mergeMap(async (productData) => {
         const debugLogData = {
           productKey: productData.product.productKey,
-          priceFeed: productData.assetPriceFeed.assetPriceFeedId,
+          priceFeed: productData.priceFeed.priceFeedId,
           missingData: productData.missingData,
         };
 
         logger.debug({ msg: "fetching prices", data: debugLogData });
-        const prices = await fetchBeefyPrices("15min", productData.assetPriceFeed.externalId, {
+        const prices = await fetchBeefyPrices("15min", productData.priceFeed.externalId, {
           startDate: productData.missingData.fromDate,
           endDate: productData.missingData.toDate,
         });
@@ -402,7 +403,7 @@ function fetchPrices(client: PoolClient) {
         client,
         getPriceData: (priceData) => ({
           datetime: priceData.price.datetime,
-          assetPriceFeedId: priceData.assetPriceFeed.assetPriceFeedId,
+          priceFeedId: priceData.priceFeed.priceFeedId,
           usdValue: new Decimal(priceData.price.value),
         }),
         formatOutput: (priceData, price) => ({ ...priceData, price }),

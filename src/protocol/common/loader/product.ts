@@ -12,7 +12,7 @@ interface DbBaseProduct {
   productId: number;
   productKey: string;
   chain: Chain;
-  assetPriceFeedId: number;
+  priceFeedId: number;
 }
 
 export interface DbBeefyVaultProduct extends DbBaseProduct {
@@ -50,14 +50,14 @@ export function upsertProduct<TInput, TRes>(options: {
       const objAndData = objs.map((obj) => ({ obj, productData: options.getProductData(obj) }));
 
       const results = await db_query<DbProduct>(
-        `INSERT INTO product (product_key, asset_price_feed_id, chain, product_data) VALUES %L
+        `INSERT INTO product (product_key, price_feed_id, chain, product_data) VALUES %L
               ON CONFLICT (product_key) 
               DO UPDATE SET product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
-              RETURNING product_id as "productId", product_key as "productKey", asset_price_feed_id as "assetPriceFeedId", chain, product_data as "productData"`,
+              RETURNING product_id as "productId", product_key as "productKey", price_feed_id as "priceFeedId", chain, product_data as "productData"`,
         [
           objAndData.map(({ productData }) => [
             productData.productKey,
-            productData.assetPriceFeedId,
+            productData.priceFeedId,
             productData.chain,
             productData.productData,
           ]),
@@ -83,7 +83,7 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
       `SELECT 
         product_id as "productId",
         chain,
-        asset_price_feed_id as "assetPriceFeedId",
+        price_feed_id as "priceFeedId",
         product_data as "productData"
       FROM product
       where product_key like %L || ':%'`,

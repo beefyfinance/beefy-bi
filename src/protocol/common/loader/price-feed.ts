@@ -4,16 +4,16 @@ import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
 
-export interface DbAssetPriceFeed {
-  assetPriceFeedId: number;
+export interface DbPriceFeed {
+  priceFeedId: number;
   feedKey: string;
   externalId: string;
 }
 
 export function upsertPriceFeed<TInput, TRes>(options: {
   client: PoolClient;
-  getFeedData: (obj: TInput) => Omit<DbAssetPriceFeed, "assetPriceFeedId">;
-  formatOutput: (obj: TInput, feed: DbAssetPriceFeed) => TRes;
+  getFeedData: (obj: TInput) => Omit<DbPriceFeed, "priceFeedId">;
+  formatOutput: (obj: TInput, feed: DbPriceFeed) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
     // batch queries
@@ -28,12 +28,12 @@ export function upsertPriceFeed<TInput, TRes>(options: {
 
       const objAndData = objs.map((obj) => ({ obj, feedData: options.getFeedData(obj) }));
 
-      const results = await db_query<DbAssetPriceFeed>(
-        `INSERT INTO asset_price_feed (feed_key, external_id) VALUES %L
+      const results = await db_query<DbPriceFeed>(
+        `INSERT INTO price_feed (feed_key, external_id) VALUES %L
               ON CONFLICT (feed_key) 
               -- DO NOTHING -- can't use DO NOTHING because we need to return the id
               DO UPDATE SET feed_key = EXCLUDED.feed_key, external_id = EXCLUDED.external_id
-              RETURNING asset_price_feed_id as "assetPriceFeedId", feed_key as "feedKey", external_id as "externalId"`,
+              RETURNING price_feed_id as "priceFeedId", feed_key as "feedKey", external_id as "externalId"`,
         [
           uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [
             obj.feedData.feedKey,
@@ -56,25 +56,25 @@ export function upsertPriceFeed<TInput, TRes>(options: {
 export function fetchDbPriceFeed<TObj, TRes>(options: {
   client: PoolClient;
   getId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, feed: DbAssetPriceFeed) => TRes;
+  formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchQueryGroup({
     bufferCount: 500,
     toQueryObj: (obj: TObj[]) => options.getId(obj[0]),
     getBatchKey: (obj: TObj) => options.getId(obj),
     processBatch: async (ids: number[]) => {
-      const results = await db_query<DbAssetPriceFeed>(
+      const results = await db_query<DbPriceFeed>(
         `SELECT 
-          asset_price_feed_id as "assetPriceFeedId",
+          price_feed_id as "priceFeedId",
           feed_key as "feedKey",
           external_id as "externalId"
-        FROM asset_price_feed 
-        WHERE asset_price_feed_id IN (%L)`,
+        FROM price_feed 
+        WHERE price_feed_id IN (%L)`,
         [ids],
         options.client,
       );
       // ensure results are in the same order as the params
-      const idMap = keyBy(results, (r) => r.assetPriceFeedId);
+      const idMap = keyBy(results, (r) => r.priceFeedId);
       return ids.map((id) => idMap[id]);
     },
     formatOutput: options.formatOutput,

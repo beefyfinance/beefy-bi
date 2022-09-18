@@ -185,8 +185,8 @@ async function migrate() {
 
   // token price registry to avoid manipulating and indexing strings on the other tables
   await db_query(`
-    CREATE TABLE IF NOT EXISTS asset_price_feed (
-      asset_price_feed_id serial PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS price_feed (
+      price_feed_id serial PRIMARY KEY,
       -- unique price feed identifier
       feed_key varchar NOT NULL UNIQUE,
       external_id varchar NOT NULL -- the id used by the feed
@@ -204,7 +204,7 @@ async function migrate() {
       
       -- product price feed to get usd value
       -- this should reflect the investement balance currency
-      asset_price_feed_id integer not null references asset_price_feed(asset_price_feed_id),
+      price_feed_id integer not null references price_feed(price_feed_id),
       
       -- all relevant product infos, addresses, type, etc
       product_data jsonb NOT NULL
@@ -214,13 +214,13 @@ async function migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS investor (
       investor_id serial PRIMARY KEY,
-      investor_address evm_address_bytea NOT NULL UNIQUE,
+      address evm_address_bytea NOT NULL UNIQUE,
       investor_data jsonb NOT NULL -- all relevant investor infos
     );
   `);
 
   await db_query(`
-    CREATE TABLE IF NOT EXISTS user_investment_ts (
+    CREATE TABLE IF NOT EXISTS investment_balance_ts (
       datetime timestamptz not null,
 
       -- whatever contract the user is invested with
@@ -233,10 +233,10 @@ async function migrate() {
       -- some debug info to help us understand how we got this data
       investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS user_investment_ts_uniq ON user_investment_ts(product_id, investor_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS investment_balance_ts_uniq ON investment_balance_ts(product_id, investor_id, datetime);
 
     SELECT create_hypertable(
-      relation => 'user_investment_ts', 
+      relation => 'investment_balance_ts', 
       time_column_name => 'datetime',
       chunk_time_interval => INTERVAL '7 days',
       if_not_exists => true
@@ -247,10 +247,10 @@ async function migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS asset_price_ts (
       datetime TIMESTAMPTZ NOT NULL,
-      asset_price_feed_id integer not null references asset_price_feed(asset_price_feed_id),
+      price_feed_id integer not null references price_feed(price_feed_id),
       usd_value evm_decimal_256 not null
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(asset_price_feed_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(price_feed_id, datetime);
     SELECT create_hypertable(
       relation => 'asset_price_ts',
       time_column_name => 'datetime', 
@@ -258,7 +258,7 @@ async function migrate() {
       if_not_exists => true
     );
   `);
-
+  /*
   // a table to store which vault we already imported and which range needs to be retried
   await db_query(`
     CREATE TABLE IF NOT EXISTS import_status (
@@ -271,6 +271,6 @@ async function migrate() {
       ranges_to_retry int4range[] NOT NULL
     );
   `);
-
+*/
   logger.info({ msg: "Migrate done" });
 }
