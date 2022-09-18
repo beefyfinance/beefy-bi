@@ -3,7 +3,7 @@ import * as path from "path";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
 import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
-import { BeefyVault } from "../../../types/beefy";
+import { BeefyVault } from "../types";
 import prettier from "prettier";
 import { rootLogger } from "../../../utils/logger2";
 import * as Rx from "rxjs";

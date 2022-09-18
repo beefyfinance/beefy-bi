@@ -4,7 +4,7 @@ import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger2";
-import { BeefyVault } from "../../../types/beefy";
+import { BeefyVault } from "../../beefy/types";
 
 const logger = rootLogger.child({ module: "product" });
 
