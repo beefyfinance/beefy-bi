@@ -25,10 +25,23 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1662417181464,
+  "iteration": 1663511881310,
   "links": [],
   "liveNow": false,
   "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "panels": [],
+      "title": "Row title",
+      "type": "row"
+    },
     {
       "datasource": {
         "type": "postgres",
@@ -57,7 +70,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -89,7 +102,7 @@
         "h": 16,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 1
       },
       "id": 2,
       "options": {
@@ -113,7 +126,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('15min', datetime) as datetime,\n    vault_evm_address_id,\n    locf(last(shares_balance_after::numeric, datetime)) as shares_balance_after\n  from vault_shares_transfer_ts shares\n  WHERE\n    $__timeFilter(datetime)\n    and owner_evm_address_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where shares_balance_after is not null\n),\nshares_gf_ts as (\n  select\n    time_bucket_gapfill('15min', datetime) as datetime,\n    vault_evm_address_id,\n    locf(last(shares_to_underlying_rate::numeric, datetime)) as shares_to_underlying_rate\n  from vault_to_underlying_rate_ts\n  WHERE\n    $__timeFilter(datetime)\n    and vault_evm_address_id in (select vault_evm_address_id from balance_ts)\n  group by 1,2\n),\nshares_ts as (\n  select * from shares_gf_ts where shares_to_underlying_rate is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('15min', datetime) as datetime,\n    v.contract_evm_address_id as vault_evm_address_id,\n    locf(last(usd_value, datetime)) as usd_value\n  from asset_price_ts p\n    join evm_address u on p.price_feed_key = metadata->'erc20'->>'price_feed_key'\n    join beefy_vault v on u.evm_address_id = v.underlying_evm_address_id\n  where\n    $__timeFilter(datetime)\n    and v.contract_evm_address_id in (\n      select vault_evm_address_id\n      from balance_ts\n    )\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  a.metadata->'erc20'->>'price_feed_key' as vault_name,\n  /*b.shares_balance_after,\n  s.shares_to_underlying_rate,\n  p.usd_value,*/\n  (b.shares_balance_after * s.shares_to_underlying_rate * p.usd_value) as \"$\"\nfrom balance_ts b\n  left join shares_ts s on b.datetime = s.datetime and b.vault_evm_address_id = s.vault_evm_address_id\n  left join price_ts p on b.datetime = p.datetime and b.vault_evm_address_id = p.vault_evm_address_id\n  left join evm_address a on b.vault_evm_address_id = a.evm_address_id\norder by 1;",
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from user_investment_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    asset_price_feed_id as asset_price_feed_id,\n    locf(last(usd_value, datetime)) as usd_value\n  from asset_price_ts\n  where \n    $__timeFilter(datetime)\n    and asset_price_feed_id in ($price_feed_ids)\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p.usd_value) as \"$\"\nfrom balance_ts b\n  join product pr using(product_id)\n  join asset_price_ts p using(datetime, asset_price_feed_id)\norder by 1;",
           "refId": "A",
           "select": [
             [
@@ -146,39 +159,159 @@
       {
         "current": {
           "selected": false,
-          "text": "0x0625ad46632162abafb0114503e1f144f078f07b",
-          "value": "0x0625ad46632162abafb0114503e1f144f078f07b"
+          "text": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
+          "value": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0x0625ad46632162abafb0114503e1f144f078f07b",
-            "value": "0x0625ad46632162abafb0114503e1f144f078f07b"
+            "text": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
+            "value": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894"
           }
         ],
-        "query": "0x0625ad46632162abafb0114503e1f144f078f07b",
+        "query": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": false,
-          "text": "16313",
-          "value": "16313"
+          "text": "1557",
+          "value": "1557"
         },
         "datasource": {
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select evm_address_id \nfrom evm_address\nwhere hexstr_to_bytea('$investor_address') = address",
+        "definition": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = investor_address",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "investor_id",
         "options": [],
-        "query": "select evm_address_id \nfrom evm_address\nwhere hexstr_to_bytea('$investor_address') = address",
+        "query": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = investor_address",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "1m",
+        "current": {
+          "selected": false,
+          "text": "auto",
+          "value": "$__auto_interval_interval"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "auto",
+            "value": "$__auto_interval_interval"
+          },
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select distinct product_id\nfrom user_investment_ts\nwhere investor_id = $investor_id",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_ids",
+        "options": [],
+        "query": "select distinct product_id\nfrom user_investment_ts\nwhere investor_id = $investor_id",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select asset_price_feed_id\nfrom product\nwhere product_id in ($product_ids)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "price_feed_ids",
+        "options": [],
+        "query": "select asset_price_feed_id\nfrom product\nwhere product_id in ($product_ids)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -188,13 +321,13 @@
     ]
   },
   "time": {
-    "from": "2022-09-05T19:13:01.503Z",
-    "to": "2022-09-05T21:39:55.925Z"
+    "from": "now-24h",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 1,
+  "version": 7,
   "weekStart": ""
 }

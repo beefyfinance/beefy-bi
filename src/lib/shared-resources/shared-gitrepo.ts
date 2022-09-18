@@ -1,6 +1,6 @@
 import { backOff } from "exponential-backoff";
 import { getRedlock } from "./shared-lock";
-import { rootLogger } from "../../utils/logger2";
+import { rootLogger } from "../../utils/logger";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "git-local-repo-lock" });
 
@@ -38,6 +38,6 @@ export async function callLockProtectedGitRepo(repo: string, work: () => Promise
       },
       startingDelay: 0,
       timeMultiple: 2,
-    }
+    },
   );
 }

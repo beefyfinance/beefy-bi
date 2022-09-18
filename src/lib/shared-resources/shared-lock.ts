@@ -1,7 +1,7 @@
 import Client from "ioredis";
 import Redlock from "redlock";
 import { REDIS_URL } from "../../utils/config";
-import { rootLogger } from "../../utils/logger2";
+import { rootLogger } from "../../utils/logger";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "redis-lock" });
 
@@ -43,7 +43,7 @@ export async function getRedlock() {
         // The minimum remaining time on a lock before an extension is automatically
         // attempted with the `using` API.
         automaticExtensionThreshold: 60_000, // time in ms
-      }
+      },
     );
   }
   return redlock;

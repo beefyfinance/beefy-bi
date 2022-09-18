@@ -3,9 +3,8 @@ import * as path from "path";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
 import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
-import { BeefyVault } from "../types";
 import prettier from "prettier";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
@@ -23,6 +22,19 @@ interface RawBeefyVault {
   oracleId: string;
   status?: string;
   assets?: string[];
+}
+
+export interface BeefyVault {
+  id: string;
+  chain: Chain;
+  token_name: string;
+  token_decimals: number;
+  contract_address: string;
+  want_address: string;
+  want_decimals: number;
+  eol: boolean;
+  is_gov_vault: boolean;
+  assets: string[];
 }
 
 export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVault> {

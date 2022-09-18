@@ -1,6 +1,6 @@
 import { retryBackoff } from "backoff-rxjs";
 import { shouldRetryRpcError } from "../../../lib/rpc/archive-node-needed";
-import { rootLogger } from "../../logger2";
+import { rootLogger } from "../../logger";
 import { shouldRetryProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });

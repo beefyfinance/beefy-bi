@@ -1,9 +1,7 @@
 import Decimal from "decimal.js";
-import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { db_query, strAddressToPgBytea } from "../../../utils/db";
-import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { db_query } from "../../../utils/db";
 
 export interface DbInvestment {
   datetime: Date;
@@ -14,16 +12,22 @@ export interface DbInvestment {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertInvestment(client: PoolClient): Rx.OperatorFunction<DbInvestment, DbInvestment> {
+export function upsertInvestment<TInput, TRes>(options: {
+  client: PoolClient;
+  getInvestmentData: (obj: TInput) => DbInvestment;
+  formatOutput: (obj: TInput, investment: DbInvestment) => TRes;
+}): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
     Rx.bufferCount(500),
 
     // insert to the investment table
-    Rx.mergeMap(async (investments) => {
+    Rx.mergeMap(async (objs) => {
       // short circuit if there's nothing to do
-      if (investments.length === 0) {
+      if (objs.length === 0) {
         return [];
       }
+
+      const objAndData = objs.map((obj) => ({ obj, investment: options.getInvestmentData(obj) }));
 
       await db_query(
         `INSERT INTO user_investment_ts (
@@ -39,17 +43,17 @@ export function upsertInvestment(client: PoolClient): Rx.OperatorFunction<DbInve
                 investment_data = jsonb_merge(user_investment_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
-          investments.map((investement) => [
-            investement.datetime.toISOString(),
-            investement.productId,
-            investement.investorId,
-            investement.balance.toString(),
-            investement.investmentData,
+          objAndData.map(({ investment }) => [
+            investment.datetime.toISOString(),
+            investment.productId,
+            investment.investorId,
+            investment.balance.toString(),
+            investment.investmentData,
           ]),
         ],
-        client,
+        options.client,
       );
-      return investments;
+      return objAndData.map(({ obj, investment }) => options.formatOutput(obj, investment));
     }),
 
     Rx.mergeMap((investments) => Rx.from(investments)), // flatten

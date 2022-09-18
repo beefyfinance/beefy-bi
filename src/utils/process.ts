@@ -1,4 +1,4 @@
-import { rootLogger } from "./logger2";
+import { rootLogger } from "./logger";
 
 const logger = rootLogger.child({ module: "process", component: "exit-handler" });
 

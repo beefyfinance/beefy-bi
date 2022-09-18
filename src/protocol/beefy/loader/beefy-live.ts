@@ -4,23 +4,21 @@ import { allChainIds, Chain } from "../../../types/chain";
 import { withPgClient } from "../../../utils/db";
 import { beefyVaultsFromGitHistory$ } from "../connector/vault-list";
 import { PoolClient } from "pg";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
-import { curry, keyBy, max, sample, sortBy } from "lodash";
-import { samplingPeriodMs } from "../../../types/sampling";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
-import { mapErc20Transfers } from "../../common/connector/erc20-transfers";
+import { curry, omit, sample } from "lodash";
+import { RPC_URLS } from "../../../utils/config";
+import { fetchErc20Transfers } from "../../common/connector/erc20-transfers";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
-import { mapBeefyVaultShareRate } from "../connector/ppfs";
-import { mapERC20TokenBalance } from "../../common/connector/owner-balance";
-import { mapBlockDatetime } from "../../common/connector/block-datetime";
+import { fetchERC20TokenBalance } from "../../common/connector/owner-balance";
+import { fetchBlockDatetime } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
 import { loaderByChain } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
 import { handleRpcErrors } from "../../common/connector/rpc-errors";
-import { mapPriceFeed, upsertPriceFeed } from "../../common/loader/price-feed";
+import { fetchDbPriceFeed, upsertPriceFeed } from "../../common/loader/price-feed";
 import {
   DbBeefyBoostProduct,
   DbBeefyProduct,
@@ -29,9 +27,10 @@ import {
   upsertProduct,
 } from "../../common/loader/product";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
-import { toMissingPriceDataQuery, upsertPrices } from "../../common/loader/prices";
+import { findMissingPriceRangeInDb, upsertPrices } from "../../common/loader/prices";
 import { upsertInvestor } from "../../common/loader/investor";
 import { DbInvestment, upsertInvestment } from "../../common/loader/investment";
+import { addLatestBlockQuery } from "../../common/connector/latest-block-query";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -66,12 +65,12 @@ async function main() {
     // start polling live data immediately
     //await pollBeefyProducts();
     await pollLiveData();
-    //await pollPriceData();
+    await pollPriceData();
 
     // then start polling at regular intervals
-    //setInterval(pollLiveData, 1000 * 30 /* 30s */);
+    setInterval(pollLiveData, 1000 * 30 /* 30s */);
     //setInterval(pollVaultData, samplingPeriodMs["1day"]);
-    //setInterval(pollPriceData, 1000 * 60 * 5 /* 5 minutes */);
+    setInterval(pollPriceData, 1000 * 60 * 5 /* 5 minutes */);
   });
 }
 
@@ -97,47 +96,18 @@ function importChainVaultTransfers(
       //Rx.filter((vault) => !vault.has_erc20_shares_token), // debug: gov vaults
 
       Rx.filter((product) => product.productData.vault.eol === false), // only live vaults
-    )
-    .pipe(
-      // batch vault config by some reasonable amount that the RPC can handle
-      Rx.bufferCount(200),
-      // go get the latest block number for this chain
-      Rx.mergeMap(async (products) => {
-        const latestBlockNumber = await provider.getBlockNumber();
-        return products.map((product) => ({ product, latestBlockNumber }));
+
+      // fetch the latest block numbers to query
+      addLatestBlockQuery({
+        chain,
+        provider,
+        getLastImportedBlock: (chain) => importState[chain].lastImportedBlockNumber ?? null,
+        formatOutput: (product, latestBlocksQuery) => ({ product, latestBlocksQuery }),
       }),
-
-      // compute the block range we want to query
-      Rx.map((productQueries) =>
-        productQueries.map((productQuery) => {
-          // fetch the last hour of data
-          const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
-          const period = samplingPeriodMs["1hour"];
-          const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[chain]);
-
-          const lastImportedBlockNumber = importState[chain].lastImportedBlockNumber ?? null;
-          const diffBetweenLastImported = lastImportedBlockNumber
-            ? productQuery.latestBlockNumber - (lastImportedBlockNumber + 1)
-            : Infinity;
-
-          const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
-          const fromBlock = productQuery.latestBlockNumber - blockCountToFetch;
-          const toBlock = productQuery.latestBlockNumber;
-
-          // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
-          // where the RPC don't know about the block number he just gave us
-          const waitForBlockPropagation = 5;
-          return {
-            ...productQuery,
-            fromBlock: fromBlock - waitForBlockPropagation,
-            toBlock: toBlock - waitForBlockPropagation,
-          };
-        }),
-      ),
     );
 
   const [govTransferQueries$, transferQueries$] = Rx.partition(
-    allTransferQueries$.pipe(Rx.mergeMap((products) => Rx.from(products))),
+    allTransferQueries$,
     ({ product }) => product.productData.vault.is_gov_vault,
   );
 
@@ -148,47 +118,24 @@ function importChainVaultTransfers(
       ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
     })),
 
-    // batch vault config by some reasonable amount that the RPC can handle
-    Rx.bufferCount(200),
-
-    mapErc20Transfers(
+    // fetch the vault transfers
+    fetchErc20Transfers({
       provider,
       chain,
-      (productQuery) => {
+      getQueryParams: (productQuery) => {
         const vault = productQuery.product.productData.vault;
         return {
           address: vault.contract_address,
           decimals: vault.token_decimals,
-          fromBlock: productQuery.fromBlock,
-          toBlock: productQuery.toBlock,
+          fromBlock: productQuery.latestBlocksQuery.fromBlock,
+          toBlock: productQuery.latestBlocksQuery.toBlock,
         };
       },
-      "transfers",
-    ),
+      formatOutput: (productQuery, transfers) => ({ ...productQuery, transfers }),
+    }),
 
     // we want to catch any errors from the RPC
     handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
-
-    // we also want the shares rate of each involved vault
-    mapBeefyVaultShareRate(
-      provider,
-      chain,
-      (productQuery) => {
-        const vault = productQuery.product.productData.vault;
-        return {
-          vaultAddress: vault.contract_address,
-          vaultDecimals: vault.token_decimals,
-          underlyingDecimals: vault.want_decimals,
-          blockNumbers: productQuery.transfers.map((t) => t.blockNumber),
-        };
-      },
-      "shareToUnderlyingRates",
-    ),
-
-    handleRpcErrors({ msg: "mapping vault share rate", data: { chain } }),
-
-    // flatten the result
-    Rx.mergeMap((vaults) => Rx.from(vaults)),
   );
 
   const govTransfersByVault$ = govTransferQueries$.pipe(
@@ -202,32 +149,26 @@ function importChainVaultTransfers(
       ],
     })),
 
-    // batch vault config by some reasonable amount that the RPC can handle
-    Rx.bufferCount(200),
-
-    mapErc20Transfers(
+    fetchErc20Transfers({
       provider,
       chain,
-      (productQuery) => {
+      getQueryParams: (productQuery) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
         const vault = productQuery.product.productData.vault;
         return {
           address: vault.want_address,
           decimals: vault.want_decimals,
-          fromBlock: productQuery.fromBlock,
-          toBlock: productQuery.toBlock,
+          fromBlock: productQuery.latestBlocksQuery.fromBlock,
+          toBlock: productQuery.latestBlocksQuery.toBlock,
           trackAddress: vault.contract_address,
         };
       },
-      "transfers",
-    ),
+      formatOutput: (productQuery, transfers) => ({ ...productQuery, transfers }),
+    }),
 
     // we want to catch any errors from the RPC
     handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
-
-    // flatten
-    Rx.mergeMap((productQueries) => Rx.from(productQueries)),
 
     // make is so we are transfering from the user in and out the vault
     Rx.map((productQuery) => ({
@@ -241,9 +182,6 @@ function importChainVaultTransfers(
         }),
       ),
     })),
-
-    // we set the share rate to 1 for gov vaults
-    Rx.map((vault) => ({ ...vault, shareToUnderlyingRates: vault.transfers.map(() => new Decimal(1)) })),
   );
 
   // join gov and non gov vaults
@@ -253,95 +191,89 @@ function importChainVaultTransfers(
     // now move to transfers representation
     Rx.mergeMap((productQuery) =>
       productQuery.transfers.map((transfer, idx) => ({
-        ...transfer,
-        shareToUnderlyingRate: productQuery.shareToUnderlyingRates[idx],
+        transfer,
         ignoreAddresses: productQuery.ignoreAddresses,
         product: productQuery.product,
       })),
     ),
 
     // remove ignored addresses
-    Rx.filter((transfer) => {
-      const shouldIgnore = transfer.ignoreAddresses.some(
-        (ignoreAddr) => ignoreAddr === normalizeAddress(transfer.ownerAddress),
+    Rx.filter((transferData) => {
+      const shouldIgnore = transferData.ignoreAddresses.some(
+        (ignoreAddr) => ignoreAddr === normalizeAddress(transferData.transfer.ownerAddress),
       );
       if (shouldIgnore) {
-        logger.debug({ msg: "ignoring transfer", data: { chain, transfer } });
+        logger.debug({ msg: "ignoring transfer", data: { chain, transferData } });
       }
       return !shouldIgnore;
     }),
 
-    Rx.tap((userAction) =>
+    Rx.tap((transferData) =>
       logger.trace({
-        msg: "processing user action",
+        msg: "processing transfer data",
         data: {
           chain,
-          productKey: userAction.product.productKey,
-          transaction: userAction.transactionHash,
-          ownerAddress: userAction.ownerAddress,
-          vaultAddress: userAction.vaultAddress,
-          amount: userAction.sharesBalanceDiff.toString(),
+          productKey: transferData.product.productKey,
+          transfer: transferData.transfer,
         },
       }),
     ),
   );
 
   const enhancedTransfers$ = transfers$.pipe(
-    // batch transfer events before fetching additional infos
-    Rx.bufferCount(500),
-
     // we need the balance of each owner
-    mapERC20TokenBalance(
+    fetchERC20TokenBalance({
       chain,
       provider,
-      (t) => ({
-        blockNumber: t.blockNumber,
-        decimals: t.sharesDecimals,
-        contractAddress: t.vaultAddress,
-        ownerAddress: t.ownerAddress,
+      getQueryParams: (transferData) => ({
+        blockNumber: transferData.transfer.blockNumber,
+        decimals: transferData.transfer.sharesDecimals,
+        contractAddress: transferData.transfer.vaultAddress,
+        ownerAddress: transferData.transfer.ownerAddress,
       }),
-      "ownerBalance",
-    ),
+      formatOutput: (transferData, balance) => ({ ...transferData, balance }),
+    }),
 
     handleRpcErrors({ msg: "mapping owner balance", data: { chain } }),
 
     // we also need the date of each block
-    mapBlockDatetime(provider, (t) => t.blockNumber, "blockDatetime"),
+    fetchBlockDatetime({
+      provider,
+      getBlockNumber: (t) => t.transfer.blockNumber,
+      formatOutput: (transferData, blockDatetime) => ({ ...transferData, blockDatetime }),
+    }),
 
     // we want to catch any errors from the RPC
     handleRpcErrors({ msg: "mapping block datetimes", data: { chain } }),
-
-    // flatten the resulting array
-    Rx.mergeMap((transfers) => Rx.from(transfers)),
   );
 
   // insert relational data pipe
   const insertPipeline$ = enhancedTransfers$.pipe(
     // insert the investor data
-    upsertInvestor(
+    upsertInvestor({
       client,
-      (transfer) => ({
-        investorAddress: transfer.ownerAddress,
+      getInvestorData: (transferData) => ({
+        investorAddress: transferData.transfer.ownerAddress,
         investorData: {},
       }),
-      "investorId",
-    ),
+      formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
+    }),
 
-    // prepare data for insert
-    Rx.map((transfer) => ({
-      datetime: transfer.blockDatetime,
-      productId: transfer.product.productId,
-      investorId: transfer.investorId,
-      balance: transfer.ownerBalance,
-      investmentData: {
-        blockNumber: transfer.blockNumber,
-        ppfs: transfer.shareToUnderlyingRate.toString(),
-        balanceDiff: transfer.sharesBalanceDiff.toString(),
-        trxHash: transfer.transactionHash,
-      },
-    })),
-
-    upsertInvestment(client),
+    upsertInvestment({
+      client,
+      getInvestmentData: (transferData) => ({
+        datetime: transferData.blockDatetime,
+        productId: transferData.product.productId,
+        investorId: transferData.investorId,
+        balance: transferData.balance,
+        investmentData: {
+          blockNumber: transferData.transfer.blockNumber,
+          balanceDiff: transferData.transfer.sharesBalanceDiff.toString(),
+          trxHash: transferData.transfer.transactionHash,
+        },
+      }),
+      formatOutput: (_, investment) => investment,
+    }),
 
     Rx.tap({ complete: () => logger.debug({ msg: "done processing chain", data: { chain } }) }),
   );
@@ -361,35 +293,39 @@ function loadBeefyProducts(client: PoolClient) {
       1 /* concurrent = 1, we don't want concurrency here as we are doing local directory git work */,
     ),
 
-    // map to product input representation
-    Rx.map((vault) => {
-      const vaultId = normalizeVaultId(vault.id);
+    // create an object where we can add attributes to safely
+    Rx.map((vault) => ({ vault })),
 
-      return {
-        productKey: `beefy:vault:${vaultId}`,
-
-        assetPriceFeed: {
+    // insert the product price key if needed
+    upsertPriceFeed({
+      client,
+      getFeedData: (vaultData) => {
+        const vaultId = normalizeVaultId(vaultData.vault.id);
+        return {
           // the initial vault id is the price key
           feedKey: `beefy:vault:${vaultId}`,
           externalId: vaultId, // this is the key that the price feed uses
-        },
-
-        chain: vault.chain,
-
-        productData: {
-          type: "beefy:vault",
-          vault,
-        },
-      };
+        };
+      },
+      formatOutput: (vaultData, assetPriceFeed) => ({ ...vaultData, assetPriceFeed }),
     }),
 
-    // insert the product price key if needed
-    upsertPriceFeed(client),
-
-    // prepare for product insert
-    Rx.map((product) => ({ product })),
-
-    upsertProduct(client),
+    upsertProduct({
+      client,
+      getProductData: (vaultData) => {
+        const vaultId = normalizeVaultId(vaultData.vault.id);
+        return {
+          productKey: `beefy:vault:${vaultId}`,
+          assetPriceFeedId: vaultData.assetPriceFeed.assetPriceFeedId,
+          chain: vaultData.vault.chain,
+          productData: {
+            type: "beefy:vault",
+            vault: vaultData.vault,
+          },
+        };
+      },
+      formatOutput: (vaultData, product) => ({ ...vaultData, product }),
+    }),
 
     Rx.tap({
       complete: () => {
@@ -414,28 +350,43 @@ function fetchPrices(client: PoolClient) {
       Rx.tap((product) => logger.debug({ msg: "fetching vault price", data: product })),
 
       Rx.filter((product) => product.productData.vault.eol === false), // only live vaults
+      // map to an object where we can add attributes to safely
+      Rx.map((product) => ({ product })),
 
       // get the price feed infos
-      mapPriceFeed(client, (product) => product.assetPriceFeedId, "assetPriceFeed"),
+      fetchDbPriceFeed({
+        client,
+        getId: (productData) => productData.product.assetPriceFeedId,
+        formatOutput: (productData, assetPriceFeed) => ({ ...productData, assetPriceFeed }),
+      }),
 
       // remove duplicates
-      Rx.distinct((product) => product.assetPriceFeed.externalId),
+      Rx.distinct(({ assetPriceFeed }) => assetPriceFeed.externalId),
+
+      // find which data is missing
+      findMissingPriceRangeInDb({
+        client,
+        getFeedId: (productData) => productData.assetPriceFeed.assetPriceFeedId,
+        formatOutput: (productData, missingData) => ({ ...productData, missingData }),
+      }),
     )
-    .pipe(toMissingPriceDataQuery(client))
     .pipe(
       // now we fetch
-      Rx.mergeMap(async (priceFeedQuery) => {
-        logger.debug({ msg: "fetching prices", data: priceFeedQuery });
-        const prices = await fetchBeefyPrices("15min", priceFeedQuery.obj.assetPriceFeed.externalId, {
-          startDate: priceFeedQuery.fromDate,
-          endDate: priceFeedQuery.toDate,
+      Rx.mergeMap(async (productData) => {
+        const debugLogData = {
+          productKey: productData.product.productKey,
+          priceFeed: productData.assetPriceFeed.assetPriceFeedId,
+          missingData: productData.missingData,
+        };
+
+        logger.debug({ msg: "fetching prices", data: debugLogData });
+        const prices = await fetchBeefyPrices("15min", productData.assetPriceFeed.externalId, {
+          startDate: productData.missingData.fromDate,
+          endDate: productData.missingData.toDate,
         });
-        logger.debug({ msg: "got prices", data: { priceFeedQuery, prices: prices.length } });
-        return prices.map((p) => ({
-          datetime: p.datetime,
-          assetPriceFeedId: priceFeedQuery.obj.assetPriceFeedId,
-          usdValue: new Decimal(p.value),
-        }));
+        logger.debug({ msg: "got prices", data: { ...debugLogData, priceCount: prices.length } });
+
+        return { ...productData, prices };
       }, 10 /* concurrency */),
 
       Rx.catchError((err) => {
@@ -445,9 +396,17 @@ function fetchPrices(client: PoolClient) {
       }),
 
       // flatten the array of prices
-      Rx.mergeMap((prices) => Rx.from(prices)),
+      Rx.mergeMap((productData) => Rx.from(productData.prices.map((price) => ({ ...productData, price })))),
 
-      upsertPrices(client),
+      upsertPrices({
+        client,
+        getPriceData: (priceData) => ({
+          datetime: priceData.price.datetime,
+          assetPriceFeedId: priceData.assetPriceFeed.assetPriceFeedId,
+          usdValue: new Decimal(priceData.price.value),
+        }),
+        formatOutput: (priceData, price) => ({ ...priceData, price }),
+      }),
     );
 
   return consumeObservable(pipeline$).then(() => logger.info({ msg: "done fetching prices" }));

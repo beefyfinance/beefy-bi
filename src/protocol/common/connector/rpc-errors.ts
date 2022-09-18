@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "rpc-errors" });

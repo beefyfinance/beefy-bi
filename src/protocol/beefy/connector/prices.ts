@@ -1,7 +1,7 @@
 import axios from "axios";
 import { BEEFY_DATA_URL } from "../../../utils/config";
 import { SamplingPeriod } from "../../../types/sampling";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 
 interface PriceSnapshot {
   oracleId: string;
@@ -16,7 +16,7 @@ export async function fetchBeefyPrices(
   options?: {
     startDate?: Date;
     endDate?: Date;
-  }
+  },
 ) {
   if (samplingPeriod !== "15min") {
     throw new Error(`Unsupported sampling period: ${samplingPeriod}`);
@@ -42,6 +42,6 @@ export async function fetchBeefyPrices(
         datetime: new Date(price.ts),
         oracleId: price.name,
         value: price.v,
-      } as PriceSnapshot)
+      } as PriceSnapshot),
   );
 }

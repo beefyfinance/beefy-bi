@@ -2,24 +2,29 @@ import * as Rx from "rxjs";
 import { ethers } from "ethers";
 import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
 
-export function mapBlockDatetime<TObj, TKey extends string, TParams extends number>(
-  provider: ethers.providers.JsonRpcProvider,
-  getBlockNumber: (obj: TObj) => TParams,
-  toKey: TKey,
-): Rx.OperatorFunction<TObj[], (TObj & { [key in TKey]: Date })[]> {
-  const toQueryObj = (obj: TObj[]) => getBlockNumber(obj[0]);
+export function fetchBlockDatetime<TObj, TParams extends number, TRes>(options: {
+  provider: ethers.providers.JsonRpcProvider;
+  getBlockNumber: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, blockDate: Date) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return batchQueryGroup({
+    bufferCount: 500,
+    toQueryObj: (obj: TObj[]) => options.getBlockNumber(obj[0]),
+    getBatchKey: (obj: TObj) => {
+      return options.getBlockNumber(obj) + "";
+    },
+    // do the actual processing
+    processBatch: async (params: TParams[]) => {
+      const promises: Promise<ethers.providers.Block>[] = [];
 
-  const process = async (params: TParams[]) => {
-    const promises: Promise<ethers.providers.Block>[] = [];
+      for (const param of params) {
+        const prom = options.provider.getBlock(param);
+        promises.push(prom);
+      }
 
-    for (const param of params) {
-      const prom = provider.getBlock(param);
-      promises.push(prom);
-    }
-
-    const blocks = await Promise.all(promises);
-    return blocks.map((block) => new Date(block.timestamp * 1000));
-  };
-
-  return batchQueryGroup(toQueryObj, getBlockNumber, process, toKey);
+      const blocks = await Promise.all(promises);
+      return blocks.map((block) => new Date(block.timestamp * 1000));
+    },
+    formatOutput: options.formatOutput,
+  });
 }

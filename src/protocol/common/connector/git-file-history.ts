@@ -4,7 +4,7 @@ import { GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { sortBy } from "lodash";
 import { callLockProtectedGitRepo } from "../../../lib/shared-resources/shared-gitrepo";
 import { fileOrDirExists } from "../../../utils/fs";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 

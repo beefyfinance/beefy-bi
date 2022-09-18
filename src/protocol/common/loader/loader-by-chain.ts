@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { rootLogger } from "../../../utils/logger2";
+import { rootLogger } from "../../../utils/logger";
 
 const logger = rootLogger.child({ module: "loader", component: "by-chain" });
 
