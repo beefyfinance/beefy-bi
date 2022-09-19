@@ -64,14 +64,14 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    await pollBeefyProducts();
+    //await pollBeefyProducts();
     await pollLiveData();
-    await pollPriceData();
-
-    // then start polling at regular intervals
+    //await pollPriceData();
+    //
+    //// then start polling at regular intervals
     setInterval(pollLiveData, samplingPeriodMs["30s"]);
-    setInterval(pollBeefyProducts, samplingPeriodMs["1day"]);
-    setInterval(pollPriceData, samplingPeriodMs["5min"]);
+    //setInterval(pollBeefyProducts, samplingPeriodMs["1day"]);
+    //setInterval(pollPriceData, samplingPeriodMs["5min"]);
   });
 }
 
@@ -330,7 +330,7 @@ function loadBeefyProducts(client: PoolClient) {
 
     Rx.tap({
       complete: () => {
-        logger.info({ msg: "done vault configs data for all chains" });
+        logger.info({ msg: "done importing vault configs data for all chains" });
       },
     }),
   );

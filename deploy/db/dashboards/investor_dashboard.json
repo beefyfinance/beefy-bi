@@ -25,7 +25,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1663511881310,
+  "iteration": 1663544422261,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -126,7 +126,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(usd_value, datetime)) as usd_value\n  from asset_price_ts\n  where \n    $__timeFilter(datetime)\n    and price_feed_id in ($price_feed_ids)\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p.usd_value) as \"$\"\nfrom balance_ts b\n  join product pr using(product_id)\n  join asset_price_ts p using(datetime, price_feed_id)\norder by 1;",
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(usd_value::numeric, datetime)) as usd_value\n  from asset_price_ts\n  where \n    $__timeFilter(datetime)\n    and price_feed_id in ($price_feed_ids)\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p.usd_value) as \"$\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_ts p on b.datetime = p.datetime and pr.price_feed_id = p.price_feed_id\norder by 1;",
           "refId": "A",
           "select": [
             [
@@ -159,39 +159,39 @@
       {
         "current": {
           "selected": false,
-          "text": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
-          "value": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894"
+          "text": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
+          "value": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
-            "value": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894"
+            "text": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
+            "value": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2"
           }
         ],
-        "query": "0x52905552bfb7f85c67f6b1ce7e275a1a26a2c894",
+        "query": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": false,
-          "text": "1557",
-          "value": "1557"
+          "text": "19",
+          "value": "19"
         },
         "datasource": {
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = investor_address",
+        "definition": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = address",
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "investor_id",
         "options": [],
-        "query": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = investor_address",
+        "query": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = address",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -274,9 +274,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -297,9 +297,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -328,6 +328,6 @@
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 7,
+  "version": 12,
   "weekStart": ""
 }
