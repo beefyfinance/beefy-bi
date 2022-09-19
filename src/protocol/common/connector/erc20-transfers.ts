@@ -6,7 +6,7 @@ import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, min, uniq, zipWith } from "lodash";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
-import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
@@ -20,13 +20,13 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers<TObj, TParams extends GetTransferCallParams, TRes>(options: {
+export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams, TRes>(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, transfers: TokenizedVaultUserTransfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup({
+  return batchQueryGroup$({
     bufferCount: 200,
     // we want to make a query for all requested block numbers of this contract
     toQueryObj: (objs: TObj[]): TParams => {

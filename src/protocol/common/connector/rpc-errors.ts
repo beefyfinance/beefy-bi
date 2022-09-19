@@ -5,7 +5,7 @@ import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "rpc-errors" });
 
-export function handleRpcErrors<TInput>(logInfos: { msg: string; data: object }): Rx.OperatorFunction<TInput, TInput> {
+export function handleRpcErrors$<TInput>(logInfos: { msg: string; data: object }): Rx.OperatorFunction<TInput, TInput> {
   return ($source) =>
     $source.pipe(
       // retry some errors

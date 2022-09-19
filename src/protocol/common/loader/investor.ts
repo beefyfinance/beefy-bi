@@ -2,7 +2,7 @@ import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
-import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 
 interface DbInvestor {
   investorId: number;
@@ -11,12 +11,12 @@ interface DbInvestor {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertInvestor<TObj, TParams extends Omit<DbInvestor, "investorId">, TRes>(options: {
+export function upsertInvestor$<TObj, TParams extends Omit<DbInvestor, "investorId">, TRes>(options: {
   client: PoolClient;
   getInvestorData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investorId: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup({
+  return batchQueryGroup$({
     bufferCount: 500,
     processBatch: async (params: TParams[]) => {
       type TRes = { investor_id: number; address: string };

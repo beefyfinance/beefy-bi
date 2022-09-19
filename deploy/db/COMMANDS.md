@@ -117,66 +117,33 @@ from vault_shares_transfer_ts shares
 order by 1, 2, 3, 4, 5;
 
 
-
-with balance_gf_ts as (
-  SELECT
-    time_bucket_gapfill('15min', datetime) as datetime,
-    vault_evm_address_id,
-    locf(last(shares_balance_after::numeric, datetime)) as shares_balance_after
-  from vault_shares_transfer_ts shares
-  WHERE
-    $__timeFilter(datetime)
-    and owner_evm_address_id = $investor_id
-  GROUP BY 1, 2
+with
+products_with_price as (
+  select product_id
+  from product
+  where price_feed_id in (
+    select price_feed_id
+    from asset_price_ts
+  )
 ),
-balance_ts as (
-  select * from balance_gf_ts where shares_balance_after is not null
-),
-shares_gf_ts as (
+last_balance as (
   select
-    time_bucket_gapfill('15min', datetime) as datetime,
-    vault_evm_address_id,
-    locf(last(shares_to_underlying_rate::numeric, datetime)) as shares_to_underlying_rate
-  from vault_to_underlying_rate_ts
-  WHERE
-    $__timeFilter(datetime)
-    and vault_evm_address_id in (select vault_evm_address_id from balance_ts)
-  group by 1,2
+    investor_id,
+    last(balance, datetime) as balance
+  from investment_balance_ts
+  where product_id in (
+    select product_id from products_with_price
+  )
+  group by investor_id
 ),
-shares_ts as (
-  select * from shares_gf_ts where shares_to_underlying_rate is not null
-),
-price_gf_ts as (
-  select
-    time_bucket_gapfill('15min', datetime) as datetime,
-    v.contract_evm_address_id as vault_evm_address_id,
-    locf(last(usd_value, datetime)) as usd_value
-  from asset_price_ts p
-    join evm_address u on p.price_feed_key = u.metadata->'erc20'->>'price_feed_key'
-    join beefy_vault v on u.evm_address_id = v.underlying_evm_address_id
-  where
-    $__timeFilter(datetime)
-    and v.contract_evm_address_id in (
-      select vault_evm_address_id
-      from balance_ts
-    )
-  group by 1,2
-),
-price_ts as (
-  select * from price_gf_ts where usd_value is not null
+positive_balance as (
+  select *
+  from last_balance
+  where balance > 0
 )
-select
-  b.datetime as time,
-  a.metadata->'erc20'->>'price_feed_key' as vault_name,
-  b.shares_balance_after,
-  s.shares_to_underlying_rate,
-  p.usd_value,
-  (b.shares_balance_after * s.shares_to_underlying_rate * p.usd_value) as investor_balance_usd_value
-from balance_ts b
-  left join shares_ts s on b.datetime = s.datetime and b.vault_evm_address_id = s.vault_evm_address_id
-  left join price_ts p on b.datetime = p.datetime and b.vault_evm_address_id = p.vault_evm_address_id
-  left join evm_address a on b.vault_evm_address_id = a.evm_address_id
-order by 1;
+select investor_id, bytea_to_hexstr(address) as address
+from investor
+where investor_id in (select investor_id from positive_balance);
 
 
 

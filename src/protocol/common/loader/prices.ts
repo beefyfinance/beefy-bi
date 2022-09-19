@@ -13,7 +13,7 @@ interface DbPrice {
   usdValue: Decimal;
 }
 
-export function upsertPrices<TInput, TRes>(options: {
+export function upsertPrices$<TInput, TRes>(options: {
   client: PoolClient;
   getPriceData: (obj: TInput) => DbPrice;
   formatOutput: (obj: TInput, price: DbPrice) => TRes;
@@ -51,7 +51,7 @@ export function upsertPrices<TInput, TRes>(options: {
   );
 }
 
-export function findMissingPriceRangeInDb<TObj, TRes>(options: {
+export function findMissingPriceRangeInDb$<TObj, TRes>(options: {
   client: PoolClient;
   getFeedId: (obj: TObj) => number;
   formatOutput: (obj: TObj, missingData: { fromDate: Date; toDate: Date }) => TRes;

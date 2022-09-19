@@ -4,7 +4,7 @@ import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 
-export function addLatestBlockQuery<TObj, TRes>(options: {
+export function addLatestBlockQuery$<TObj, TRes>(options: {
   chain: Chain;
   provider: ethers.providers.JsonRpcProvider;
   getLastImportedBlock: (chain: Chain) => number | null;

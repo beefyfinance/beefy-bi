@@ -1,13 +1,13 @@
 import * as Rx from "rxjs";
 import { ethers } from "ethers";
-import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 
-export function fetchBlockDatetime<TObj, TParams extends number, TRes>(options: {
+export function fetchBlockDatetime$<TObj, TParams extends number, TRes>(options: {
   provider: ethers.providers.JsonRpcProvider;
   getBlockNumber: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup({
+  return batchQueryGroup$({
     bufferCount: 500,
     toQueryObj: (obj: TObj[]) => options.getBlockNumber(obj[0]),
     getBatchKey: (obj: TObj) => {

@@ -11,7 +11,7 @@ import { ProgrammerError } from "./programmer-error";
  *   - make RPC calls from a list of events
  *   - insert some data in the DB from a list of events
  */
-export function batchQueryGroup<TInputObj, TQueryObj, TResp, TRes>(options: {
+export function batchQueryGroup$<TInputObj, TQueryObj, TResp, TRes>(options: {
   bufferCount: number;
   toQueryObj: (obj: TInputObj[]) => TQueryObj;
   getBatchKey: (obj: TInputObj) => string | number;

@@ -31,7 +31,7 @@ export type DbBeefyProduct = DbBeefyVaultProduct | DbBeefyBoostProduct;
 
 export type DbProduct = DbBeefyProduct;
 
-export function upsertProduct<TInput, TRes>(options: {
+export function upsertProduct$<TInput, TRes>(options: {
   client: PoolClient;
   getProductData: (obj: TInput) => Omit<DbProduct, "productId">;
   formatOutput: (obj: TInput, feed: DbProduct) => TRes;

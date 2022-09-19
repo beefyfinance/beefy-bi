@@ -12,7 +12,7 @@ export interface DbInvestment {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertInvestment<TInput, TRes>(options: {
+export function upsertInvestment$<TInput, TRes>(options: {
   client: PoolClient;
   getInvestmentData: (obj: TInput) => DbInvestment;
   formatOutput: (obj: TInput, investment: DbInvestment) => TRes;

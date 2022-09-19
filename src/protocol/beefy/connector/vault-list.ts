@@ -35,6 +35,7 @@ export interface BeefyVault {
   eol: boolean;
   is_gov_vault: boolean;
   assets: string[];
+  want_price_feed_key: string;
 }
 
 export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVault> {
@@ -159,6 +160,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault
       eol: rawVault.status === "eol",
       is_gov_vault: rawVault.isGovVault || false,
       assets: rawVault.assets || [],
+      want_price_feed_key: rawVault.oracleId,
     };
   } catch (error) {
     logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault }, error });

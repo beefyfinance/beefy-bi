@@ -4,7 +4,7 @@ import { rootLogger } from "../../../utils/logger";
 
 const logger = rootLogger.child({ module: "loader", component: "by-chain" });
 
-export function loaderByChain<TInput extends { chain: Chain }, TOutput>(
+export function loaderByChain$<TInput extends { chain: Chain }, TOutput>(
   processChain: (chain: Chain) => Rx.OperatorFunction<TInput, TOutput>,
 ): Rx.OperatorFunction<TInput, TOutput> {
   type ImportState = { inProgress: boolean; start: Date };

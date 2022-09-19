@@ -9,28 +9,28 @@ import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
 import { curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
-import { fetchErc20Transfers } from "../../common/connector/erc20-transfers";
+import { fetchErc20Transfers$ } from "../../common/connector/erc20-transfers";
 import { TokenizedVaultUserTransfer } from "../../types/connector";
-import { fetchERC20TokenBalance } from "../../common/connector/owner-balance";
-import { fetchBlockDatetime } from "../../common/connector/block-datetime";
+import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
+import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
-import { loaderByChain } from "../../common/loader/loader-by-chain";
+import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
-import { handleRpcErrors } from "../../common/connector/rpc-errors";
-import { fetchDbPriceFeed, upsertPriceFeed } from "../../common/loader/price-feed";
+import { handleRpcErrors$ } from "../../common/connector/rpc-errors";
+import { fetchDbPriceFeed$, upsertPriceFeed$ } from "../../common/loader/price-feed";
 import {
   DbBeefyBoostProduct,
   DbBeefyProduct,
   DbBeefyVaultProduct,
   productList$,
-  upsertProduct,
+  upsertProduct$,
 } from "../../common/loader/product";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
-import { findMissingPriceRangeInDb, upsertPrices } from "../../common/loader/prices";
-import { upsertInvestor } from "../../common/loader/investor";
-import { DbInvestment, upsertInvestment } from "../../common/loader/investment";
-import { addLatestBlockQuery } from "../../common/connector/latest-block-query";
+import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
+import { upsertInvestor$ } from "../../common/loader/investor";
+import { DbInvestment, upsertInvestment$ } from "../../common/loader/investment";
+import { addLatestBlockQuery$ } from "../../common/connector/latest-block-query";
 import { samplingPeriodMs } from "../../../types/sampling";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
@@ -56,7 +56,7 @@ async function main() {
 
   const pollLiveData = withPgClient(async (client: PoolClient) => {
     const vaultPipeline$ = curry(importChainVaultTransfers)(client);
-    const pipeline$ = productList$(client, "beefy").pipe(loaderByChain(vaultPipeline$));
+    const pipeline$ = productList$(client, "beefy").pipe(loaderByChain$(vaultPipeline$));
     return consumeObservable(pipeline$);
   });
   const pollBeefyProducts = withPgClient(loadBeefyProducts);
@@ -99,7 +99,7 @@ function importChainVaultTransfers(
       Rx.filter((product) => product.productData.vault.eol === false), // only live vaults
 
       // fetch the latest block numbers to query
-      addLatestBlockQuery({
+      addLatestBlockQuery$({
         chain,
         provider,
         getLastImportedBlock: (chain) => importState[chain].lastImportedBlockNumber ?? null,
@@ -120,7 +120,7 @@ function importChainVaultTransfers(
     })),
 
     // fetch the vault transfers
-    fetchErc20Transfers({
+    fetchErc20Transfers$({
       provider,
       chain,
       getQueryParams: (productQuery) => {
@@ -136,7 +136,7 @@ function importChainVaultTransfers(
     }),
 
     // we want to catch any errors from the RPC
-    handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
+    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
   );
 
   const govTransfersByVault$ = govTransferQueries$.pipe(
@@ -150,7 +150,7 @@ function importChainVaultTransfers(
       ],
     })),
 
-    fetchErc20Transfers({
+    fetchErc20Transfers$({
       provider,
       chain,
       getQueryParams: (productQuery) => {
@@ -169,7 +169,7 @@ function importChainVaultTransfers(
     }),
 
     // we want to catch any errors from the RPC
-    handleRpcErrors({ msg: "mapping erc20Transfers", data: { chain } }),
+    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
 
     // make is so we are transfering from the user in and out the vault
     Rx.map((productQuery) => ({
@@ -223,7 +223,7 @@ function importChainVaultTransfers(
 
   const enhancedTransfers$ = transfers$.pipe(
     // we need the balance of each owner
-    fetchERC20TokenBalance({
+    fetchERC20TokenBalance$({
       chain,
       provider,
       getQueryParams: (transferData) => ({
@@ -235,23 +235,23 @@ function importChainVaultTransfers(
       formatOutput: (transferData, balance) => ({ ...transferData, balance }),
     }),
 
-    handleRpcErrors({ msg: "mapping owner balance", data: { chain } }),
+    handleRpcErrors$({ msg: "mapping owner balance", data: { chain } }),
 
     // we also need the date of each block
-    fetchBlockDatetime({
+    fetchBlockDatetime$({
       provider,
       getBlockNumber: (t) => t.transfer.blockNumber,
       formatOutput: (transferData, blockDatetime) => ({ ...transferData, blockDatetime }),
     }),
 
     // we want to catch any errors from the RPC
-    handleRpcErrors({ msg: "mapping block datetimes", data: { chain } }),
+    handleRpcErrors$({ msg: "mapping block datetimes", data: { chain } }),
   );
 
   // insert relational data pipe
   const insertPipeline$ = enhancedTransfers$.pipe(
     // insert the investor data
-    upsertInvestor({
+    upsertInvestor$({
       client,
       getInvestorData: (transferData) => ({
         address: transferData.transfer.ownerAddress,
@@ -260,7 +260,7 @@ function importChainVaultTransfers(
       formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
     }),
 
-    upsertInvestment({
+    upsertInvestment$({
       client,
       getInvestmentData: (transferData) => ({
         datetime: transferData.blockDatetime,
@@ -298,20 +298,20 @@ function loadBeefyProducts(client: PoolClient) {
     Rx.map((vault) => ({ vault })),
 
     // insert the product price key if needed
-    upsertPriceFeed({
+    upsertPriceFeed$({
       client,
       getFeedData: (vaultData) => {
         const vaultId = normalizeVaultId(vaultData.vault.id);
         return {
           // the initial vault id is the price key
           feedKey: `beefy:vault:${vaultId}`,
-          externalId: vaultId, // this is the key that the price feed uses
+          externalId: vaultData.vault.want_price_feed_key,
         };
       },
       formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
     }),
 
-    upsertProduct({
+    upsertProduct$({
       client,
       getProductData: (vaultData) => {
         const vaultId = normalizeVaultId(vaultData.vault.id);
@@ -355,7 +355,7 @@ function fetchPrices(client: PoolClient) {
       Rx.map((product) => ({ product })),
 
       // get the price feed infos
-      fetchDbPriceFeed({
+      fetchDbPriceFeed$({
         client,
         getId: (productData) => productData.product.priceFeedId,
         formatOutput: (productData, priceFeed) => ({ ...productData, priceFeed }),
@@ -365,7 +365,7 @@ function fetchPrices(client: PoolClient) {
       Rx.distinct(({ priceFeed }) => priceFeed.externalId),
 
       // find which data is missing
-      findMissingPriceRangeInDb({
+      findMissingPriceRangeInDb$({
         client,
         getFeedId: (productData) => productData.priceFeed.priceFeedId,
         formatOutput: (productData, missingData) => ({ ...productData, missingData }),
@@ -399,7 +399,7 @@ function fetchPrices(client: PoolClient) {
       // flatten the array of prices
       Rx.mergeMap((productData) => Rx.from(productData.prices.map((price) => ({ ...productData, price })))),
 
-      upsertPrices({
+      upsertPrices$({
         client,
         getPriceData: (priceData) => ({
           datetime: priceData.price.datetime,

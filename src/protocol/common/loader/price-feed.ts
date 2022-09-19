@@ -2,7 +2,7 @@ import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
-import { batchQueryGroup } from "../../../utils/rxjs/utils/batch-query-group";
+import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 
 export interface DbPriceFeed {
   priceFeedId: number;
@@ -10,7 +10,7 @@ export interface DbPriceFeed {
   externalId: string;
 }
 
-export function upsertPriceFeed<TInput, TRes>(options: {
+export function upsertPriceFeed$<TInput, TRes>(options: {
   client: PoolClient;
   getFeedData: (obj: TInput) => Omit<DbPriceFeed, "priceFeedId">;
   formatOutput: (obj: TInput, feed: DbPriceFeed) => TRes;
@@ -53,12 +53,12 @@ export function upsertPriceFeed<TInput, TRes>(options: {
   );
 }
 
-export function fetchDbPriceFeed<TObj, TRes>(options: {
+export function fetchDbPriceFeed$<TObj, TRes>(options: {
   client: PoolClient;
   getId: (obj: TObj) => number;
   formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup({
+  return batchQueryGroup$({
     bufferCount: 500,
     toQueryObj: (obj: TObj[]) => options.getId(obj[0]),
     getBatchKey: (obj: TObj) => options.getId(obj),
