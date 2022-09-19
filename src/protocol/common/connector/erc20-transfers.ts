@@ -5,11 +5,26 @@ import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, min, uniq, zipWith } from "lodash";
-import { TokenizedVaultUserTransfer } from "../../types/connector";
 import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
+
+export interface ERC20Transfer {
+  chain: Chain;
+
+  tokenAddress: string;
+  tokenDecimals: number;
+
+  // owner infos
+  ownerAddress: string;
+
+  // transaction infos
+  blockNumber: number;
+  transactionHash: string;
+
+  amountTransfered: Decimal;
+}
 
 interface GetTransferCallParams {
   address: string;
@@ -24,7 +39,7 @@ export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
-  formatOutput: (obj: TObj, transfers: TokenizedVaultUserTransfer[]) => TRes;
+  formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchQueryGroup$({
     bufferCount: 200,
@@ -52,7 +67,7 @@ export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams
     processBatch: async (params) => {
       const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
       // make sure we return data in the same order as the input
-      const grouped = groupBy(transfers, (t) => t.vaultAddress);
+      const grouped = groupBy(transfers, (t) => t.tokenAddress);
       return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
     },
     formatOutput: options.formatOutput,
@@ -63,7 +78,7 @@ async function fetchERC20TransferEvents(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: GetTransferCallParams[],
-): Promise<TokenizedVaultUserTransfer[]> {
+): Promise<ERC20Transfer[]> {
   logger.debug({
     msg: "Fetching withdraw and deposits for vault",
     data: { chain, count: contractCalls.length },
@@ -120,29 +135,29 @@ async function fetchERC20TransferEvents(
   const doubledContractCall = Array.from({ length: contractCalls.length * 2 }).map(
     (_, i) => contractCalls[Math.floor(i / 2)],
   );
-  type TransferWithLogIndex = TokenizedVaultUserTransfer & { logIndex: number };
+  type TransferWithLogIndex = ERC20Transfer & { logIndex: number };
   const events = flatten(
     zipWith(doubledContractCall, eventsRes, (contract, events) =>
       flatten(
         events.map((event): [TransferWithLogIndex, TransferWithLogIndex] => [
           {
             chain: chain,
-            vaultAddress: contract.address,
-            sharesDecimals: contract.decimals,
+            tokenAddress: contract.address,
+            tokenDecimals: contract.decimals,
             ownerAddress: event.from,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesBalanceDiff: event.value.negated(),
+            amountTransfered: event.value.negated(),
             logIndex: event.logIndex,
           },
           {
             chain: chain,
-            vaultAddress: contract.address,
-            sharesDecimals: contract.decimals,
+            tokenAddress: contract.address,
+            tokenDecimals: contract.decimals,
             ownerAddress: event.to,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,
-            sharesBalanceDiff: event.value,
+            amountTransfered: event.value,
             logIndex: event.logIndex,
           },
         ]),
@@ -153,13 +168,13 @@ async function fetchERC20TransferEvents(
   // there could be incoming and outgoing transfers in the same block for the same user
   // we want to merge those into a single transfer
   const transfersByOwnerAndBlock = Object.values(
-    groupBy(events, (event) => `${event.vaultAddress}-${event.ownerAddress}-${event.blockNumber}`),
+    groupBy(events, (event) => `${event.tokenAddress}-${event.ownerAddress}-${event.blockNumber}`),
   );
   const transfers = transfersByOwnerAndBlock.map((transfers) => {
     // get the total amount
     let totalDiff = new Decimal(0);
     for (const transfer of transfers) {
-      totalDiff = totalDiff.add(transfer.sharesBalanceDiff);
+      totalDiff = totalDiff.add(transfer.amountTransfered);
     }
     // for the trx hash, we use the last transaction (order by logIndex)
     const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;

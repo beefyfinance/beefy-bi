@@ -1,10 +1,11 @@
-import { keyBy, omit } from "lodash";
+import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { BeefyVault } from "../../beefy/connector/vault-list";
+import { BeefyBoost } from "../../beefy/connector/boost-list";
 
 const logger = rootLogger.child({ module: "product" });
 
@@ -24,7 +25,7 @@ export interface DbBeefyVaultProduct extends DbBaseProduct {
 export interface DbBeefyBoostProduct extends DbBaseProduct {
   productData: {
     type: "beefy:boost";
-    boost: { id: string };
+    boost: BeefyBoost;
   };
 }
 export type DbBeefyProduct = DbBeefyVaultProduct | DbBeefyBoostProduct;

@@ -9,8 +9,7 @@ import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
 import { curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
-import { fetchErc20Transfers$ } from "../../common/connector/erc20-transfers";
-import { TokenizedVaultUserTransfer } from "../../types/connector";
+import { ERC20Transfer, fetchErc20Transfers$ } from "../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
 import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
@@ -18,7 +17,7 @@ import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
 import { handleRpcErrors$ } from "../../common/connector/rpc-errors";
-import { fetchDbPriceFeed$, upsertPriceFeed$ } from "../../common/loader/price-feed";
+import { priceFeedList$, upsertPriceFeed$ } from "../../common/loader/price-feed";
 import {
   DbBeefyBoostProduct,
   DbBeefyProduct,
@@ -31,7 +30,8 @@ import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/p
 import { upsertInvestor$ } from "../../common/loader/investor";
 import { DbInvestment, upsertInvestment$ } from "../../common/loader/investment";
 import { addLatestBlockQuery$ } from "../../common/connector/latest-block-query";
-import { samplingPeriodMs } from "../../../types/sampling";
+import { fetchBeefyPPFS$ } from "../connector/ppfs";
+import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -64,13 +64,13 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    //await pollBeefyProducts();
-    await pollLiveData();
+    await pollBeefyProducts();
+    //await pollLiveData();
     //await pollPriceData();
-    //
-    //// then start polling at regular intervals
-    setInterval(pollLiveData, samplingPeriodMs["30s"]);
-    //setInterval(pollBeefyProducts, samplingPeriodMs["1day"]);
+    ////
+    ////// then start polling at regular intervals
+    //setInterval(pollLiveData, samplingPeriodMs["30s"]);
+    ////setInterval(pollBeefyProducts, samplingPeriodMs["1day"]);
     //setInterval(pollPriceData, samplingPeriodMs["5min"]);
   });
 }
@@ -137,6 +137,24 @@ function importChainVaultTransfers(
 
     // we want to catch any errors from the RPC
     handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
+
+    // fetch the ppfs
+    fetchBeefyPPFS$({
+      provider,
+      chain,
+      getPPFSCallParams: (productQuery) => {
+        return {
+          vaultAddress: productQuery.product.productData.vault.contract_address,
+          underlyingDecimals: productQuery.product.productData.vault.want_decimals,
+          vaultDecimals: productQuery.product.productData.vault.token_decimals,
+          blockNumbers: productQuery.transfers.map((t) => t.blockNumber),
+        };
+      },
+      formatOutput: (productQuery, ppfss) => ({ ...productQuery, ppfss }),
+    }),
+
+    // we want to catch any errors from the RPC
+    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
   );
 
   const govTransfersByVault$ = govTransferQueries$.pipe(
@@ -175,13 +193,19 @@ function importChainVaultTransfers(
     Rx.map((productQuery) => ({
       ...productQuery,
       transfers: productQuery.transfers.map(
-        (transfer): TokenizedVaultUserTransfer => ({
+        (transfer): ERC20Transfer => ({
           ...transfer,
-          vaultAddress: productQuery.product.productData.vault.contract_address,
+          tokenAddress: productQuery.product.productData.vault.contract_address,
           // amounts are reversed because we are sending token to the vault, but we then have a positive balance
-          sharesBalanceDiff: transfer.sharesBalanceDiff.negated(),
+          amountTransfered: transfer.amountTransfered.negated(),
         }),
       ),
+    })),
+
+    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
+    Rx.map((productQuery) => ({
+      ...productQuery,
+      ppfss: productQuery.transfers.map(() => new Decimal(1)),
     })),
   );
 
@@ -195,6 +219,7 @@ function importChainVaultTransfers(
         transfer,
         ignoreAddresses: productQuery.ignoreAddresses,
         product: productQuery.product,
+        ppfs: productQuery.ppfss[idx],
       })),
     ),
 
@@ -228,11 +253,11 @@ function importChainVaultTransfers(
       provider,
       getQueryParams: (transferData) => ({
         blockNumber: transferData.transfer.blockNumber,
-        decimals: transferData.transfer.sharesDecimals,
-        contractAddress: transferData.transfer.vaultAddress,
+        decimals: transferData.transfer.tokenDecimals,
+        contractAddress: transferData.transfer.tokenAddress,
         ownerAddress: transferData.transfer.ownerAddress,
       }),
-      formatOutput: (transferData, balance) => ({ ...transferData, balance }),
+      formatOutput: (transferData, vaultSharesBalance) => ({ ...transferData, vaultSharesBalance }),
     }),
 
     handleRpcErrors$({ msg: "mapping owner balance", data: { chain } }),
@@ -266,11 +291,14 @@ function importChainVaultTransfers(
         datetime: transferData.blockDatetime,
         productId: transferData.product.productId,
         investorId: transferData.investorId,
-        balance: transferData.balance,
+        // balance is expressed in underlying amount
+        balance: transferData.vaultSharesBalance.mul(transferData.ppfs),
         investmentData: {
           blockNumber: transferData.transfer.blockNumber,
-          balanceDiff: transferData.transfer.sharesBalanceDiff.toString(),
+          mooBalance: transferData.vaultSharesBalance.toString(),
+          mooBalanceDiff: transferData.transfer.amountTransfered.toString(),
           trxHash: transferData.transfer.transactionHash,
+          ppfs: transferData.ppfs.toString(),
         },
       }),
       formatOutput: (_, investment) => investment,
@@ -285,55 +313,100 @@ function importChainVaultTransfers(
 function loadBeefyProducts(client: PoolClient) {
   logger.info({ msg: "importing beefy products" });
 
-  const vaultPipeline$ = Rx.of(...allChainIds).pipe(
-    Rx.tap((chain) => logger.debug({ msg: "importing chain vaults", data: { chain } })),
+  const vaultPipeline$ = Rx.of(...allChainIds)
+    .pipe(
+      Rx.tap((chain) => logger.debug({ msg: "importing chain vaults", data: { chain } })),
 
-    // fetch vaults from git file history
-    Rx.mergeMap(
-      beefyVaultsFromGitHistory$,
-      1 /* concurrent = 1, we don't want concurrency here as we are doing local directory git work */,
-    ),
+      // fetch vaults from git file history
+      Rx.mergeMap(
+        beefyVaultsFromGitHistory$,
+        1 /* concurrent = 1, we don't want concurrency here as we are doing local directory git work */,
+      ),
 
-    // create an object where we can add attributes to safely
-    Rx.map((vault) => ({ vault })),
+      // create an object where we can add attributes to safely
+      Rx.map((vault) => ({ vault })),
 
-    // insert the product price key if needed
-    upsertPriceFeed$({
-      client,
-      getFeedData: (vaultData) => {
-        const vaultId = normalizeVaultId(vaultData.vault.id);
-        return {
-          // the initial vault id is the price key
-          feedKey: `beefy:vault:${vaultId}`,
+      // we are going to express the user balance in want amount
+      upsertPriceFeed$({
+        client,
+        getFeedData: (vaultData) => ({
+          feedKey: `beefy:${vaultData.vault.want_price_feed_key}`,
           externalId: vaultData.vault.want_price_feed_key,
-        };
-      },
-      formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
-    }),
+          priceFeedData: { is_active: !vaultData.vault.eol },
+        }),
+        formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
+      }),
 
-    upsertProduct$({
-      client,
-      getProductData: (vaultData) => {
-        const vaultId = normalizeVaultId(vaultData.vault.id);
-        return {
-          productKey: `beefy:vault:${vaultId}`,
-          priceFeedId: vaultData.priceFeed.priceFeedId,
-          chain: vaultData.vault.chain,
-          productData: {
-            type: "beefy:vault",
-            vault: vaultData.vault,
-          },
-        };
-      },
-      formatOutput: (vaultData, product) => ({ ...vaultData, product }),
-    }),
+      upsertProduct$({
+        client,
+        getProductData: (vaultData) => {
+          const vaultId = normalizeVaultId(vaultData.vault.id);
+          return {
+            productKey: `beefy:vault:${vaultId}`,
+            priceFeedId: vaultData.priceFeed.priceFeedId,
+            chain: vaultData.vault.chain,
+            productData: {
+              type: "beefy:vault",
+              vault: vaultData.vault,
+            },
+          };
+        },
+        formatOutput: (vaultData, product) => ({ ...vaultData, product }),
+      }),
+    )
+    .pipe(
+      // index price feed ids by vault id so we can quickly ingest boosts
+      Rx.reduce(
+        (acc, vaultData) => {
+          if (vaultData.product.productData.type !== "beefy:vault") {
+            return acc;
+          }
+          acc.chain = vaultData.product.chain;
+          acc.priceFeedByVaultId[vaultData.vault.id] = vaultData.priceFeed.priceFeedId;
+          return acc;
+        },
+        { priceFeedByVaultId: {} } as { chain: Chain; priceFeedByVaultId: Record<string, number> },
+      ),
 
-    Rx.tap({
-      complete: () => {
-        logger.info({ msg: "done importing vault configs data for all chains" });
-      },
-    }),
-  );
+      // fetch the boosts from git
+      Rx.mergeMap(async (allChainFeeds) => {
+        const chainBoosts =
+          (await consumeObservable(beefyBoostsFromGitHistory$(allChainFeeds.chain).pipe(Rx.toArray()))) || [];
+        console.log(chainBoosts);
+        // create an object where we can add attributes to safely
+        const boostsData = chainBoosts.map((boost) => ({
+          boost,
+          priceFeedId: allChainFeeds.priceFeedByVaultId[boost.vault_id],
+        }));
+        return boostsData;
+      }),
+      Rx.mergeMap((boostsData) => Rx.from(boostsData)), // flatten
+
+      // insert the boost as a new product
+      upsertProduct$({
+        client,
+        getProductData: (boostData) => {
+          return {
+            productKey: `beefy:boost:${boostData.boost.id}`,
+            priceFeedId: boostData.priceFeedId,
+            chain: boostData.boost.chain,
+            productData: {
+              type: "beefy:boost",
+              boost: boostData.boost,
+            },
+          };
+        },
+        formatOutput: (boostData, product) => ({ ...boostData, product }),
+      }),
+    )
+    .pipe(
+      Rx.tap({
+        error: (err) => logger.error({ msg: "error importing chain", data: { err } }),
+        complete: () => {
+          logger.info({ msg: "done importing vault configs data for all chains" });
+        },
+      }),
+    );
 
   return consumeObservable(vaultPipeline$);
 }
@@ -341,25 +414,15 @@ function loadBeefyProducts(client: PoolClient) {
 function fetchPrices(client: PoolClient) {
   logger.info({ msg: "fetching vault prices" });
 
-  const [vaults$, boosts$] = Rx.partition(
-    productList$(client, "beefy:vault"),
-    (p) => p.productData.type === "beefy:vault",
-  ) as [Rx.Observable<DbBeefyVaultProduct>, Rx.Observable<DbBeefyBoostProduct>];
-
-  const pipeline$ = vaults$
+  const pipeline$ = priceFeedList$(client, "beefy")
     .pipe(
-      Rx.tap((product) => logger.debug({ msg: "fetching vault price", data: product })),
+      Rx.tap((priceFeed) => logger.debug({ msg: "fetching beefy prices", data: priceFeed })),
 
-      Rx.filter((product) => product.productData.vault.eol === false), // only live vaults
+      // only live price feeds
+      Rx.filter((priceFeed) => priceFeed.priceFeedData.is_active),
+
       // map to an object where we can add attributes to safely
-      Rx.map((product) => ({ product })),
-
-      // get the price feed infos
-      fetchDbPriceFeed$({
-        client,
-        getId: (productData) => productData.product.priceFeedId,
-        formatOutput: (productData, priceFeed) => ({ ...productData, priceFeed }),
-      }),
+      Rx.map((priceFeed) => ({ priceFeed })),
 
       // remove duplicates
       Rx.distinct(({ priceFeed }) => priceFeed.externalId),
@@ -375,7 +438,7 @@ function fetchPrices(client: PoolClient) {
       // now we fetch
       Rx.mergeMap(async (productData) => {
         const debugLogData = {
-          productKey: productData.product.productKey,
+          priceFeedKey: productData.priceFeed.feedKey,
           priceFeed: productData.priceFeed.priceFeedId,
           missingData: productData.missingData,
         };

@@ -189,7 +189,9 @@ async function migrate() {
       price_feed_id serial PRIMARY KEY,
       -- unique price feed identifier
       feed_key varchar NOT NULL UNIQUE,
-      external_id varchar NOT NULL -- the id used by the feed
+      external_id varchar NOT NULL, -- the id used by the feed
+      -- all relevant price feed data: eol, etc
+      price_feed_data jsonb NOT NULL
     );
   `);
 
