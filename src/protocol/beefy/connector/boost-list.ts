@@ -5,6 +5,8 @@ import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
+import { BeefyVault } from "./vault-list";
+import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "boost-list" });
 
@@ -30,11 +32,15 @@ export interface BeefyBoost {
 
   vault_id: string;
   name: string;
+  contract_address: string;
 
   // end of life
   eol: boolean;
 
   staked_token_address: string;
+  staked_token_decimals: number;
+  vault_want_address: string;
+  vault_want_decimals: number;
 
   reward_token_symbol: string;
   reward_token_decimals: number;
@@ -42,7 +48,10 @@ export interface BeefyBoost {
   reward_token_price_feed_key: string;
 }
 
-export function beefyBoostsFromGitHistory$(chain: Chain): Rx.Observable<BeefyBoost> {
+export function beefyBoostsFromGitHistory$(
+  chain: Chain,
+  allChaiVaults: Record<string, BeefyVault>,
+): Rx.Observable<BeefyBoost> {
   logger.debug({ msg: "Fetching boost list from beefy-v2 repo git history", data: { chain } });
 
   const fileContentStreamV2 = gitStreamFileVersions({
@@ -79,7 +88,13 @@ export function beefyBoostsFromGitHistory$(chain: Chain): Rx.Observable<BeefyBoo
     }),
 
     // just emit the boost
-    Rx.map(({ boost }) => rawBoostToBeefyBoost(chain, boost)),
+    Rx.map(({ boost }) => {
+      const vault = allChaiVaults[normalizeVaultId(boost.poolId)];
+      if (!vault) {
+        throw new Error(`Could not find vault for boost ${boost.id}: ${boost.poolId}`);
+      }
+      return rawBoostToBeefyBoost(chain, boost, vault);
+    }),
 
     Rx.tap({
       complete: () =>
@@ -88,7 +103,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain): Rx.Observable<BeefyBoo
   );
 }
 
-function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost): BeefyBoost {
+function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: BeefyVault): BeefyBoost {
   try {
     return {
       id: rawBoost.id,
@@ -96,8 +111,12 @@ function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost): BeefyBoost
 
       vault_id: rawBoost.poolId,
       name: rawBoost.name,
+      contract_address: normalizeAddress(rawBoost.earnContractAddress),
 
-      staked_token_address: normalizeAddress(rawBoost.earnContractAddress),
+      staked_token_address: normalizeAddress(vault.contract_address),
+      staked_token_decimals: vault.token_decimals,
+      vault_want_address: normalizeAddress(vault.want_address),
+      vault_want_decimals: vault.want_decimals,
 
       reward_token_decimals: rawBoost.earnedTokenDecimals,
       reward_token_symbol: rawBoost.earnedToken,
