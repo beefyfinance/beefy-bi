@@ -15,6 +15,7 @@ export async function* gitStreamFileVersions(options: {
   filePath: string;
   order: "recent-to-old" | "old-to-recent";
   throwOnError: boolean;
+  onePerMonth?: boolean;
 }): AsyncGenerator<{ latestVersion: boolean; commitHash: string; date: Date; fileContent: string }> {
   const baseOptions: Partial<SimpleGitOptions> = {
     binary: "git",
@@ -72,6 +73,23 @@ export async function* gitStreamFileVersions(options: {
   } else if (options.order === "recent-to-old") {
     logs = sortBy(logs, (log) => log.date).reverse();
     latestVersionIndex = 0;
+  }
+
+  if (options.onePerMonth) {
+    const filteredLogs: typeof logs = [];
+    const monthSet = new Set<string>();
+    for (const log of logs) {
+      const month = new Date(log.date).toISOString().slice(0, 7);
+      if (!monthSet.has(month.toString())) {
+        monthSet.add(month.toString());
+        filteredLogs.push(log);
+      }
+    }
+    logger.debug({
+      msg: "Filtering out commits to get one per month maximum",
+      data: { allLogsCount: logs.length, filteredLogsCount: filteredLogs.length },
+    });
+    logs = filteredLogs;
   }
 
   // for each hash, get the file content

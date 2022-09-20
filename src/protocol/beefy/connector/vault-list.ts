@@ -50,6 +50,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
     order: "recent-to-old",
     throwOnError: false,
+    onePerMonth: true,
   });
 
   const v1Chain = chain === "avax" ? "avalanche" : chain;
@@ -62,6 +63,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v1"),
     order: "recent-to-old",
     throwOnError: false,
+    onePerMonth: true,
   });
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(
@@ -74,9 +76,6 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   );
 
   const v1$ = Rx.from(fileContentStreamV1).pipe(
-    // only keep one entry per month to avoid full parsing a super long history
-    Rx.distinct((fileVersion) => fileVersion.date.toISOString().slice(0, 7)),
-
     // parse the file content
     Rx.mergeMap((fileVersion) => {
       // using prettier to transform js objects into proper json was the easiest way for me

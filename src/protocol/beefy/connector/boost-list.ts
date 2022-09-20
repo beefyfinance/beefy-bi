@@ -54,6 +54,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain): Rx.Observable<BeefyBoo
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
     order: "recent-to-old",
     throwOnError: false,
+    onePerMonth: true,
   });
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(

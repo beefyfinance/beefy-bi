@@ -355,55 +355,73 @@ function loadBeefyProducts(client: PoolClient) {
       }),
     )
     .pipe(
-      // index price feed ids by vault id so we can quickly ingest boosts
-      Rx.reduce(
-        (acc, vaultData) => {
-          if (vaultData.product.productData.type !== "beefy:vault") {
+      // new that we have all vaults, use them to insert the boosts
+      Rx.groupBy((vaultData) => vaultData.product.chain),
+      Rx.mergeMap((chainVaults$) =>
+        chainVaults$.pipe(
+          // index price feed ids by vault id so we can quickly ingest boosts
+          Rx.reduce((acc, vaultData) => {
+            acc[normalizeVaultId(vaultData.vault.id)] = vaultData.priceFeed.priceFeedId;
             return acc;
-          }
-          acc.chain = vaultData.product.chain;
-          acc.priceFeedByVaultId[vaultData.vault.id] = vaultData.priceFeed.priceFeedId;
-          return acc;
-        },
-        { priceFeedByVaultId: {} } as { chain: Chain; priceFeedByVaultId: Record<string, number> },
+          }, {} as Record<string, number>),
+
+          Rx.tap(() => logger.info({ msg: "importing chain boosts", data: { chain: chainVaults$.key } })),
+
+          // fetch the boosts from git
+          Rx.mergeMap(async (priceFeedIdsByVaultId) => {
+            const chainBoosts =
+              (await consumeObservable(beefyBoostsFromGitHistory$(chainVaults$.key).pipe(Rx.toArray()))) || [];
+
+            // create an object where we can add attributes to safely
+            const boostsData = chainBoosts.map((boost) => {
+              const vaultId = normalizeVaultId(boost.vault_id);
+              if (!priceFeedIdsByVaultId[vaultId]) {
+                logger.trace({
+                  msg: "no price feed id for vault",
+                  data: { vaultId, priceFeedIdsByVaultId },
+                });
+                throw new Error(`no price feed id for vault id ${vaultId}`);
+              }
+              return {
+                boost,
+                priceFeedId: priceFeedIdsByVaultId[vaultId],
+              };
+            });
+            return boostsData;
+          }),
+          Rx.mergeMap((boostsData) => Rx.from(boostsData)), // flatten
+
+          // insert the boost as a new product
+          upsertProduct$({
+            client,
+            getProductData: (boostData) => {
+              return {
+                productKey: `beefy:boost:${boostData.boost.id}`,
+                priceFeedId: boostData.priceFeedId,
+                chain: boostData.boost.chain,
+                productData: {
+                  type: "beefy:boost",
+                  boost: boostData.boost,
+                },
+              };
+            },
+            formatOutput: (boostData, product) => ({ ...boostData, product }),
+          }),
+
+          Rx.tap({
+            error: (err) =>
+              logger.error({ msg: "error importing chain boosts", data: { chain: chainVaults$.key, err } }),
+            complete: () => {
+              logger.info({ msg: "done importing boost configs for chain", data: { chain: chainVaults$.key } });
+            },
+          }),
+        ),
       ),
 
-      // fetch the boosts from git
-      Rx.mergeMap(async (allChainFeeds) => {
-        const chainBoosts =
-          (await consumeObservable(beefyBoostsFromGitHistory$(allChainFeeds.chain).pipe(Rx.toArray()))) || [];
-        console.log(chainBoosts);
-        // create an object where we can add attributes to safely
-        const boostsData = chainBoosts.map((boost) => ({
-          boost,
-          priceFeedId: allChainFeeds.priceFeedByVaultId[boost.vault_id],
-        }));
-        return boostsData;
-      }),
-      Rx.mergeMap((boostsData) => Rx.from(boostsData)), // flatten
-
-      // insert the boost as a new product
-      upsertProduct$({
-        client,
-        getProductData: (boostData) => {
-          return {
-            productKey: `beefy:boost:${boostData.boost.id}`,
-            priceFeedId: boostData.priceFeedId,
-            chain: boostData.boost.chain,
-            productData: {
-              type: "beefy:boost",
-              boost: boostData.boost,
-            },
-          };
-        },
-        formatOutput: (boostData, product) => ({ ...boostData, product }),
-      }),
-    )
-    .pipe(
       Rx.tap({
         error: (err) => logger.error({ msg: "error importing chain", data: { err } }),
         complete: () => {
-          logger.info({ msg: "done importing vault configs data for all chains" });
+          logger.info({ msg: "done importing vault and boost configs data for all chains" });
         },
       }),
     );
