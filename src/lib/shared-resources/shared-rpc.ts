@@ -4,9 +4,9 @@ import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
 import { MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_BACH_CALL_COUNT, RPC_URLS } from "../../utils/config";
 import { getRedisClient, getRedlock } from "./shared-lock";
-import { rootLogger } from "../../utils/logger2";
-import { get, isObjectLike, isString, sample } from "lodash";
+import { sample } from "lodash";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../rpc/archive-node-needed";
+import { rootLogger } from "../../utils/logger";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 

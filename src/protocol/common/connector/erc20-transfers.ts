@@ -74,6 +74,40 @@ export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams
   });
 }
 
+// when hitting a staking contract we don't have a token in return
+// so the balance of the amount we send is our positive diff
+export function fetchERC20TransferToAStakingContract$<TObj, TParams extends GetTransferCallParams, TRes>(options: {
+  provider: ethers.providers.JsonRpcProvider;
+  chain: Chain;
+  getQueryParams: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    fetchErc20Transfers$<TObj, TParams, TRes>({
+      ...options,
+      formatOutput: (item, transfers) => {
+        const params = options.getQueryParams(item);
+        const contractAddress = params.trackAddress;
+        if (!contractAddress) {
+          throw new ProgrammerError({ msg: "Missing trackAddress", params });
+        }
+        return options.formatOutput(
+          item,
+          transfers.map(
+            (transfer): ERC20Transfer => ({
+              ...transfer,
+              // fake a token at the staking contract address
+              tokenAddress: contractAddress,
+              // amounts are reversed because we are sending token to the vault, but we then have a positive balance
+              amountTransfered: transfer.amountTransfered.negated(),
+            }),
+          ),
+        );
+      },
+    }),
+  );
+}
+
 async function fetchERC20TransferEvents(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,

@@ -8,7 +8,8 @@
     "declaration": true,
     "resolveJsonModule": true,
     "types": ["jest"],
-    "sourceMap": true
+    "sourceMap": true,
+    "noImplicitAny": true
   },
   "include": ["./src/main.ts", "./data/interfaces/**/*.json"]
 }

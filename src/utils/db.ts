@@ -260,19 +260,17 @@ async function migrate() {
       if_not_exists => true
     );
   `);
-  /*
-  // a table to store which vault we already imported and which range needs to be retried
+
+  // a table to store which data we already imported and which range needs to be retried
+  // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
+  // it's split from the product but maybe it should not
   await db_query(`
     CREATE TABLE IF NOT EXISTS import_status (
-      import_key varchar NOT NULL,
+      product_id integer not null references product(product_id) PRIMARY KEY,
 
-      -- either blocknumber range or timestamp range
-      imported_range int4range NOT NULL,
-      
-      -- those are ranges with errors that need to be retried
-      ranges_to_retry int4range[] NOT NULL
+      import_data jsonb NOT NULL
     );
   `);
-*/
+
   logger.info({ msg: "Migrate done" });
 }

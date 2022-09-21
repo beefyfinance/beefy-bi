@@ -86,7 +86,7 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
 export function fetchDbPriceFeed$<TObj, TRes>(options: {
   client: PoolClient;
   getId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
+  formatOutput: (obj: TObj, feed: DbPriceFeed | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchQueryGroup$({
     bufferCount: 500,

@@ -9,7 +9,11 @@ import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
 import { curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
-import { ERC20Transfer, fetchErc20Transfers$ } from "../../common/connector/erc20-transfers";
+import {
+  ERC20Transfer,
+  fetchErc20Transfers$,
+  fetchERC20TransferToAStakingContract$,
+} from "../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
 import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
@@ -29,9 +33,11 @@ import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
 import { upsertInvestor$ } from "../../common/loader/investor";
 import { DbInvestment, upsertInvestment$ } from "../../common/loader/investment";
-import { addLatestBlockQuery$ } from "../../common/connector/latest-block-query";
+import { addLatestBlockQuery$ } from "../../common/connector/block-query";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
+import { fetchContractCreationInfos$ } from "../../common/connector/contract-creation";
+import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../../common/loader/import-status";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -62,11 +68,18 @@ async function main() {
   const pollBeefyProducts = withPgClient(loadBeefyProducts);
   const pollPriceData = withPgClient(fetchPrices);
 
+  const backfillHistory = withPgClient(async (client: PoolClient) => {
+    const vaultPipeline$ = curry(backfillChainHistory)(client);
+    const pipeline$ = productList$(client, "beefy").pipe(loaderByChain$(vaultPipeline$));
+    return consumeObservable(pipeline$);
+  });
+
   return new Promise(async () => {
     // start polling live data immediately
-    await pollBeefyProducts();
-    await pollLiveData();
-    await pollPriceData();
+    await backfillHistory();
+    //await pollBeefyProducts();
+    //await pollLiveData();
+    //await pollPriceData();
     ////
     ////// then start polling at regular intervals
     //setInterval(pollLiveData, samplingPeriodMs["30s"]);
@@ -76,6 +89,71 @@ async function main() {
 }
 
 runMain(main);
+
+function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
+  const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
+  const importPipeline$ = beefyProduct$.pipe(
+    // find the import status and create it if needed
+
+    // find the import status for these objects
+    fetchImportStatus$({
+      client: client,
+      getProductId: (product) => product.productId,
+      formatOutput: (product, importStatus) => ({ product, importStatus }),
+    }),
+
+    // extract those without an import status
+    Rx.groupBy((item) => item.importStatus === null),
+    Rx.map((isGroup$) => {
+      // passthrough if we already have an import status
+      if (isGroup$.key) {
+        return isGroup$ as Rx.GroupedObservable<boolean, { product: DbBeefyProduct; importStatus: DbImportStatus }>;
+      }
+
+      // then for those whe can't find an import status
+      return isGroup$.pipe(
+        // find the contract creation block
+        fetchContractCreationInfos$({
+          provider: provider,
+          getCallParams: (item) => ({
+            chain: chain,
+            contractAddress:
+              item.product.productData.type === "beefy:vault"
+                ? item.product.productData.vault.contract_address
+                : item.product.productData.boost.contract_address,
+          }),
+          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+        }),
+
+        // create the import status
+        upsertImportStatus$({
+          client: client,
+          getImportStatusData: (item) => ({
+            productId: item.product.productId,
+            importData: {
+              type: "beefy",
+              data: {
+                contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
+                importedBlockRange: {
+                  from: item.contractCreationInfo.blockNumber,
+                  to: item.contractCreationInfo.blockNumber,
+                },
+                blockRangesToRetry: [],
+              },
+            },
+          }),
+          formatOutput: (item, importStatus) => ({ ...item, importStatus }),
+        }),
+      );
+    }),
+    // now all objects have an import status (and a contract creation block)
+    Rx.mergeAll(),
+
+    Rx.tap((item) => logger.debug({ msg: "import status", data: { importStatus: item.importStatus } })),
+  );
+
+  return importPipeline$;
+}
 
 function importChainVaultTransfers(
   client: PoolClient,
@@ -101,12 +179,12 @@ function importChainVaultTransfers(
     addLatestBlockQuery$({
       chain,
       provider,
-      getLastImportedBlock: (chain) => importState[chain].lastImportedBlockNumber ?? null,
+      getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
       formatOutput: (item, latestBlocksQuery) => ({ ...item, latestBlocksQuery }),
     }),
 
     // fetch latest transfers from and to the boost contract
-    fetchErc20Transfers$({
+    fetchERC20TransferToAStakingContract$({
       provider,
       chain,
       getQueryParams: (item) => {
@@ -144,19 +222,6 @@ function importChainVaultTransfers(
 
     // add an ignore address so we can pipe this observable into the main pipeline again
     Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
-
-    // make is so we are transfering from the user in and out the vault
-    Rx.map((item) => ({
-      ...item,
-      transfers: item.transfers.map(
-        (transfer): ERC20Transfer => ({
-          ...transfer,
-          tokenAddress: item.product.productData.boost.contract_address,
-          // amounts are reversed because we are sending token to the boost, but we then have a positive balance
-          amountTransfered: transfer.amountTransfered.negated(),
-        }),
-      ),
-    })),
   );
 
   const allTransferQueries$ = vaults$
@@ -173,7 +238,7 @@ function importChainVaultTransfers(
       addLatestBlockQuery$({
         chain,
         provider,
-        getLastImportedBlock: (chain) => importState[chain].lastImportedBlockNumber ?? null,
+        getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
         formatOutput: (item, latestBlocksQuery) => ({ ...item, latestBlocksQuery }),
       }),
     );
@@ -239,7 +304,7 @@ function importChainVaultTransfers(
       ],
     })),
 
-    fetchErc20Transfers$({
+    fetchERC20TransferToAStakingContract$({
       provider,
       chain,
       getQueryParams: (item) => {
@@ -260,19 +325,6 @@ function importChainVaultTransfers(
     // we want to catch any errors from the RPC
     handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
 
-    // make is so we are transfering from the user in and out the vault
-    Rx.map((item) => ({
-      ...item,
-      transfers: item.transfers.map(
-        (transfer): ERC20Transfer => ({
-          ...transfer,
-          tokenAddress: item.product.productData.vault.contract_address,
-          // amounts are reversed because we are sending token to the vault, but we then have a positive balance
-          amountTransfered: transfer.amountTransfered.negated(),
-        }),
-      ),
-    })),
-
     // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
     Rx.map((item) => ({
       ...item,
@@ -280,7 +332,7 @@ function importChainVaultTransfers(
     })),
   );
 
-  // join gov and non gov vaults
+  // join gov and non gov vaults and boosts
   const rawTransfersByVault$ = Rx.merge(standardTransfersByVault$, govTransfersByVault$, boostTransfers$);
 
   const transfers$ = rawTransfersByVault$.pipe(
@@ -393,10 +445,7 @@ function loadBeefyProducts(client: PoolClient) {
       Rx.tap((chain) => logger.debug({ msg: "importing chain vaults", data: { chain } })),
 
       // fetch vaults from git file history
-      Rx.mergeMap(
-        beefyVaultsFromGitHistory$,
-        1 /* concurrent = 1, we don't want concurrency here as we are doing local directory git work */,
-      ),
+      Rx.concatMap(beefyVaultsFromGitHistory$),
 
       // create an object where we can add attributes to safely
       Rx.map((vault) => ({ vault })),
@@ -453,7 +502,7 @@ function loadBeefyProducts(client: PoolClient) {
           Rx.tap(() => logger.info({ msg: "importing chain boosts", data: { chain: chainVaults$.key } })),
 
           // fetch the boosts from git
-          Rx.mergeMap(async (chainData) => {
+          Rx.concatMap(async (chainData) => {
             const chainBoosts =
               (await consumeObservable(
                 beefyBoostsFromGitHistory$(chainVaults$.key, chainData.vaultByVaultId).pipe(Rx.toArray()),
@@ -475,7 +524,7 @@ function loadBeefyProducts(client: PoolClient) {
               };
             });
             return boostsData;
-          }, 1 /* concurrency */),
+          }),
           Rx.mergeMap((boostsData) => Rx.from(boostsData)), // flatten
 
           // insert the boost as a new product
@@ -541,7 +590,7 @@ function fetchPrices(client: PoolClient) {
     )
     .pipe(
       // now we fetch
-      Rx.mergeMap(async (productData) => {
+      Rx.concatMap(async (productData) => {
         const debugLogData = {
           priceFeedKey: productData.priceFeed.feedKey,
           priceFeed: productData.priceFeed.priceFeedId,
@@ -556,7 +605,7 @@ function fetchPrices(client: PoolClient) {
         logger.debug({ msg: "got prices", data: { ...debugLogData, priceCount: prices.length } });
 
         return { ...productData, prices };
-      }, 10 /* concurrency */),
+      }),
 
       Rx.catchError((err) => {
         logger.error({ msg: "error fetching prices", err });
