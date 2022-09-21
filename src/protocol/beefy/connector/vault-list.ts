@@ -135,6 +135,13 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       return { fileVersion, vault };
     }),
 
+    Rx.tap(({ fileVersion, vault }) =>
+      logger.trace({
+        msg: "Vault from git history",
+        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault },
+      }),
+    ),
+
     // just emit the vault
     Rx.map(({ vault }) => rawVaultToBeefyVault(chain, vault)),
 

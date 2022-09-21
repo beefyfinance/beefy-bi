@@ -1,11 +1,11 @@
 import axios from "axios";
 import { ethers } from "ethers";
-import { sample } from "lodash";
+import { isArray, sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RPC_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
-import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
+import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 
@@ -24,29 +24,25 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   getCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: { blockNumber: number; datetime: Date }) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup$({
-    bufferCount: 5,
-    toQueryObj: (obj: TObj[]) => options.getCallParams(obj[0]),
-    getBatchKey: (obj: TObj) => {
-      const params = options.getCallParams(obj);
-      return `${params.chain}-${params.contractAddress}`;
-    },
-    // do the actual processing
-    processBatch: async (params: TParams[]) => {
-      const results: ContractCreationInfos[] = [];
+  return Rx.pipe(
+    Rx.groupBy((obj) => options.getCallParams(obj).chain),
+    Rx.map((chainObjs$) =>
+      chainObjs$.pipe(
+        // make sure we don't hit the rate limit of the exploreres
+        rateLimit$(5000),
 
-      for (const param of params) {
-        const result = await getContractCreationInfos(param.contractAddress, param.chain);
-        results.push(result);
-      }
-
-      return results;
-    },
-    formatOutput: options.formatOutput,
-  });
+        Rx.mergeMap(async (obj) => {
+          const param = options.getCallParams(obj);
+          const result = await getContractCreationInfos(param.contractAddress, chainObjs$.key);
+          return options.formatOutput(obj, result);
+        }),
+      ),
+    ),
+    Rx.mergeAll(),
+  );
 }
 
-async function getContractCreationInfos(contractAddress: string, chain: Chain) {
+async function getContractCreationInfos(contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
   if (blockScoutChainsTimeout.has(chain)) {
     logger.trace({
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
@@ -84,17 +80,20 @@ const explorerApiUrls: { [chain in Chain]: string } = {
   syscoin: "",
 };
 
-const blockScoutChainsTimeout = new Set(["fuse", "metis", "celo", "emerald"]);
-const harmonyRpcChains = new Set(["one"]);
+const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald"]);
+const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
 
 async function getCreationBlockFromExplorer(contractAddress: string, explorerUrl: string) {
   var url =
     explorerUrl +
-    `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=99999999&page=1&offset=1&sort=asc&limit=1`;
+    `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
   const resp = await axios.get(url);
 
-  console.dir(resp.data, { depth: null });
-  const blockNumber: string = resp.data.result[0].blockNumber;
+  if (!isArray(resp.data.result) || resp.data.result.length === 0) {
+    logger.error({ msg: "No contract creation transaction found", data: { contractAddress, url, data: resp.data } });
+    throw new Error("No contract creation transaction found");
+  }
+  const blockNumber: number = resp.data.result[0].blockNumber;
   const timestamp: number = resp.data.result[0].timeStamp;
 
   return { blockNumber, datetime: new Date(timestamp) };
