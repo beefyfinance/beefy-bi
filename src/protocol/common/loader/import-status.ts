@@ -34,8 +34,8 @@ export function upsertImportStatus$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, importStatus: DbImportStatus) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    // batch queries
-    Rx.bufferCount(500),
+    // insert every 1s or 500 items
+    Rx.bufferTime(1000, undefined, 500),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
@@ -87,7 +87,7 @@ export function fetchImportStatus$<TObj, TRes>(options: {
       );
       // ensure results are in the same order as the params
       const idMap = keyBy(results, (r) => r.productId);
-      return ids.map((id) => idMap[id]);
+      return ids.map((id) => idMap[id] ?? null);
     },
     formatOutput: options.formatOutput,
   });

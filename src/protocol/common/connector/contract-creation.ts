@@ -16,13 +16,12 @@ interface ContractCallParams {
 
 interface ContractCreationInfos {
   blockNumber: number;
-  datetime: Date;
 }
 
-export function fetchContractCreationInfos$<TObj, TParams extends ContractCallParams, TRes>(options: {
+export function fetchContractCreationBlock$<TObj, TParams extends ContractCallParams, TRes>(options: {
   provider: ethers.providers.JsonRpcProvider;
   getCallParams: (obj: TObj) => TParams;
-  formatOutput: (obj: TObj, blockDate: { blockNumber: number; datetime: Date } | null) => TRes;
+  formatOutput: (obj: TObj, blockDate: ContractCreationInfos | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.groupBy((obj) => options.getCallParams(obj).chain),
@@ -34,7 +33,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
         Rx.mergeMap(async (obj) => {
           const param = options.getCallParams(obj);
           try {
-            const result = await getContractCreationInfos(param.contractAddress, chainObjs$.key);
+            const result = await getContractCreationBlock(param.contractAddress, chainObjs$.key);
             return options.formatOutput(obj, result);
           } catch (error) {
             logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
@@ -48,21 +47,21 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   );
 }
 
-async function getContractCreationInfos(contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
+async function getContractCreationBlock(contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
   if (blockScoutChainsTimeout.has(chain)) {
     logger.trace({
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
       data: { contractAddress, chain },
     });
-    return await getCreationTimestampBlockScoutScraping(contractAddress, explorerApiUrls[chain], chain);
+    return await getBlockScoutScrapingContractCreationBlock(contractAddress, explorerApiUrls[chain], chain);
   } else if (harmonyRpcChains.has(chain)) {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
       data: { contractAddress, chain },
     });
-    return await getCreationTimestampHarmonyRpc(contractAddress, chain);
+    return await getHarmonyRpcCreationBlock(contractAddress, chain);
   } else {
-    return await getCreationBlockFromExplorer(contractAddress, explorerApiUrls[chain]);
+    return await getFromExplorerCreationBlock(contractAddress, explorerApiUrls[chain]);
   }
 }
 
@@ -89,7 +88,7 @@ const explorerApiUrls: { [chain in Chain]: string } = {
 const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald"]);
 const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
 
-async function getCreationBlockFromExplorer(contractAddress: string, explorerUrl: string) {
+async function getFromExplorerCreationBlock(contractAddress: string, explorerUrl: string) {
   var url =
     explorerUrl +
     `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
@@ -102,31 +101,33 @@ async function getCreationBlockFromExplorer(contractAddress: string, explorerUrl
     throw new Error("No contract creation transaction found");
   }
   const blockNumber: number = resp.data.result[0].blockNumber;
-  const timestamp: number = resp.data.result[0].timeStamp;
 
-  return { blockNumber, datetime: new Date(timestamp) };
+  return { blockNumber };
 }
 
-async function getCreationTimestampBlockScoutScraping(contractAddress: string, explorerUrl: string, chain: Chain) {
+async function getBlockScoutScrapingContractCreationBlock(contractAddress: string, explorerUrl: string, chain: Chain) {
   var url = explorerUrl + `/address/${contractAddress}`;
-  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, url } });
 
-  let resp = await axios.get(url);
+  try {
+    logger.trace({ msg: "Fetching blockscout transaction link", data: { contractAddress, url } });
+    const resp = await axios.get(url);
 
-  let tx = resp.data.split(`<a data-test="transaction_hash_link" href="/`)[1].split(`"`)[0];
+    const tx = resp.data.split(`<a data-test="transaction_hash_link" href="/`)[1].split(`"`)[0];
+    const trxUrl = `${explorerUrl}/${tx}/internal-transactions`;
+    logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, trxUrl } });
+    const txResp = await axios.get(trxUrl);
 
-  let txResp = await axios.get(`${explorerUrl}/${tx}/internal-transactions`);
+    const blockNumberStr: string = txResp.data.split(`<a class="transaction__link" href="/block/`)[1].split(`"`)[0];
+    const blockNumber = parseInt(blockNumberStr);
 
-  let blockNumber: number = txResp.data.split(`<a class="transaction__link" href="/block/`)[1].split(`"`)[0];
-
-  const provider = new ethers.providers.JsonRpcProvider(sample(RPC_URLS[chain]));
-  const block = await provider.getBlock(blockNumber);
-  let timestamp = block.timestamp;
-
-  return { blockNumber, datetime: new Date(timestamp) };
+    return { blockNumber };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, url, error: error } });
+    throw error;
+  }
 }
 
-async function getCreationTimestampHarmonyRpc(contractAddress: string, chain: Chain) {
+async function getHarmonyRpcCreationBlock(contractAddress: string, chain: Chain) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const rpcPayload = {
     jsonrpc: "2.0",
@@ -161,6 +162,16 @@ async function getCreationTimestampHarmonyRpc(contractAddress: string, chain: Ch
     throw new Error("Malformed response");
   }
 
-  const tx0 = resp.data.result.transactions[0];
-  return { blockNumber: tx0.blockNulber, datetime: new Date(tx0.timestamp) };
+  if (!isArray(resp.data.result.transactions)) {
+    logger.error({ msg: "Empty transaction array", data: { contractAddress, rpcUrl, data: resp.data } });
+    throw new Error("Empty transaction array");
+  }
+  const transactions = resp.data.result.transactions.filter((tx: any) => tx); // remove nulls
+  if (transactions.length === 0) {
+    logger.error({ msg: "Empty transaction array", data: { contractAddress, rpcUrl, data: resp.data } });
+    throw new Error("Empty transaction array");
+  }
+
+  const tx0 = transactions[0];
+  return { blockNumber: tx0.blockNumber };
 }

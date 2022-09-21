@@ -5,7 +5,7 @@ import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../loader/import-status";
-import { fetchContractCreationInfos$ } from "./contract-creation";
+import { fetchContractCreationBlock$ } from "./contract-creation";
 
 interface BlockQuery {
   fromBlock: number;

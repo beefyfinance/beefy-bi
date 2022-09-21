@@ -31,7 +31,7 @@ import { DbInvestment, upsertInvestment$ } from "../../common/loader/investment"
 import { addLatestBlockQuery$ } from "../../common/connector/block-query";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
-import { fetchContractCreationInfos$ } from "../../common/connector/contract-creation";
+import { fetchContractCreationBlock$ } from "../../common/connector/contract-creation";
 import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../../common/loader/import-status";
 import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
@@ -103,17 +103,19 @@ function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: R
     }),
 
     // extract those without an import status
-    Rx.groupBy((item) => item.importStatus === null),
+    Rx.groupBy((item) => (item.importStatus !== null ? "has-import-status" : "missing-import-status")),
     Rx.map((isGroup$) => {
       // passthrough if we already have an import status
-      if (isGroup$.key) {
-        return isGroup$ as Rx.GroupedObservable<boolean, { product: DbBeefyProduct; importStatus: DbImportStatus }>;
+      if (isGroup$.key === "has-import-status") {
+        return isGroup$ as Rx.Observable<{ product: DbBeefyProduct; importStatus: DbImportStatus }>;
       }
 
       // then for those whe can't find an import status
       return isGroup$.pipe(
+        Rx.tap((item) => logger.debug({ msg: "Missing import status for product", data: item })),
+
         // find the contract creation block
-        fetchContractCreationInfos$({
+        fetchContractCreationBlock$({
           provider: provider,
           getCallParams: (item) => ({
             chain: chain,
@@ -152,7 +154,7 @@ function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: R
     // now all objects have an import status (and a contract creation block)
     Rx.mergeAll(),
 
-    Rx.tap((item) => logger.debug({ msg: "import status", data: { importStatus: item.importStatus } })),
+    //Rx.tap((item) => logger.debug({ msg: "Import status", data: item })),
   );
 
   return importPipeline$;

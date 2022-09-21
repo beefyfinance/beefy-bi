@@ -106,7 +106,7 @@ export function fetchDbPriceFeed$<TObj, TRes>(options: {
       );
       // ensure results are in the same order as the params
       const idMap = keyBy(results, (r) => r.priceFeedId);
-      return ids.map((id) => idMap[id]);
+      return ids.map((id) => idMap[id] ?? null);
     },
     formatOutput: options.formatOutput,
   });
