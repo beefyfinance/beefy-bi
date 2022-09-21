@@ -67,6 +67,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   );
 }
 
+/*
 export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   client: PoolClient;
   chain: Chain;
@@ -145,3 +146,4 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
     Rx.map((item) => options.formatOutput(item.obj, item.historicalBlockQuery)),
   );
 }
+*/

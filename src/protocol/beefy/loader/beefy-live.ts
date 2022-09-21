@@ -5,7 +5,6 @@ import { withPgClient } from "../../../utils/db";
 import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
-import { consumeObservable } from "../../../utils/observable";
 import { ethers } from "ethers";
 import { curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
@@ -35,6 +34,9 @@ import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { fetchContractCreationInfos$ } from "../../common/connector/contract-creation";
 import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../../common/loader/import-status";
 import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
+import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
+import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
+import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -73,11 +75,11 @@ async function main() {
 
   return new Promise(async () => {
     // start polling live data immediately
-    await pollBeefyProducts();
-    //await backfillHistory();
+    //await pollBeefyProducts();
+    await backfillHistory();
 
-    await pollLiveData();
-    await pollPriceData();
+    //await pollLiveData();
+    //await pollPriceData();
     ////
     ////// then start polling at regular intervals
     //setInterval(pollLiveData, samplingPeriodMs["30s"]);
@@ -122,6 +124,9 @@ function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: R
           }),
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
+
+        // drop those without a creation info
+        excludeNullFields$("contractCreationInfo"),
 
         // create the import status
         upsertImportStatus$({
@@ -582,6 +587,9 @@ function fetchPrices(client: PoolClient) {
       }),
     )
     .pipe(
+      // be nice with beefy api plz
+      rateLimit$(300),
+
       // now we fetch
       Rx.concatMap(async (productData) => {
         const debugLogData = {

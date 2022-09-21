@@ -22,19 +22,25 @@ interface ContractCreationInfos {
 export function fetchContractCreationInfos$<TObj, TParams extends ContractCallParams, TRes>(options: {
   provider: ethers.providers.JsonRpcProvider;
   getCallParams: (obj: TObj) => TParams;
-  formatOutput: (obj: TObj, blockDate: { blockNumber: number; datetime: Date }) => TRes;
+  formatOutput: (obj: TObj, blockDate: { blockNumber: number; datetime: Date } | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.groupBy((obj) => options.getCallParams(obj).chain),
     Rx.map((chainObjs$) =>
       chainObjs$.pipe(
         // make sure we don't hit the rate limit of the exploreres
-        rateLimit$(5000),
+        rateLimit$(10000),
 
         Rx.mergeMap(async (obj) => {
           const param = options.getCallParams(obj);
-          const result = await getContractCreationInfos(param.contractAddress, chainObjs$.key);
-          return options.formatOutput(obj, result);
+          try {
+            const result = await getContractCreationInfos(param.contractAddress, chainObjs$.key);
+            return options.formatOutput(obj, result);
+          } catch (error) {
+            logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
+            logger.error(error);
+            return options.formatOutput(obj, null);
+          }
         }),
       ),
     ),
@@ -87,6 +93,8 @@ async function getCreationBlockFromExplorer(contractAddress: string, explorerUrl
   var url =
     explorerUrl +
     `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, url } });
+
   const resp = await axios.get(url);
 
   if (!isArray(resp.data.result) || resp.data.result.length === 0) {
@@ -101,6 +109,7 @@ async function getCreationBlockFromExplorer(contractAddress: string, explorerUrl
 
 async function getCreationTimestampBlockScoutScraping(contractAddress: string, explorerUrl: string, chain: Chain) {
   var url = explorerUrl + `/address/${contractAddress}`;
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, url } });
 
   let resp = await axios.get(url);
 
@@ -119,7 +128,7 @@ async function getCreationTimestampBlockScoutScraping(contractAddress: string, e
 
 async function getCreationTimestampHarmonyRpc(contractAddress: string, chain: Chain) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
-  const resp = await axios.post(rpcUrl, {
+  const rpcPayload = {
     jsonrpc: "2.0",
     method: "hmyv2_getTransactionsHistory",
     params: [
@@ -133,7 +142,9 @@ async function getCreationTimestampHarmonyRpc(contractAddress: string, chain: Ch
       },
     ],
     id: 1,
-  });
+  };
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, rpcUrl, rpcPayload } });
+  const resp = await axios.post(rpcUrl, rpcPayload);
 
   if (
     !resp.data ||
