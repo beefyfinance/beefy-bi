@@ -14,8 +14,8 @@ interface DbBlockRange {
 
 interface BeefyImportStatus {
   contractCreatedAtBlock: number;
-  // already imported range
-  importedBlockRange: DbBlockRange;
+  // already imported once range
+  coveredBlockRange: DbBlockRange;
   // ranges where an error occured
   blockRangesToRetry: DbBlockRange[];
 }

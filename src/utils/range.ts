@@ -1,6 +1,6 @@
 import { clone, cloneDeep } from "lodash";
 
-interface Range {
+export interface Range {
   from: number;
   to: number;
 }
@@ -75,4 +75,18 @@ export function rangeMerge(ranges: Range[]): Range[] {
   }
 
   return mergedRanges;
+}
+
+export function rangeSlitToMaxLength(range: Range, maxLength: number): Range[] {
+  const ranges: Range[] = [];
+  let currentRange: Range = clone(range);
+
+  while (currentRange.to - currentRange.from + 1 > maxLength) {
+    ranges.push({ from: currentRange.from, to: currentRange.from + maxLength - 1 });
+    currentRange.from += maxLength;
+  }
+
+  ranges.push(currentRange);
+
+  return ranges;
 }

@@ -3,13 +3,33 @@ import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
-import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../loader/import-status";
-import { fetchContractCreationBlock$ } from "./contract-creation";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
+import { DbImportStatus } from "../loader/import-status";
+import NodeCache from "node-cache";
+import { Range, rangeExclude, rangeSlitToMaxLength } from "../../../utils/range";
+import { sample } from "lodash";
+import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
-interface BlockQuery {
-  fromBlock: number;
-  toBlock: number;
+const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
+
+function latestBlockNumber$<TObj, TRes>(options: {
+  getChain: (obj: TObj) => Chain;
+  formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    Rx.mergeMap(async (obj) => {
+      const chain = options.getChain(obj);
+      const cacheKey = chain;
+      let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
+      if (latestBlockNumber === undefined) {
+        const provider = new ethers.providers.JsonRpcProvider(sample(RPC_URLS[chain]));
+        latestBlockNumber = await provider.getBlockNumber();
+      }
+      return options.formatOutput(obj, latestBlockNumber);
+    }),
+
+    retryRpcErrors({ msg: "Fetching block number", data: {} }),
+  );
 }
 
 /**
@@ -20,16 +40,16 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   chain: Chain;
   provider: ethers.providers.JsonRpcProvider;
   getLastImportedBlock: (chain: Chain) => number | null;
-  formatOutput: (obj: TObj, latestBlockQuery: BlockQuery) => TRes;
+  formatOutput: (obj: TObj, latestBlockQuery: Range) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // batch queries
     Rx.bufferCount(200),
 
     // go get the latest block number for this chain
-    Rx.mergeMap(async (objs) => {
-      const latestBlockNumber = await options.provider.getBlockNumber();
-      return { objs, latestBlockNumber };
+    latestBlockNumber$({
+      getChain: () => options.chain,
+      formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
 
     // compute the block range we want to query
@@ -54,8 +74,8 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
       return {
         objs: objGroup.objs,
         latestBlocksQuery: {
-          fromBlock: fromBlock - waitForBlockPropagation,
-          toBlock: toBlock - waitForBlockPropagation,
+          from: fromBlock - waitForBlockPropagation,
+          to: toBlock - waitForBlockPropagation,
         },
       };
     }),
@@ -70,28 +90,44 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   client: PoolClient;
   chain: Chain;
-  provider: ethers.providers.JsonRpcProvider;
   getImportStatus: (obj: TObj) => DbImportStatus;
-  formatOutput: (obj: TObj, historicalBlockQuery: BlockQuery) => TRes;
+  formatOutput: (obj: TObj, historicalBlockQueries: Range[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
+    // go get the latest block number for this chain
+    latestBlockNumber$({
+      getChain: () => options.chain,
+      formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
+    }),
+
     // we can now create the historical block query
-    Rx.map((obj) => {
-      const importStatus = options.getImportStatus(obj);
+    Rx.map((item) => {
+      const importStatus = options.getImportStatus(item.obj);
       const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
 
-      // for now, we import chronologicaly
-      const fromBlock = importStatus.importData.data.importedBlockRange.to - 1;
-      const toBlock = fromBlock + maxBlocksPerQuery;
+      // this is the whole range we have to cover
+      let fullRange = { from: importStatus.importData.data.contractCreatedAtBlock, to: item.latestBlockNumber };
 
-      // if we find a block range where we already had an error, we skip it
+      // exclude the range we already covered
+      let ranges = rangeExclude(fullRange, importStatus.importData.data.coveredBlockRange);
 
+      // split in ranges no greater than the maximum allowed
+      ranges = ranges.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
+
+      // order by oldest first
+      ranges = ranges.sort((a, b) => a.from - b.from);
+
+      // then add the ranges we had error on at the end
       for (const erroredRange of importStatus.importData.data.blockRangesToRetry) {
-        if (erroredRange.from <= fromBlock && erroredRange.to >= toBlock) {
-        }
+        ranges.push(erroredRange);
       }
 
-      return options.formatOutput(obj, { fromBlock, toBlock });
+      // limit the amount of queries
+      if (ranges.length > 500) {
+        ranges = ranges.slice(0, 500);
+      }
+
+      return options.formatOutput(item.obj, ranges);
     }),
   );
 }

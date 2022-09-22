@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ethers } from "ethers";
-import { isArray, sample } from "lodash";
+import { isArray, isString, sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RPC_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
@@ -100,7 +100,11 @@ async function getFromExplorerCreationBlock(contractAddress: string, explorerUrl
     logger.error({ msg: "No contract creation transaction found", data: { contractAddress, url, data: resp.data } });
     throw new Error("No contract creation transaction found");
   }
-  const blockNumber: number = resp.data.result[0].blockNumber;
+  let blockNumber: number | string = resp.data.result[0].blockNumber;
+
+  if (isString(blockNumber)) {
+    blockNumber = parseInt(blockNumber);
+  }
 
   return { blockNumber };
 }
@@ -173,5 +177,10 @@ async function getHarmonyRpcCreationBlock(contractAddress: string, chain: Chain)
   }
 
   const tx0 = transactions[0];
-  return { blockNumber: tx0.blockNumber };
+  let blockNumber: string | number = tx0.blockNumber;
+  if (isString(blockNumber)) {
+    blockNumber = parseInt(blockNumber);
+  }
+
+  return { blockNumber };
 }

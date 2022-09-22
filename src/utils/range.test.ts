@@ -1,4 +1,4 @@
-import { rangeExclude, rangeMerge } from "./range";
+import { rangeExclude, rangeMerge, rangeSlitToMaxLength } from "./range";
 
 describe("range utils", () => {
   it("should compute range exclusions properly", () => {
@@ -78,6 +78,20 @@ describe("range utils", () => {
     ).toEqual([
       { from: 1, to: 30 },
       { from: 32, to: 50 },
+    ]);
+  });
+
+  it("should be able to split a range to a maximum length", () => {
+    expect(rangeSlitToMaxLength({ from: 1, to: 10 }, 5)).toEqual([
+      { from: 1, to: 5 },
+      { from: 6, to: 10 },
+    ]);
+
+    expect(rangeSlitToMaxLength({ from: 1, to: 20 }, 5)).toEqual([
+      { from: 1, to: 5 },
+      { from: 6, to: 10 },
+      { from: 11, to: 15 },
+      { from: 16, to: 20 },
     ]);
   });
 });
