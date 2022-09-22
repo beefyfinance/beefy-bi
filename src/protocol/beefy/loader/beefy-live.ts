@@ -154,6 +154,8 @@ function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: R
     // now all objects have an import status (and a contract creation block)
     Rx.mergeAll(),
 
+    // generate the block ranges to import
+
     //Rx.tap((item) => logger.debug({ msg: "Import status", data: item })),
   );
 
