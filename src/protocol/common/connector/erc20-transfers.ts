@@ -7,6 +7,7 @@ import { Chain } from "../../../types/chain";
 import { flatten, groupBy, min, uniq, zipWith } from "lodash";
 import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -41,37 +42,41 @@ export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams
   getQueryParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup$({
-    bufferCount: 200,
-    // we want to make a query for all requested block numbers of this contract
-    toQueryObj: (objs: TObj[]): TParams => {
-      const params = objs.map(options.getQueryParams);
-      const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
-      if (trackAddresses.length > 1) {
-        throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
-      }
-      const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
-      return {
-        ...params[0],
-        fromBlock: min(params.map((p) => p.fromBlock)),
-        toBlock: min(params.map((p) => p.toBlock)),
-        trackAddress,
-      };
-    },
-    // we process all transfers by batch of addresses
-    getBatchKey: (obj: TObj) => {
-      const params = options.getQueryParams(obj);
-      return params.address.toLocaleLowerCase();
-    },
-    // do the actual processing
-    processBatch: async (params) => {
-      const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
-      // make sure we return data in the same order as the input
-      const grouped = groupBy(transfers, (t) => t.tokenAddress);
-      return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
-    },
-    formatOutput: options.formatOutput,
-  });
+  return Rx.pipe(
+    batchQueryGroup$({
+      bufferCount: 200,
+      // we want to make a query for all requested block numbers of this contract
+      toQueryObj: (objs: TObj[]): TParams => {
+        const params = objs.map(options.getQueryParams);
+        const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
+        if (trackAddresses.length > 1) {
+          throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
+        }
+        const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
+        return {
+          ...params[0],
+          fromBlock: min(params.map((p) => p.fromBlock)),
+          toBlock: min(params.map((p) => p.toBlock)),
+          trackAddress,
+        };
+      },
+      // we process all transfers by batch of addresses
+      getBatchKey: (obj: TObj) => {
+        const params = options.getQueryParams(obj);
+        return params.address.toLocaleLowerCase();
+      },
+      // do the actual processing
+      processBatch: async (params) => {
+        const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
+        // make sure we return data in the same order as the input
+        const grouped = groupBy(transfers, (t) => t.tokenAddress);
+        return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
+      },
+      formatOutput: options.formatOutput,
+    }),
+
+    retryRpcErrors({ msg: "fetching boost transfers", data: { chain: options.chain } }),
+  );
 }
 
 // when hitting a staking contract we don't have a token in return

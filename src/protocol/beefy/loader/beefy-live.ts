@@ -15,7 +15,6 @@ import { fetchBeefyPrices } from "../connector/prices";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
-import { handleRpcErrors$ } from "../../common/connector/rpc-errors";
 import { priceFeedList$, upsertPriceFeed$ } from "../../common/loader/price-feed";
 import {
   DbBeefyBoostProduct,
@@ -27,7 +26,7 @@ import {
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
 import { upsertInvestor$ } from "../../common/loader/investor";
-import { DbInvestment, upsertInvestment$ } from "../../common/loader/investment";
+import { upsertInvestment$ } from "../../common/loader/investment";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../common/connector/block-query";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
@@ -38,8 +37,8 @@ import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { sleep } from "../../../utils/async";
-import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 import { Range } from "../../../utils/range";
+import { loadTransfers$ } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -63,7 +62,7 @@ async function main() {
   //
 
   const pollLiveData = withPgClient(async (client: PoolClient) => {
-    const vaultPipeline$ = curry(importChainVaultTransfers)(client);
+    const vaultPipeline$ = curry(importChainRecentData)(client);
     const pipeline$ = productList$(client, "beefy").pipe(loaderByChain$(vaultPipeline$));
     return consumeObservable(pipeline$);
   });
@@ -71,7 +70,7 @@ async function main() {
   const pollPriceData = withPgClient(fetchPrices);
 
   const backfillHistory = withPgClient(async (client: PoolClient) => {
-    const vaultPipeline$ = curry(backfillChainHistory)(client);
+    const vaultPipeline$ = curry(importChainHistoricalData)(client);
     const pipeline$ = productList$(client, "beefy").pipe(loaderByChain$(vaultPipeline$));
     return consumeObservable(pipeline$);
   });
@@ -96,7 +95,7 @@ async function main() {
 
 runMain(main);
 
-function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
+function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
   const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
   const historicalQueries$ = beefyProduct$.pipe(
     // find the import status and create it if needed
@@ -169,20 +168,19 @@ function backfillChainHistory(client: PoolClient, chain: Chain, beefyProduct$: R
     }),
 
     // flatten the queries
-    Rx.mergeMap((item) => Rx.of(item.blockQueries.map((blockRangeQuery) => ({ ...item, blockRangeQuery })))),
-    Rx.mergeAll(),
+    Rx.mergeMap((item) => item.blockQueries.map((blockRangeQuery) => ({ ...item, blockRangeQuery }))),
 
     Rx.tap((item) => logger.debug({ msg: "Import status", data: item })),
   );
 
-  return fetchAndInsertBeefyProductRange$(client, chain, historicalQueries$);
+  // fetch and process data as we normally would
+  const insertResult$ = fetchAndInsertBeefyProductRange$(client, chain, historicalQueries$);
+
+  // update the import status
+  return insertResult$.pipe();
 }
 
-function importChainVaultTransfers(
-  client: PoolClient,
-  chain: Chain,
-  beefyProduct$: Rx.Observable<DbBeefyProduct>,
-): Rx.Observable<DbInvestment> {
+function importChainRecentData(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
@@ -213,7 +211,7 @@ function fetchAndInsertBeefyProductRange$(
   client: PoolClient,
   chain: Chain,
   beefyProductQueries$: Rx.Observable<{ product: DbBeefyProduct; blockRangeQuery: Range }>,
-): Rx.Observable<{ product: DbBeefyProduct; blockRangeQuery: Range; success: boolean }> {
+): Rx.Observable<{ product: DbBeefyProduct; blockRangeQuery: Range; loadResult: { success: boolean } }> {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
@@ -244,7 +242,6 @@ function fetchAndInsertBeefyProductRange$(
       },
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
-    handleRpcErrors$({ msg: "fetching boost transfers", data: { chain } }),
 
     // then we need the vault ppfs to interpret the balance
     fetchBeefyPPFS$({
@@ -261,7 +258,6 @@ function fetchAndInsertBeefyProductRange$(
       },
       formatOutput: (item, ppfss) => ({ ...item, ppfss }),
     }),
-    handleRpcErrors$({ msg: "fetching boosted vault ppfs", data: { chain } }),
 
     // add an ignore address so we can pipe this observable into the main pipeline again
     Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
@@ -295,9 +291,6 @@ function fetchAndInsertBeefyProductRange$(
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
 
-    // we want to catch any errors from the RPC
-    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
-
     // fetch the ppfs
     fetchBeefyPPFS$({
       provider,
@@ -312,9 +305,6 @@ function fetchAndInsertBeefyProductRange$(
       },
       formatOutput: (item, ppfss) => ({ ...item, ppfss }),
     }),
-
-    // we want to catch any errors from the RPC
-    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
   );
 
   const govTransfersByVault$ = govTransferQueries$.pipe(
@@ -346,9 +336,6 @@ function fetchAndInsertBeefyProductRange$(
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
 
-    // we want to catch any errors from the RPC
-    handleRpcErrors$({ msg: "mapping erc20Transfers", data: { chain } }),
-
     // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
     Rx.map((item) => ({
       ...item,
@@ -359,106 +346,40 @@ function fetchAndInsertBeefyProductRange$(
   // join gov and non gov vaults and boosts
   const rawTransfersByVault$ = Rx.merge(standardTransfersByVault$, govTransfersByVault$, boostTransfers$);
 
-  const transfers$ = rawTransfersByVault$.pipe(
+  const insertStatus$ = rawTransfersByVault$.pipe(
     // now move to transfers representation
     Rx.mergeMap((item) =>
-      item.transfers.map((transfer, idx) => ({
-        transfer,
-        ignoreAddresses: item.ignoreAddresses,
-        product: item.product,
-        ppfs: item.ppfss[idx],
-      })),
+      Rx.of(
+        item.transfers.map((transfer, idx) => ({
+          transfer,
+          ignoreAddresses: item.ignoreAddresses,
+          product: item.product,
+          sharesRate: item.ppfss[idx],
+        })),
+      ).pipe(
+        // flatten the transfers
+        Rx.mergeAll(),
+
+        // enhance and insert in database
+        loadTransfers$({ chain, client, provider }),
+
+        // add product to the result
+        Rx.map((loadResult) => ({ ...item, loadResult })),
+      ),
     ),
 
-    // remove ignored addresses
-    Rx.filter((item) => {
-      const shouldIgnore = item.ignoreAddresses.some(
-        (ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress),
-      );
-      if (shouldIgnore) {
-        logger.debug({ msg: "ignoring transfer", data: { chain, transferData: item } });
-      }
-      return !shouldIgnore;
+    // return the product and if the query succeded or not
+    Rx.tap({
+      next: (item) =>
+        logger.debug({
+          msg: "product processed",
+          data: { chain, product: item.product.productKey, result: item.loadResult },
+        }),
+      complete: () => logger.debug({ msg: "done processing chain", data: { chain } }),
     }),
-
-    Rx.tap((item) =>
-      logger.trace({
-        msg: "processing transfer data",
-        data: {
-          chain,
-          productKey: item.product.productKey,
-          transfer: item.transfer,
-        },
-      }),
-    ),
   );
 
-  const enhancedTransfers$ = transfers$.pipe(
-    // we need the balance of each owner
-    fetchERC20TokenBalance$({
-      chain,
-      provider,
-      getQueryParams: (item) => ({
-        blockNumber: item.transfer.blockNumber,
-        decimals: item.transfer.tokenDecimals,
-        contractAddress: item.transfer.tokenAddress,
-        ownerAddress: item.transfer.ownerAddress,
-      }),
-      formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
-    }),
-
-    handleRpcErrors$({ msg: "mapping owner balance", data: { chain } }),
-
-    // we also need the date of each block
-    fetchBlockDatetime$({
-      provider,
-      getBlockNumber: (t) => t.transfer.blockNumber,
-      formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
-    }),
-
-    // we want to catch any errors from the RPC
-    handleRpcErrors$({ msg: "mapping block datetimes", data: { chain } }),
-  );
-
-  // insert relational data pipe
-  const insertPipeline$ = enhancedTransfers$.pipe(
-    // insert the investor data
-    upsertInvestor$({
-      client,
-      getInvestorData: (item) => ({
-        address: item.transfer.ownerAddress,
-        investorData: {},
-      }),
-      formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
-    }),
-
-    upsertInvestment$({
-      client,
-      getInvestmentData: (item) => ({
-        datetime: item.blockDatetime,
-        productId: item.product.productId,
-        investorId: item.investorId,
-        // balance is expressed in underlying amount
-        balance: item.vaultSharesBalance.mul(item.ppfs),
-        investmentData: {
-          blockNumber: item.transfer.blockNumber,
-          balance: item.vaultSharesBalance.toString(),
-          balanceDiff: item.transfer.amountTransfered.toString(),
-          trxHash: item.transfer.transactionHash,
-          ppfs: item.ppfs.toString(),
-          productType:
-            item.product.productData.type === "beefy:vault"
-              ? item.product.productData.type + (item.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.product.productData.type,
-        },
-      }),
-      formatOutput: (_, investment) => investment,
-    }),
-
-    Rx.tap({ complete: () => logger.debug({ msg: "done processing chain", data: { chain } }) }),
-  );
-
-  return insertPipeline$;
+  return insertStatus$;
 }
 
 function loadBeefyProducts(client: PoolClient) {

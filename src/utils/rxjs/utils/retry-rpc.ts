@@ -5,7 +5,7 @@ import { shouldRetryProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });
 
-export function retryRpcErrors(logInfos: { msg: string; data: object }) {
+export function retryRpcErrors(logInfos: { msg: string; data?: object }) {
   return retryBackoff({
     initialInterval: 100,
     maxInterval: 10_000,

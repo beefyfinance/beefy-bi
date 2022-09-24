@@ -56,6 +56,6 @@ export function upsertInvestment$<TInput, TRes>(options: {
       return objAndData.map(({ obj, investment }) => options.formatOutput(obj, investment));
     }),
 
-    Rx.mergeMap((investments) => Rx.from(investments)), // flatten
+    Rx.mergeMap((investments) => investments), // flatten
   );
 }

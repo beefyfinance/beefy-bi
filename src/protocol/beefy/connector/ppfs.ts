@@ -8,6 +8,7 @@ import * as Rx from "rxjs";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
 import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 import Decimal from "decimal.js";
+import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -24,25 +25,29 @@ export function fetchBeefyPPFS$<TObj, TParams extends BeefyPPFSCallParams, TRes>
   getPPFSCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup$({
-    bufferCount: 200,
-    // we want to make a query for all requested block numbers of this contract
-    toQueryObj: (objs: TObj[]): TParams => {
-      const params = objs.map(options.getPPFSCallParams);
-      return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
-    },
-    // group by vault address
-    getBatchKey: (obj: TObj) => {
-      const params = options.getPPFSCallParams(obj);
-      return params.vaultAddress.toLocaleLowerCase();
-    },
-    // do the actual processing
-    processBatch: async (params: TParams[]) => {
-      const results = await fetchBeefyVaultShareRate(options.provider, options.chain, params);
-      return results;
-    },
-    formatOutput: options.formatOutput,
-  });
+  return Rx.pipe(
+    batchQueryGroup$({
+      bufferCount: 200,
+      // we want to make a query for all requested block numbers of this contract
+      toQueryObj: (objs: TObj[]): TParams => {
+        const params = objs.map(options.getPPFSCallParams);
+        return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
+      },
+      // group by vault address
+      getBatchKey: (obj: TObj) => {
+        const params = options.getPPFSCallParams(obj);
+        return params.vaultAddress.toLocaleLowerCase();
+      },
+      // do the actual processing
+      processBatch: async (params: TParams[]) => {
+        const results = await fetchBeefyVaultShareRate(options.provider, options.chain, params);
+        return results;
+      },
+      formatOutput: options.formatOutput,
+    }),
+
+    retryRpcErrors({ msg: "fetching ppfs", data: { chain: options.chain } }),
+  );
 }
 
 export async function fetchBeefyVaultShareRate(
