@@ -6,7 +6,7 @@ import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list"
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
-import { curry, sample } from "lodash";
+import { clone, cloneDeep, curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
@@ -31,13 +31,18 @@ import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../common/con
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { fetchContractCreationBlock$ } from "../../common/connector/contract-creation";
-import { DbImportStatus, fetchImportStatus$, upsertImportStatus$ } from "../../common/loader/import-status";
+import {
+  DbImportStatus,
+  fetchImportStatus$,
+  updateImportStatus,
+  upsertImportStatus$,
+} from "../../common/loader/import-status";
 import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { sleep } from "../../../utils/async";
-import { Range } from "../../../utils/range";
+import { Range, rangeExclude, rangeMerge } from "../../../utils/range";
 import { loadTransfers$ } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
@@ -176,8 +181,42 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduc
   // fetch and process data as we normally would
   const insertResult$ = fetchAndInsertBeefyProductRange$(client, chain, historicalQueries$);
 
-  // update the import status
-  return insertResult$.pipe();
+  return insertResult$.pipe(
+    // update the import status with the new block range
+    updateImportStatus({
+      client,
+      getProductId: (item) => item.product.productId,
+      mergeImportStatus: (item, importStatus) => {
+        if (importStatus.importData.type !== "beefy") {
+          throw new Error(`Import status is not for beefy: ${importStatus.importData.type}`);
+        }
+
+        const blockRange = item.blockRangeQuery;
+        const newImportStatus = cloneDeep(importStatus);
+
+        // either way, we covered this range, we need to remember that
+        const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, blockRange]);
+        newImportStatus.importData.data.coveredBlockRange = mergedRange[0]; // only take the first one
+        if (mergedRange.length > 1) {
+          logger.warn({
+            msg: "Unexpectedly merged multiple block ranges",
+            data: { item, mergedRange, importStatus: newImportStatus },
+          });
+        }
+
+        if (item.loadResult.success) {
+          // remove the retried range if present
+          newImportStatus.importData.data.blockRangesToRetry =
+            newImportStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeExclude(range, blockRange));
+        } else {
+          newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
+        }
+
+        return newImportStatus;
+      },
+      formatOutput: (item, importStatusUpdated) => ({ ...item, importStatusUpdated }),
+    }),
+  );
 }
 
 function importChainRecentData(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {

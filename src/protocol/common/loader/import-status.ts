@@ -1,23 +1,19 @@
 import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { db_query } from "../../../utils/db";
+import { db_query, db_query_one } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { Range } from "../../../utils/range";
 import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
-interface DbBlockRange {
-  from: number;
-  to: number;
-}
-
 interface BeefyImportStatus {
   contractCreatedAtBlock: number;
   // already imported once range
-  coveredBlockRange: DbBlockRange;
+  coveredBlockRange: Range;
   // ranges where an error occured
-  blockRangesToRetry: DbBlockRange[];
+  blockRangesToRetry: Range[];
 }
 
 export interface DbImportStatus {
@@ -69,7 +65,7 @@ export function upsertImportStatus$<TInput, TRes>(options: {
 export function fetchImportStatus$<TObj, TRes>(options: {
   client: PoolClient;
   getProductId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, feed: DbImportStatus | null) => TRes;
+  formatOutput: (obj: TObj, importStatus: DbImportStatus | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchQueryGroup$({
     bufferCount: 500,
@@ -91,4 +87,46 @@ export function fetchImportStatus$<TObj, TRes>(options: {
     },
     formatOutput: options.formatOutput,
   });
+}
+
+export function updateImportStatus<TObj, TRes>(options: {
+  client: PoolClient;
+  getProductId: (obj: TObj) => number;
+  mergeImportStatus: (obj: TObj, importStatus: DbImportStatus) => DbImportStatus;
+  formatOutput: (obj: TObj, feed: DbImportStatus) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    Rx.concatMap(async (obj: TObj) => {
+      const productId = options.getProductId(obj);
+
+      try {
+        await db_query("begin", [], options.client);
+
+        const importStatus = await db_query_one<DbImportStatus>(
+          `SELECT product_id as "productId", import_data as "importData"
+            FROM import_status
+            WHERE product_id = %L
+            FOR UPDATE`,
+          [productId],
+          options.client,
+        );
+        if (!importStatus) {
+          throw new Error(`Import status not found for product ${productId}`);
+        }
+
+        const newImportStatus = options.mergeImportStatus(obj, importStatus);
+        await db_query(
+          ` UPDATE import_status
+            SET import_data = %L
+            WHERE product_id = %L`,
+          [newImportStatus.importData, productId],
+          options.client,
+        );
+
+        return options.formatOutput(obj, newImportStatus);
+      } finally {
+        await db_query("rollback", [], options.client);
+      }
+    }),
+  );
 }
