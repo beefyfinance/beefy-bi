@@ -6,11 +6,9 @@ import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list"
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
-import { clone, cloneDeep, curry, sample } from "lodash";
+import { cloneDeep, curry, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../common/connector/erc20-transfers";
-import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
-import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { fetchBeefyPrices } from "../connector/prices";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
@@ -25,8 +23,6 @@ import {
 } from "../../common/loader/product";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
-import { upsertInvestor$ } from "../../common/loader/investor";
-import { upsertInvestment$ } from "../../common/loader/investment";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../common/connector/block-query";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
@@ -173,9 +169,14 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduc
     }),
 
     // flatten the queries
-    Rx.mergeMap((item) => item.blockQueries.map((blockRangeQuery) => ({ ...item, blockRangeQuery }))),
+    Rx.mergeMap((item) =>
+      item.blockQueries.map((blockRangeQuery) => {
+        const { blockQueries, ...rest } = item;
+        return { ...rest, blockRangeQuery };
+      }),
+    ),
 
-    Rx.tap((item) => logger.debug({ msg: "Import status", data: item })),
+    Rx.tap((item) => logger.trace({ msg: "Import status", data: item })),
   );
 
   // fetch and process data as we normally would
