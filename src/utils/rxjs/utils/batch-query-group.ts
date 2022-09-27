@@ -23,7 +23,7 @@ export function batchQueryGroup$<TInputObj, TQueryObj, TResp, TRes>(options: {
       // batch our objects
       Rx.bufferCount(options.bufferCount),
 
-      Rx.mergeMap((objs) => {
+      Rx.concatMap((objs) => {
         const pipeline$ = Rx.from(objs)
           // extract query objects by key
           .pipe(
@@ -34,7 +34,7 @@ export function batchQueryGroup$<TInputObj, TQueryObj, TResp, TRes>(options: {
           )
           // make a batch query
           .pipe(
-            Rx.mergeMap(async (queries) => {
+            Rx.concatMap(async (queries) => {
               // assuming the process function returns the results in the same order as the input
               const results = await options.processBatch(queries.map((q) => q.query));
               if (results.length !== queries.length) {
@@ -54,6 +54,6 @@ export function batchQueryGroup$<TInputObj, TQueryObj, TResp, TRes>(options: {
       }),
 
       // flatten the results
-      Rx.mergeMap((objBatch) => Rx.from(objBatch)),
+      Rx.concatMap((objBatch) => Rx.from(objBatch)),
     );
 }

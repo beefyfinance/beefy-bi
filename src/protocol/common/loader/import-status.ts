@@ -58,7 +58,7 @@ export function upsertImportStatus$<TInput, TRes>(options: {
     }),
 
     // flatten objects
-    Rx.mergeMap((objs) => Rx.from(objs)),
+    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }
 

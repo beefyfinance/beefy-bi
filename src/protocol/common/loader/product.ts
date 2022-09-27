@@ -73,7 +73,7 @@ export function upsertProduct$<TInput, TRes>(options: {
     }),
 
     // flatten objects
-    Rx.mergeMap((objs) => Rx.from(objs)),
+    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }
 
@@ -96,6 +96,6 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
 
     Rx.tap((products) => logger.debug({ msg: "emitting product list", data: { count: products.length } })),
 
-    Rx.mergeMap((products) => Rx.from(products)), // flatten
+    Rx.concatMap((products) => Rx.from(products)), // flatten
   );
 }

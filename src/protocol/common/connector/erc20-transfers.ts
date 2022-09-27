@@ -63,7 +63,7 @@ export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams
       // we process all transfers by batch of addresses
       getBatchKey: (obj: TObj) => {
         const params = options.getQueryParams(obj);
-        return params.address.toLocaleLowerCase();
+        return `${params.address.toLocaleLowerCase()}-${params.trackAddress?.toLocaleLowerCase()}`;
       },
       // do the actual processing
       processBatch: async (params) => {
@@ -119,8 +119,8 @@ async function fetchERC20TransferEvents(
   contractCalls: GetTransferCallParams[],
 ): Promise<ERC20Transfer[]> {
   logger.debug({
-    msg: "Fetching withdraw and deposits for vault",
-    data: { chain, count: contractCalls.length },
+    msg: "Fetching transfer events",
+    data: { chain, contractCalls: contractCalls.length },
   });
 
   // fetch all contract logs in one call

@@ -56,7 +56,7 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
     }),
 
     // flatten objects
-    Rx.mergeMap((objs) => Rx.from(objs)),
+    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }
 
@@ -79,7 +79,7 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
 
     Rx.tap((priceFeeds) => logger.debug({ msg: "emitting price feed list", data: { count: priceFeeds.length } })),
 
-    Rx.mergeMap((priceFeeds) => Rx.from(priceFeeds)), // flatten
+    Rx.concatMap((priceFeeds) => Rx.from(priceFeeds)), // flatten
   );
 }
 

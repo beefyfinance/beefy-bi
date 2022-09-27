@@ -68,7 +68,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
-    Rx.mergeMap((fileVersion) => {
+    Rx.concatMap((fileVersion) => {
       const vaults = JSON.parse(fileVersion.fileContent) as RawBeefyVault[];
       const vaultsAndVersion = vaults.map((vault) => ({ fileVersion, vault }));
       return Rx.from(vaultsAndVersion);
@@ -77,7 +77,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
 
   const v1$ = Rx.from(fileContentStreamV1).pipe(
     // parse the file content
-    Rx.mergeMap((fileVersion) => {
+    Rx.concatMap((fileVersion) => {
       // using prettier to transform js objects into proper json was the easiest way for me
       try {
         // remove js code to make json5-like string

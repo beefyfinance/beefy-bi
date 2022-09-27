@@ -30,7 +30,7 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
         // make sure we don't hit the rate limit of the exploreres
         rateLimit$(10000),
 
-        Rx.mergeMap(async (obj) => {
+        Rx.concatMap(async (obj) => {
           const param = options.getCallParams(obj);
           try {
             const result = await getContractCreationBlock(param.contractAddress, chainObjs$.key);

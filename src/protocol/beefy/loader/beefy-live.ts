@@ -169,7 +169,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduc
     }),
 
     // flatten the queries
-    Rx.mergeMap((item) =>
+    Rx.concatMap((item) =>
       item.blockQueries.map((blockRangeQuery) => {
         const { blockQueries, ...rest } = item;
         return { ...rest, blockRangeQuery };
@@ -388,7 +388,7 @@ function fetchAndInsertBeefyProductRange$(
 
   const insertStatus$ = rawTransfersByVault$.pipe(
     // now move to transfers representation
-    Rx.mergeMap((item) =>
+    Rx.concatMap((item) =>
       Rx.of(
         item.transfers.map((transfer, idx) => ({
           transfer,
@@ -513,7 +513,7 @@ function loadBeefyProducts(client: PoolClient) {
             });
             return boostsData;
           }),
-          Rx.mergeMap((boostsData) => Rx.from(boostsData)), // flatten
+          Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
 
           // insert the boost as a new product
           upsertProduct$({
@@ -597,7 +597,7 @@ function fetchPrices(client: PoolClient) {
       }),
 
       // flatten the array of prices
-      Rx.mergeMap((productData) => Rx.from(productData.prices.map((price) => ({ ...productData, price })))),
+      Rx.concatMap((productData) => Rx.from(productData.prices.map((price) => ({ ...productData, price })))),
 
       upsertPrices$({
         client,

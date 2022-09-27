@@ -47,7 +47,7 @@ export function upsertPrices$<TInput, TRes>(options: {
       return objAndData.map((obj) => options.formatOutput(obj.obj, obj.priceData));
     }),
 
-    Rx.mergeMap((objs) => Rx.from(objs)),
+    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }
 
@@ -87,6 +87,6 @@ export function findMissingPriceRangeInDb$<TObj, TRes>(options: {
     }),
 
     // ok, flatten all price feed queries
-    Rx.mergeMap((objs) => Rx.from(objs)),
+    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }

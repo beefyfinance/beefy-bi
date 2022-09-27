@@ -68,7 +68,7 @@ export function beefyBoostsFromGitHistory$(
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
-    Rx.mergeMap((fileVersion) => {
+    Rx.concatMap((fileVersion) => {
       const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyBoost[];
       const boostsAndVersion = boosts.map((boost) => ({ fileVersion, boost }));
       return Rx.from(boostsAndVersion);

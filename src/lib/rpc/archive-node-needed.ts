@@ -10,7 +10,10 @@ export function isErrorDueToMissingDataFromNode(error: any) {
   // parse from ehter-wrapped rpc calls
   const errorRpcBody = get(error, "error.body");
   if (errorRpcBody && isString(errorRpcBody)) {
-    const rpcBodyError = JSON.parse(errorRpcBody);
+    const [successfulParse, rpcBodyError] = parseJSON(errorRpcBody);
+    if (!successfulParse) {
+      return false;
+    }
     const errorCode = get(rpcBodyError, "error.code");
     const errorMessage = get(rpcBodyError, "error.message");
 
@@ -41,4 +44,12 @@ export function isErrorDueToMissingDataFromNode(error: any) {
 export function shouldRetryRpcError(error: any) {
   // missing data can't be retried
   return !isErrorDueToMissingDataFromNode(error);
+}
+
+function parseJSON(json: string): any {
+  try {
+    return [true, JSON.parse(json)];
+  } catch (e) {
+    return [false, null];
+  }
 }
