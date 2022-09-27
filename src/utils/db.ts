@@ -27,11 +27,15 @@ beefy=# select
  */
 
 let pool: Pool | null = null;
-export async function getPgPool() {
+export async function getPgPool(freshClient = false) {
   if (pool === null) {
     const config = pgcs.parse(TIMESCALEDB_URL) as any as PoolConfig;
     pool = new Pool(config);
     await migrate();
+  }
+  if (freshClient) {
+    const config = pgcs.parse(TIMESCALEDB_URL) as any as PoolConfig;
+    return new Pool(config);
   }
   return pool;
 }
@@ -51,6 +55,22 @@ export function withPgClient<TArgs extends any[], TRes>(
     }
     return res;
   };
+}
+
+export async function db_transaction<TRes>(fn: (client: PoolClient) => Promise<TRes>) {
+  const pgPool = await getPgPool(true);
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+    const res = await fn(client);
+    await client.query("COMMIT");
+    return res;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function db_query<RowType>(

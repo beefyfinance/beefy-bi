@@ -21,7 +21,7 @@ interface TransferWithRate {
   sharesRate: Decimal;
 }
 
-type TransferLoadStatus = { transferCount: null; success: false } | { transferCount: number; success: true };
+export type TransferLoadStatus = { transferCount: null; success: false } | { transferCount: number; success: true };
 
 export function loadTransfers$(options: {
   chain: Chain;
@@ -35,7 +35,7 @@ export function loadTransfers$(options: {
         (ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress),
       );
       if (shouldIgnore) {
-        logger.debug({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
+        //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
       }
       return !shouldIgnore;
     }),

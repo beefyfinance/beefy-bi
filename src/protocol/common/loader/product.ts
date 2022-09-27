@@ -84,6 +84,7 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
       `SELECT 
         product_id as "productId",
         chain,
+        product_key as "productKey",
         price_feed_id as "priceFeedId",
         product_data as "productData"
       FROM product

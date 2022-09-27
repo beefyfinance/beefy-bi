@@ -34,14 +34,14 @@ export function batchQueryGroup$<TInputObj, TQueryObj, TResp, TRes>(options: {
           )
           // make a batch query
           .pipe(
-            Rx.concatMap(async (queries) => {
+            Rx.mergeMap(async (queries) => {
               // assuming the process function returns the results in the same order as the input
               const results = await options.processBatch(queries.map((q) => q.query));
               if (results.length !== queries.length) {
                 throw new ProgrammerError({ msg: "Query and result length mismatch", queries, results });
               }
               return zipWith(queries, results, (q, r) => ({ ...q, result: r }));
-            }),
+            }, 1 /* concurrency */),
             Rx.mergeAll(),
           )
           // re-emit all input objects with the corresponding result

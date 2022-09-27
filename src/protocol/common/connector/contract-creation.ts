@@ -30,7 +30,7 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
         // make sure we don't hit the rate limit of the exploreres
         rateLimit$(10000),
 
-        Rx.concatMap(async (obj) => {
+        Rx.mergeMap(async (obj) => {
           const param = options.getCallParams(obj);
           try {
             const result = await getContractCreationBlock(param.contractAddress, chainObjs$.key);
@@ -40,7 +40,7 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
             logger.error(error);
             return options.formatOutput(obj, null);
           }
-        }),
+        }, 1 /* concurrency */),
       ),
     ),
     Rx.mergeAll(),

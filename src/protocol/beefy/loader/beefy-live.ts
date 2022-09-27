@@ -39,7 +39,8 @@ import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable"
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { sleep } from "../../../utils/async";
 import { Range, rangeExclude, rangeMerge } from "../../../utils/range";
-import { loadTransfers$ } from "./load-transfers";
+import { loadTransfers$, TransferLoadStatus } from "./load-transfers";
+import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -175,43 +176,60 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduc
         return { ...rest, blockRangeQuery };
       }),
     ),
-
-    Rx.tap((item) => logger.trace({ msg: "Import status", data: item })),
   );
 
   // fetch and process data as we normally would
   const insertResult$ = fetchAndInsertBeefyProductRange$(client, chain, historicalQueries$);
 
   return insertResult$.pipe(
+    // merge the statuses ranges together to call updateImportStatus less often
+    bufferUntilKeyChanged((item) => `${item.product.productId}`),
+
     // update the import status with the new block range
     updateImportStatus({
       client,
-      getProductId: (item) => item.product.productId,
-      mergeImportStatus: (item, importStatus) => {
+      getProductId: (items) => items[0].product.productId,
+      mergeImportStatus: (items, importStatus) => {
+        const productId = items[0].product.productId;
+        const productKey = items[0].product.productKey;
         if (importStatus.importData.type !== "beefy") {
           throw new Error(`Import status is not for beefy: ${importStatus.importData.type}`);
         }
 
-        const blockRange = item.blockRangeQuery;
+        const blockRanges = items.map((item) => item.blockRangeQuery);
         const newImportStatus = cloneDeep(importStatus);
 
         // either way, we covered this range, we need to remember that
-        const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, blockRange]);
+        const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, ...blockRanges]);
         newImportStatus.importData.data.coveredBlockRange = mergedRange[0]; // only take the first one
         if (mergedRange.length > 1) {
           logger.warn({
             msg: "Unexpectedly merged multiple block ranges",
-            data: { item, mergedRange, importStatus: newImportStatus },
+            data: { productId, blockRanges, mergedRange, importStatus: newImportStatus },
           });
         }
 
-        if (item.loadResult.success) {
-          // remove the retried range if present
-          newImportStatus.importData.data.blockRangesToRetry =
-            newImportStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeExclude(range, blockRange));
-        } else {
-          newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
+        for (const item of items) {
+          const blockRange = item.blockRangeQuery;
+          if (item.loadResult.success) {
+            // remove the retried range if present
+            newImportStatus.importData.data.blockRangesToRetry =
+              newImportStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeExclude(range, blockRange));
+          } else {
+            // add it if not present
+            newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
+          }
         }
+
+        logger.trace({
+          msg: "Updating import status",
+          data: {
+            rangeResults: items.map((item) => ({ range: item.blockRangeQuery, result: item.loadResult })),
+            product: { productId, productKey },
+            importStatus,
+            newImportStatus,
+          },
+        });
 
         return newImportStatus;
       },
@@ -388,7 +406,7 @@ function fetchAndInsertBeefyProductRange$(
 
   const insertStatus$ = rawTransfersByVault$.pipe(
     // now move to transfers representation
-    Rx.concatMap((item) =>
+    Rx.mergeMap((item) =>
       Rx.of(
         item.transfers.map((transfer, idx) => ({
           transfer,
@@ -408,12 +426,16 @@ function fetchAndInsertBeefyProductRange$(
       ),
     ),
 
-    // return the product and if the query succeded or not
     Rx.tap({
       next: (item) =>
         logger.debug({
           msg: "product processed",
-          data: { chain, product: item.product.productKey, result: item.loadResult },
+          data: {
+            chain,
+            product: { productKey: item.product.productKey, productId: item.product.productId },
+            range: item.blockRangeQuery,
+            result: item.loadResult,
+          },
         }),
       complete: () => logger.debug({ msg: "done processing chain", data: { chain } }),
     }),
@@ -490,7 +512,7 @@ function loadBeefyProducts(client: PoolClient) {
           })),
 
           // fetch the boosts from git
-          Rx.concatMap(async (chainData) => {
+          Rx.mergeMap(async (chainData) => {
             const chainBoosts =
               (await consumeObservable(
                 beefyBoostsFromGitHistory$(chainData.chain, chainData.vaultByVaultId).pipe(Rx.toArray()),
@@ -512,7 +534,7 @@ function loadBeefyProducts(client: PoolClient) {
               };
             });
             return boostsData;
-          }),
+          }, 1 /* concurrency */),
           Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
 
           // insert the boost as a new product
@@ -573,7 +595,7 @@ function fetchPrices(client: PoolClient) {
       rateLimit$(300),
 
       // now we fetch
-      Rx.concatMap(async (productData) => {
+      Rx.mergeMap(async (productData) => {
         const debugLogData = {
           priceFeedKey: productData.priceFeed.feedKey,
           priceFeed: productData.priceFeed.priceFeedId,
@@ -588,7 +610,7 @@ function fetchPrices(client: PoolClient) {
         logger.debug({ msg: "got prices", data: { ...debugLogData, priceCount: prices.length } });
 
         return { ...productData, prices };
-      }),
+      }, 1 /* concurrency */),
 
       Rx.catchError((err) => {
         logger.error({ msg: "error fetching prices", err });

@@ -1,7 +1,7 @@
 import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { db_query, db_query_one } from "../../../utils/db";
+import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
 import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
@@ -96,37 +96,36 @@ export function updateImportStatus<TObj, TRes>(options: {
   formatOutput: (obj: TObj, feed: DbImportStatus) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    Rx.concatMap(async (obj: TObj) => {
+    Rx.mergeMap(async (obj: TObj) => {
       const productId = options.getProductId(obj);
 
-      try {
-        await db_query("begin", [], options.client);
-
+      const newImportStatus = await db_transaction(async (client) => {
         const importStatus = await db_query_one<DbImportStatus>(
           `SELECT product_id as "productId", import_data as "importData"
             FROM import_status
             WHERE product_id = %L
             FOR UPDATE`,
           [productId],
-          options.client,
+          client,
         );
         if (!importStatus) {
           throw new Error(`Import status not found for product ${productId}`);
         }
 
         const newImportStatus = options.mergeImportStatus(obj, importStatus);
+        logger.trace({ msg: "updateImportStatus (merged)", data: newImportStatus });
         await db_query(
           ` UPDATE import_status
             SET import_data = %L
             WHERE product_id = %L`,
           [newImportStatus.importData, productId],
-          options.client,
+          client,
         );
 
-        return options.formatOutput(obj, newImportStatus);
-      } finally {
-        await db_query("rollback", [], options.client);
-      }
-    }),
+        return newImportStatus;
+      });
+
+      return options.formatOutput(obj, newImportStatus);
+    }, 1 /* concurrency */),
   );
 }

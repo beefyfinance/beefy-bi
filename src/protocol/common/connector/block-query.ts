@@ -105,8 +105,14 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       const importStatus = options.getImportStatus(item.obj);
       const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
 
+      // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
+      // where the RPC don't know about the block number he just gave us
+      const waitForBlockPropagation = 5;
       // this is the whole range we have to cover
-      let fullRange = { from: importStatus.importData.data.contractCreatedAtBlock, to: item.latestBlockNumber };
+      let fullRange = {
+        from: importStatus.importData.data.contractCreatedAtBlock,
+        to: item.latestBlockNumber - waitForBlockPropagation,
+      };
 
       // exclude the range we already covered
       let ranges = rangeExclude(fullRange, importStatus.importData.data.coveredBlockRange);
@@ -123,8 +129,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       }
 
       // limit the amount of queries
-      if (ranges.length > 100) {
-        ranges = ranges.slice(0, 100);
+      if (ranges.length > 500) {
+        ranges = ranges.slice(0, 500);
       }
 
       return options.formatOutput(item.obj, ranges);
