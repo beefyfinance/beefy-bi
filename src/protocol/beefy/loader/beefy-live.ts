@@ -354,8 +354,6 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
         return {
           address: boost.staked_token_address,
           decimals: boost.staked_token_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
           trackAddress: boost.contract_address,
         };
       },
@@ -405,8 +403,6 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
         return {
           address: vault.contract_address,
           decimals: vault.token_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
         };
       },
       emitErrors: options.emitErrors,
@@ -456,8 +452,6 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
         return {
           address: vault.want_address,
           decimals: vault.want_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
           trackAddress: vault.contract_address,
         };
       },
@@ -527,11 +521,18 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
       return Rx.of(itemsTransfers.flat()).pipe(
         Rx.mergeAll(),
 
+        Rx.tap((item) =>
+          logger.trace({
+            msg: "importing transfer",
+            data: { product: item.product.productId, blockRange: item.blockRange, transfer: item.transfer },
+          }),
+        ),
+
         // enhance transfer and insert in database
         importTransfers$,
 
         // return to product representation
-        Rx.last(),
+        Rx.count(),
         Rx.map(() => items.map((item) => ({ ...item, success: true }))),
       );
     }, options.streamConfig.workConcurrency),
