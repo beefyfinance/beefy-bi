@@ -243,12 +243,6 @@ async function fetchERC20TransferEvents(
       return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
     });
 
-    if (transfers.length > 0) {
-      logger.debug({
-        msg: "Got transfers for range",
-        data: { chain, contractCall, transferCount: transfers.length },
-      });
-    }
     return transfers;
   });
 }

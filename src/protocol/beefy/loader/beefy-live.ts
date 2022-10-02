@@ -263,12 +263,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
 
       // logging
       Rx.tap((item) => {
-        if (item.success) {
-          logger.debug({
-            msg: "Imported historical data",
-            data: { productId: item.product.productData, blockRange: item.blockRange, success: item.success },
-          });
-        } else {
+        if (!item.success) {
           logger.error({ msg: "Failed to import historical data", data: { productId: item.product.productData, blockRange: item.blockRange } });
         }
       }),
@@ -514,9 +509,10 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
       }
     }),
 
-    // now move to transfers representation
-    Rx.map((item) => {
-      return Rx.of(
+    // work by batches of 300 block range
+    Rx.bufferCount(300),
+    Rx.mergeMap((items) => {
+      const itemsTransfers = items.map((item) =>
         item.transfers.map(
           (transfer, idx): TransferWithRate => ({
             transfer,
@@ -526,25 +522,20 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
             blockRange: item.blockRange,
           }),
         ),
-      ).pipe(
+      );
+
+      return Rx.of(itemsTransfers.flat()).pipe(
         Rx.mergeAll(),
 
         // enhance transfer and insert in database
         importTransfers$,
 
-        // add product to the result
-        Rx.map((_) => ({ ...item, success: true })),
-
-        Rx.finalize(() =>
-          logger.trace({ msg: "imported transfers for product", data: { productId: item.product.productId, blockRange: item.blockRange } }),
-        ),
+        // return to product representation
+        Rx.last(),
+        Rx.map(() => items.map((item) => ({ ...item, success: true }))),
       );
     }),
-    Rx.mergeAll(),
-
-    Rx.tap((item) =>
-      logger.debug({ msg: "imported transfers for product", data: { productId: item.product.productId, blockRange: item.blockRange } }),
-    ),
+    Rx.mergeAll(), // flatten items
   );
 }
 
