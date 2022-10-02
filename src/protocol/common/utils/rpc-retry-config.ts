@@ -10,36 +10,35 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
   const timeMultiple = 5;
 
   // get the total attempt number to reach the max delay
-  let totalAttempt = 0;
+  let numOfAttempts = 0;
   let currentDelay = startingDelay;
   let totalWait = 0;
   while (totalWait < options.maxTotalRetryMs) {
-    totalAttempt++;
+    numOfAttempts++;
     totalWait += currentDelay;
     currentDelay *= timeMultiple;
   }
   // we want to wait strictly less than the max delay
-  totalAttempt--;
+  numOfAttempts--;
 
-  if (totalAttempt < 1) {
+  if (numOfAttempts < 1) {
     throw new ProgrammerError({
       msg: "Invalid retry configuration",
-      data: { totalAttempt, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
+      data: { totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
     });
   }
 
   logger.trace({
     msg: `RPC retry config: ${options.logInfos.msg}`,
-    data: { ...options.logInfos.data, totalAttempt, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
+    data: { ...options.logInfos.data, totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
   });
 
   return {
-    // delays: 0.1s, 0.5s, 2.5s, 12.5s, 1m2.5s, 5m, 5m, 5m, 5m, 5m
     delayFirstAttempt: false,
     startingDelay,
     timeMultiple,
     maxDelay: options.maxTotalRetryMs,
-    numOfAttempts: 10,
+    numOfAttempts,
 
     jitter: "full",
     retry: (error, attemptNumber) => {
@@ -54,6 +53,7 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
           logger.error(logMsg);
           logger.error(error);
         }
+        //console.log(error);
       } else {
         logger.debug({ msg: `Unretryable error caught, will not retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } });
         logger.error(error);

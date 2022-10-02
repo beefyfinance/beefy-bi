@@ -30,27 +30,16 @@ export function loadTransfers$(options: {
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
   provider: ethers.providers.JsonRpcProvider;
-}): Rx.OperatorFunction<TransferWithRate, TransferLoadStatus> {
+}) {
   return Rx.pipe(
     // remove ignored addresses
-    Rx.filter((item) => {
+    Rx.filter((item: TransferWithRate) => {
       const shouldIgnore = item.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress));
       if (shouldIgnore) {
         //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
       }
       return !shouldIgnore;
     }),
-
-    Rx.tap((item) =>
-      logger.trace({
-        msg: "processing transfer data",
-        data: {
-          chain: options.chain,
-          productKey: item.product.productKey,
-          transfer: item.transfer,
-        },
-      }),
-    ),
 
     // ==============================
     // fetch additional transfer data
@@ -116,11 +105,5 @@ export function loadTransfers$(options: {
       }),
       formatOutput: (transferData, investment) => ({ ...transferData, investment }),
     }),
-
-    // only return when we are done with all the transfers
-    Rx.count(),
-
-    // return the status of this product ingestion
-    Rx.map((transferCount) => ({ transferCount, success: true } as TransferLoadStatus)),
   );
 }

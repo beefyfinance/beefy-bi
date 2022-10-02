@@ -1,39 +1,29 @@
 import * as Rx from "rxjs";
 
 export function bufferUntilKeyChanged<TObj>(getKey: (obj: TObj) => string): Rx.OperatorFunction<TObj, TObj[]> {
-  // this is very inefficient, but it works
+  let previousKey: string | null = null;
+  let objBuffer = [] as TObj[];
+
   return Rx.pipe(
-    Rx.map((obj) => ({ key: getKey(obj), obj })),
+    Rx.mergeMap((obj) => {
+      const key = getKey(obj);
+      if (previousKey === null) {
+        previousKey = key;
+      }
 
-    Rx.pairwise(),
-
-    Rx.map(([prev, curr]) => ({ prev, curr })),
-
-    Rx.scan(
-      (acc, { prev, curr }) => {
-        if (prev.key === curr.key) {
-          if (acc.objs.length === 0) {
-            return { complete: false, objs: [prev.obj, curr.obj] };
-          } else {
-            return { complete: false, objs: [...acc.objs, curr.obj] };
-          }
-        } else {
-          return { complete: true, objs: [curr.obj] };
-        }
-      },
-      { complete: false, objs: [] as TObj[] },
-    ),
-
-    Rx.mergeWith(Rx.of({ complete: true, objs: [] as TObj[] })),
-
-    Rx.pairwise(),
-
-    Rx.mergeMap(([prev, curr]) => {
-      if (curr.complete) {
-        return Rx.of(prev.objs);
-      } else {
+      if (key === previousKey) {
+        objBuffer.push(obj);
         return Rx.EMPTY;
+      } else {
+        const buffer = objBuffer;
+        objBuffer = [obj];
+        previousKey = key;
+        return Rx.of(() => buffer);
       }
     }),
+
+    Rx.endWith(() => objBuffer),
+
+    Rx.map((fn) => fn()),
   );
 }

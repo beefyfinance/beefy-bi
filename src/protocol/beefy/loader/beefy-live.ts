@@ -140,7 +140,11 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };
-  const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
+  const {
+    observable: productErrors$,
+    next: emitErrors,
+    complete: completeProductErrors$,
+  } = createObservableWithNext<ProductImportQuery<DbProduct>>();
 
   return Rx.pipe(
     // add typings to the input item
@@ -191,10 +195,14 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
 
     // handle the results
     Rx.pipe(
+      // make sure we close the errors observable when we are done
+      Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
       // merge the errors back in, all items here should have been successfully treated
       Rx.mergeWith(productErrors$),
-      Rx.map((item) => ({ ...item, loadResult: "loadResult" in item ? item.loadResult : { transferCount: null, success: false } })),
+      Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
+    ),
 
+    Rx.pipe(
       // merge the statuses ranges together to call updateImportStatus less often
       bufferUntilKeyChanged((item) => `${item.product.productId}`),
 
@@ -224,7 +232,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
 
           for (const item of items) {
             const blockRange = item.blockRange;
-            if (item.loadResult.success) {
+            if (item.success) {
               // remove the retried range if present
               newImportStatus.importData.data.blockRangesToRetry = newImportStatus.importData.data.blockRangesToRetry.flatMap((range) =>
                 rangeExclude(range, blockRange),
@@ -238,7 +246,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
           logger.trace({
             msg: "Updating import status",
             data: {
-              rangeResults: items.map((item) => ({ range: item.blockRange, loadResult: item.loadResult })),
+              rangeResults: items.map((item) => ({ range: item.blockRange, success: item.success })),
               product: { productId, productKey },
               importStatus,
               newImportStatus,
@@ -255,16 +263,17 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
 
       // logging
       Rx.tap((item) => {
-        if (item.loadResult.success) {
+        if (item.success) {
           logger.debug({
-            msg: "Imported live data",
-            data: { productId: item.product.productData, blockRange: item.blockRange, transferCount: item.loadResult.transferCount },
+            msg: "Imported historical data",
+            data: { productId: item.product.productData, blockRange: item.blockRange, success: item.success },
           });
         } else {
-          logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+          logger.error({ msg: "Failed to import historical data", data: { productId: item.product.productData, blockRange: item.blockRange } });
         }
       }),
-      Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),
+
+      Rx.finalize(() => logger.info({ msg: "Finished importing historical data", data: { chain } })),
     ),
   );
 }
@@ -310,27 +319,171 @@ function importChainRecentData(client: PoolClient, chain: Chain) {
     fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, emitErrors }),
 
     // merge the errors back in, all items here should have been successfully treated
-    Rx.mergeWith(productErrors$),
-    Rx.map((item) => ({ ...item, loadResult: "loadResult" in item ? item.loadResult : { transferCount: null, success: false } })),
+    Rx.pipe(
+      Rx.mergeWith(productErrors$),
+      Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
 
-    // logging
-    Rx.tap((item) => {
-      if (item.loadResult.success) {
-        logger.debug({
-          msg: "Imported live data",
-          data: { productId: item.product.productData, blockRange: item.blockRange, transferCount: item.loadResult.transferCount },
-        });
-      } else {
-        logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
-      }
-    }),
-    Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),
+      // logging
+      Rx.tap((item) => {
+        if (item.success) {
+          logger.debug({
+            msg: "Imported live data",
+            data: { productId: item.product.productData, blockRange: item.blockRange, success: item.success },
+          });
+        } else {
+          logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+        }
+      }),
+      Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),
+    ),
   );
 }
 
 function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; streamConfig: BatchStreamConfig }) {
   const rpcUrl = sample(RPC_URLS[options.chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+
+  const boostTransfers$ = Rx.pipe(
+    // set the right product type
+    Rx.filter(isBeefyBoostProductImportQuery),
+
+    // fetch latest transfers from and to the boost contract
+    fetchERC20TransferToAStakingContract$({
+      provider: provider,
+      chain: options.chain,
+      streamConfig: options.streamConfig,
+      getQueryParams: (item) => {
+        // for gov vaults we don't have a share token so we use the underlying token
+        // transfers and filter on those transfer from and to the contract address
+        const boost = item.product.productData.boost;
+        return {
+          address: boost.staked_token_address,
+          decimals: boost.staked_token_decimals,
+          fromBlock: item.blockRange.from,
+          toBlock: item.blockRange.to,
+          trackAddress: boost.contract_address,
+        };
+      },
+      emitErrors: options.emitErrors,
+      formatOutput: (item, transfers) => ({ ...item, transfers }),
+    }),
+
+    // then we need the vault ppfs to interpret the balance
+    fetchBeefyPPFS$({
+      provider,
+      chain: options.chain,
+      streamConfig: options.streamConfig,
+      getPPFSCallParams: (item) => {
+        const boost = item.product.productData.boost;
+        return {
+          vaultAddress: boost.staked_token_address,
+          underlyingDecimals: item.product.productData.boost.vault_want_decimals,
+          vaultDecimals: boost.staked_token_decimals,
+          blockNumbers: item.transfers.map((t) => t.blockNumber),
+        };
+      },
+      emitErrors: options.emitErrors,
+      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
+    }),
+
+    // add an ignore address so we can pipe this observable into the main pipeline again
+    Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
+  );
+
+  const standardVaultTransfers$ = Rx.pipe(
+    // set the right product type
+    Rx.filter(isBeefyStandardVaultProductImportQuery),
+
+    // for standard vaults, we only ignore the mint-burn addresses
+    Rx.map((item) => ({
+      ...item,
+      ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
+    })),
+
+    // fetch the vault transfers
+    fetchErc20Transfers$({
+      provider,
+      chain: options.chain,
+      streamConfig: options.streamConfig,
+      getQueryParams: (item) => {
+        const vault = item.product.productData.vault;
+        return {
+          address: vault.contract_address,
+          decimals: vault.token_decimals,
+          fromBlock: item.blockRange.from,
+          toBlock: item.blockRange.to,
+        };
+      },
+      emitErrors: options.emitErrors,
+      formatOutput: (item, transfers) => ({ ...item, transfers }),
+    }),
+
+    // fetch the ppfs
+    fetchBeefyPPFS$({
+      provider,
+      chain: options.chain,
+      streamConfig: options.streamConfig,
+      getPPFSCallParams: (item) => {
+        return {
+          vaultAddress: item.product.productData.vault.contract_address,
+          underlyingDecimals: item.product.productData.vault.want_decimals,
+          vaultDecimals: item.product.productData.vault.token_decimals,
+          blockNumbers: item.transfers.map((t) => t.blockNumber),
+        };
+      },
+      emitErrors: options.emitErrors,
+      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
+    }),
+  );
+
+  const govVaultTransfers$ = Rx.pipe(
+    // set the right product type
+    Rx.filter(isBeefyGovVaultProductImportQuery),
+
+    // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
+    // todo: ignore the maxi vault
+    Rx.map((item) => ({
+      ...item,
+      ignoreAddresses: [
+        normalizeAddress("0x0000000000000000000000000000000000000000"),
+        normalizeAddress(item.product.productData.vault.contract_address),
+      ],
+    })),
+
+    fetchERC20TransferToAStakingContract$({
+      provider,
+      chain: options.chain,
+      streamConfig: options.streamConfig,
+      getQueryParams: (item) => {
+        // for gov vaults we don't have a share token so we use the underlying token
+        // transfers and filter on those transfer from and to the contract address
+        const vault = item.product.productData.vault;
+        return {
+          address: vault.want_address,
+          decimals: vault.want_decimals,
+          fromBlock: item.blockRange.from,
+          toBlock: item.blockRange.to,
+          trackAddress: vault.contract_address,
+        };
+      },
+      emitErrors: options.emitErrors,
+      formatOutput: (item, transfers) => ({ ...item, transfers }),
+    }),
+
+    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
+    Rx.map((item) => ({
+      ...item,
+      ppfss: item.transfers.map(() => new Decimal(1)),
+    })),
+  );
+
+  const importTransfers$ = loadTransfers$({
+    chain: options.chain,
+    client: options.client,
+    streamConfig: options.streamConfig,
+    emitErrors: options.emitErrors,
+    provider,
+  });
 
   return Rx.pipe(
     // add typings to the input item
@@ -342,147 +495,28 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
     ),
     Rx.mergeMap((productType$) => {
       if (productType$.key === "boost") {
-        return productType$.pipe(
-          // set the right product type
-          Rx.filter(isBeefyBoostProductImportQuery),
-
-          // fetch latest transfers from and to the boost contract
-          fetchERC20TransferToAStakingContract$({
-            provider: provider,
-            chain: options.chain,
-            streamConfig: options.streamConfig,
-            getQueryParams: (item) => {
-              // for gov vaults we don't have a share token so we use the underlying token
-              // transfers and filter on those transfer from and to the contract address
-              const boost = item.product.productData.boost;
-              return {
-                address: boost.staked_token_address,
-                decimals: boost.staked_token_decimals,
-                fromBlock: item.blockRange.from,
-                toBlock: item.blockRange.to,
-                trackAddress: boost.contract_address,
-              };
-            },
-            emitErrors: options.emitErrors,
-            formatOutput: (item, transfers) => ({ ...item, transfers }),
-          }),
-
-          // then we need the vault ppfs to interpret the balance
-          fetchBeefyPPFS$({
-            provider,
-            chain: options.chain,
-            streamConfig: options.streamConfig,
-            getPPFSCallParams: (item) => {
-              const boost = item.product.productData.boost;
-              return {
-                vaultAddress: boost.staked_token_address,
-                underlyingDecimals: item.product.productData.boost.vault_want_decimals,
-                vaultDecimals: boost.staked_token_decimals,
-                blockNumbers: item.transfers.map((t) => t.blockNumber),
-              };
-            },
-            emitErrors: options.emitErrors,
-            formatOutput: (item, ppfss) => ({ ...item, ppfss }),
-          }),
-
-          // add an ignore address so we can pipe this observable into the main pipeline again
-          Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
-        );
+        return productType$.pipe(boostTransfers$);
       } else if (productType$.key === "standard-vault") {
-        return productType$.pipe(
-          // set the right product type
-          Rx.filter(isBeefyStandardVaultProductImportQuery),
-
-          // for standard vaults, we only ignore the mint-burn addresses
-          Rx.map((item) => ({
-            ...item,
-            ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
-          })),
-
-          // fetch the vault transfers
-          fetchErc20Transfers$({
-            provider,
-            chain: options.chain,
-            streamConfig: options.streamConfig,
-            getQueryParams: (item) => {
-              const vault = item.product.productData.vault;
-              return {
-                address: vault.contract_address,
-                decimals: vault.token_decimals,
-                fromBlock: item.blockRange.from,
-                toBlock: item.blockRange.to,
-              };
-            },
-            emitErrors: options.emitErrors,
-            formatOutput: (item, transfers) => ({ ...item, transfers }),
-          }),
-
-          // fetch the ppfs
-          fetchBeefyPPFS$({
-            provider,
-            chain: options.chain,
-            streamConfig: options.streamConfig,
-            getPPFSCallParams: (item) => {
-              return {
-                vaultAddress: item.product.productData.vault.contract_address,
-                underlyingDecimals: item.product.productData.vault.want_decimals,
-                vaultDecimals: item.product.productData.vault.token_decimals,
-                blockNumbers: item.transfers.map((t) => t.blockNumber),
-              };
-            },
-            emitErrors: options.emitErrors,
-            formatOutput: (item, ppfss) => ({ ...item, ppfss }),
-          }),
-        );
+        return productType$.pipe(standardVaultTransfers$);
       } else if (productType$.key === "gov-vault") {
-        return productType$.pipe(
-          // set the right product type
-          Rx.filter(isBeefyGovVaultProductImportQuery),
-
-          // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
-          // todo: ignore the maxi vault
-          Rx.map((item) => ({
-            ...item,
-            ignoreAddresses: [
-              normalizeAddress("0x0000000000000000000000000000000000000000"),
-              normalizeAddress(item.product.productData.vault.contract_address),
-            ],
-          })),
-
-          fetchERC20TransferToAStakingContract$({
-            provider,
-            chain: options.chain,
-            streamConfig: options.streamConfig,
-            getQueryParams: (item) => {
-              // for gov vaults we don't have a share token so we use the underlying token
-              // transfers and filter on those transfer from and to the contract address
-              const vault = item.product.productData.vault;
-              return {
-                address: vault.want_address,
-                decimals: vault.want_decimals,
-                fromBlock: item.blockRange.from,
-                toBlock: item.blockRange.to,
-                trackAddress: vault.contract_address,
-              };
-            },
-            emitErrors: options.emitErrors,
-            formatOutput: (item, transfers) => ({ ...item, transfers }),
-          }),
-
-          // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
-          Rx.map((item) => ({
-            ...item,
-            ppfss: item.transfers.map(() => new Decimal(1)),
-          })),
-        );
+        return productType$.pipe(govVaultTransfers$);
       } else {
         throw new ProgrammerError(`Unhandled product type: ${productType$.key}`);
       }
     }),
 
+    Rx.tap((item) => {
+      if (item.transfers.length > 0) {
+        logger.debug({
+          msg: "Got transfers for product",
+          data: { productId: item.product.productId, blockRange: item.blockRange, transferCount: item.transfers.length },
+        });
+      }
+    }),
+
     // now move to transfers representation
-    Rx.mergeMap((item) =>
-      Rx.of(
+    Rx.map((item) => {
+      return Rx.of(
         item.transfers.map(
           (transfer, idx): TransferWithRate => ({
             transfer,
@@ -493,24 +527,24 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           }),
         ),
       ).pipe(
-        // flatten the transfers
         Rx.mergeAll(),
 
-        // enhance and insert in database
-        loadTransfers$({
-          chain: options.chain,
-          client: options.client,
-          streamConfig: options.streamConfig,
-          emitErrors: options.emitErrors,
-          provider,
-        }),
+        // enhance transfer and insert in database
+        importTransfers$,
 
         // add product to the result
-        Rx.map((loadResult) => ({ ...item, loadResult })),
-      ),
-    ),
+        Rx.map((_) => ({ ...item, success: true })),
 
-    Rx.finalize(() => logger.debug({ msg: "done processing chain", data: { chain: options.chain } })),
+        Rx.finalize(() =>
+          logger.trace({ msg: "imported transfers for product", data: { productId: item.product.productId, blockRange: item.blockRange } }),
+        ),
+      );
+    }),
+    Rx.mergeAll(),
+
+    Rx.tap((item) =>
+      logger.debug({ msg: "imported transfers for product", data: { productId: item.product.productId, blockRange: item.blockRange } }),
+    ),
   );
 }
 

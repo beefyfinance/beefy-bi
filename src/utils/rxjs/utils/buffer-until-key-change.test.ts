@@ -11,4 +11,13 @@ describe("bufferUntilKeyChanged", () => {
     const result = await consumeObservable(pipeline$);
     expect(result).toEqual([[1, 1, 1], [2], [3, 3], [4, 4, 4], [5, 5, 5, 5], [4, 4], [5, 5, 5, 5]]);
   });
+
+  it("should buffer when only one group is present", async () => {
+    const pipeline$ = Rx.from([1, 1, 1]).pipe(
+      bufferUntilKeyChanged((x) => `${x}`),
+      Rx.toArray(),
+    );
+    const result = await consumeObservable(pipeline$);
+    expect(result).toEqual([[1, 1, 1]]);
+  });
 });

@@ -4,11 +4,13 @@ import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { flatten, groupBy, min, uniq, zipWith } from "lodash";
-import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
+import { groupBy, zipWith } from "lodash";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
+import { getRpcRetryConfig } from "../utils/rpc-retry-config";
+import { backOff } from "exponential-backoff";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -26,6 +28,7 @@ export interface ERC20Transfer {
   transactionHash: string;
 
   amountTransfered: Decimal;
+  logIndex: number;
 }
 
 interface GetTransferCallParams {
@@ -40,49 +43,50 @@ interface GetTransferCallParams {
 export function fetchErc20Transfers$<
   TProduct extends DbProduct,
   TObj extends ProductImportQuery<TProduct>,
-  TParams extends GetTransferCallParams,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
-  getQueryParams: (obj: TObj) => TParams;
+  getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchRpcCalls$({
-    streamConfig: options.streamConfig,
-    // we want to make a query for all requested block numbers of this contract
-    getQueryForBatch: (objs: TObj[]): TParams => {
-      const params = objs.map(options.getQueryParams);
-      const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
-      if (trackAddresses.length > 1) {
-        throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
+  const logInfos = { msg: "Fetching ERC20 transfers", data: { chain: options.chain } };
+  const retryConfig = getRpcRetryConfig({ logInfos, maxTotalRetryMs: options.streamConfig.maxTotalRetryMs });
+
+  return Rx.pipe(
+    // take a batch of items
+    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
+
+    // for each batch, fetch the transfers
+    Rx.mergeMap(async (objs: TObj[]) => {
+      const contractCalls = objs.map((obj) => {
+        const params = options.getQueryParams(obj);
+        return {
+          ...params,
+          fromBlock: obj.blockRange.from,
+          toBlock: obj.blockRange.to,
+        };
+      });
+
+      try {
+        const transfers = await backOff(() => fetchERC20TransferEvents(options.provider, options.chain, contractCalls), retryConfig);
+        return zipWith(objs, transfers, options.formatOutput);
+      } catch (err) {
+        // here, none of the retrying worked, so we emit all the objects as in error
+        logger.error({ msg: "Error fetching ERC20 transfers", err });
+        logger.error(err);
+        for (const obj of objs) {
+          options.emitErrors(obj);
+        }
+        return Rx.EMPTY;
       }
-      const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
-      return {
-        ...params[0],
-        fromBlock: min(params.map((p) => p.fromBlock)),
-        toBlock: min(params.map((p) => p.toBlock)),
-        trackAddress,
-      };
-    },
-    // we process all transfers by batch of addresses
-    processBatchKey: (obj: TObj) => {
-      const params = options.getQueryParams(obj);
-      return `${params.address.toLocaleLowerCase()}-${params.trackAddress?.toLocaleLowerCase()}`;
-    },
-    // do the actual processing
-    processBatch: async (params) => {
-      const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
-      // make sure we return data in the same order as the input
-      const grouped = groupBy(transfers, (t) => t.tokenAddress);
-      return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
-    },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.chain } },
-    emitErrors: options.emitErrors,
-    formatOutput: options.formatOutput,
-  });
+    }),
+
+    // flatten
+    Rx.mergeAll(),
+  );
 }
 
 // when hitting a staking contract we don't have a token in return
@@ -90,17 +94,16 @@ export function fetchErc20Transfers$<
 export function fetchERC20TransferToAStakingContract$<
   TProduct extends DbProduct,
   TObj extends ProductImportQuery<TProduct>,
-  TParams extends GetTransferCallParams,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
-  getQueryParams: (obj: TObj) => TParams;
+  getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return fetchErc20Transfers$<TProduct, TObj, TParams, TRes>({
+  return fetchErc20Transfers$<TProduct, TObj, TRes>({
     ...options,
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);
@@ -124,11 +127,15 @@ export function fetchERC20TransferToAStakingContract$<
   });
 }
 
+/**
+ * Make a batched call to the RPC for all the given contract calls
+ * Returns the results in the same order as the contract calls
+ */
 async function fetchERC20TransferEvents(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: GetTransferCallParams[],
-): Promise<ERC20Transfer[]> {
+): Promise<ERC20Transfer[][]> {
   if (contractCalls.length === 0) {
     return [];
   }
@@ -151,6 +158,10 @@ async function fetchERC20TransferEvents(
   for (const contractCall of contractCalls) {
     const valueMultiplier = new Decimal(10).pow(-contractCall.decimals);
     const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
+
+    // we make 2 calls per "contract call", one for each side of the transfer
+    // this is because we can't filter by "from" and "to" at the same time
+    // consequently, callPromises will always be twice as long as contractCalls
     const callPromises: Promise<ethers.Event[]>[] = [];
 
     if (contractCall.trackAddress) {
@@ -186,56 +197,58 @@ async function fetchERC20TransferEvents(
   }
   const eventsRes = await Promise.all(eventsPromises);
 
-  const doubledContractCall = Array.from({ length: contractCalls.length * 2 }).map((_, i) => contractCalls[Math.floor(i / 2)]);
-  type TransferWithLogIndex = ERC20Transfer & { logIndex: number };
-  const events = flatten(
-    zipWith(doubledContractCall, eventsRes, (contract, events) =>
-      flatten(
-        events.map((event): [TransferWithLogIndex, TransferWithLogIndex] => [
-          {
-            chain: chain,
-            tokenAddress: contract.address,
-            tokenDecimals: contract.decimals,
-            ownerAddress: event.from,
-            blockNumber: event.blockNumber,
-            transactionHash: event.transactionHash,
-            amountTransfered: event.value.negated(),
-            logIndex: event.logIndex,
-          },
-          {
-            chain: chain,
-            tokenAddress: contract.address,
-            tokenDecimals: contract.decimals,
-            ownerAddress: event.to,
-            blockNumber: event.blockNumber,
-            transactionHash: event.transactionHash,
-            amountTransfered: event.value,
-            logIndex: event.logIndex,
-          },
-        ]),
-      ),
-    ),
-  );
+  return contractCalls.map((contractCall, i) => {
+    const fromEvents = eventsRes[i];
+    const toEvents = eventsRes[i + 1];
+    const fromTransfers = fromEvents.map(
+      (event): ERC20Transfer => ({
+        chain: chain,
+        tokenAddress: contractCall.address,
+        tokenDecimals: contractCall.decimals,
+        ownerAddress: event.from,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+        amountTransfered: event.value.negated(),
+        logIndex: event.logIndex,
+      }),
+    );
+    const toTransfers = toEvents.map(
+      (event): ERC20Transfer => ({
+        chain: chain,
+        tokenAddress: contractCall.address,
+        tokenDecimals: contractCall.decimals,
+        ownerAddress: event.to,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+        amountTransfered: event.value,
+        logIndex: event.logIndex,
+      }),
+    );
+    const allTransfers: ERC20Transfer[] = [...fromTransfers, ...toTransfers];
 
-  // there could be incoming and outgoing transfers in the same block for the same user
-  // we want to merge those into a single transfer
-  const transfersByOwnerAndBlock = Object.values(groupBy(events, (event) => `${event.tokenAddress}-${event.ownerAddress}-${event.blockNumber}`));
-  const transfers = transfersByOwnerAndBlock.map((transfers) => {
-    // get the total amount
-    let totalDiff = new Decimal(0);
-    for (const transfer of transfers) {
-      totalDiff = totalDiff.add(transfer.amountTransfered);
+    // there could be incoming and outgoing transfers in the same block for the same user
+    // we want to merge those into a single transfer
+    const transfersByOwnerAndBlock = Object.values(
+      groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
+    );
+    const transfers = transfersByOwnerAndBlock.map((transfers) => {
+      // get the total amount
+      let totalDiff = new Decimal(0);
+      for (const transfer of transfers) {
+        totalDiff = totalDiff.add(transfer.amountTransfered);
+      }
+      // for the trx hash, we use the last transaction (order by logIndex)
+      const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
+
+      return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+    });
+
+    if (transfers.length > 0) {
+      logger.debug({
+        msg: "Got transfers for range",
+        data: { chain, contractCall, transferCount: transfers.length },
+      });
     }
-    // for the trx hash, we use the last transaction (order by logIndex)
-    const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
-
-    return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+    return transfers;
   });
-
-  logger.debug({
-    msg: "Got transfers for range",
-    data: { chain, count: contractCalls.length, total: transfers.length },
-  });
-
-  return transfers;
 }
