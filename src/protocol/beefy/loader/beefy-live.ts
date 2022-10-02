@@ -243,6 +243,9 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
             }
           }
 
+          // merge the ranges to retry
+          newImportStatus.importData.data.blockRangesToRetry = rangeMerge(newImportStatus.importData.data.blockRangesToRetry);
+
           logger.trace({
             msg: "Updating import status",
             data: {

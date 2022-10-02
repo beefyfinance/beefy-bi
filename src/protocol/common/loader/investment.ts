@@ -1,8 +1,12 @@
 import Decimal from "decimal.js";
+import { groupBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
+import { rootLogger } from "../../../utils/logger";
+
+const logger = rootLogger.child({ module: "common", component: "investment" });
 
 export interface DbInvestment {
   datetime: Date;
@@ -30,6 +34,16 @@ export function upsertInvestment$<TInput, TRes>(options: {
       }
 
       const objAndData = objs.map((obj) => ({ obj, investment: options.getInvestmentData(obj) }));
+
+      // add duplicate detection in dev only
+      if (process.env.NODE_ENV === "development") {
+        const duplicates = Object.entries(
+          groupBy(objAndData, ({ investment }) => `${investment.productId}-${investment.investorId}-${investment.blockNumber}`),
+        ).filter(([_, v]) => v.length > 1);
+        if (duplicates.length > 0) {
+          logger.error({ msg: "Duplicate investments", data: duplicates });
+        }
+      }
 
       await db_query(
         `INSERT INTO investment_balance_ts (

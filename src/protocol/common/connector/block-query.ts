@@ -115,7 +115,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       ranges = ranges.sort((a, b) => a.from - b.from);
 
       // then add the ranges we had error on at the end
-      for (const erroredRange of importStatus.importData.data.blockRangesToRetry) {
+      const rangesToRetry = importStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
+      for (const erroredRange of rangesToRetry) {
         ranges.push(erroredRange);
       }
 
