@@ -73,11 +73,7 @@ export async function db_transaction<TRes>(fn: (client: PoolClient) => Promise<T
   }
 }
 
-export async function db_query<RowType>(
-  sql: string,
-  params: any[] = [],
-  client: PoolClient | null = null,
-): Promise<RowType[]> {
+export async function db_query<RowType>(sql: string, params: any[] = [], client: PoolClient | null = null): Promise<RowType[]> {
   logger.trace({ msg: "Executing query", data: { sql, params } });
   const pool = await getPgPool();
   const sql_w_params = pgf(sql, ...params);
@@ -94,11 +90,7 @@ export async function db_query<RowType>(
   }
 }
 
-export async function db_query_one<RowType>(
-  sql: string,
-  params: any[] = [],
-  client: PoolClient | null = null,
-): Promise<RowType | null> {
+export async function db_query_one<RowType>(sql: string, params: any[] = [], client: PoolClient | null = null): Promise<RowType | null> {
   const rows = await db_query<RowType>(sql, params, client);
   if (rows.length === 0) {
     return null;
@@ -245,6 +237,9 @@ async function migrate() {
     CREATE TABLE IF NOT EXISTS investment_balance_ts (
       datetime timestamptz not null,
 
+      -- some chains have the same timestamp for distinct block numbers so we need to save the block number to the distinct key
+      block_number integer not null,
+
       -- whatever contract the user is invested with
       product_id integer not null references product(product_id),
       investor_id integer not null references investor(investor_id),
@@ -255,7 +250,7 @@ async function migrate() {
       -- some debug info to help us understand how we got this data
       investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS investment_balance_ts_uniq ON investment_balance_ts(product_id, investor_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS investment_balance_ts_uniq ON investment_balance_ts(product_id, investor_id, block_number, datetime);
 
     SELECT create_hypertable(
       relation => 'investment_balance_ts', 

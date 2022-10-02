@@ -534,7 +534,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
         Rx.last(),
         Rx.map(() => items.map((item) => ({ ...item, success: true }))),
       );
-    }),
+    }, options.streamConfig.workConcurrency),
     Rx.mergeAll(), // flatten items
   );
 }

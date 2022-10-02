@@ -87,12 +87,12 @@ export function loadTransfers$(options: {
       client: options.client,
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
+        blockNumber: item.transfer.blockNumber,
         productId: item.product.productId,
         investorId: item.investorId,
         // balance is expressed in underlying amount
         balance: item.vaultSharesBalance.mul(item.sharesRate),
         investmentData: {
-          blockNumber: item.transfer.blockNumber,
           balance: item.vaultSharesBalance.toString(),
           balanceDiff: item.transfer.amountTransfered.toString(),
           trxHash: item.transfer.transactionHash,

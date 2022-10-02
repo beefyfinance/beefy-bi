@@ -6,6 +6,7 @@ import { db_query } from "../../../utils/db";
 
 export interface DbInvestment {
   datetime: Date;
+  blockNumber: number;
   productId: number;
   investorId: number;
   balance: Decimal;
@@ -33,12 +34,13 @@ export function upsertInvestment$<TInput, TRes>(options: {
       await db_query(
         `INSERT INTO investment_balance_ts (
               datetime,
+              block_number,
               product_id,
               investor_id,
               balance,
               investment_data
           ) VALUES %L
-              ON CONFLICT (product_id, investor_id, datetime) 
+              ON CONFLICT (product_id, investor_id, block_number, datetime) 
               DO UPDATE SET 
                 balance = EXCLUDED.balance, 
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
@@ -46,6 +48,7 @@ export function upsertInvestment$<TInput, TRes>(options: {
         [
           objAndData.map(({ investment }) => [
             investment.datetime.toISOString(),
+            investment.blockNumber,
             investment.productId,
             investment.investorId,
             investment.balance.toString(),
