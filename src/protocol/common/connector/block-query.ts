@@ -8,7 +8,9 @@ import { DbImportStatus } from "../loader/import-status";
 import NodeCache from "node-cache";
 import { Range, rangeExclude, rangeSlitToMaxLength } from "../../../utils/range";
 import { sample } from "lodash";
-import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { backOff } from "exponential-backoff";
+import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 
 const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
 
@@ -16,20 +18,17 @@ function latestBlockNumber$<TObj, TRes>(options: {
   getChain: (obj: TObj) => Chain;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    Rx.mergeMap(async (obj) => {
-      const chain = options.getChain(obj);
-      const cacheKey = chain;
-      let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
-      if (latestBlockNumber === undefined) {
-        const provider = new ethers.providers.JsonRpcProvider(sample(RPC_URLS[chain]));
-        latestBlockNumber = await provider.getBlockNumber();
-      }
-      return options.formatOutput(obj, latestBlockNumber);
-    }),
-
-    retryRpcErrors({ msg: "Fetching block number", data: {} }),
-  );
+  const retryConfig = getRpcRetryConfig({ maxTotalRetryMs: 5_000, logInfos: { msg: "Fetching block number" } });
+  return Rx.mergeMap(async (obj) => {
+    const chain = options.getChain(obj);
+    const cacheKey = chain;
+    let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
+    if (latestBlockNumber === undefined) {
+      const provider = new ethers.providers.JsonRpcProvider(sample(RPC_URLS[chain]));
+      latestBlockNumber = await backOff(() => provider.getBlockNumber(), retryConfig);
+    }
+    return options.formatOutput(obj, latestBlockNumber);
+  });
 }
 
 /**
@@ -40,11 +39,11 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   chain: Chain;
   provider: ethers.providers.JsonRpcProvider;
   getLastImportedBlock: (chain: Chain) => number | null;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockQuery: Range) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    // batch queries
-    Rx.bufferCount(200),
+    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
 
     // go get the latest block number for this chain
     latestBlockNumber$({
@@ -53,16 +52,14 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
     }),
 
     // compute the block range we want to query
-    Rx.map((objGroup) => {
+    Rx.mergeMap((objGroup) => {
       // fetch the last hour of data
       const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
       const period = samplingPeriodMs["1hour"];
       const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[options.chain]);
 
       const lastImportedBlockNumber = options.getLastImportedBlock(options.chain);
-      const diffBetweenLastImported = lastImportedBlockNumber
-        ? objGroup.latestBlockNumber - (lastImportedBlockNumber + 1)
-        : Infinity;
+      const diffBetweenLastImported = lastImportedBlockNumber ? objGroup.latestBlockNumber - (lastImportedBlockNumber + 1) : Infinity;
 
       const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
       const fromBlock = objGroup.latestBlockNumber - blockCountToFetch;
@@ -71,19 +68,13 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
       // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
       // where the RPC don't know about the block number he just gave us
       const waitForBlockPropagation = 5;
-      return {
-        objs: objGroup.objs,
-        latestBlocksQuery: {
+      return objGroup.objs.map((obj) =>
+        options.formatOutput(obj, {
           from: fromBlock - waitForBlockPropagation,
           to: toBlock - waitForBlockPropagation,
-        },
-      };
+        }),
+      );
     }),
-
-    // flatten and format the group
-    Rx.mergeMap((objGroup) =>
-      Rx.from(objGroup.objs.map((obj) => options.formatOutput(obj, objGroup.latestBlocksQuery))),
-    ),
   );
 }
 

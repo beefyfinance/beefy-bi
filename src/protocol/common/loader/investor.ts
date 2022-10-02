@@ -1,4 +1,4 @@
-import { keyBy } from "lodash";
+import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
@@ -32,7 +32,12 @@ export function upsertInvestor$<TObj, TParams extends Omit<DbInvestor, "investor
         `INSERT INTO investor (address, investor_data) VALUES %L
           ON CONFLICT (address) DO UPDATE SET investor_data = jsonb_merge(investor.investor_data, EXCLUDED.investor_data)
           RETURNING investor_id, bytea_to_hexstr(address) as address`,
-        [objAndData.map((obj) => [strAddressToPgBytea(obj.investorData.address), obj.investorData.investorData])],
+        [
+          uniqBy(objAndData, (objAndData) => objAndData.investorData.address.toLocaleLowerCase()).map((obj) => [
+            strAddressToPgBytea(obj.investorData.address),
+            obj.investorData.investorData,
+          ]),
+        ],
         options.client,
       );
 

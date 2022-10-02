@@ -12,7 +12,7 @@ import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
-import { BatchIntakeConfig } from "../../common/utils/batch-rpc-calls";
+import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "common", component: "transfer-loader" });
 
@@ -28,7 +28,7 @@ export function loadTransfers$(options: {
   chain: Chain;
   client: PoolClient;
   emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   provider: ethers.providers.JsonRpcProvider;
 }): Rx.OperatorFunction<TransferWithRate, TransferLoadStatus> {
   return Rx.pipe(
@@ -67,7 +67,7 @@ export function loadTransfers$(options: {
         ownerAddress: item.transfer.ownerAddress,
       }),
       emitErrors: options.emitErrors,
-      intakeConfig: options.intakeConfig,
+      streamConfig: options.streamConfig,
       formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
     }),
 
@@ -76,7 +76,7 @@ export function loadTransfers$(options: {
       provider: options.provider,
       getBlockNumber: (t) => t.transfer.blockNumber,
       emitErrors: options.emitErrors,
-      intakeConfig: options.intakeConfig,
+      streamConfig: options.streamConfig,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
 

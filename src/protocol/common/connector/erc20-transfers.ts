@@ -5,7 +5,7 @@ import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, min, uniq, zipWith } from "lodash";
-import { BatchIntakeConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
+import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
@@ -47,11 +47,11 @@ export function fetchErc20Transfers$<
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
-    intakeConfig: options.intakeConfig,
+    streamConfig: options.streamConfig,
     // we want to make a query for all requested block numbers of this contract
     getQueryForBatch: (objs: TObj[]): TParams => {
       const params = objs.map(options.getQueryParams);
@@ -97,7 +97,7 @@ export function fetchERC20TransferToAStakingContract$<
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return fetchErc20Transfers$<TProduct, TObj, TParams, TRes>({
@@ -129,6 +129,10 @@ async function fetchERC20TransferEvents(
   chain: Chain,
   contractCalls: GetTransferCallParams[],
 ): Promise<ERC20Transfer[]> {
+  if (contractCalls.length === 0) {
+    return [];
+  }
+
   logger.debug({
     msg: "Fetching transfer events",
     data: { chain, contractCalls: contractCalls.length },

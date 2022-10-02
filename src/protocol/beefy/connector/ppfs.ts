@@ -2,13 +2,12 @@ import { Chain } from "../../../types/chain";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import axios from "axios";
-import { flatten, sortBy, sum } from "lodash";
+import { flatten, sortBy } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
-import { BatchIntakeConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
+import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
-import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
 import { DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
 
@@ -31,11 +30,11 @@ export function fetchBeefyPPFS$<
   chain: Chain;
   getPPFSCallParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
-    intakeConfig: options.intakeConfig,
+    streamConfig: options.streamConfig,
     // we want to make a query for all requested block numbers of this contract
     getQueryForBatch: (objs: TObj[]): TParams => {
       const params = objs.map(options.getPPFSCallParams);
@@ -71,7 +70,7 @@ export async function fetchBeefyVaultShareRate(
     msg: "Batch fetching PPFS",
     data: {
       chain,
-      contractCalls: sum(contractCalls.map((c) => c.blockNumbers)),
+      contractCalls: contractCalls.map((c) => c.blockNumbers).flat().length,
       contractCount: contractCalls.length,
     },
   });

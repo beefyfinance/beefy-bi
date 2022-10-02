@@ -3,7 +3,7 @@ import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ethers } from "ethers";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { BatchIntakeConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
+import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { DbProduct } from "../loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 
@@ -24,11 +24,11 @@ export function fetchERC20TokenBalance$<
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, balance: Decimal) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
-    intakeConfig: options.intakeConfig,
+    streamConfig: options.streamConfig,
     // there should be only one query for each group since we batch by owner and contract address
     getQueryForBatch: (obj: TObj[]) => options.getQueryParams(obj[0]),
     // we process all transfers by individual user

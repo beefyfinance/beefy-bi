@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { ethers } from "ethers";
-import { BatchIntakeConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
+import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
 
@@ -10,14 +10,14 @@ export function fetchBlockDatetime$<
   TParams extends number,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  intakeConfig: BatchIntakeConfig;
+  streamConfig: BatchStreamConfig;
   provider: ethers.providers.JsonRpcProvider;
   getBlockNumber: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
-    intakeConfig: options.intakeConfig,
+    streamConfig: options.streamConfig,
     processBatchKey: (obj: TObj) => {
       return options.getBlockNumber(obj) + "";
     },

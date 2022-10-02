@@ -6,7 +6,7 @@ import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list"
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
-import { cloneDeep, curry, sample } from "lodash";
+import { cloneDeep, sample } from "lodash";
 import { RPC_URLS } from "../../../utils/config";
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../common/connector/erc20-transfers";
 import { fetchBeefyPrices } from "../connector/prices";
@@ -14,39 +14,25 @@ import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
 import { priceFeedList$, upsertPriceFeed$ } from "../../common/loader/price-feed";
-import { DbBeefyBoostProduct, DbBeefyProduct, DbBeefyVaultProduct, DbProduct, productList$, upsertProduct$ } from "../../common/loader/product";
+import { DbBeefyProduct, DbProduct, productList$, upsertProduct$ } from "../../common/loader/product";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../common/connector/block-query";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
-import { fetchContractCreationBlock$ } from "../../common/connector/contract-creation";
-import {
-  addMissingImportStatus,
-  DbImportStatus,
-  fetchImportStatus$,
-  updateImportStatus,
-  upsertImportStatus$,
-} from "../../common/loader/import-status";
+import { addMissingImportStatus, updateImportStatus } from "../../common/loader/import-status";
 import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { sleep } from "../../../utils/async";
 import yargs from "yargs";
 import { rangeExclude, rangeMerge } from "../../../utils/range";
 import { loadTransfers$, TransferWithRate } from "./load-transfers";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
-import { BatchIntakeConfig } from "../../common/utils/batch-rpc-calls";
+import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
-import console from "console";
-import {
-  isBeefyBoost,
-  isBeefyBoostProductImportQuery,
-  isBeefyGovVaultProductImportQuery,
-  isBeefyStandardVaultProductImportQuery,
-} from "../utils/type-guard";
+import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../utils/type-guard";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
@@ -72,6 +58,8 @@ async function main() {
   const filterChains = chain === "all" ? allChainIds : [chain];
   const filterContractAddress = argv.contractAddress || null;
 
+  logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
+
   // ---
   // from time to time, refresh vaults
   //
@@ -90,8 +78,8 @@ async function main() {
         (product) =>
           filterContractAddress === null ||
           (product.productData.type === "beefy:vault"
-            ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress
-            : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress),
+            ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+            : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
       ),
 
       loaderByChain$(process),
@@ -111,8 +99,8 @@ async function main() {
         (product) =>
           filterContractAddress === null ||
           (product.productData.type === "beefy:vault"
-            ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress
-            : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress),
+            ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+            : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
       ),
 
       // load  historical data
@@ -143,12 +131,14 @@ runMain(main);
 
 function importChainHistoricalData(client: PoolClient, chain: Chain) {
   const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
-  const intakeConfig: BatchIntakeConfig = {
+  const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
-    concurrency: 1,
+    workConcurrency: 1,
     // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxWaitMs: 30_000,
-    take: 5000,
+    maxInputWaitMs: 30_000,
+    maxInputTake: 500,
+    // and we can affort longer retries
+    maxTotalRetryMs: 30_000,
   };
   const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
 
@@ -195,7 +185,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
     fetchAndInsertBeefyProductRange$({
       client,
       chain,
-      intakeConfig,
+      streamConfig,
       emitErrors: emitErrors,
     }),
 
@@ -283,13 +273,15 @@ function importChainRecentData(client: PoolClient, chain: Chain) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
-  const intakeConfig: BatchIntakeConfig = {
+  const streamConfig: BatchStreamConfig = {
     // since we are doing live data on a small amount of queries (one per vault)
     // we can afford some amount of concurrency
-    concurrency: 10,
+    workConcurrency: 10,
     // But we can not afford to wait before processing the next batch
-    maxWaitMs: 5_000,
-    take: 500,
+    maxInputWaitMs: 5_000,
+    maxInputTake: 500,
+    // and we cannot afford too long of a retry per product
+    maxTotalRetryMs: 10_000,
   };
   const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
 
@@ -309,12 +301,13 @@ function importChainRecentData(client: PoolClient, chain: Chain) {
     addLatestBlockQuery$({
       chain,
       provider,
+      streamConfig: streamConfig,
       getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
       formatOutput: (item, blockRange) => ({ ...item, blockRange }),
     }),
 
     // process the queries
-    fetchAndInsertBeefyProductRange$({ client, chain, intakeConfig, emitErrors }),
+    fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, emitErrors }),
 
     // merge the errors back in, all items here should have been successfully treated
     Rx.mergeWith(productErrors$),
@@ -335,7 +328,7 @@ function importChainRecentData(client: PoolClient, chain: Chain) {
   );
 }
 
-function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; intakeConfig: BatchIntakeConfig }) {
+function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; streamConfig: BatchStreamConfig }) {
   const rpcUrl = sample(RPC_URLS[options.chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
@@ -357,7 +350,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           fetchERC20TransferToAStakingContract$({
             provider: provider,
             chain: options.chain,
-            intakeConfig: options.intakeConfig,
+            streamConfig: options.streamConfig,
             getQueryParams: (item) => {
               // for gov vaults we don't have a share token so we use the underlying token
               // transfers and filter on those transfer from and to the contract address
@@ -378,7 +371,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           fetchBeefyPPFS$({
             provider,
             chain: options.chain,
-            intakeConfig: options.intakeConfig,
+            streamConfig: options.streamConfig,
             getPPFSCallParams: (item) => {
               const boost = item.product.productData.boost;
               return {
@@ -410,7 +403,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           fetchErc20Transfers$({
             provider,
             chain: options.chain,
-            intakeConfig: options.intakeConfig,
+            streamConfig: options.streamConfig,
             getQueryParams: (item) => {
               const vault = item.product.productData.vault;
               return {
@@ -428,7 +421,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           fetchBeefyPPFS$({
             provider,
             chain: options.chain,
-            intakeConfig: options.intakeConfig,
+            streamConfig: options.streamConfig,
             getPPFSCallParams: (item) => {
               return {
                 vaultAddress: item.product.productData.vault.contract_address,
@@ -459,7 +452,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           fetchERC20TransferToAStakingContract$({
             provider,
             chain: options.chain,
-            intakeConfig: options.intakeConfig,
+            streamConfig: options.streamConfig,
             getQueryParams: (item) => {
               // for gov vaults we don't have a share token so we use the underlying token
               // transfers and filter on those transfer from and to the contract address
@@ -507,7 +500,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
         loadTransfers$({
           chain: options.chain,
           client: options.client,
-          intakeConfig: options.intakeConfig,
+          streamConfig: options.streamConfig,
           emitErrors: options.emitErrors,
           provider,
         }),
