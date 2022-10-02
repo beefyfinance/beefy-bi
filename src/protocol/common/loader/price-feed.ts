@@ -1,9 +1,10 @@
 import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
+import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
@@ -22,8 +23,7 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, feed: DbPriceFeed) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    // batch queries
-    Rx.bufferCount(500),
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
@@ -40,19 +40,18 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
               -- DO NOTHING -- can't use DO NOTHING because we need to return the id
               DO UPDATE SET feed_key = EXCLUDED.feed_key, external_id = EXCLUDED.external_id, price_feed_data = jsonb_merge(price_feed.price_feed_data, EXCLUDED.price_feed_data)
               RETURNING price_feed_id as "priceFeedId", feed_key as "feedKey", external_id as "externalId"`,
-        [
-          uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [
-            obj.feedData.feedKey,
-            obj.feedData.externalId,
-            obj.feedData.priceFeedData,
-          ]),
-        ],
+        [uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [obj.feedData.feedKey, obj.feedData.externalId, obj.feedData.priceFeedData])],
         options.client,
       );
 
-      // ensure results are in the same order as the params
       const idMap = keyBy(results, "feedKey");
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.feedData.feedKey]));
+      return objAndData.map((obj) => {
+        const feed = idMap[obj.feedData.feedKey];
+        if (!feed) {
+          throw new ProgrammerError({ msg: "Upserted price feed not found", data: obj });
+        }
+        return options.formatOutput(obj.obj, feed);
+      });
     }),
 
     // flatten objects
@@ -85,14 +84,21 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
 
 export function fetchDbPriceFeed$<TObj, TRes>(options: {
   client: PoolClient;
-  getId: (obj: TObj) => number;
+  getPriceFeedId: (obj: TObj) => number;
   formatOutput: (obj: TObj, feed: DbPriceFeed | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup$({
-    bufferCount: 500,
-    toQueryObj: (obj: TObj[]) => options.getId(obj[0]),
-    getBatchKey: (obj: TObj) => options.getId(obj),
-    processBatch: async (ids: number[]) => {
+  return Rx.pipe(
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
+
+    // upsert data and map to input objects
+    Rx.mergeMap(async (objs) => {
+      // short circuit if there's nothing to do
+      if (objs.length === 0) {
+        return [];
+      }
+
+      const objAndData = objs.map((obj) => ({ obj, priceFeedId: options.getPriceFeedId(obj) }));
+
       const results = await db_query<DbPriceFeed>(
         `SELECT 
           price_feed_id as "priceFeedId",
@@ -101,13 +107,16 @@ export function fetchDbPriceFeed$<TObj, TRes>(options: {
           priceFeedData as "priceFeedData"
         FROM price_feed 
         WHERE price_feed_id IN (%L)`,
-        [ids],
+        [objAndData.map((obj) => obj.priceFeedId)],
         options.client,
       );
+
       // ensure results are in the same order as the params
-      const idMap = keyBy(results, (r) => r.priceFeedId);
-      return ids.map((id) => idMap[id] ?? null);
-    },
-    formatOutput: options.formatOutput,
-  });
+      const idMap = keyBy(results, "priceFeedId");
+      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.priceFeedId] ?? null));
+    }),
+
+    // flatten objects
+    Rx.concatMap((objs) => Rx.from(objs)),
+  );
 }

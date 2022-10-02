@@ -5,9 +5,10 @@ import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, min, uniq, zipWith } from "lodash";
-import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
+import { BatchIntakeConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
-import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
+import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
+import { DbProduct } from "../loader/product";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -36,81 +37,91 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers$<TObj, TParams extends GetTransferCallParams, TRes>(options: {
+export function fetchErc20Transfers$<
+  TProduct extends DbProduct,
+  TObj extends ProductImportQuery<TProduct>,
+  TParams extends GetTransferCallParams,
+  TRes extends ProductImportQuery<TProduct>,
+>(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
+  emitErrors: ErrorEmitter;
+  intakeConfig: BatchIntakeConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    batchQueryGroup$({
-      bufferCount: 200,
-      // we want to make a query for all requested block numbers of this contract
-      toQueryObj: (objs: TObj[]): TParams => {
-        const params = objs.map(options.getQueryParams);
-        const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
-        if (trackAddresses.length > 1) {
-          throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
-        }
-        const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
-        return {
-          ...params[0],
-          fromBlock: min(params.map((p) => p.fromBlock)),
-          toBlock: min(params.map((p) => p.toBlock)),
-          trackAddress,
-        };
-      },
-      // we process all transfers by batch of addresses
-      getBatchKey: (obj: TObj) => {
-        const params = options.getQueryParams(obj);
-        return `${params.address.toLocaleLowerCase()}-${params.trackAddress?.toLocaleLowerCase()}`;
-      },
-      // do the actual processing
-      processBatch: async (params) => {
-        const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
-        // make sure we return data in the same order as the input
-        const grouped = groupBy(transfers, (t) => t.tokenAddress);
-        return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
-      },
-      formatOutput: options.formatOutput,
-    }),
-
-    retryRpcErrors({ msg: "fetching boost transfers", data: { chain: options.chain } }),
-  );
+  return batchRpcCalls$({
+    intakeConfig: options.intakeConfig,
+    // we want to make a query for all requested block numbers of this contract
+    getQueryForBatch: (objs: TObj[]): TParams => {
+      const params = objs.map(options.getQueryParams);
+      const trackAddresses = uniq(params.map((p) => p.trackAddress).filter((a) => a));
+      if (trackAddresses.length > 1) {
+        throw new ProgrammerError({ msg: "Tracking more than one address per batch is not yet supported" });
+      }
+      const trackAddress = trackAddresses.length === 0 ? undefined : trackAddresses[0];
+      return {
+        ...params[0],
+        fromBlock: min(params.map((p) => p.fromBlock)),
+        toBlock: min(params.map((p) => p.toBlock)),
+        trackAddress,
+      };
+    },
+    // we process all transfers by batch of addresses
+    processBatchKey: (obj: TObj) => {
+      const params = options.getQueryParams(obj);
+      return `${params.address.toLocaleLowerCase()}-${params.trackAddress?.toLocaleLowerCase()}`;
+    },
+    // do the actual processing
+    processBatch: async (params) => {
+      const transfers = await fetchERC20TransferEvents(options.provider, options.chain, params);
+      // make sure we return data in the same order as the input
+      const grouped = groupBy(transfers, (t) => t.tokenAddress);
+      return params.map((p) => grouped[p.address] || [] /* defaults to no transfers */);
+    },
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.chain } },
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+  });
 }
 
 // when hitting a staking contract we don't have a token in return
 // so the balance of the amount we send is our positive diff
-export function fetchERC20TransferToAStakingContract$<TObj, TParams extends GetTransferCallParams, TRes>(options: {
+export function fetchERC20TransferToAStakingContract$<
+  TProduct extends DbProduct,
+  TObj extends ProductImportQuery<TProduct>,
+  TParams extends GetTransferCallParams,
+  TRes extends ProductImportQuery<TProduct>,
+>(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
+  emitErrors: ErrorEmitter;
+  intakeConfig: BatchIntakeConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    fetchErc20Transfers$<TObj, TParams, TRes>({
-      ...options,
-      formatOutput: (item, transfers) => {
-        const params = options.getQueryParams(item);
-        const contractAddress = params.trackAddress;
-        if (!contractAddress) {
-          throw new ProgrammerError({ msg: "Missing trackAddress", params });
-        }
-        return options.formatOutput(
-          item,
-          transfers.map(
-            (transfer): ERC20Transfer => ({
-              ...transfer,
-              // fake a token at the staking contract address
-              tokenAddress: contractAddress,
-              // amounts are reversed because we are sending token to the vault, but we then have a positive balance
-              amountTransfered: transfer.amountTransfered.negated(),
-            }),
-          ),
-        );
-      },
-    }),
-  );
+  return fetchErc20Transfers$<TProduct, TObj, TParams, TRes>({
+    ...options,
+    formatOutput: (item, transfers) => {
+      const params = options.getQueryParams(item);
+      const contractAddress = params.trackAddress;
+      if (!contractAddress) {
+        throw new ProgrammerError({ msg: "Missing trackAddress", params });
+      }
+      return options.formatOutput(
+        item,
+        transfers.map(
+          (transfer): ERC20Transfer => ({
+            ...transfer,
+            // fake a token at the staking contract address
+            tokenAddress: contractAddress,
+            // amounts are reversed because we are sending token to the vault, but we then have a positive balance
+            amountTransfered: transfer.amountTransfered.negated(),
+          }),
+        ),
+      );
+    },
+  });
 }
 
 async function fetchERC20TransferEvents(
@@ -171,9 +182,7 @@ async function fetchERC20TransferEvents(
   }
   const eventsRes = await Promise.all(eventsPromises);
 
-  const doubledContractCall = Array.from({ length: contractCalls.length * 2 }).map(
-    (_, i) => contractCalls[Math.floor(i / 2)],
-  );
+  const doubledContractCall = Array.from({ length: contractCalls.length * 2 }).map((_, i) => contractCalls[Math.floor(i / 2)]);
   type TransferWithLogIndex = ERC20Transfer & { logIndex: number };
   const events = flatten(
     zipWith(doubledContractCall, eventsRes, (contract, events) =>
@@ -206,9 +215,7 @@ async function fetchERC20TransferEvents(
 
   // there could be incoming and outgoing transfers in the same block for the same user
   // we want to merge those into a single transfer
-  const transfersByOwnerAndBlock = Object.values(
-    groupBy(events, (event) => `${event.tokenAddress}-${event.ownerAddress}-${event.blockNumber}`),
-  );
+  const transfersByOwnerAndBlock = Object.values(groupBy(events, (event) => `${event.tokenAddress}-${event.ownerAddress}-${event.blockNumber}`));
   const transfers = transfersByOwnerAndBlock.map((transfers) => {
     // get the total amount
     let totalDiff = new Decimal(0);

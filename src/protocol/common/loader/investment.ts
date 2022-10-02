@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 
 export interface DbInvestment {
@@ -18,7 +19,7 @@ export function upsertInvestment$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, investment: DbInvestment) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    Rx.bufferCount(500),
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
 
     // insert to the investment table
     Rx.mergeMap(async (objs) => {

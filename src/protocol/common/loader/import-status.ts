@@ -1,10 +1,11 @@
-import { keyBy, uniqBy } from "lodash";
+import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
-import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
+import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
@@ -30,8 +31,7 @@ export function upsertImportStatus$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, importStatus: DbImportStatus) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    // insert every 1s or 500 items
-    Rx.bufferTime(1000, undefined, 500),
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
@@ -52,9 +52,14 @@ export function upsertImportStatus$<TInput, TRes>(options: {
         options.client,
       );
 
-      // ensure results are in the same order as the params
       const idMap = keyBy(results, "productId");
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.importStatusData.productId]));
+      return objAndData.map((obj) => {
+        const importStatus = idMap[obj.importStatusData.productId];
+        if (!importStatus) {
+          throw new ProgrammerError({ msg: "Upserted import status not found", data: obj });
+        }
+        return options.formatOutput(obj.obj, importStatus);
+      });
     }),
 
     // flatten objects
@@ -67,26 +72,38 @@ export function fetchImportStatus$<TObj, TRes>(options: {
   getProductId: (obj: TObj) => number;
   formatOutput: (obj: TObj, importStatus: DbImportStatus | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return batchQueryGroup$({
-    bufferCount: 500,
-    toQueryObj: (obj: TObj[]) => options.getProductId(obj[0]),
-    getBatchKey: (obj: TObj) => options.getProductId(obj),
-    processBatch: async (ids: number[]) => {
+  return Rx.pipe(
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
+
+    Rx.tap(() => console.log("fetchImportStatus$ (buffered)")),
+
+    // upsert data and map to input objects
+    Rx.mergeMap(async (objs) => {
+      // short circuit if there's nothing to do
+      if (objs.length === 0) {
+        return [];
+      }
+
+      console.log("=========== HERE =========== : " + objs.length);
+      const objAndData = objs.map((obj) => ({ obj, productId: options.getProductId(obj) }));
+
       const results = await db_query<DbImportStatus>(
         `SELECT 
             product_id as "productId",
             import_data as "importData"
           FROM import_status
           WHERE product_id IN (%L)`,
-        [ids],
+        [objAndData.map((obj) => obj.productId)],
         options.client,
       );
-      // ensure results are in the same order as the params
-      const idMap = keyBy(results, (r) => r.productId);
-      return ids.map((id) => idMap[id] ?? null);
-    },
-    formatOutput: options.formatOutput,
-  });
+
+      const idMap = keyBy(results, "productId");
+      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.productId] ?? null));
+    }),
+
+    // flatten objects
+    Rx.concatMap((objs) => Rx.from(objs)),
+  );
 }
 
 export function updateImportStatus<TObj, TRes>(options: {

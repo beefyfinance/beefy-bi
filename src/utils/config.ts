@@ -10,6 +10,9 @@ if (timezone !== "UTC") {
 }
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
+export const BATCH_DB_INSERT_SIZE = 5000;
+export const BATCH_DB_SELECT_SIZE = 5000;
+export const BATCH_MAX_WAIT_MS = 5000;
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
@@ -23,12 +26,8 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         "https://rpc.ankr.com/arbitrum",
         //"https://arb1.arbitrum.io/rpc"
       ],
-  aurora: process.env.AURORA_RPC
-    ? [process.env.AURORA_RPC]
-    : ["https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek"],
-  avax: process.env.AVAX_RPC
-    ? [process.env.AVAX_RPC]
-    : ["https://api.avax.network/ext/bc/C/rpc", "https://rpc.ankr.com/avalanche"],
+  aurora: process.env.AURORA_RPC ? [process.env.AURORA_RPC] : ["https://mainnet.aurora.dev/Fon6fPMs5rCdJc4mxX4kiSK1vsKdzc3D8k6UF8aruek"],
+  avax: process.env.AVAX_RPC ? [process.env.AVAX_RPC] : ["https://api.avax.network/ext/bc/C/rpc", "https://rpc.ankr.com/avalanche"],
   bsc: process.env.BSC_RPC
     ? [process.env.BSC_RPC]
     : [
@@ -62,9 +61,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         //"https://evm.cronos.org",
       ],
   emerald: process.env.EMERALD_RPC ? [process.env.EMERALD_RPC] : ["https://emerald.oasis.dev"],
-  fantom: process.env.FANTOM_RPC
-    ? [process.env.FANTOM_RPC]
-    : ["https://rpc.ftm.tools", "https://rpcapi.fantom.network"],
+  fantom: process.env.FANTOM_RPC ? [process.env.FANTOM_RPC] : ["https://rpc.ftm.tools", "https://rpcapi.fantom.network"],
   fuse: process.env.FUSE_RPC
     ? [process.env.FUSE_RPC]
     : [
@@ -91,9 +88,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         "https://moonriver.api.onfinality.io/public",
         //"https://rpc.api.moonriver.moonbeam.network/",
       ],
-  optimism: process.env.OPTIMISM_RPC
-    ? [process.env.OPTIMISM_RPC]
-    : ["https://opt-mainnet.g.alchemy.com/v2/JzmIL4Q3jBj7it2duxLFeuCa9Wobmm7D"],
+  optimism: process.env.OPTIMISM_RPC ? [process.env.OPTIMISM_RPC] : ["https://opt-mainnet.g.alchemy.com/v2/JzmIL4Q3jBj7it2duxLFeuCa9Wobmm7D"],
   polygon: process.env.POLYGON_RPC ? [process.env.POLYGON_RPC] : ["https://polygon-rpc.com/"],
   syscoin: process.env.SYSCOIN_RPC ? [process.env.SYSCOIN_RPC] : ["https://rpc.syscoin.org/"],
 };
@@ -220,8 +215,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
 
 export const DATA_DIRECTORY = process.env.DATA_DIRECTORY || path.join(__dirname, "..", "..", "data", "indexed-data");
 
-export const GIT_WORK_DIRECTORY =
-  process.env.GIT_WORK_DIRECTORY || path.join(__dirname, "..", "..", "data", "git-work");
+export const GIT_WORK_DIRECTORY = process.env.GIT_WORK_DIRECTORY || path.join(__dirname, "..", "..", "data", "git-work");
 
 export const GITHUB_RO_AUTH_TOKEN: string | null = process.env.GITHUB_RO_AUTH_TOKEN || null;
 

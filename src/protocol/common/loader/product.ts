@@ -6,6 +6,7 @@ import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { BeefyVault } from "../../beefy/connector/vault-list";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 
 const logger = rootLogger.child({ module: "product" });
 
@@ -38,8 +39,7 @@ export function upsertProduct$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, feed: DbProduct) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    // batch queries
-    Rx.bufferCount(500),
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
@@ -55,14 +55,7 @@ export function upsertProduct$<TInput, TRes>(options: {
               ON CONFLICT (product_key) 
               DO UPDATE SET product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
               RETURNING product_id as "productId", product_key as "productKey", price_feed_id as "priceFeedId", chain, product_data as "productData"`,
-        [
-          objAndData.map(({ productData }) => [
-            productData.productKey,
-            productData.priceFeedId,
-            productData.chain,
-            productData.productData,
-          ]),
-        ],
+        [objAndData.map(({ productData }) => [productData.productKey, productData.priceFeedId, productData.chain, productData.productData])],
         options.client,
       );
 

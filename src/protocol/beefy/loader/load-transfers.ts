@@ -11,29 +11,30 @@ import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
+import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
+import { BatchIntakeConfig } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "common", component: "transfer-loader" });
 
-interface TransferWithRate {
+export type TransferWithRate = ProductImportQuery<DbProduct> & {
   transfer: ERC20Transfer;
   ignoreAddresses: string[];
-  product: DbProduct;
   sharesRate: Decimal;
-}
+};
 
 export type TransferLoadStatus = { transferCount: null; success: false } | { transferCount: number; success: true };
 
 export function loadTransfers$(options: {
   chain: Chain;
   client: PoolClient;
+  emitErrors: ErrorEmitter;
+  intakeConfig: BatchIntakeConfig;
   provider: ethers.providers.JsonRpcProvider;
 }): Rx.OperatorFunction<TransferWithRate, TransferLoadStatus> {
   return Rx.pipe(
     // remove ignored addresses
     Rx.filter((item) => {
-      const shouldIgnore = item.ignoreAddresses.some(
-        (ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress),
-      );
+      const shouldIgnore = item.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress));
       if (shouldIgnore) {
         //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
       }
@@ -65,6 +66,8 @@ export function loadTransfers$(options: {
         contractAddress: item.transfer.tokenAddress,
         ownerAddress: item.transfer.ownerAddress,
       }),
+      emitErrors: options.emitErrors,
+      intakeConfig: options.intakeConfig,
       formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
     }),
 
@@ -72,6 +75,8 @@ export function loadTransfers$(options: {
     fetchBlockDatetime$({
       provider: options.provider,
       getBlockNumber: (t) => t.transfer.blockNumber,
+      emitErrors: options.emitErrors,
+      intakeConfig: options.intakeConfig,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
 

@@ -6,9 +6,11 @@ import { flatten, sortBy } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
-import { batchQueryGroup$ } from "../../../utils/rxjs/utils/batch-query-group";
+import { BatchIntakeConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
 import { retryRpcErrors } from "../../../utils/rxjs/utils/retry-rpc";
+import { DbProduct } from "../../common/loader/product";
+import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -19,35 +21,40 @@ interface BeefyPPFSCallParams {
   blockNumbers: number[];
 }
 
-export function fetchBeefyPPFS$<TObj, TParams extends BeefyPPFSCallParams, TRes>(options: {
+export function fetchBeefyPPFS$<
+  TProduct extends DbProduct,
+  TObj extends ProductImportQuery<TProduct>,
+  TParams extends BeefyPPFSCallParams,
+  TRes extends ProductImportQuery<TProduct>,
+>(options: {
   provider: ethers.providers.JsonRpcProvider;
   chain: Chain;
   getPPFSCallParams: (obj: TObj) => TParams;
+  emitErrors: ErrorEmitter;
+  intakeConfig: BatchIntakeConfig;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    batchQueryGroup$({
-      bufferCount: 200,
-      // we want to make a query for all requested block numbers of this contract
-      toQueryObj: (objs: TObj[]): TParams => {
-        const params = objs.map(options.getPPFSCallParams);
-        return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
-      },
-      // group by vault address
-      getBatchKey: (obj: TObj) => {
-        const params = options.getPPFSCallParams(obj);
-        return params.vaultAddress.toLocaleLowerCase();
-      },
-      // do the actual processing
-      processBatch: async (params: TParams[]) => {
-        const results = await fetchBeefyVaultShareRate(options.provider, options.chain, params);
-        return results;
-      },
-      formatOutput: options.formatOutput,
-    }),
-
-    retryRpcErrors({ msg: "fetching ppfs", data: { chain: options.chain } }),
-  );
+  return batchRpcCalls$({
+    intakeConfig: options.intakeConfig,
+    // we want to make a query for all requested block numbers of this contract
+    getQueryForBatch: (objs: TObj[]): TParams => {
+      const params = objs.map(options.getPPFSCallParams);
+      return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
+    },
+    // group by vault address
+    processBatchKey: (obj: TObj) => {
+      const params = options.getPPFSCallParams(obj);
+      return params.vaultAddress.toLocaleLowerCase();
+    },
+    // do the actual processing
+    processBatch: async (params: TParams[]) => {
+      const results = await fetchBeefyVaultShareRate(options.provider, options.chain, params);
+      return results;
+    },
+    emitErrors: options.emitErrors,
+    logInfos: { msg: "Fetching beefy ppfs" },
+    formatOutput: options.formatOutput,
+  });
 }
 
 export async function fetchBeefyVaultShareRate(
@@ -74,12 +81,7 @@ export async function fetchBeefyVaultShareRate(
   // same for heco
   if (chain === "harmony" || chain === "heco") {
     for (const contractCall of contractCalls) {
-      const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(
-        provider,
-        chain,
-        contractCall.vaultAddress,
-        contractCall.blockNumbers,
-      );
+      const ppfsPromise = await fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall.vaultAddress, contractCall.blockNumbers);
       ppfsPromises = ppfsPromises.concat(ppfsPromise);
     }
   } else {
@@ -144,9 +146,7 @@ export function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDeci
 
   // go to math representation
   // but we can't return a number with more precision than the oracle precision
-  const oracleAmount = oracleChainAmount
-    .div(new Decimal(10).pow(mooTokenDecimals + depositTokenDecimals))
-    .toDecimalPlaces(mooTokenDecimals);
+  const oracleAmount = oracleChainAmount.div(new Decimal(10).pow(mooTokenDecimals + depositTokenDecimals)).toDecimalPlaces(mooTokenDecimals);
 
   return oracleAmount;
 }

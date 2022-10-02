@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 
@@ -19,8 +20,8 @@ export function upsertPrices$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, price: DbPrice) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    // batch by some reasonable amount for the database
-    Rx.bufferCount(5000),
+    // insert every 1s or 5000 items
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
 
     // insert into the prices table
     Rx.mergeMap(async (objs) => {
@@ -57,11 +58,14 @@ export function findMissingPriceRangeInDb$<TObj, TRes>(options: {
   formatOutput: (obj: TObj, missingData: { fromDate: Date; toDate: Date }) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    // work by batches to be kind on the database
-    Rx.bufferCount(500),
+    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
 
     // find out which data is missing
     Rx.mergeMap(async (objs) => {
+      if (objs.length === 0) {
+        return [];
+      }
+
       const results = await db_query<{ priceFeedId: number; lastInsertedDatetime: Date }>(
         `SELECT 
             price_feed_id as "priceFeedId",
