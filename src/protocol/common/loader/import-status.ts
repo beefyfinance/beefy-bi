@@ -1,11 +1,16 @@
+import { ethers } from "ethers";
 import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { Chain } from "../../../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
+import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ContractCreationInfos, fetchContractCreationBlock$ } from "../connector/contract-creation";
+import { DbProduct } from "./product";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
@@ -75,8 +80,6 @@ export function fetchImportStatus$<TObj, TRes>(options: {
   return Rx.pipe(
     Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
 
-    Rx.tap(() => console.log("fetchImportStatus$ (buffered)")),
-
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
       // short circuit if there's nothing to do
@@ -84,7 +87,6 @@ export function fetchImportStatus$<TObj, TRes>(options: {
         return [];
       }
 
-      console.log("=========== HERE =========== : " + objs.length);
       const objAndData = objs.map((obj) => ({ obj, productId: options.getProductId(obj) }));
 
       const results = await db_query<DbImportStatus>(
@@ -144,5 +146,61 @@ export function updateImportStatus<TObj, TRes>(options: {
 
       return options.formatOutput(obj, newImportStatus);
     }, 1 /* concurrency */),
+  );
+}
+
+export function addMissingImportStatus<TProduct extends DbProduct>(options: {
+  client: PoolClient;
+  provider: ethers.providers.JsonRpcProvider;
+  chain: Chain;
+  getContractAddress: (product: TProduct) => string;
+  getInitialImportData: (product: TProduct, creationInfos: ContractCreationInfos) => DbImportStatus["importData"];
+}): Rx.OperatorFunction<TProduct, { product: TProduct; importStatus: DbImportStatus }> {
+  return Rx.pipe(
+    // find the import status for these objects
+    fetchImportStatus$({
+      client: options.client,
+      getProductId: (product) => product.productId,
+      formatOutput: (product, importStatus) => ({ product, importStatus }),
+    }),
+
+    // extract those without an import status
+    Rx.groupBy((item) => (item.importStatus !== null ? "has-import-status" : "missing-import-status")),
+    Rx.map((importStatusGroup$) => {
+      // passthrough if we already have an import status
+      if (importStatusGroup$.key === "has-import-status") {
+        return importStatusGroup$ as Rx.Observable<{ product: TProduct; importStatus: DbImportStatus }>;
+      }
+
+      // then for those whe can't find an import status
+      return importStatusGroup$.pipe(
+        Rx.tap((item) => logger.debug({ msg: "Missing import status for product", data: item })),
+
+        // find the contract creation block
+        fetchContractCreationBlock$({
+          provider: options.provider,
+          getCallParams: (item) => ({
+            chain: options.chain,
+            contractAddress: options.getContractAddress(item.product),
+          }),
+          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+        }),
+
+        // drop those without a creation info
+        excludeNullFields$("contractCreationInfo"),
+
+        // create the import status
+        upsertImportStatus$({
+          client: options.client,
+          getImportStatusData: (item) => ({
+            productId: item.product.productId,
+            importData: options.getInitialImportData(item.product, item.contractCreationInfo),
+          }),
+          formatOutput: (item, importStatus) => ({ ...item, importStatus }),
+        }),
+      );
+    }),
+    // now all objects have an import status (and a contract creation block)
+    Rx.mergeAll(),
   );
 }

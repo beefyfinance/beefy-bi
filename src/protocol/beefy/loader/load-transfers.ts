@@ -22,7 +22,7 @@ export type TransferWithRate = ProductImportQuery<DbProduct> & {
   sharesRate: Decimal;
 };
 
-export type TransferLoadStatus = { transferCount: null; success: false } | { transferCount: number; success: true };
+export type TransferLoadStatus = { transferCount: number; success: true };
 
 export function loadTransfers$(options: {
   chain: Chain;
@@ -122,9 +122,5 @@ export function loadTransfers$(options: {
 
     // return the status of this product ingestion
     Rx.map((transferCount) => ({ transferCount, success: true } as TransferLoadStatus)),
-    Rx.catchError((err) => {
-      logger.error({ msg: "error processing product", data: { chain: options.chain, err } });
-      return Rx.of({ transferCount: null, success: false } as TransferLoadStatus);
-    }),
   );
 }

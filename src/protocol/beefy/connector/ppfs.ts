@@ -2,7 +2,7 @@ import { Chain } from "../../../types/chain";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import axios from "axios";
-import { flatten, sortBy } from "lodash";
+import { flatten, sortBy, sum } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
@@ -71,7 +71,8 @@ export async function fetchBeefyVaultShareRate(
     msg: "Batch fetching PPFS",
     data: {
       chain,
-      count: contractCalls.length,
+      contractCalls: sum(contractCalls.map((c) => c.blockNumbers)),
+      contractCount: contractCalls.length,
     },
   });
 

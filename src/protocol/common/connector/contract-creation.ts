@@ -14,7 +14,7 @@ interface ContractCallParams {
   chain: Chain;
 }
 
-interface ContractCreationInfos {
+export interface ContractCreationInfos {
   blockNumber: number;
 }
 
@@ -89,9 +89,7 @@ const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "e
 const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
 
 async function getFromExplorerCreationBlock(contractAddress: string, explorerUrl: string) {
-  var url =
-    explorerUrl +
-    `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
+  var url = explorerUrl + `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
   logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, url } });
 
   const resp = await axios.get(url);
@@ -151,13 +149,7 @@ async function getHarmonyRpcCreationBlock(contractAddress: string, chain: Chain)
   logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, rpcUrl, rpcPayload } });
   const resp = await axios.post(rpcUrl, rpcPayload);
 
-  if (
-    !resp.data ||
-    resp.data.id !== 1 ||
-    !resp.data.result ||
-    !resp.data.result.transactions ||
-    resp.data.result.transactions.length !== 1
-  ) {
+  if (!resp.data || resp.data.id !== 1 || !resp.data.result || !resp.data.result.transactions || resp.data.result.transactions.length !== 1) {
     logger.error({
       msg: "Error while fetching contract creation block: Malformed response",
       data: { contractAddress, chain },

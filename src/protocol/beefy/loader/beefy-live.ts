@@ -21,7 +21,13 @@ import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../common/con
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { fetchContractCreationBlock$ } from "../../common/connector/contract-creation";
-import { DbImportStatus, fetchImportStatus$, updateImportStatus, upsertImportStatus$ } from "../../common/loader/import-status";
+import {
+  addMissingImportStatus,
+  DbImportStatus,
+  fetchImportStatus$,
+  updateImportStatus,
+  upsertImportStatus$,
+} from "../../common/loader/import-status";
 import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
@@ -34,6 +40,14 @@ import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-ke
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
 import { BatchIntakeConfig } from "../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
+import console from "console";
+import {
+  isBeefyBoost,
+  isBeefyBoostProductImportQuery,
+  isBeefyGovVaultProductImportQuery,
+  isBeefyStandardVaultProductImportQuery,
+} from "../utils/type-guard";
+import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -68,6 +82,7 @@ async function main() {
   //
 
   const pollLiveData = withPgClient(async (client: PoolClient) => {
+    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) => input$.pipe(importChainRecentData(client, chain));
     const pipeline$ = productList$(client, "beefy").pipe(
       // apply command filters
       Rx.filter((product) => filterChains.includes(product.chain)),
@@ -79,7 +94,7 @@ async function main() {
             : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress),
       ),
 
-      loaderByChain$(curry(importChainRecentData)(client)),
+      loaderByChain$(process),
     );
     return consumeObservable(pipeline$);
   });
@@ -87,6 +102,8 @@ async function main() {
   const pollPriceData = withPgClient(fetchPrices);
 
   const backfillHistory = withPgClient(async (client: PoolClient) => {
+    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) => input$.pipe(importChainHistoricalData(client, chain));
+
     const pipeline$ = productList$(client, "beefy").pipe(
       // apply command filters
       Rx.filter((product) => filterChains.includes(product.chain)),
@@ -98,10 +115,8 @@ async function main() {
             : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress),
       ),
 
-      Rx.tap((item) => console.log(item.productId)),
-
       // load  historical data
-      loaderByChain$(curry(importChainHistoricalData)(client)),
+      loaderByChain$(process),
     );
     return consumeObservable(pipeline$);
   });
@@ -126,76 +141,39 @@ async function main() {
 
 runMain(main);
 
-function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
+function importChainHistoricalData(client: PoolClient, chain: Chain) {
   const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
   const intakeConfig: BatchIntakeConfig = {
-    // since we are doing historical queries, we can afford to do more at once
+    // since we are doing many historical queries at once, we cannot afford to do many at once
     concurrency: 1,
-    // But we can also afford to wait a bit longer before processing the next batch to be more efficient
+    // But we can afford to wait a bit longer before processing the next batch to be more efficient
     maxWaitMs: 30_000,
     take: 5000,
   };
   const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
 
-  const historicalQueries$ = beefyProduct$.pipe(
-    // find the import status for these objects
-    fetchImportStatus$({
-      client: client,
-      getProductId: (product) => product.productId,
-      formatOutput: (product, importStatus) => ({ product, importStatus }),
+  return Rx.pipe(
+    // add typings to the input item
+    Rx.filter((_: DbBeefyProduct) => true),
+
+    addMissingImportStatus({
+      client,
+      chain,
+      provider,
+      getContractAddress: (product) =>
+        product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
+      getInitialImportData: (_, contractCreationInfo) => ({
+        type: "beefy",
+        data: {
+          contractCreatedAtBlock: contractCreationInfo.blockNumber,
+          coveredBlockRange: {
+            from: contractCreationInfo.blockNumber,
+            to: contractCreationInfo.blockNumber,
+          },
+          blockRangesToRetry: [],
+        },
+      }),
     }),
-
-    // extract those without an import status
-    Rx.groupBy((item) => (item.importStatus !== null ? "has-import-status" : "missing-import-status")),
-    Rx.map((isGroup$) => {
-      // passthrough if we already have an import status
-      if (isGroup$.key === "has-import-status") {
-        return isGroup$ as Rx.Observable<{ product: DbBeefyProduct; importStatus: DbImportStatus }>;
-      }
-
-      // then for those whe can't find an import status
-      return isGroup$.pipe(
-        Rx.tap((item) => logger.debug({ msg: "Missing import status for product", data: item })),
-
-        // find the contract creation block
-        fetchContractCreationBlock$({
-          provider: provider,
-          getCallParams: (item) => ({
-            chain: chain,
-            contractAddress:
-              item.product.productData.type === "beefy:vault"
-                ? item.product.productData.vault.contract_address
-                : item.product.productData.boost.contract_address,
-          }),
-          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
-        }),
-
-        // drop those without a creation info
-        excludeNullFields$("contractCreationInfo"),
-
-        // create the import status
-        upsertImportStatus$({
-          client: client,
-          getImportStatusData: (item) => ({
-            productId: item.product.productId,
-            importData: {
-              type: "beefy",
-              data: {
-                contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
-                coveredBlockRange: {
-                  from: item.contractCreationInfo.blockNumber,
-                  to: item.contractCreationInfo.blockNumber,
-                },
-                blockRangesToRetry: [],
-              },
-            },
-          }),
-          formatOutput: (item, importStatus) => ({ ...item, importStatus }),
-        }),
-      );
-    }),
-    // now all objects have an import status (and a contract creation block)
-    Rx.mergeAll(),
 
     // generate the block ranges to import
     addHistoricalBlockQuery$({
@@ -212,81 +190,96 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, beefyProduc
         return { ...rest, blockRange };
       }),
     ),
-  );
 
-  // fetch and process data as we normally would
-  const insertResult$ = fetchAndInsertBeefyProductRange$({
-    client,
-    chain,
-    intakeConfig,
-    emitErrors: emitErrors,
-    productQueries$: historicalQueries$,
-  });
-
-  return insertResult$.pipe(
-    // merge the errors back in, all items here should have been successfully treated
-    Rx.map((item) => ({ ...item, success: true })),
-    Rx.mergeWith(productErrors$),
-    Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
-
-    // merge the statuses ranges together to call updateImportStatus less often
-    bufferUntilKeyChanged((item) => `${item.product.productId}`),
-
-    // update the import status with the new block range
-    updateImportStatus({
+    // process the queries
+    fetchAndInsertBeefyProductRange$({
       client,
-      getProductId: (items) => items[0].product.productId,
-      mergeImportStatus: (items, importStatus) => {
-        const productId = items[0].product.productId;
-        const productKey = items[0].product.productKey;
-        if (importStatus.importData.type !== "beefy") {
-          throw new Error(`Import status is not for beefy: ${importStatus.importData.type}`);
-        }
-
-        const blockRanges = items.map((item) => item.blockRange);
-        const newImportStatus = cloneDeep(importStatus);
-
-        // either way, we covered this range, we need to remember that
-        const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, ...blockRanges]);
-        newImportStatus.importData.data.coveredBlockRange = mergedRange[0]; // only take the first one
-        if (mergedRange.length > 1) {
-          logger.warn({
-            msg: "Unexpectedly merged multiple block ranges",
-            data: { productId, blockRanges, mergedRange, importStatus: newImportStatus },
-          });
-        }
-
-        for (const item of items) {
-          const blockRange = item.blockRange;
-          if (item.success) {
-            // remove the retried range if present
-            newImportStatus.importData.data.blockRangesToRetry = newImportStatus.importData.data.blockRangesToRetry.flatMap((range) =>
-              rangeExclude(range, blockRange),
-            );
-          } else {
-            // add it if not present
-            newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
-          }
-        }
-
-        logger.trace({
-          msg: "Updating import status",
-          data: {
-            rangeResults: items.map((item) => ({ range: item.blockRange, success: item.success })),
-            product: { productId, productKey },
-            importStatus,
-            newImportStatus,
-          },
-        });
-
-        return newImportStatus;
-      },
-      formatOutput: (item, importStatusUpdated) => ({ ...item, importStatusUpdated }),
+      chain,
+      intakeConfig,
+      emitErrors: emitErrors,
     }),
+
+    // handle the results
+    Rx.pipe(
+      // merge the errors back in, all items here should have been successfully treated
+      Rx.mergeWith(productErrors$),
+      Rx.map((item) => ({ ...item, loadResult: "loadResult" in item ? item.loadResult : { transferCount: null, success: false } })),
+
+      // merge the statuses ranges together to call updateImportStatus less often
+      bufferUntilKeyChanged((item) => `${item.product.productId}`),
+
+      // update the import status with the new block range
+      updateImportStatus({
+        client,
+        getProductId: (items) => items[0].product.productId,
+        mergeImportStatus: (items, importStatus) => {
+          const productId = items[0].product.productId;
+          const productKey = items[0].product.productKey;
+          if (importStatus.importData.type !== "beefy") {
+            throw new Error(`Import status is not for beefy: ${importStatus.importData.type}`);
+          }
+
+          const blockRanges = items.map((item) => item.blockRange);
+          const newImportStatus = cloneDeep(importStatus);
+
+          // either way, we covered this range, we need to remember that
+          const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, ...blockRanges]);
+          newImportStatus.importData.data.coveredBlockRange = mergedRange[0]; // only take the first one
+          if (mergedRange.length > 1) {
+            logger.warn({
+              msg: "Unexpectedly merged multiple block ranges",
+              data: { productId, blockRanges, mergedRange, importStatus: newImportStatus },
+            });
+          }
+
+          for (const item of items) {
+            const blockRange = item.blockRange;
+            if (item.loadResult.success) {
+              // remove the retried range if present
+              newImportStatus.importData.data.blockRangesToRetry = newImportStatus.importData.data.blockRangesToRetry.flatMap((range) =>
+                rangeExclude(range, blockRange),
+              );
+            } else {
+              // add it if not present
+              newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
+            }
+          }
+
+          logger.trace({
+            msg: "Updating import status",
+            data: {
+              rangeResults: items.map((item) => ({ range: item.blockRange, loadResult: item.loadResult })),
+              product: { productId, productKey },
+              importStatus,
+              newImportStatus,
+            },
+          });
+
+          return newImportStatus;
+        },
+        formatOutput: (items, importStatusUpdated) => items.map((item) => ({ ...item, importStatusUpdated })),
+      }),
+
+      // flatten the items
+      Rx.mergeAll(),
+
+      // logging
+      Rx.tap((item) => {
+        if (item.loadResult.success) {
+          logger.debug({
+            msg: "Imported live data",
+            data: { productId: item.product.productData, blockRange: item.blockRange, transferCount: item.loadResult.transferCount },
+          });
+        } else {
+          logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+        }
+      }),
+      Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),
+    ),
   );
 }
 
-function importChainRecentData(client: PoolClient, chain: Chain, beefyProduct$: Rx.Observable<DbBeefyProduct>) {
+function importChainRecentData(client: PoolClient, chain: Chain) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
@@ -300,7 +293,10 @@ function importChainRecentData(client: PoolClient, chain: Chain, beefyProduct$: 
   };
   const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
 
-  const liveProductQueries$ = beefyProduct$.pipe(
+  return Rx.pipe(
+    // add typings to the input item
+    Rx.filter((_: DbBeefyProduct) => true),
+
     // create an object we can safely add data to
     Rx.map((product) => ({ product })),
 
@@ -316,157 +312,181 @@ function importChainRecentData(client: PoolClient, chain: Chain, beefyProduct$: 
       getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
       formatOutput: (item, blockRange) => ({ ...item, blockRange }),
     }),
-  );
 
-  return fetchAndInsertBeefyProductRange$({ client, chain, intakeConfig, emitErrors, productQueries$: liveProductQueries$ });
+    // process the queries
+    fetchAndInsertBeefyProductRange$({ client, chain, intakeConfig, emitErrors }),
+
+    // merge the errors back in, all items here should have been successfully treated
+    Rx.mergeWith(productErrors$),
+    Rx.map((item) => ({ ...item, loadResult: "loadResult" in item ? item.loadResult : { transferCount: null, success: false } })),
+
+    // logging
+    Rx.tap((item) => {
+      if (item.loadResult.success) {
+        logger.debug({
+          msg: "Imported live data",
+          data: { productId: item.product.productData, blockRange: item.blockRange, transferCount: item.loadResult.transferCount },
+        });
+      } else {
+        logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+      }
+    }),
+    Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),
+  );
 }
 
-function fetchAndInsertBeefyProductRange$(options: {
-  client: PoolClient;
-  chain: Chain;
-  emitErrors: ErrorEmitter;
-  intakeConfig: BatchIntakeConfig;
-  productQueries$: Rx.Observable<ProductImportQuery<DbBeefyProduct>>;
-}): Rx.Observable<ProductImportQuery<DbBeefyProduct>> {
+function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; intakeConfig: BatchIntakeConfig }) {
   const rpcUrl = sample(RPC_URLS[options.chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
-  const [vaultQueries$, boostsQueries$] = Rx.partition(options.productQueries$, (p) => p.product.productData.type === "beefy:vault") as [
-    Rx.Observable<ProductImportQuery<DbBeefyVaultProduct>>,
-    Rx.Observable<ProductImportQuery<DbBeefyBoostProduct>>,
-  ];
+  return Rx.pipe(
+    // add typings to the input item
+    Rx.filter((_: ProductImportQuery<DbBeefyProduct>) => true),
 
-  const boostTransfers$ = boostsQueries$.pipe(
-    // fetch latest transfers from and to the boost contract
-    fetchERC20TransferToAStakingContract$({
-      provider: provider,
-      chain: options.chain,
-      intakeConfig: options.intakeConfig,
-      getQueryParams: (item) => {
-        // for gov vaults we don't have a share token so we use the underlying token
-        // transfers and filter on those transfer from and to the contract address
-        const boost = item.product.productData.boost;
-        return {
-          address: boost.staked_token_address,
-          decimals: boost.staked_token_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
-          trackAddress: boost.contract_address,
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
+    // create groups of products to import
+    Rx.groupBy((item) =>
+      item.product.productData.type !== "beefy:vault" ? "boost" : item.product.productData.vault.is_gov_vault ? "gov-vault" : "standard-vault",
+    ),
+    Rx.mergeMap((productType$) => {
+      if (productType$.key === "boost") {
+        return productType$.pipe(
+          // set the right product type
+          Rx.filter(isBeefyBoostProductImportQuery),
+
+          // fetch latest transfers from and to the boost contract
+          fetchERC20TransferToAStakingContract$({
+            provider: provider,
+            chain: options.chain,
+            intakeConfig: options.intakeConfig,
+            getQueryParams: (item) => {
+              // for gov vaults we don't have a share token so we use the underlying token
+              // transfers and filter on those transfer from and to the contract address
+              const boost = item.product.productData.boost;
+              return {
+                address: boost.staked_token_address,
+                decimals: boost.staked_token_decimals,
+                fromBlock: item.blockRange.from,
+                toBlock: item.blockRange.to,
+                trackAddress: boost.contract_address,
+              };
+            },
+            emitErrors: options.emitErrors,
+            formatOutput: (item, transfers) => ({ ...item, transfers }),
+          }),
+
+          // then we need the vault ppfs to interpret the balance
+          fetchBeefyPPFS$({
+            provider,
+            chain: options.chain,
+            intakeConfig: options.intakeConfig,
+            getPPFSCallParams: (item) => {
+              const boost = item.product.productData.boost;
+              return {
+                vaultAddress: boost.staked_token_address,
+                underlyingDecimals: item.product.productData.boost.vault_want_decimals,
+                vaultDecimals: boost.staked_token_decimals,
+                blockNumbers: item.transfers.map((t) => t.blockNumber),
+              };
+            },
+            emitErrors: options.emitErrors,
+            formatOutput: (item, ppfss) => ({ ...item, ppfss }),
+          }),
+
+          // add an ignore address so we can pipe this observable into the main pipeline again
+          Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
+        );
+      } else if (productType$.key === "standard-vault") {
+        return productType$.pipe(
+          // set the right product type
+          Rx.filter(isBeefyStandardVaultProductImportQuery),
+
+          // for standard vaults, we only ignore the mint-burn addresses
+          Rx.map((item) => ({
+            ...item,
+            ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
+          })),
+
+          // fetch the vault transfers
+          fetchErc20Transfers$({
+            provider,
+            chain: options.chain,
+            intakeConfig: options.intakeConfig,
+            getQueryParams: (item) => {
+              const vault = item.product.productData.vault;
+              return {
+                address: vault.contract_address,
+                decimals: vault.token_decimals,
+                fromBlock: item.blockRange.from,
+                toBlock: item.blockRange.to,
+              };
+            },
+            emitErrors: options.emitErrors,
+            formatOutput: (item, transfers) => ({ ...item, transfers }),
+          }),
+
+          // fetch the ppfs
+          fetchBeefyPPFS$({
+            provider,
+            chain: options.chain,
+            intakeConfig: options.intakeConfig,
+            getPPFSCallParams: (item) => {
+              return {
+                vaultAddress: item.product.productData.vault.contract_address,
+                underlyingDecimals: item.product.productData.vault.want_decimals,
+                vaultDecimals: item.product.productData.vault.token_decimals,
+                blockNumbers: item.transfers.map((t) => t.blockNumber),
+              };
+            },
+            emitErrors: options.emitErrors,
+            formatOutput: (item, ppfss) => ({ ...item, ppfss }),
+          }),
+        );
+      } else if (productType$.key === "gov-vault") {
+        return productType$.pipe(
+          // set the right product type
+          Rx.filter(isBeefyGovVaultProductImportQuery),
+
+          // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
+          // todo: ignore the maxi vault
+          Rx.map((item) => ({
+            ...item,
+            ignoreAddresses: [
+              normalizeAddress("0x0000000000000000000000000000000000000000"),
+              normalizeAddress(item.product.productData.vault.contract_address),
+            ],
+          })),
+
+          fetchERC20TransferToAStakingContract$({
+            provider,
+            chain: options.chain,
+            intakeConfig: options.intakeConfig,
+            getQueryParams: (item) => {
+              // for gov vaults we don't have a share token so we use the underlying token
+              // transfers and filter on those transfer from and to the contract address
+              const vault = item.product.productData.vault;
+              return {
+                address: vault.want_address,
+                decimals: vault.want_decimals,
+                fromBlock: item.blockRange.from,
+                toBlock: item.blockRange.to,
+                trackAddress: vault.contract_address,
+              };
+            },
+            emitErrors: options.emitErrors,
+            formatOutput: (item, transfers) => ({ ...item, transfers }),
+          }),
+
+          // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
+          Rx.map((item) => ({
+            ...item,
+            ppfss: item.transfers.map(() => new Decimal(1)),
+          })),
+        );
+      } else {
+        throw new ProgrammerError(`Unhandled product type: ${productType$.key}`);
+      }
     }),
 
-    // then we need the vault ppfs to interpret the balance
-    fetchBeefyPPFS$({
-      provider,
-      chain: options.chain,
-      intakeConfig: options.intakeConfig,
-      getPPFSCallParams: (item) => {
-        const boost = item.product.productData.boost;
-        return {
-          vaultAddress: boost.staked_token_address,
-          underlyingDecimals: item.product.productData.boost.vault_want_decimals,
-          vaultDecimals: boost.staked_token_decimals,
-          blockNumbers: item.transfers.map((t) => t.blockNumber),
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
-    }),
-
-    // add an ignore address so we can pipe this observable into the main pipeline again
-    Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
-  );
-
-  const [govTransferQueries$, transferQueries$] = Rx.partition(vaultQueries$, ({ product }) => product.productData.vault.is_gov_vault);
-
-  const standardTransfersByVault$ = transferQueries$.pipe(
-    // for standard vaults, we only ignore the mint-burn addresses
-    Rx.map((item) => ({
-      ...item,
-      ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
-    })),
-
-    // fetch the vault transfers
-    fetchErc20Transfers$({
-      provider,
-      chain: options.chain,
-      intakeConfig: options.intakeConfig,
-      getQueryParams: (item) => {
-        const vault = item.product.productData.vault;
-        return {
-          address: vault.contract_address,
-          decimals: vault.token_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-
-    // fetch the ppfs
-    fetchBeefyPPFS$({
-      provider,
-      chain: options.chain,
-      intakeConfig: options.intakeConfig,
-      getPPFSCallParams: (item) => {
-        return {
-          vaultAddress: item.product.productData.vault.contract_address,
-          underlyingDecimals: item.product.productData.vault.want_decimals,
-          vaultDecimals: item.product.productData.vault.token_decimals,
-          blockNumbers: item.transfers.map((t) => t.blockNumber),
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
-    }),
-  );
-
-  const govTransfersByVault$ = govTransferQueries$.pipe(
-    // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
-    // todo: ignore the maxi vault
-    Rx.map((item) => ({
-      ...item,
-      ignoreAddresses: [
-        normalizeAddress("0x0000000000000000000000000000000000000000"),
-        normalizeAddress(item.product.productData.vault.contract_address),
-      ],
-    })),
-
-    fetchERC20TransferToAStakingContract$({
-      provider,
-      chain: options.chain,
-      intakeConfig: options.intakeConfig,
-      getQueryParams: (item) => {
-        // for gov vaults we don't have a share token so we use the underlying token
-        // transfers and filter on those transfer from and to the contract address
-        const vault = item.product.productData.vault;
-        return {
-          address: vault.want_address,
-          decimals: vault.want_decimals,
-          fromBlock: item.blockRange.from,
-          toBlock: item.blockRange.to,
-          trackAddress: vault.contract_address,
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-
-    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
-    Rx.map((item) => ({
-      ...item,
-      ppfss: item.transfers.map(() => new Decimal(1)),
-    })),
-  );
-
-  // join gov and non gov vaults and boosts
-  const rawTransfersByVault$ = Rx.merge(standardTransfersByVault$, govTransfersByVault$, boostTransfers$);
-
-  const insertStatus$ = rawTransfersByVault$.pipe(
     // now move to transfers representation
     Rx.mergeMap((item) =>
       Rx.of(
@@ -497,22 +517,8 @@ function fetchAndInsertBeefyProductRange$(options: {
       ),
     ),
 
-    Rx.tap({
-      next: (item) =>
-        logger.debug({
-          msg: "product processed",
-          data: {
-            chain: options.chain,
-            product: { productKey: item.product.productKey, productId: item.product.productId },
-            range: item.blockRange,
-            result: item.loadResult,
-          },
-        }),
-      complete: () => logger.debug({ msg: "done processing chain", data: { chain: options.chain } }),
-    }),
+    Rx.finalize(() => logger.debug({ msg: "done processing chain", data: { chain: options.chain } })),
   );
-
-  return insertStatus$;
 }
 
 function loadBeefyProducts(client: PoolClient) {
