@@ -16,10 +16,14 @@ const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
 
 function latestBlockNumber$<TObj, TRes>(options: {
   getChain: (obj: TObj) => Chain;
+  forceCurrentBlockNumber: number | null;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const retryConfig = getRpcRetryConfig({ maxTotalRetryMs: 5_000, logInfos: { msg: "Fetching block number" } });
   return Rx.mergeMap(async (obj) => {
+    if (options.forceCurrentBlockNumber !== null) {
+      return options.formatOutput(obj, options.forceCurrentBlockNumber);
+    }
     const chain = options.getChain(obj);
     const cacheKey = chain;
     let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
@@ -38,6 +42,7 @@ function latestBlockNumber$<TObj, TRes>(options: {
 export function addLatestBlockQuery$<TObj, TRes>(options: {
   chain: Chain;
   provider: ethers.providers.JsonRpcProvider;
+  forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockQuery: Range) => TRes;
@@ -48,6 +53,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
     // go get the latest block number for this chain
     latestBlockNumber$({
       getChain: () => options.chain,
+      forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
 
@@ -81,6 +87,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   client: PoolClient;
   chain: Chain;
+  forceCurrentBlockNumber: number | null;
   getImportStatus: (obj: TObj) => DbImportStatus;
   formatOutput: (obj: TObj, historicalBlockQueries: Range[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
@@ -88,6 +95,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
     // go get the latest block number for this chain
     latestBlockNumber$({
       getChain: () => options.chain,
+      forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
     }),
 

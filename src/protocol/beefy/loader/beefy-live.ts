@@ -50,13 +50,19 @@ async function main() {
   const argv = await yargs(process.argv.slice(2))
     .usage("Usage: $0 [options]")
     .options({
-      chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all" },
-      contractAddress: { type: "string", demand: false, alias: "a" },
+      chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+      contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
+      currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
     }).argv;
 
   const chain = argv.chain as Chain | "all";
   const filterChains = chain === "all" ? allChainIds : [chain];
   const filterContractAddress = argv.contractAddress || null;
+  const forceCurrentBlockNumber = argv.currentBlockNumber || null;
+
+  if (forceCurrentBlockNumber !== null && chain === "all") {
+    throw new ProgrammerError("Cannot force current block number without a chain filter");
+  }
 
   logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
 
@@ -70,7 +76,8 @@ async function main() {
   //
 
   const pollLiveData = withPgClient(async (client: PoolClient) => {
-    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) => input$.pipe(importChainRecentData(client, chain));
+    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) =>
+      input$.pipe(importChainRecentData(client, chain, forceCurrentBlockNumber));
     const pipeline$ = productList$(client, "beefy").pipe(
       // apply command filters
       Rx.filter((product) => filterChains.includes(product.chain)),
@@ -90,7 +97,8 @@ async function main() {
   const pollPriceData = withPgClient(fetchPrices);
 
   const backfillHistory = withPgClient(async (client: PoolClient) => {
-    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) => input$.pipe(importChainHistoricalData(client, chain));
+    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) =>
+      input$.pipe(importChainHistoricalData(client, chain, forceCurrentBlockNumber));
 
     const pipeline$ = productList$(client, "beefy").pipe(
       // apply command filters
@@ -113,7 +121,8 @@ async function main() {
     // start polling live data immediately
     //await pollBeefyProducts();
     while (true) {
-      await backfillHistory();
+      //await backfillHistory();
+      await pollLiveData();
       await sleep(60_000);
     }
 
@@ -129,7 +138,7 @@ async function main() {
 
 runMain(main);
 
-function importChainHistoricalData(client: PoolClient, chain: Chain) {
+function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
@@ -173,6 +182,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
     addHistoricalBlockQuery$({
       client,
       chain,
+      forceCurrentBlockNumber,
       getImportStatus: (item) => item.importStatus,
       formatOutput: (item, blockQueries) => ({ ...item, blockQueries }),
     }),
@@ -244,13 +254,15 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
             }
           }
 
-          // merge the ranges to retry
+          // merge the ranges to retry to avoid duplicates
           newImportStatus.importData.data.blockRangesToRetry = rangeMerge(newImportStatus.importData.data.blockRangesToRetry);
 
+          const rangeResults = items.map((item) => ({ range: item.blockRange, success: item.success }));
           logger.trace({
             msg: "Updating import status",
             data: {
-              rangeResults: items.map((item) => ({ range: item.blockRange, success: item.success })),
+              successRanges: rangeMerge(rangeResults.filter((item) => item.success).map((item) => item.range)),
+              errorRanges: rangeMerge(rangeResults.filter((item) => !item.success).map((item) => item.range)),
               product: { productId, productKey },
               importStatus,
               newImportStatus,
@@ -277,7 +289,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
   );
 }
 
-function importChainRecentData(client: PoolClient, chain: Chain) {
+function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   const rpcUrl = sample(RPC_URLS[chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
 
@@ -309,6 +321,7 @@ function importChainRecentData(client: PoolClient, chain: Chain) {
     addLatestBlockQuery$({
       chain,
       provider,
+      forceCurrentBlockNumber,
       streamConfig: streamConfig,
       getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
       formatOutput: (item, blockRange) => ({ ...item, blockRange }),
