@@ -35,4 +35,13 @@ describe("bufferUntilKeyChanged", () => {
       [2, 2],
     ]);
   });
+
+  it("should not emit an empty buffer", async () => {
+    const pipeline$ = Rx.from([]).pipe(
+      bufferUntilKeyChanged((x) => `${x}`, 3),
+      Rx.toArray(),
+    );
+    const result = await consumeObservable(pipeline$);
+    expect(result).toEqual([]);
+  });
 });

@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { groupBy, zipWith } from "lodash";
+import { flatten, groupBy, zipWith } from "lodash";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
@@ -159,72 +159,66 @@ async function fetchERC20TransferEvents(
     const valueMultiplier = new Decimal(10).pow(-contractCall.decimals);
     const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
 
-    // we make 2 calls per "contract call", one for each side of the transfer
-    // this is because we can't filter by "from" and "to" at the same time
-    // consequently, callPromises will always be twice as long as contractCalls
-    const callPromises: Promise<ethers.Event[]>[] = [];
+    let fromPromise: Promise<ethers.Event[]>;
+    let toPromise: Promise<ethers.Event[]>;
 
     if (contractCall.trackAddress) {
       const fromFilter = contract.filters.Transfer(contractCall.trackAddress, null);
       const toFilter = contract.filters.Transfer(null, contractCall.trackAddress);
-      const fromPromise = contract.queryFilter(fromFilter, contractCall.fromBlock, contractCall.toBlock);
-      const toPromise = contract.queryFilter(toFilter, contractCall.fromBlock, contractCall.toBlock);
-      callPromises.push(fromPromise);
-      callPromises.push(toPromise);
+      fromPromise = contract.queryFilter(fromFilter, contractCall.fromBlock, contractCall.toBlock);
+      toPromise = contract.queryFilter(toFilter, contractCall.fromBlock, contractCall.toBlock);
     } else {
       const eventFilter = contract.filters.Transfer();
-      const callPromise = contract.queryFilter(eventFilter, contractCall.fromBlock, contractCall.toBlock);
-      callPromises.push(callPromise);
-      // make sure we have 2 promises to simplify matching code below
-      callPromises.push(Promise.resolve([]));
+      fromPromise = contract.queryFilter(eventFilter, contractCall.fromBlock, contractCall.toBlock);
+      toPromise = Promise.resolve([]);
     }
-    // map raw events to TransferEvents
-    for (let callPromise of callPromises) {
-      const mappedCallPromise = callPromise.then((events) =>
-        events.map(
-          (event): TransferEvent => ({
-            transactionHash: event.transactionHash,
-            from: event.args?.from,
-            to: event.args?.to,
-            value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
-            blockNumber: event.blockNumber,
-            logIndex: event.logIndex,
-          }),
+
+    // apply decimals and format the events
+    eventsPromises.push(
+      Promise.all([fromPromise, toPromise])
+        .then(([from, to]) => from.concat(to))
+        .then((events) =>
+          events.map(
+            (event): TransferEvent => ({
+              transactionHash: event.transactionHash,
+              from: event.args?.from,
+              to: event.args?.to,
+              value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
+              blockNumber: event.blockNumber,
+              logIndex: event.logIndex,
+            }),
+          ),
         ),
-      );
-      eventsPromises.push(mappedCallPromise);
-    }
+    );
   }
   const eventsRes = await Promise.all(eventsPromises);
 
-  return contractCalls.map((contractCall, i) => {
-    const fromEvents = eventsRes[i];
-    const toEvents = eventsRes[i + 1];
-    const fromTransfers = fromEvents.map(
-      (event): ERC20Transfer => ({
-        chain: chain,
-        tokenAddress: contractCall.address,
-        tokenDecimals: contractCall.decimals,
-        ownerAddress: event.from,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-        amountTransfered: event.value.negated(),
-        logIndex: event.logIndex,
-      }),
+  return zipWith(contractCalls, eventsRes, (contractCall, events) => {
+    // we have "from-to" transfers, we need to split them into "from" and "to" transfers
+    const allTransfers = flatten(
+      events.map((event): ERC20Transfer[] => [
+        {
+          chain: chain,
+          tokenAddress: contractCall.address,
+          tokenDecimals: contractCall.decimals,
+          ownerAddress: event.from,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          amountTransfered: event.value.negated(),
+          logIndex: event.logIndex,
+        },
+        {
+          chain: chain,
+          tokenAddress: contractCall.address,
+          tokenDecimals: contractCall.decimals,
+          ownerAddress: event.to,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          amountTransfered: event.value,
+          logIndex: event.logIndex,
+        },
+      ]),
     );
-    const toTransfers = toEvents.map(
-      (event): ERC20Transfer => ({
-        chain: chain,
-        tokenAddress: contractCall.address,
-        tokenDecimals: contractCall.decimals,
-        ownerAddress: event.to,
-        blockNumber: event.blockNumber,
-        transactionHash: event.transactionHash,
-        amountTransfered: event.value,
-        logIndex: event.logIndex,
-      }),
-    );
-    const allTransfers: ERC20Transfer[] = [...fromTransfers, ...toTransfers];
 
     // there could be incoming and outgoing transfers in the same block for the same user
     // we want to merge those into a single transfer
@@ -242,6 +236,18 @@ async function fetchERC20TransferEvents(
 
       return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
     });
+
+    // sanity check
+    if (process.env.NODE_ENV === "development") {
+      for (const transfer of transfers) {
+        if (transfer.blockNumber < contractCall.fromBlock || transfer.blockNumber > contractCall.toBlock) {
+          throw new ProgrammerError({
+            msg: "Invalid block number",
+            data: { transfer, contractCall },
+          });
+        }
+      }
+    }
 
     return transfers;
   });

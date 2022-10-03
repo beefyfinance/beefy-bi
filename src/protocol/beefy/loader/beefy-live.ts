@@ -121,8 +121,8 @@ async function main() {
     // start polling live data immediately
     //await pollBeefyProducts();
     while (true) {
-      //await backfillHistory();
-      await pollLiveData();
+      await backfillHistory();
+      //await pollLiveData();
       await sleep(60_000);
     }
 
@@ -354,6 +354,36 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
 function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; streamConfig: BatchStreamConfig }) {
   const rpcUrl = sample(RPC_URLS[options.chain]) as string;
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+  /*
+  provider.on(
+    "debug",
+    (
+      event:
+        | { action: "request"; request: any }
+        | {
+            action: "requestBatch";
+            request: any;
+          }
+        | {
+            action: "response";
+            request: any;
+            response: any;
+          }
+        | {
+            action: "response";
+            error: any;
+            request: any;
+          },
+    ) => {
+      if (event.action === "request") {
+        logger.trace({ msg: "RPC request", data: { request: event.request } });
+      } else if (event.action === "response" && "response" in event) {
+        logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response } });
+      } else if (event.action === "response" && "error" in event) {
+        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error } });
+      }
+    },
+  );*/
 
   const boostTransfers$ = Rx.pipe(
     // set the right product type
@@ -517,6 +547,18 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
           msg: "Got transfers for product",
           data: { productId: item.product.productId, blockRange: item.blockRange, transferCount: item.transfers.length },
         });
+
+        // add some verification about the transfers
+        if (process.env.NODE_ENV === "development") {
+          for (const transfer of item.transfers) {
+            if (transfer.blockNumber < item.blockRange.from || transfer.blockNumber > item.blockRange.to) {
+              logger.error({
+                msg: "Transfer out of requested block range",
+                data: { productId: item.product.productId, blockRange: item.blockRange, transferBlock: transfer.blockNumber, transfer },
+              });
+            }
+          }
+        }
       }
     }),
 

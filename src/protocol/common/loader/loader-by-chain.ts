@@ -40,6 +40,13 @@ export function loaderByChain$<TInput extends { chain: Chain }, TOutput>(
         Rx.toArray(),
         Rx.mergeMap((products) => processor(Rx.from(products))),
 
+        // catch errors to avoid crashing when one chain fails
+        Rx.catchError((err) => {
+          logger.error({ msg: "Error processing chain", data: { chain: chainProducts$.key, err } });
+          logger.error(err);
+          return Rx.EMPTY;
+        }),
+
         Rx.finalize(() => {
           const stop = new Date();
           const start = importStates[chainProducts$.key].start;

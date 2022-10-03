@@ -4,15 +4,23 @@ export function bufferUntilKeyChanged<TObj>(getKey: (obj: TObj) => string, maxBu
   let previousKey: string | null = null;
   let objBuffer = [] as TObj[];
 
+  function flushBuffer(newBuffer: TObj[], newKey: string) {
+    const buffer = objBuffer;
+    objBuffer = newBuffer;
+    previousKey = newKey;
+    if (buffer.length === 0) {
+      return Rx.EMPTY;
+    } else {
+      return Rx.of(() => buffer);
+    }
+  }
+
   return Rx.pipe(
     Rx.mergeMap((obj) => {
       const key = getKey(obj);
 
       if (maxBufferSize !== undefined && objBuffer.length >= maxBufferSize) {
-        const buffer = objBuffer;
-        objBuffer = [obj];
-        previousKey = key;
-        return Rx.of(() => buffer);
+        return flushBuffer([obj], key);
       }
 
       if (previousKey === null) {
@@ -23,14 +31,12 @@ export function bufferUntilKeyChanged<TObj>(getKey: (obj: TObj) => string, maxBu
         objBuffer.push(obj);
         return Rx.EMPTY;
       } else {
-        const buffer = objBuffer;
-        objBuffer = [obj];
-        previousKey = key;
-        return Rx.of(() => buffer);
+        return flushBuffer([obj], key);
       }
     }),
 
     Rx.endWith(() => objBuffer),
+    Rx.filter((fn) => fn().length > 0),
 
     Rx.map((fn) => fn()),
   );
