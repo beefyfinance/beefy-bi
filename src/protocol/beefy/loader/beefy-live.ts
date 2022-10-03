@@ -204,7 +204,8 @@ function importChainHistoricalData(client: PoolClient, chain: Chain) {
 
     Rx.pipe(
       // merge the statuses ranges together to call updateImportStatus less often
-      bufferUntilKeyChanged((item) => `${item.product.productId}`),
+      // but flush often enough so we don't go too long before updating the status
+      bufferUntilKeyChanged((item) => `${item.product.productId}`, streamConfig.maxInputTake),
 
       // update the import status with the new block range
       updateImportStatus({

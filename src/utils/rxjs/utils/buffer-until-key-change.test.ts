@@ -20,4 +20,19 @@ describe("bufferUntilKeyChanged", () => {
     const result = await consumeObservable(pipeline$);
     expect(result).toEqual([[1, 1, 1]]);
   });
+
+  it("should allow for a max buffer size to be set", async () => {
+    const pipeline$ = Rx.from([1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]).pipe(
+      bufferUntilKeyChanged((x) => `${x}`, 3),
+      Rx.toArray(),
+    );
+    const result = await consumeObservable(pipeline$);
+    expect(result).toEqual([
+      [1, 1, 1],
+      [1, 1, 1],
+      [1, 1],
+      [2, 2, 2],
+      [2, 2],
+    ]);
+  });
 });
