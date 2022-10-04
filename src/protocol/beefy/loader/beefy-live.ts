@@ -34,6 +34,7 @@ import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../utils/type-guard";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { bufferUntilBelowMachineThresholds } from "../../../utils/rxjs/utils/buffer-until-below-machine-threshold";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -110,6 +111,14 @@ async function main() {
             ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
             : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
       ),
+
+      // some backpressure mechanism
+      bufferUntilBelowMachineThresholds({
+        checkIntervalMs: 1000,
+        cpuSamplingIntervalMs: 200,
+        maxCpuThresholdPercent: 70,
+        maxMemoryThresholdMb: 500,
+      }),
 
       // load  historical data
       loaderByChain$(process),

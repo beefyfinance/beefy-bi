@@ -193,6 +193,14 @@ async function fetchERC20TransferEvents(
   }
   const eventsRes = await Promise.all(eventsPromises);
 
+  const eventCount = eventsRes.reduce((acc, events) => acc + events.length, 0);
+  if (eventCount > 0) {
+    logger.trace({
+      msg: "Got transfer events",
+      data: { chain, contractCalls: contractCalls.length, eventCount },
+    });
+  }
+
   return zipWith(contractCalls, eventsRes, (contractCall, events) => {
     // we have "from-to" transfers, we need to split them into "from" and "to" transfers
     const allTransfers = flatten(
