@@ -2,7 +2,7 @@ import { Chain } from "../../../types/chain";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { ethers } from "ethers";
 import axios from "axios";
-import { flatten, sortBy } from "lodash";
+import { sortBy } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
@@ -10,6 +10,7 @@ import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-
 import Decimal from "decimal.js";
 import { DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
+import { getRpcRetryConfig } from "../../common/utils/rpc-retry-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -33,30 +34,18 @@ export function fetchBeefyPPFS$<
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
+  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.chain } };
   return batchRpcCalls$({
-    streamConfig: options.streamConfig,
-    // we want to make a query for all requested block numbers of this contract
-    getQueryForBatch: (objs: TObj[]): TParams => {
-      const params = objs.map(options.getPPFSCallParams);
-      return { ...params[0], blockNumbers: flatten(params.map((p) => p.blockNumbers)) };
-    },
-    // group by vault address
-    processBatchKey: (obj: TObj) => {
-      const params = options.getPPFSCallParams(obj);
-      return params.vaultAddress.toLocaleLowerCase();
-    },
-    // do the actual processing
-    processBatch: async (params: TParams[]) => {
-      const results = await fetchBeefyVaultShareRate(options.provider, options.chain, params);
-      return results;
-    },
+    logInfos,
     emitErrors: options.emitErrors,
-    logInfos: { msg: "Fetching beefy ppfs" },
+    streamConfig: options.streamConfig,
+    getQuery: options.getPPFSCallParams,
+    processBatch: (params) => fetchBeefyVaultPPFS(options.provider, options.chain, params),
     formatOutput: options.formatOutput,
   });
 }
 
-export async function fetchBeefyVaultShareRate(
+export async function fetchBeefyVaultPPFS(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: BeefyPPFSCallParams[],

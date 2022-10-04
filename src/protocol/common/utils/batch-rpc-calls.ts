@@ -22,18 +22,6 @@ export interface BatchStreamConfig {
   maxTotalRetryMs: number;
 }
 
-/**
- * Tool to make batch rpc calls
- * We work on ProductImportQuery<> items to be able to treat errors properly
- *
- * What it does:
- *   - take some amount of input objects
- *   - make groups of calls from the batch
- *   - make a call to processBatch for each group
- *   - retry errors
- *   - send true errors to the error pipeline
- *
- */
 export function batchRpcCalls$<
   TProduct extends DbProduct,
   TInputObj extends ProductImportQuery<TProduct>,
@@ -41,66 +29,46 @@ export function batchRpcCalls$<
   TResp,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  streamConfig: BatchStreamConfig;
-  getQueryForBatch: (obj: TInputObj[]) => TQueryObj;
-  processBatchKey?: (obj: TInputObj) => string | number;
+  getQuery: (obj: TInputObj) => TQueryObj;
   processBatch: (queryObjs: TQueryObj[]) => Promise<TResp[]>;
   // errors
+  streamConfig: BatchStreamConfig;
   emitErrors: ErrorEmitter;
   logInfos: { msg: string; data?: Record<string, unknown> };
   // output
   formatOutput: (objs: TInputObj, results: TResp) => TRes;
-}): Rx.OperatorFunction<TInputObj, TRes> {
+}) {
   const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.streamConfig.maxTotalRetryMs });
 
   return Rx.pipe(
     // take a batch of items
-    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
+    Rx.bufferTime<TInputObj>(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
 
-    Rx.concatMap((objs) => {
-      const pipeline$ = Rx.from(objs)
-        // extract query objects by key
-        .pipe(
-          Rx.groupBy(options.processBatchKey ? options.processBatchKey : () => ""),
-          Rx.mergeMap((group$) => group$.pipe(Rx.toArray())),
-          Rx.map((objs) => ({ query: options.getQueryForBatch(objs), objs })),
-          Rx.toArray(),
-        )
-        // make a batch query for eatch key
-        .pipe(
-          Rx.mergeMap(async (queries) => {
-            let results: TResp[];
-            try {
-              results = await backOff(() => options.processBatch(queries.map((q) => q.query)), retryConfig);
-            } catch (err) {
-              // here, none of the retrying worked, so we emit all the objects as in error
-              logger.error({ msg: "Error in batch query", err });
-              logger.error(err);
-              const errorObjs = flatten(queries.map((q) => q.objs));
-              for (const errorObj of errorObjs) {
-                options.emitErrors(errorObj);
-              }
-              return Rx.EMPTY;
-            }
+    // for each batch, fetch the transfers
+    Rx.mergeMap(async (objs: TInputObj[]) => {
+      const contractCalls = objs.map((obj) => options.getQuery(obj));
 
-            // assuming the process function returns the results in the same order as the input
-            if (results.length !== queries.length) {
-              throw new ProgrammerError({ msg: "Query and result length mismatch", queries, results });
-            }
-            return zipWith(queries, results, (q, r) => ({ ...q, result: r }));
-          }, options.streamConfig.workConcurrency),
-          Rx.mergeAll(),
-        )
-        // re-emit all input objects with the corresponding result
-        .pipe(
-          Rx.map((resp) => resp.objs.map((obj) => options.formatOutput(obj, resp.result))),
-          Rx.mergeAll(),
-          Rx.toArray(),
-        );
-      return pipeline$;
-    }),
+      try {
+        const responses = await backOff(() => options.processBatch(contractCalls), retryConfig);
+        if (responses.length !== objs.length) {
+          throw new ProgrammerError({
+            msg: "Query and result length mismatch",
+            data: { contractCallsCount: contractCalls.length, responsesLength: responses.length },
+          });
+        }
+        return zipWith(objs, responses, options.formatOutput);
+      } catch (err) {
+        // here, none of the retrying worked, so we emit all the objects as in error
+        logger.error({ msg: "Error doing batch rpc work: " + options.logInfos.msg, err });
+        logger.error(err);
+        for (const obj of objs) {
+          options.emitErrors(obj);
+        }
+        return Rx.EMPTY;
+      }
+    }, options.streamConfig.workConcurrency),
 
-    // flatten the results
-    Rx.concatMap((objBatch) => Rx.from(objBatch)),
+    // flatten
+    Rx.mergeAll(),
   );
 }

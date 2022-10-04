@@ -82,7 +82,7 @@ export function fetchErc20Transfers$<
         }
         return Rx.EMPTY;
       }
-    }),
+    }, options.streamConfig.workConcurrency),
 
     // flatten
     Rx.mergeAll(),

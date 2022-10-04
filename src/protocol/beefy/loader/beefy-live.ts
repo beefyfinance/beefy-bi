@@ -123,7 +123,7 @@ async function main() {
     while (true) {
       await backfillHistory();
       //await pollLiveData();
-      await sleep(60_000);
+      await sleep(5_000);
     }
 
     //await pollLiveData();
@@ -139,12 +139,17 @@ async function main() {
 runMain(main);
 
 function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
-  const provider = new ethers.providers.JsonRpcBatchProvider(sample(RPC_URLS[chain]));
+  const provider = new ethers.providers.JsonRpcProvider({
+    url: sample(RPC_URLS[chain]) as string,
+    // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
+    timeout: 30_000,
+  });
+
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
     workConcurrency: 1,
     // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxInputWaitMs: 30_000,
+    maxInputWaitMs: 5 * 60 * 1000,
     maxInputTake: 500,
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
@@ -182,7 +187,9 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
     addHistoricalBlockQuery$({
       client,
       chain,
+      provider,
       forceCurrentBlockNumber,
+      streamConfig,
       getImportStatus: (item) => item.importStatus,
       formatOutput: (item, blockQueries) => ({ ...item, blockQueries }),
     }),
@@ -200,6 +207,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
       client,
       chain,
       streamConfig,
+      provider,
       emitErrors: emitErrors,
     }),
 
@@ -280,7 +288,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
       // logging
       Rx.tap((item) => {
         if (!item.success) {
-          logger.error({ msg: "Failed to import historical data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+          logger.trace({ msg: "Failed to import historical data", data: { productId: item.product.productData, blockRange: item.blockRange } });
         }
       }),
 
@@ -290,8 +298,11 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
 }
 
 function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
-  const rpcUrl = sample(RPC_URLS[chain]) as string;
-  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+  const provider = new ethers.providers.JsonRpcProvider({
+    url: sample(RPC_URLS[chain]) as string,
+    // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
+    timeout: 10_000,
+  });
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing live data on a small amount of queries (one per vault)
@@ -328,7 +339,7 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
     }),
 
     // process the queries
-    fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, emitErrors }),
+    fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, provider, emitErrors }),
 
     // merge the errors back in, all items here should have been successfully treated
     Rx.pipe(
@@ -351,9 +362,13 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
   );
 }
 
-function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: Chain; emitErrors: ErrorEmitter; streamConfig: BatchStreamConfig }) {
-  const rpcUrl = sample(RPC_URLS[options.chain]) as string;
-  const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+function fetchAndInsertBeefyProductRange$(options: {
+  client: PoolClient;
+  provider: ethers.providers.JsonRpcProvider;
+  chain: Chain;
+  emitErrors: ErrorEmitter;
+  streamConfig: BatchStreamConfig;
+}) {
   /*
   provider.on(
     "debug",
@@ -391,7 +406,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
 
     // fetch latest transfers from and to the boost contract
     fetchERC20TransferToAStakingContract$({
-      provider: provider,
+      provider: options.provider,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -410,7 +425,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
 
     // then we need the vault ppfs to interpret the balance
     fetchBeefyPPFS$({
-      provider,
+      provider: options.provider,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
@@ -442,7 +457,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
 
     // fetch the vault transfers
     fetchErc20Transfers$({
-      provider,
+      provider: options.provider,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -458,7 +473,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
 
     // fetch the ppfs
     fetchBeefyPPFS$({
-      provider,
+      provider: options.provider,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
@@ -489,7 +504,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
     })),
 
     fetchERC20TransferToAStakingContract$({
-      provider,
+      provider: options.provider,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -518,7 +533,7 @@ function fetchAndInsertBeefyProductRange$(options: { client: PoolClient; chain: 
     client: options.client,
     streamConfig: options.streamConfig,
     emitErrors: options.emitErrors,
-    provider,
+    provider: options.provider,
   });
 
   return Rx.pipe(
@@ -653,60 +668,62 @@ function loadBeefyProducts(client: PoolClient) {
       // work by chain
       Rx.groupBy((vaultData) => vaultData.chain),
 
-      Rx.mergeMap((vaultsByChain$) =>
-        vaultsByChain$.pipe(
-          // index by vault id so we can quickly ingest boosts
-          keyBy$((vaultData) => normalizeVaultId(vaultData.vault.id)),
-          Rx.map((chainVaults) => ({
-            chainVaults,
-            vaultByVaultId: Object.entries(chainVaults).reduce(
-              (acc, [vaultId, vaultData]) => Object.assign(acc, { [vaultId]: vaultData.vault }),
-              {} as Record<string, BeefyVault>,
-            ),
-            chain: vaultsByChain$.key,
-          })),
+      Rx.mergeMap(
+        (vaultsByChain$) =>
+          vaultsByChain$.pipe(
+            // index by vault id so we can quickly ingest boosts
+            keyBy$((vaultData) => normalizeVaultId(vaultData.vault.id)),
+            Rx.map((chainVaults) => ({
+              chainVaults,
+              vaultByVaultId: Object.entries(chainVaults).reduce(
+                (acc, [vaultId, vaultData]) => Object.assign(acc, { [vaultId]: vaultData.vault }),
+                {} as Record<string, BeefyVault>,
+              ),
+              chain: vaultsByChain$.key,
+            })),
 
-          // fetch the boosts from git
-          Rx.mergeMap(async (chainData) => {
-            const chainBoosts =
-              (await consumeObservable(beefyBoostsFromGitHistory$(chainData.chain, chainData.vaultByVaultId).pipe(Rx.toArray()))) || [];
+            // fetch the boosts from git
+            Rx.mergeMap(async (chainData) => {
+              const chainBoosts =
+                (await consumeObservable(beefyBoostsFromGitHistory$(chainData.chain, chainData.vaultByVaultId).pipe(Rx.toArray()))) || [];
 
-            // create an object where we can add attributes to safely
-            const boostsData = chainBoosts.map((boost) => {
-              const vaultId = normalizeVaultId(boost.vault_id);
-              if (!chainData.chainVaults[vaultId]) {
-                logger.trace({
-                  msg: "vault found with id",
-                  data: { vaultId, chainVaults: chainData.chainVaults },
-                });
-                throw new Error(`no price feed id for vault id ${vaultId}`);
-              }
-              return {
-                boost,
-                priceFeedId: chainData.chainVaults[vaultId].priceFeed.priceFeedId,
-              };
-            });
-            return boostsData;
-          }, 1 /* concurrency */),
-          Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
+              // create an object where we can add attributes to safely
+              const boostsData = chainBoosts.map((boost) => {
+                const vaultId = normalizeVaultId(boost.vault_id);
+                if (!chainData.chainVaults[vaultId]) {
+                  logger.trace({
+                    msg: "vault found with id",
+                    data: { vaultId, chainVaults: chainData.chainVaults },
+                  });
+                  throw new Error(`no price feed id for vault id ${vaultId}`);
+                }
+                return {
+                  boost,
+                  priceFeedId: chainData.chainVaults[vaultId].priceFeed.priceFeedId,
+                };
+              });
+              return boostsData;
+            }, 1 /* concurrency */),
+            Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
 
-          // insert the boost as a new product
-          upsertProduct$({
-            client,
-            getProductData: (boostData) => {
-              return {
-                productKey: `beefy:boost:${boostData.boost.chain}:${boostData.boost.id}`,
-                priceFeedId: boostData.priceFeedId,
-                chain: boostData.boost.chain,
-                productData: {
-                  type: "beefy:boost",
-                  boost: boostData.boost,
-                },
-              };
-            },
-            formatOutput: (boostData, product) => ({ ...boostData, product }),
-          }),
-        ),
+            // insert the boost as a new product
+            upsertProduct$({
+              client,
+              getProductData: (boostData) => {
+                return {
+                  productKey: `beefy:boost:${boostData.boost.chain}:${boostData.boost.id}`,
+                  priceFeedId: boostData.priceFeedId,
+                  chain: boostData.boost.chain,
+                  productData: {
+                    type: "beefy:boost",
+                    boost: boostData.boost,
+                  },
+                };
+              },
+              formatOutput: (boostData, product) => ({ ...boostData, product }),
+            }),
+          ),
+        1 /* concurrency */,
       ),
 
       Rx.tap({

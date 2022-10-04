@@ -23,6 +23,18 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
   getCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: ContractCreationInfos | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
+  const getCreationBlock$ = Rx.mergeMap(async (obj: TObj) => {
+    const param = options.getCallParams(obj);
+    try {
+      const result = await getContractCreationBlock(param.contractAddress, param.chain);
+      return options.formatOutput(obj, result);
+    } catch (error) {
+      logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
+      logger.error(error);
+      return options.formatOutput(obj, null);
+    }
+  }, 1 /* concurrency */);
+
   return Rx.pipe(
     Rx.groupBy((obj) => options.getCallParams(obj).chain),
     Rx.map((chainObjs$) =>
@@ -30,17 +42,7 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
         // make sure we don't hit the rate limit of the exploreres
         rateLimit$(10000),
 
-        Rx.mergeMap(async (obj) => {
-          const param = options.getCallParams(obj);
-          try {
-            const result = await getContractCreationBlock(param.contractAddress, chainObjs$.key);
-            return options.formatOutput(obj, result);
-          } catch (error) {
-            logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
-            logger.error(error);
-            return options.formatOutput(obj, null);
-          }
-        }, 1 /* concurrency */),
+        getCreationBlock$,
       ),
     ),
     Rx.mergeAll(),

@@ -18,24 +18,13 @@ export function fetchBlockDatetime$<
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
     streamConfig: options.streamConfig,
-    processBatchKey: (obj: TObj) => {
-      return options.getBlockNumber(obj) + "";
-    },
-    getQueryForBatch: (obj: TObj[]) => options.getBlockNumber(obj[0]),
-    // do the actual processing
+    getQuery: options.getBlockNumber,
     processBatch: async (params: TParams[]) => {
-      const promises: Promise<ethers.providers.Block>[] = [];
-
-      for (const param of params) {
-        const prom = options.provider.getBlock(param);
-        promises.push(prom);
-      }
-
-      const blocks = await Promise.all(promises);
-      return blocks.map((block) => new Date(block.timestamp * 1000));
+      const promises = params.map((blockNumber) => options.provider.getBlock(blockNumber));
+      return Promise.all(promises).then((blocks) => blocks.map((block) => new Date(block.timestamp * 1000)));
     },
-    logInfos: { msg: "mapping block datetimes" },
-    emitErrors: options.emitErrors,
     formatOutput: options.formatOutput,
+    emitErrors: options.emitErrors,
+    logInfos: { msg: "Fetching block datetime", data: {} },
   });
 }

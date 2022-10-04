@@ -16,7 +16,9 @@ const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
 
 function latestBlockNumber$<TObj, TRes>(options: {
   getChain: (obj: TObj) => Chain;
+  provider: ethers.providers.JsonRpcProvider;
   forceCurrentBlockNumber: number | null;
+  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const retryConfig = getRpcRetryConfig({ maxTotalRetryMs: 5_000, logInfos: { msg: "Fetching block number" } });
@@ -28,11 +30,10 @@ function latestBlockNumber$<TObj, TRes>(options: {
     const cacheKey = chain;
     let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
     if (latestBlockNumber === undefined) {
-      const provider = new ethers.providers.JsonRpcProvider(sample(RPC_URLS[chain]));
-      latestBlockNumber = await backOff(() => provider.getBlockNumber(), retryConfig);
+      latestBlockNumber = await backOff(() => options.provider.getBlockNumber(), retryConfig);
     }
     return options.formatOutput(obj, latestBlockNumber);
-  });
+  }, options.streamConfig.workConcurrency);
 }
 
 /**
@@ -54,6 +55,8 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
     latestBlockNumber$({
       getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
+      provider: options.provider,
+      streamConfig: options.streamConfig,
       formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
 
@@ -80,7 +83,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
           to: toBlock - waitForBlockPropagation,
         }),
       );
-    }),
+    }, options.streamConfig.workConcurrency),
   );
 }
 
@@ -88,6 +91,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   client: PoolClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
+  provider: ethers.providers.JsonRpcProvider;
+  streamConfig: BatchStreamConfig;
   getImportStatus: (obj: TObj) => DbImportStatus;
   formatOutput: (obj: TObj, historicalBlockQueries: Range[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
@@ -96,6 +101,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
     latestBlockNumber$({
       getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
+      streamConfig: options.streamConfig,
+      provider: options.provider,
       formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
     }),
 
@@ -129,8 +136,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       }
 
       // limit the amount of queries
-      if (ranges.length > 500) {
-        ranges = ranges.slice(0, 500);
+      if (ranges.length > 1000) {
+        ranges = ranges.slice(0, 1000);
       }
 
       return options.formatOutput(item.obj, ranges);

@@ -29,14 +29,10 @@ export function fetchERC20TokenBalance$<
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
     streamConfig: options.streamConfig,
-    // there should be only one query for each group since we batch by owner and contract address
-    getQueryForBatch: (obj: TObj[]) => options.getQueryParams(obj[0]),
-    // we process all transfers by individual user
-    processBatchKey: (param: TObj) => {
-      const { contractAddress, ownerAddress, blockNumber } = options.getQueryParams(param);
-      return `${contractAddress}-${ownerAddress}-${blockNumber}`;
-    },
-    // do the actual processing
+    logInfos: { msg: "Fetching ERC20 token balance", data: {} },
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getQuery: options.getQueryParams,
     processBatch: async (params: TParams[]) => {
       const balancePromises: Promise<Decimal>[] = [];
       for (const param of params) {
@@ -56,8 +52,5 @@ export function fetchERC20TokenBalance$<
       }
       return Promise.all(balancePromises);
     },
-    emitErrors: options.emitErrors,
-    logInfos: { msg: "Fetching ERC20 token balances" },
-    formatOutput: options.formatOutput,
   });
 }
