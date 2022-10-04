@@ -115,8 +115,6 @@ async function main() {
       // some backpressure mechanism
       bufferUntilBelowMachineThresholds({
         checkIntervalMs: 1000,
-        cpuSamplingIntervalMs: 200,
-        maxCpuThresholdPercent: 70,
         maxMemoryThresholdMb: 500,
       }),
 
