@@ -136,8 +136,8 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       }
 
       // limit the amount of queries
-      if (ranges.length > 1000) {
-        ranges = ranges.slice(0, 1000);
+      if (ranges.length > 300) {
+        ranges = ranges.slice(0, 300);
       }
 
       return options.formatOutput(item.obj, ranges);

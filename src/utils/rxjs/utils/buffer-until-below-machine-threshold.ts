@@ -4,7 +4,13 @@ import { ProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "buffer-until-below-machine-threshold" });
 
-export function bufferUntilBelowMachineThresholds<TObj>(options: { maxMemoryThresholdMb: number; checkIntervalMs: number }) {
+export function bufferUntilBelowMachineThresholds<TObj>(options: {
+  sendInitialBurstOf: number; // ramp up to speed quickly by sending a large burst
+  checkIntervalMs: number; // then every X ms
+  checkIntervalJitterMs: number; // add a bit of jitter to the check interval
+  maxMemoryThresholdMb: number; // check memory usage
+  sendByBurstOf: number; // and send a burst to be processed if memory is below threshold
+}) {
   if (options.maxMemoryThresholdMb < 0) {
     throw new ProgrammerError("maxMemoryThresholdMb must be positive");
   }
@@ -16,13 +22,18 @@ export function bufferUntilBelowMachineThresholds<TObj>(options: { maxMemoryThre
     const logData = {
       memory: { memoryRss, memoryMb },
       options,
+      queueSize: objQueue.length,
     };
 
     if (memoryMb < options.maxMemoryThresholdMb) {
-      logger.trace({ msg: "Sending in buffered item", data: logData });
+      if (objQueue.length > 0) {
+        logger.trace({ msg: "Sending in buffered item", data: logData });
+      }
       return true;
     }
-    logger.trace({ msg: "Buffering until below machine thresholds", data: logData });
+    if (objQueue.length > 0) {
+      logger.trace({ msg: "Buffering until below machine thresholds", data: logData });
+    }
     return false;
   }
 
@@ -38,8 +49,13 @@ export function bufferUntilBelowMachineThresholds<TObj>(options: { maxMemoryThre
 
       // check if we are below threshold
       if (isBelowThreshold()) {
-        const obj = objQueue.shift()!;
-        subscriber.next(() => Rx.of(obj));
+        for (let i = 0; i < options.sendByBurstOf; i++) {
+          const obj = objQueue.shift();
+          if (obj === undefined) {
+            break;
+          }
+          subscriber.next(() => Rx.of(obj));
+        }
       }
 
       // close if we are done
@@ -48,12 +64,26 @@ export function bufferUntilBelowMachineThresholds<TObj>(options: { maxMemoryThre
         clearInterval(poller);
         subscriber.complete();
       }
-    }, options.checkIntervalMs);
+    }, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
   });
+
+  let remainingInitialBurst = options.sendInitialBurstOf;
 
   return Rx.pipe(
     // queue up items as they come in
     Rx.map((obj: TObj) => {
+      if (remainingInitialBurst > 0) {
+        // except if we already crossed the line
+        if (!isBelowThreshold()) {
+          logger.trace({ msg: "Threshold crossed while sending initial burst of items", data: { remainingInitialBurst } });
+          remainingInitialBurst = 0;
+          objQueue.push(obj);
+          return () => Rx.EMPTY;
+        }
+        remainingInitialBurst--;
+        logger.trace({ msg: "Sending initial burst of items", data: { remainingInitialBurst } });
+        return () => Rx.of(obj);
+      }
       objQueue.push(obj);
       return () => Rx.EMPTY as Rx.Observable<TObj>;
     }),

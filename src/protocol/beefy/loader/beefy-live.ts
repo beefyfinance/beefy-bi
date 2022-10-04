@@ -7,7 +7,7 @@ import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { ethers } from "ethers";
 import { cloneDeep, sample } from "lodash";
-import { RPC_URLS } from "../../../utils/config";
+import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB, RPC_URLS } from "../../../utils/config";
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../common/connector/erc20-transfers";
 import { fetchBeefyPrices } from "../connector/prices";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
@@ -112,12 +112,6 @@ async function main() {
             : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
       ),
 
-      // some backpressure mechanism
-      bufferUntilBelowMachineThresholds({
-        checkIntervalMs: 1000,
-        maxMemoryThresholdMb: 500,
-      }),
-
       // load  historical data
       loaderByChain$(process),
     );
@@ -190,23 +184,46 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
       }),
     }),
 
-    // generate the block ranges to import
-    addHistoricalBlockQuery$({
-      client,
-      chain,
-      provider,
-      forceCurrentBlockNumber,
-      streamConfig,
-      getImportStatus: (item) => item.importStatus,
-      formatOutput: (item, blockQueries) => ({ ...item, blockQueries }),
-    }),
+    // add a point of convergence se we know we loaded all creation dates
+    // we do this to make sure we are able to handle backpressure using memory thresholds
+    /*Rx.pipe(
+      Rx.toArray(),
+      Rx.tap((items) => logger.info({ msg: "All import status created, processing starts NOW", data: { chain, count: items.length } })),
+      Rx.concatAll(),
+    ),*/
 
-    // convert to stream of product queries
-    Rx.concatMap((item) =>
-      item.blockQueries.map((blockRange): ProductImportQuery<DbBeefyProduct> => {
-        const { blockQueries, ...rest } = item;
-        return { ...rest, blockRange };
+    Rx.pipe(
+      // generate the block ranges to import
+      addHistoricalBlockQuery$({
+        client,
+        chain,
+        provider,
+        forceCurrentBlockNumber,
+        streamConfig,
+        getImportStatus: (item) => item.importStatus,
+        formatOutput: (item, blockQueries) => ({ ...item, blockQueries }),
       }),
+
+      // convert to stream of product queries
+      Rx.concatMap((item) =>
+        item.blockQueries.map((blockRange): ProductImportQuery<DbBeefyProduct> => {
+          const { blockQueries, ...rest } = item;
+          return { ...rest, blockRange };
+        }),
+      ),
+    ),
+
+    // some backpressure mechanism
+    Rx.pipe(
+      bufferUntilBelowMachineThresholds({
+        sendInitialBurstOf: streamConfig.maxInputTake,
+        checkIntervalMs: BACKPRESSURE_CHECK_INTERVAL_MS,
+        checkIntervalJitterMs: 2000,
+        maxMemoryThresholdMb: BACKPRESSURE_MEMORY_THRESHOLD_MB,
+        sendByBurstOf: streamConfig.maxInputTake,
+      }),
+
+      Rx.tap((item) => logger.info({ msg: "processing product", data: { productId: item.product.productId, blockRange: item.blockRange } })),
     ),
 
     // process the queries
