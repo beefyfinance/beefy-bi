@@ -1,8 +1,8 @@
-import { ethers } from "ethers";
 import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { RpcConfig } from "../../../types/rpc-config";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
@@ -151,7 +151,7 @@ export function updateImportStatus<TObj, TRes>(options: {
 
 export function addMissingImportStatus<TProduct extends DbProduct>(options: {
   client: PoolClient;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   getContractAddress: (product: TProduct) => string;
   getInitialImportData: (product: TProduct, creationInfos: ContractCreationInfos) => DbImportStatus["importData"];
@@ -178,7 +178,7 @@ export function addMissingImportStatus<TProduct extends DbProduct>(options: {
 
         // find the contract creation block
         fetchContractCreationBlock$({
-          provider: options.provider,
+          rpcConfig: options.rpcConfig,
           getCallParams: (item) => ({
             chain: options.chain,
             contractAddress: options.getContractAddress(item.product),

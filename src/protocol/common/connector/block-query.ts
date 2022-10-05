@@ -1,4 +1,3 @@
-import { ethers } from "ethers";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
@@ -7,16 +6,19 @@ import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../
 import { DbImportStatus } from "../loader/import-status";
 import NodeCache from "node-cache";
 import { Range, rangeExclude, rangeSlitToMaxLength } from "../../../utils/range";
-import { sample } from "lodash";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { backOff } from "exponential-backoff";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
+import { RpcConfig } from "../../../types/rpc-config";
+import { rootLogger } from "../../../utils/logger";
+
+const logger = rootLogger.child({ module: "common", component: "latest-block-number" });
 
 const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
 
 function latestBlockNumber$<TObj, TRes>(options: {
   getChain: (obj: TObj) => Chain;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
@@ -30,7 +32,9 @@ function latestBlockNumber$<TObj, TRes>(options: {
     const cacheKey = chain;
     let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
     if (latestBlockNumber === undefined) {
-      latestBlockNumber = await backOff(() => options.provider.getBlockNumber(), retryConfig);
+      logger.trace({ msg: "Latest block number not found in cache, fetching", data: { chain } });
+      latestBlockNumber = await backOff(() => options.rpcConfig.linearProvider.getBlockNumber(), retryConfig);
+      latestBlockCache.set(cacheKey, latestBlockNumber);
     }
     return options.formatOutput(obj, latestBlockNumber);
   }, options.streamConfig.workConcurrency);
@@ -42,7 +46,7 @@ function latestBlockNumber$<TObj, TRes>(options: {
  */
 export function addLatestBlockQuery$<TObj, TRes>(options: {
   chain: Chain;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
   streamConfig: BatchStreamConfig;
@@ -55,7 +59,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
     latestBlockNumber$({
       getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       streamConfig: options.streamConfig,
       formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
@@ -91,7 +95,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   client: PoolClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   streamConfig: BatchStreamConfig;
   getImportStatus: (obj: TObj) => DbImportStatus;
   formatOutput: (obj: TObj, historicalBlockQueries: Range[]) => TRes;
@@ -102,7 +106,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       streamConfig: options.streamConfig,
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
     }),
 

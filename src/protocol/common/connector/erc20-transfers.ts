@@ -5,12 +5,13 @@ import { rootLogger } from "../../../utils/logger";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, zipWith } from "lodash";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 import { backOff } from "exponential-backoff";
+import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -45,48 +46,29 @@ export function fetchErc20Transfers$<
   TObj extends ProductImportQuery<TProduct>,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  const logInfos = { msg: "Fetching ERC20 transfers", data: { chain: options.chain } };
-  const retryConfig = getRpcRetryConfig({ logInfos, maxTotalRetryMs: options.streamConfig.maxTotalRetryMs });
-
-  return Rx.pipe(
-    // take a batch of items
-    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
-
-    // for each batch, fetch the transfers
-    Rx.mergeMap(async (objs: TObj[]) => {
-      const contractCalls = objs.map((obj) => {
-        const params = options.getQueryParams(obj);
-        return {
-          ...params,
-          fromBlock: obj.blockRange.from,
-          toBlock: obj.blockRange.to,
-        };
-      });
-
-      try {
-        const transfers = await backOff(() => fetchERC20TransferEvents(options.provider, options.chain, contractCalls), retryConfig);
-        return zipWith(objs, transfers, options.formatOutput);
-      } catch (err) {
-        // here, none of the retrying worked, so we emit all the objects as in error
-        logger.error({ msg: "Error fetching ERC20 transfers", err });
-        logger.error(err);
-        for (const obj of objs) {
-          options.emitErrors(obj);
-        }
-        return Rx.EMPTY;
-      }
-    }, options.streamConfig.workConcurrency),
-
-    // flatten
-    Rx.mergeAll(),
-  );
+  return batchRpcCalls$({
+    streamConfig: options.streamConfig,
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.chain } },
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getQuery: (obj): GetTransferCallParams => {
+      const params = options.getQueryParams(obj);
+      return {
+        ...params,
+        fromBlock: obj.blockRange.from,
+        toBlock: obj.blockRange.to,
+      };
+    },
+    processBatch: (contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(options.rpcConfig.batchProvider, options.chain, contractCalls),
+    rpcConfig: options.rpcConfig,
+  });
 }
 
 // when hitting a staking contract we don't have a token in return
@@ -96,7 +78,7 @@ export function fetchERC20TransferToAStakingContract$<
   TObj extends ProductImportQuery<TProduct>,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
   emitErrors: ErrorEmitter;

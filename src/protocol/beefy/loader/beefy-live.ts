@@ -12,7 +12,7 @@ import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../
 import { fetchBeefyPrices } from "../connector/prices";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
 import Decimal from "decimal.js";
-import { normalizeAddress } from "../../../utils/ethers";
+import { addDebugLogsToProvider, normalizeAddress } from "../../../utils/ethers";
 import { priceFeedList$, upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, DbProduct, productList$, upsertProduct$ } from "../../common/loader/product";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
@@ -35,6 +35,7 @@ import { createObservableWithNext } from "../../../utils/rxjs/utils/create-obser
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../utils/type-guard";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { bufferUntilBelowMachineThresholds } from "../../../utils/rxjs/utils/buffer-until-below-machine-threshold";
+import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "import-script", component: "beefy-live" });
 
@@ -140,11 +141,24 @@ async function main() {
 runMain(main);
 
 function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
-  const provider = new ethers.providers.JsonRpcProvider({
+  const rpcOptions: ethers.utils.ConnectionInfo = {
     url: sample(RPC_URLS[chain]) as string,
     // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
     timeout: 30_000,
-  });
+  };
+  const rpcConfig: RpcConfig = {
+    chain,
+    linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
+    batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
+    /*
+     arbitrum: 
+      get_logs: 3
+      */
+    maxBatchProviderSize: 3,
+  };
+
+  addDebugLogsToProvider(rpcConfig.linearProvider);
+  addDebugLogsToProvider(rpcConfig.batchProvider);
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
@@ -168,7 +182,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
     addMissingImportStatus({
       client,
       chain,
-      provider,
+      rpcConfig,
       getContractAddress: (product) =>
         product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
       getInitialImportData: (_, contractCreationInfo) => ({
@@ -197,7 +211,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
       addHistoricalBlockQuery$({
         client,
         chain,
-        provider,
+        rpcConfig,
         forceCurrentBlockNumber,
         streamConfig,
         getImportStatus: (item) => item.importStatus,
@@ -231,7 +245,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
       client,
       chain,
       streamConfig,
-      provider,
+      rpcConfig,
       emitErrors: emitErrors,
     }),
 
@@ -322,11 +336,20 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
 }
 
 function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
-  const provider = new ethers.providers.JsonRpcProvider({
+  const rpcOptions: ethers.utils.ConnectionInfo = {
     url: sample(RPC_URLS[chain]) as string,
     // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
-    timeout: 10_000,
-  });
+    timeout: 30_000,
+  };
+  const rpcConfig: RpcConfig = {
+    chain,
+    linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
+    batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
+    maxBatchProviderSize: 20,
+  };
+
+  addDebugLogsToProvider(rpcConfig.linearProvider);
+  addDebugLogsToProvider(rpcConfig.batchProvider);
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing live data on a small amount of queries (one per vault)
@@ -355,7 +378,7 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
     // find out the blocks we want to query
     addLatestBlockQuery$({
       chain,
-      provider,
+      rpcConfig,
       forceCurrentBlockNumber,
       streamConfig: streamConfig,
       getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
@@ -363,7 +386,7 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
     }),
 
     // process the queries
-    fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, provider, emitErrors }),
+    fetchAndInsertBeefyProductRange$({ client, chain, streamConfig, rpcConfig, emitErrors }),
 
     // merge the errors back in, all items here should have been successfully treated
     Rx.pipe(
@@ -388,49 +411,18 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
 
 function fetchAndInsertBeefyProductRange$(options: {
   client: PoolClient;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
 }) {
-  /*
-  provider.on(
-    "debug",
-    (
-      event:
-        | { action: "request"; request: any }
-        | {
-            action: "requestBatch";
-            request: any;
-          }
-        | {
-            action: "response";
-            request: any;
-            response: any;
-          }
-        | {
-            action: "response";
-            error: any;
-            request: any;
-          },
-    ) => {
-      if (event.action === "request") {
-        logger.trace({ msg: "RPC request", data: { request: event.request } });
-      } else if (event.action === "response" && "response" in event) {
-        logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response } });
-      } else if (event.action === "response" && "error" in event) {
-        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error } });
-      }
-    },
-  );*/
-
   const boostTransfers$ = Rx.pipe(
     // set the right product type
     Rx.filter(isBeefyBoostProductImportQuery),
 
     // fetch latest transfers from and to the boost contract
     fetchERC20TransferToAStakingContract$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -449,7 +441,7 @@ function fetchAndInsertBeefyProductRange$(options: {
 
     // then we need the vault ppfs to interpret the balance
     fetchBeefyPPFS$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
@@ -481,7 +473,7 @@ function fetchAndInsertBeefyProductRange$(options: {
 
     // fetch the vault transfers
     fetchErc20Transfers$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -497,7 +489,7 @@ function fetchAndInsertBeefyProductRange$(options: {
 
     // fetch the ppfs
     fetchBeefyPPFS$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
@@ -528,7 +520,7 @@ function fetchAndInsertBeefyProductRange$(options: {
     })),
 
     fetchERC20TransferToAStakingContract$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
@@ -557,7 +549,7 @@ function fetchAndInsertBeefyProductRange$(options: {
     client: options.client,
     streamConfig: options.streamConfig,
     emitErrors: options.emitErrors,
-    provider: options.provider,
+    rpcConfig: options.rpcConfig,
   });
 
   return Rx.pipe(

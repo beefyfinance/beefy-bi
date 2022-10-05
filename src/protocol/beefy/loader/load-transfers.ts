@@ -10,9 +10,9 @@ import { upsertInvestment$ } from "../../common/loader/investment";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { ethers } from "ethers";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
 import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
+import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "common", component: "transfer-loader" });
 
@@ -29,7 +29,7 @@ export function loadTransfers$(options: {
   client: PoolClient;
   emitErrors: ErrorEmitter;
   streamConfig: BatchStreamConfig;
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
 }) {
   return Rx.pipe(
     // remove ignored addresses
@@ -48,7 +48,7 @@ export function loadTransfers$(options: {
     // we need the balance of each owner
     fetchERC20TokenBalance$({
       chain: options.chain,
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       getQueryParams: (item) => ({
         blockNumber: item.transfer.blockNumber,
         decimals: item.transfer.tokenDecimals,
@@ -62,7 +62,7 @@ export function loadTransfers$(options: {
 
     // we also need the date of each block
     fetchBlockDatetime$({
-      provider: options.provider,
+      rpcConfig: options.rpcConfig,
       getBlockNumber: (t) => t.transfer.blockNumber,
       emitErrors: options.emitErrors,
       streamConfig: options.streamConfig,

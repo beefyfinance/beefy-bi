@@ -6,6 +6,7 @@ import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { rootLogger } from "../../../utils/logger";
 import { DbProduct } from "../loader/product";
 import { getRpcRetryConfig } from "./rpc-retry-config";
+import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-query-group" });
 
@@ -29,6 +30,7 @@ export function batchRpcCalls$<
   TResp,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
+  rpcConfig: RpcConfig;
   getQuery: (obj: TInputObj) => TQueryObj;
   processBatch: (queryObjs: TQueryObj[]) => Promise<TResp[]>;
   // errors
@@ -42,7 +44,11 @@ export function batchRpcCalls$<
 
   return Rx.pipe(
     // take a batch of items
-    Rx.bufferTime<TInputObj>(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
+    Rx.bufferTime<TInputObj>(
+      options.streamConfig.maxInputWaitMs,
+      undefined,
+      Math.min(options.streamConfig.maxInputTake, options.rpcConfig.maxBatchProviderSize),
+    ),
 
     // for each batch, fetch the transfers
     Rx.mergeMap(async (objs: TInputObj[]) => {

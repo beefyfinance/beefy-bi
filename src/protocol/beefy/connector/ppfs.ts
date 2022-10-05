@@ -5,6 +5,7 @@ import axios from "axios";
 import { sortBy } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
+import { RpcConfig } from "../../../types/rpc-config";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
 import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
@@ -27,7 +28,7 @@ export function fetchBeefyPPFS$<
   TParams extends BeefyPPFSCallParams,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   getPPFSCallParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
@@ -37,10 +38,11 @@ export function fetchBeefyPPFS$<
   const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.chain } };
   return batchRpcCalls$({
     logInfos,
+    rpcConfig: options.rpcConfig,
     emitErrors: options.emitErrors,
     streamConfig: options.streamConfig,
     getQuery: options.getPPFSCallParams,
-    processBatch: (params) => fetchBeefyVaultPPFS(options.provider, options.chain, params),
+    processBatch: (params) => fetchBeefyVaultPPFS(options.rpcConfig.batchProvider, options.chain, params),
     formatOutput: options.formatOutput,
   });
 }

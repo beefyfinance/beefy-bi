@@ -1,4 +1,7 @@
 import * as ethers from "ethers";
+import { rootLogger } from "./logger";
+
+const logger = rootLogger.child({ module: "utils", component: "ethers" });
 
 export function normalizeAddress(address: string) {
   // special case to avoid ethers.js throwing an error
@@ -7,4 +10,36 @@ export function normalizeAddress(address: string) {
     return address;
   }
   return ethers.utils.getAddress(address);
+}
+
+export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider) {
+  provider.on(
+    "debug",
+    (
+      event:
+        | { action: "request"; request: any }
+        | {
+            action: "requestBatch";
+            request: any;
+          }
+        | {
+            action: "response";
+            request: any;
+            response: any;
+          }
+        | {
+            action: "response";
+            error: any;
+            request: any;
+          },
+    ) => {
+      if (event.action === "request" || event.action === "requestBatch") {
+        logger.trace({ msg: "RPC request", data: { request: event.request } });
+      } else if (event.action === "response" && "response" in event) {
+        logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response } });
+      } else if (event.action === "response" && "error" in event) {
+        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error } });
+      }
+    },
+  );
 }

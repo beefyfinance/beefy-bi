@@ -6,6 +6,7 @@ import { Chain } from "../../../types/chain";
 import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { DbProduct } from "../loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
+import { RpcConfig } from "../../../types/rpc-config";
 
 interface GetBalanceCallParams {
   contractAddress: string;
@@ -20,7 +21,7 @@ export function fetchERC20TokenBalance$<
   TParams extends GetBalanceCallParams,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
   emitErrors: ErrorEmitter;
@@ -28,6 +29,7 @@ export function fetchERC20TokenBalance$<
   formatOutput: (obj: TObj, balance: Decimal) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
+    rpcConfig: options.rpcConfig,
     streamConfig: options.streamConfig,
     logInfos: { msg: "Fetching ERC20 token balance", data: {} },
     emitErrors: options.emitErrors,
@@ -37,7 +39,7 @@ export function fetchERC20TokenBalance$<
       const balancePromises: Promise<Decimal>[] = [];
       for (const param of params) {
         const valueMultiplier = new Decimal(10).pow(-param.decimals);
-        const contract = new ethers.Contract(param.contractAddress, ERC20Abi, options.provider);
+        const contract = new ethers.Contract(param.contractAddress, ERC20Abi, options.rpcConfig.batchProvider);
 
         // aurora RPC return the state before the transaction is applied
         let blockTag = param.blockNumber;

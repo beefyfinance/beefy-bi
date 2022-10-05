@@ -1,11 +1,11 @@
 import axios from "axios";
-import { ethers } from "ethers";
 import { isArray, isString, sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RPC_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
+import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 
@@ -19,7 +19,7 @@ export interface ContractCreationInfos {
 }
 
 export function fetchContractCreationBlock$<TObj, TParams extends ContractCallParams, TRes>(options: {
-  provider: ethers.providers.JsonRpcProvider;
+  rpcConfig: RpcConfig;
   getCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: ContractCreationInfos | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
