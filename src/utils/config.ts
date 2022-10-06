@@ -97,8 +97,8 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   moonriver: process.env.MOONRIVER_RPC
     ? [process.env.MOONRIVER_RPC]
     : [
-        "https://moonriver.api.onfinality.io/public",
-        //"https://rpc.api.moonriver.moonbeam.network/",
+        //"https://moonriver.api.onfinality.io/public",
+        "https://rpc.api.moonriver.moonbeam.network/",
       ],
   optimism: process.env.OPTIMISM_RPC ? [process.env.OPTIMISM_RPC] : ["https://opt-mainnet.g.alchemy.com/v2/JzmIL4Q3jBj7it2duxLFeuCa9Wobmm7D"],
   polygon: process.env.POLYGON_RPC ? [process.env.POLYGON_RPC] : ["https://polygon-rpc.com/"],

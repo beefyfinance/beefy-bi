@@ -9,7 +9,7 @@ const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 const findings = (() => {
   const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: { [method in RpcCallMethod]: number | null } } } = {
     arbitrum: {
-      "https://rpc.ankr.com/arbitrum/": {
+      "https://rpc.ankr.com/arbitrum": {
         eth_getLogs: 3,
         eth_call: 3,
         eth_getBlockByNumber: null,
@@ -17,7 +17,7 @@ const findings = (() => {
       },
     },
     aurora: {
-      "https://mainnet.aurora.dev/": {
+      "https://mainnet.aurora.dev": {
         eth_getLogs: null,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -25,7 +25,7 @@ const findings = (() => {
       },
     },
     avax: {
-      "https://rpc.ankr.com/avalanche/": {
+      "https://rpc.ankr.com/avalanche": {
         eth_getLogs: null,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -33,7 +33,7 @@ const findings = (() => {
       },
     },
     bsc: {
-      "https://rpc.ankr.com/bsc/": {
+      "https://rpc.ankr.com/bsc": {
         eth_getLogs: 500,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -41,7 +41,7 @@ const findings = (() => {
       },
     },
     celo: {
-      "https://rpc.ankr.com/celo/": {
+      "https://rpc.ankr.com/celo": {
         eth_getLogs: 500,
         eth_call: 1,
         eth_getBlockByNumber: null,
@@ -65,7 +65,7 @@ const findings = (() => {
       },
     },
     fantom: {
-      "https://rpc.ankr.com/fantom/": {
+      "https://rpc.ankr.com/fantom": {
         eth_getLogs: 500,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -73,7 +73,7 @@ const findings = (() => {
       },
     },
     fuse: {
-      "https://explorer-node.fuse.io/": {
+      "https://explorer-node.fuse.io": {
         eth_getLogs: null,
         eth_call: null,
         eth_getBlockByNumber: null,
@@ -81,7 +81,7 @@ const findings = (() => {
       },
     },
     harmony: {
-      "https://rpc.ankr.com/harmony/": {
+      "https://rpc.ankr.com/harmony": {
         eth_getLogs: 500,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -105,7 +105,7 @@ const findings = (() => {
       },
     },
     moonbeam: {
-      "https://rpc.ankr.com/moonbeam/": {
+      "https://rpc.ankr.com/moonbeam": {
         eth_getLogs: 500,
         eth_call: 218,
         eth_getBlockByNumber: null,
@@ -119,9 +119,15 @@ const findings = (() => {
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
       },
+      "https://rpc.api.moonriver.moonbeam.network": {
+        eth_getLogs: 500,
+        eth_call: 124,
+        eth_getBlockByNumber: null,
+        eth_blockNumber: 500,
+      },
     },
     optimism: {
-      "https://rpc.ankr.com/optimism/": {
+      "https://rpc.ankr.com/optimism": {
         eth_getLogs: 500,
         eth_call: 500,
         eth_getBlockByNumber: null,
@@ -129,7 +135,7 @@ const findings = (() => {
       },
     },
     polygon: {
-      "https://rpc.ankr.com/polygon/": {
+      "https://rpc.ankr.com/polygon": {
         eth_getLogs: 500,
         eth_call: 499,
         eth_getBlockByNumber: null,
@@ -137,7 +143,7 @@ const findings = (() => {
       },
     },
     syscoin: {
-      "https://rpc.ankr.com/syscoin/": {
+      "https://rpc.ankr.com/syscoin": {
         eth_getLogs: 57,
         eth_call: 1,
         eth_getBlockByNumber: null,
@@ -151,6 +157,7 @@ const findings = (() => {
     "rpc.ankr.com": 10_000,
     "andromeda.metis.io": 5_000,
     "moonriver.api.onfinality.io": 10_000,
+    "rpc.api.moonriver.moonbeam.network": 30_000,
   };
 
   const disableBatchingFor = {
