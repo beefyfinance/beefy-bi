@@ -157,7 +157,7 @@ const findings = (() => {
     "rpc.ankr.com": 10_000,
     "andromeda.metis.io": 5_000,
     "moonriver.api.onfinality.io": 10_000,
-    "rpc.api.moonriver.moonbeam.network": 30_000,
+    "rpc.api.moonriver.moonbeam.network": 10_000,
   };
 
   const disableBatchingFor = {
@@ -198,7 +198,7 @@ const findings = (() => {
       for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
         const disableBatching = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
 
-        if (rpcUrl.includes(disableBatchingRpc)) {
+        if (rpcUrl.includes(disableBatchingRpc) && disableBatching) {
           for (const method of allRpcCallMethods) {
             const oldLimit = rpcLimitations[method];
             const newLimit = null;
