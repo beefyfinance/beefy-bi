@@ -147,4 +147,39 @@ where investor_id in (select investor_id from positive_balance);
 
 
 
+select
+    p.chain,
+    b.*
+from
+    investment_balance_ts b
+    join product p on b.product_id = p.product_id
+where
+    p.product_key ~* 'curve-arb-tricrypto'
+order by
+    datetime desc
+limit 5;
+
+select
+  p.chain,
+  b.datetime,
+  b.block_number,
+  p.product_key,
+  i.address,
+  b.balance,
+  usd.usd_value,
+  b.balance * usd.usd_value as investment_usd_value,
+  b.investment_data
+from
+  investment_balance_ts b
+  join product p on b.product_id = p.product_id
+  join investor i on b.investor_id = i.investor_id
+  left join asset_price_ts usd on usd.price_feed_id = p.price_feed_id
+  and b.datetime between usd.datetime - '15min' :: interval
+  and usd.datetime
+where
+  investment_data->>'trxHash' = '0xa6df9dec14ae250435a2dae5f9b4886a5a440dfc89c45d6a3ef485fc9be27af5'
+order by
+  b.datetime desc;
+
+
 ```

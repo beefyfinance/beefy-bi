@@ -126,6 +126,7 @@ async function main() {
     while (true) {
       await backfillHistory();
       //await pollLiveData();
+      //await pollPriceData();
       await sleep(5_000);
     }
 
@@ -144,8 +145,7 @@ runMain(main);
 function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   const rpcOptions: ethers.utils.ConnectionInfo = {
     url: sample(RPC_URLS[chain]) as string,
-    // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
-    timeout: 30_000,
+    timeout: 120_000,
   };
   const rpcConfig: RpcConfig = {
     chain,
@@ -335,8 +335,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
 function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   const rpcOptions: ethers.utils.ConnectionInfo = {
     url: sample(RPC_URLS[chain]) as string,
-    // set a low timeout otherwise ethers keeps all call data in memory until the timeout is reached
-    timeout: 30_000,
+    timeout: 120_000,
   };
   const rpcConfig: RpcConfig = {
     chain,

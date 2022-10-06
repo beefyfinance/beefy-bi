@@ -13,3 +13,5 @@ export interface RpcConfig {
 }
 
 export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber";
+
+export const allRpcCallMethods: RpcCallMethod[] = ["eth_getLogs", "eth_call", "eth_getBlockByNumber", "eth_blockNumber"];

@@ -2,7 +2,11 @@ import dotenv from "dotenv";
 import { Chain } from "../types/chain";
 import { allLogLevels, LogLevels } from "../types/logger";
 import * as path from "path";
+import Decimal from "decimal.js";
 dotenv.config();
+
+// configure the Decimals lib to format without exponents
+Decimal.set({ toExpNeg: -250, toExpPos: 250 });
 
 const timezone = process.env.TZ;
 if (timezone !== "UTC") {

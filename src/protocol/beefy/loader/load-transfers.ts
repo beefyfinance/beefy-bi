@@ -93,6 +93,7 @@ export function loadTransfers$(options: {
         // balance is expressed in underlying amount
         balance: item.vaultSharesBalance.mul(item.sharesRate),
         investmentData: {
+          chain: options.chain,
           balance: item.vaultSharesBalance.toString(),
           balanceDiff: item.transfer.amountTransfered.toString(),
           trxHash: item.transfer.transactionHash,
