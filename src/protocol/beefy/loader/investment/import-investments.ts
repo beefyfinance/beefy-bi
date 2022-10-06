@@ -14,7 +14,7 @@ import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-ob
 import { bufferUntilBelowMachineThresholds } from "../../../../utils/rxjs/utils/buffer-until-below-machine-threshold";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { importProductBlockRange$ } from "./product-block-range";
-import { addMissingBeefyImportStatus$, updateBeefyImportStatus$ } from "../import-status";
+import { addMissingBlockRangesImportStatus$, updateBeefyImportStatus$ } from "../../../common/loader/block-ranges-import-status";
 import { rootLogger } from "../../../../utils/logger";
 
 export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
@@ -52,7 +52,13 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // add typings to the input item
     Rx.filter((_: DbBeefyProduct) => true),
 
-    addMissingBeefyImportStatus$({ client, chain, rpcConfig }),
+    addMissingBlockRangesImportStatus$({
+      client,
+      chain,
+      rpcConfig,
+      getContractAddress: (product) =>
+        product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
+    }),
 
     Rx.pipe(
       // generate the block ranges to import

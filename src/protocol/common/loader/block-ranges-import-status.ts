@@ -1,28 +1,32 @@
 import * as Rx from "rxjs";
 import { cloneDeep } from "lodash";
-import { addMissingImportStatus, updateImportStatus } from "../../common/loader/import-status";
+import { addMissingImportStatus, DbImportStatus, updateImportStatus } from "./import-status";
 import { rangeExclude, rangeMerge } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 import { rootLogger } from "../../../utils/logger";
 import { PoolClient } from "pg";
-import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
-import { ProductImportQuery } from "../../common/types/product-query";
-import { DbBeefyProduct } from "../../common/loader/product";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ProductImportQuery } from "../types/product-query";
+import { DbProduct } from "./product";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 
-const logger = rootLogger.child({ module: "beefy", component: "import-status" });
+const logger = rootLogger.child({ module: "common", component: "block-ranges-import-status" });
 
-export function addMissingBeefyImportStatus$(options: { client: PoolClient; chain: Chain; rpcConfig: RpcConfig }) {
+export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(options: {
+  client: PoolClient;
+  chain: Chain;
+  rpcConfig: RpcConfig;
+  getContractAddress: (obj: TProduct) => string;
+}): Rx.OperatorFunction<TProduct, { product: TProduct; importStatus: DbImportStatus }> {
   return Rx.pipe(
-    addMissingImportStatus({
+    addMissingImportStatus<TProduct>({
       client: options.client,
       chain: options.chain,
       rpcConfig: options.rpcConfig,
-      getContractAddress: (product) =>
-        product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
+      getContractAddress: options.getContractAddress,
       getInitialImportData: (_, contractCreationInfo) => ({
-        type: "beefy",
+        type: "block-ranges",
         data: {
           contractCreatedAtBlock: contractCreationInfo.blockNumber,
           coveredBlockRange: {
@@ -41,7 +45,7 @@ export function updateBeefyImportStatus$(options: { client: PoolClient; streamCo
     // merge the statuses ranges together to call updateImportStatus less often
     // but flush often enough so we don't go too long before updating the status
     bufferUntilKeyChanged(
-      (item: ProductImportQuery<DbBeefyProduct> & { success: boolean }) => `${item.product.productId}`,
+      (item: ProductImportQuery<DbProduct> & { success: boolean }) => `${item.product.productId}`,
       options.streamConfig.maxInputTake,
     ),
 
@@ -52,8 +56,8 @@ export function updateBeefyImportStatus$(options: { client: PoolClient; streamCo
       mergeImportStatus: (items, importStatus) => {
         const productId = items[0].product.productId;
         const productKey = items[0].product.productKey;
-        if (importStatus.importData.type !== "beefy") {
-          throw new Error(`Import status is not for beefy: ${importStatus.importData.type}`);
+        if (importStatus.importData.type !== "block-ranges") {
+          throw new Error(`Import status is not for block-ranges strategy: ${importStatus.importData.type}`);
         }
 
         const blockRanges = items.map((item) => item.blockRange);

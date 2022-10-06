@@ -10,10 +10,10 @@ const findings = (() => {
   const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: { [method in RpcCallMethod]: number | null } } } = {
     arbitrum: {
       "https://rpc.ankr.com/arbitrum/": {
-        eth_getLogs: 4,
-        eth_call: 4,
+        eth_getLogs: 3,
+        eth_call: 3,
         eth_getBlockByNumber: null,
-        eth_blockNumber: 17,
+        eth_blockNumber: 3,
       },
     },
     aurora: {

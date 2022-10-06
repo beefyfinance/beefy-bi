@@ -14,7 +14,7 @@ import { DbProduct } from "./product";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
-interface BeefyImportStatus {
+interface BlockRangesImportStatus {
   contractCreatedAtBlock: number;
   // already imported once range
   coveredBlockRange: Range;
@@ -25,8 +25,8 @@ interface BeefyImportStatus {
 export interface DbImportStatus {
   productId: number;
   importData: {
-    type: "beefy";
-    data: BeefyImportStatus;
+    type: "block-ranges";
+    data: BlockRangesImportStatus;
   };
 }
 
