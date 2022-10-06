@@ -56,7 +56,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           (async () => {
             while (true) {
               await importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
-              await sleep(samplingPeriodMs["1hour"]);
+              await sleep(samplingPeriodMs["15min"]);
             }
           })();
           (async () => {
