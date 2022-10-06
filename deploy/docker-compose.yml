@@ -89,7 +89,7 @@ services:
   importer:
     image: beefy-data-importer
     restart: always
-    env_file: ../.env
+    env_file: .env
     environment:
       REDIS_URL: redis://redis:6379
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
