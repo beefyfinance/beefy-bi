@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { withPgClient } from "../../../utils/db";
+import { db_migrate, withPgClient } from "../../../utils/db";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
@@ -27,6 +27,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
         }),
       handler: async (argv) => {
+        await db_migrate();
+
         logger.info("Starting import daemon", { argv });
 
         const chain = argv.chain as Chain | "all";

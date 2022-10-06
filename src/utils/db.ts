@@ -31,7 +31,6 @@ export async function getPgPool(freshClient = false) {
   if (pool === null) {
     const config = pgcs.parse(TIMESCALEDB_URL) as any as PoolConfig;
     pool = new Pool(config);
-    await migrate();
   }
   if (freshClient) {
     const config = pgcs.parse(TIMESCALEDB_URL) as any as PoolConfig;
@@ -117,7 +116,7 @@ async function typeExists(typeName: string) {
   return res !== null;
 }
 
-async function migrate() {
+export async function db_migrate() {
   logger.info({ msg: "Migrate begin" });
   // types
   if (!(await typeExists("chain_enum"))) {
