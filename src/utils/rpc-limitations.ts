@@ -168,7 +168,7 @@ const findings = (() => {
               let newLimit = oldLimit;
 
               if (rpcTimeout <= 10_000) {
-                newLimit = Math.min(50, oldLimit);
+                newLimit = Math.min(30, oldLimit);
               } else if (rpcTimeout <= 5_000) {
                 newLimit = Math.min(10, oldLimit);
               }
