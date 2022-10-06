@@ -150,6 +150,7 @@ const findings = (() => {
   const internalTimeoutMs = {
     "rpc.ankr.com": 10_000,
     "andromeda.metis.io": 5_000,
+    "moonriver.api.onfinality.io": 10_000,
   };
 
   for (const chain of allChainIds) {
