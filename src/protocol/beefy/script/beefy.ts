@@ -19,14 +19,14 @@ const logger = rootLogger.child({ module: "beefy", component: "import-script" })
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
   return yargs
-    .command(
-      "$0 beefy daemon",
-      "Start the beefy importer daemon",
-      (yargs) =>
+    .command({
+      command: "beefy:daemon",
+      describe: "Start the beefy importer daemon",
+      builder: (yargs) =>
         yargs.options({
           chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
         }),
-      async (argv) => {
+      handler: async (argv) => {
         logger.info("Starting import daemon", { argv });
 
         const chain = argv.chain as Chain | "all";
@@ -67,11 +67,11 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           })();
         });
       },
-    )
-    .command(
-      "$0 beefy run",
-      "Start a single beefy import",
-      (yargs) =>
+    })
+    .command({
+      command: "beefy:run",
+      describe: "Start a single beefy import",
+      builder: (yargs) =>
         yargs.options({
           chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
@@ -83,7 +83,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             describe: "what to run, all if not specified",
           },
         }),
-      (argv): Promise<any> => {
+      handler: (argv): Promise<any> => {
         logger.info("Starting import script", { argv });
 
         const chain = argv.chain as Chain | "all";
@@ -110,7 +110,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
         }
       },
-    );
+    });
 }
 
 async function importProducts(options: { filterChains: Chain[] }) {

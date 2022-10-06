@@ -5,7 +5,7 @@
 # Note: Make sure the right version of node your application    #
 # requires is set here and in all other build steps.            #
 #################################################################
-FROM node:18.2-alpine as dependencies
+FROM node:18.8-alpine as dependencies
 
 # Set environment to production
 ENV NODE_ENV='production'
@@ -23,7 +23,7 @@ RUN npm ci --production
 # Note: Make sure the right version of node your application    #
 # requires is set here and in all other build steps.            #
 #################################################################
-FROM node:18.2-alpine as build
+FROM node:18.8-alpine as build
 
 # Prepare the build directory
 RUN mkdir -p /opt/build;
@@ -51,7 +51,7 @@ RUN npm run build
 # Note: Make sure the right version of node your application    #
 # requires is set here and in all other build steps.            #
 #################################################################
-FROM node:18.2-alpine as release
+FROM node:18.8-alpine as release
 
 # install git to parse vaults from git history
 RUN apk add --no-cache git openssh-client

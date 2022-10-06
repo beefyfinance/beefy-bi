@@ -1,0 +1,106 @@
+version: "3.9" # optional since v1.27.0
+
+# docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data/git-work --opt o=bind beefy_git_work_directory
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/timescaledb --opt o=bind beefy_timescaledb_data_directory
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana --opt o=bind beefy_grafana_data_directory
+
+# tune the system: https://docs.timescale.com/timescaledb/latest/how-to-guides/configuration/timescaledb-tune/#timescaledb-tuning-tool
+# docker exec -it beefy_db-timescaledb-1 timescaledb-tune --yes --memory="4GB" --cpus=2 --max-bg-workers=16 --dry-run
+
+# docker compose -f deploy/docker-compose.yml up -d
+# docker compose -f deploy/docker-compose.yml logs -f
+# docker compose -f deploy/docker-compose.yml down
+# docker compose -f deploy/docker-compose.yml rm # cleanup logs sometimes
+
+volumes:
+  git_work_directory:
+    external: true
+    name: beefy_git_work_directory
+  timescaledb_data:
+    external: true
+    name: beefy_timescaledb_data_directory
+  grafana_data:
+    external: true
+    name: beefy_grafana_data_directory
+
+networks:
+  backend: {}
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --save "" --appendonly no --replicaof no one
+    networks:
+      - backend
+
+  timescaledb:
+    image: timescale/timescaledb-ha:pg14.4-ts2.7.2-latest
+    volumes:
+      - timescaledb_data:/home/postgres/pgdata/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    deploy:
+      resources:
+        limits:
+          cpus: "0.70"
+          memory: 20G
+        reservations:
+          cpus: "0.25"
+          memory: 5G
+    environment:
+      TZ: "UTC"
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: beefy
+      POSTGRES_PASSWORD: beefy
+      POSTGRES_DB: beefy
+      PGDATA: /home/postgres/pgdata/data
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana:9.0.2
+    ports:
+      - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 1G
+        reservations:
+          cpus: "0.05"
+          memory: 250M
+    environment:
+      TZ: UTC
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: grafana_ro
+      POSTGRES_PASSWORD: grafana_ro
+      POSTGRES_DB: beefy
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./db/grafana.ini:/etc/grafana/grafana.ini
+      - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
+    depends_on:
+      - timescaledb
+    networks:
+      - backend
+
+  importer:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+      LOG_LEVEL: "error"
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_CMD: "./dist/src/script/run.js beefy:daemon"
+    volumes:
+      - git_work_directory:/git_work
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
