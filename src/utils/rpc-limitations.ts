@@ -153,6 +153,10 @@ const findings = (() => {
     "moonriver.api.onfinality.io": 10_000,
   };
 
+  const disableBatchingFor = {
+    "moonriver.api.onfinality.io": true,
+  };
+
   for (const chain of allChainIds) {
     for (const rpcUrl of Object.keys(rawLimitations[chain])) {
       const rpcLimitations = rawLimitations[chain][rpcUrl];
@@ -174,6 +178,24 @@ const findings = (() => {
                 newLimit = Math.min(10, oldLimit);
               }
 
+              if (newLimit !== oldLimit) {
+                logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+                rpcLimitations[method] = newLimit;
+                wasUpdated = true;
+              }
+            }
+          }
+        }
+      }
+
+      for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
+        const disableBatching = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
+
+        if (rpcUrl.includes(disableBatchingRpc)) {
+          for (const method of allRpcCallMethods) {
+            const oldLimit = rpcLimitations[method];
+            const newLimit = null;
+            if (oldLimit !== null) {
               if (newLimit !== oldLimit) {
                 logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
                 rpcLimitations[method] = newLimit;
