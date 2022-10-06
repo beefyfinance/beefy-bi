@@ -25,6 +25,7 @@ import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { sleep } from "../../../utils/async";
+import { getRpcLimitations } from "../../../utils/rpc-limitations";
 import yargs from "yargs";
 import { rangeExclude, rangeMerge } from "../../../utils/range";
 import { loadTransfers$, TransferWithRate } from "./load-transfers";
@@ -150,11 +151,7 @@ function importChainHistoricalData(client: PoolClient, chain: Chain, forceCurren
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
-    /*
-     arbitrum: 
-      get_logs: 3
-      */
-    maxBatchProviderSize: 3,
+    maxBatchProviderSize: getRpcLimitations(chain, rpcOptions.url),
   };
 
   addDebugLogsToProvider(rpcConfig.linearProvider);
@@ -345,7 +342,7 @@ function importChainRecentData(client: PoolClient, chain: Chain, forceCurrentBlo
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
-    maxBatchProviderSize: 20,
+    maxBatchProviderSize: getRpcLimitations(chain, rpcOptions.url),
   };
 
   addDebugLogsToProvider(rpcConfig.linearProvider);

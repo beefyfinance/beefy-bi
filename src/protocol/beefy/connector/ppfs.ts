@@ -39,10 +39,16 @@ export function fetchBeefyPPFS$<
   return batchRpcCalls$({
     logInfos,
     rpcConfig: options.rpcConfig,
+    rpcCallsPerInputObj: {
+      eth_call: 1,
+      eth_blockNumber: 0,
+      eth_getBlockByNumber: 0,
+      eth_getLogs: 0,
+    },
     emitErrors: options.emitErrors,
     streamConfig: options.streamConfig,
     getQuery: options.getPPFSCallParams,
-    processBatch: (params) => fetchBeefyVaultPPFS(options.rpcConfig.batchProvider, options.chain, params),
+    processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.chain, params),
     formatOutput: options.formatOutput,
   });
 }

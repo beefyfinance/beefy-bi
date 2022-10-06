@@ -9,8 +9,6 @@ import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
-import { getRpcRetryConfig } from "../utils/rpc-retry-config";
-import { backOff } from "exponential-backoff";
 import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
@@ -55,6 +53,12 @@ export function fetchErc20Transfers$<
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
     streamConfig: options.streamConfig,
+    rpcCallsPerInputObj: {
+      eth_call: 0,
+      eth_blockNumber: 0,
+      eth_getBlockByNumber: 0,
+      eth_getLogs: 2,
+    },
     logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.chain } },
     emitErrors: options.emitErrors,
     formatOutput: options.formatOutput,
@@ -66,7 +70,7 @@ export function fetchErc20Transfers$<
         toBlock: obj.blockRange.to,
       };
     },
-    processBatch: (contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(options.rpcConfig.batchProvider, options.chain, contractCalls),
+    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(provider, options.chain, contractCalls),
     rpcConfig: options.rpcConfig,
   });
 }

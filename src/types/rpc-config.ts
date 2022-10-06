@@ -7,5 +7,9 @@ export interface RpcConfig {
   // most should use the batch provider
   linearProvider: ethers.providers.JsonRpcProvider;
   batchProvider: ethers.providers.JsonRpcBatchProvider;
-  maxBatchProviderSize: number;
+  maxBatchProviderSize: {
+    [method in RpcCallMethod]: number | null; // null meaning it's not supported
+  };
 }
+
+export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber";

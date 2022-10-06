@@ -29,15 +29,21 @@ async function exitHandler() {
 process.on("SIGTERM", exitHandler);
 process.on("SIGINT", exitHandler);
 
-export async function runMain(main: () => Promise<any>) {
+export async function runMain(main: () => Promise<any>, onExit?: () => void) {
   try {
     await main();
+    if (onExit) {
+      onExit();
+    }
     await exitHandler();
     logger.info("Done");
     process.exit(0);
   } catch (e) {
     logger.error("ERROR");
     logger.error(e);
+    if (onExit) {
+      onExit();
+    }
     await exitHandler();
     process.exit(1);
   }

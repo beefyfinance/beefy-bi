@@ -20,9 +20,15 @@ export function fetchBlockDatetime$<
   return batchRpcCalls$({
     rpcConfig: options.rpcConfig,
     streamConfig: options.streamConfig,
+    rpcCallsPerInputObj: {
+      eth_call: 0,
+      eth_blockNumber: 0,
+      eth_getBlockByNumber: 1,
+      eth_getLogs: 0,
+    },
     getQuery: options.getBlockNumber,
-    processBatch: async (params: TParams[]) => {
-      const promises = params.map((blockNumber) => options.rpcConfig.batchProvider.getBlock(blockNumber));
+    processBatch: async (provider, params: TParams[]) => {
+      const promises = params.map((blockNumber) => provider.getBlock(blockNumber));
       return Promise.all(promises).then((blocks) => blocks.map((block) => new Date(block.timestamp * 1000)));
     },
     formatOutput: options.formatOutput,

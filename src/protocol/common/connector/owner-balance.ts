@@ -31,15 +31,21 @@ export function fetchERC20TokenBalance$<
   return batchRpcCalls$({
     rpcConfig: options.rpcConfig,
     streamConfig: options.streamConfig,
+    rpcCallsPerInputObj: {
+      eth_call: 1,
+      eth_blockNumber: 0,
+      eth_getBlockByNumber: 0,
+      eth_getLogs: 0,
+    },
     logInfos: { msg: "Fetching ERC20 token balance", data: {} },
     emitErrors: options.emitErrors,
     formatOutput: options.formatOutput,
     getQuery: options.getQueryParams,
-    processBatch: async (params: TParams[]) => {
+    processBatch: async (provider, params: TParams[]) => {
       const balancePromises: Promise<Decimal>[] = [];
       for (const param of params) {
         const valueMultiplier = new Decimal(10).pow(-param.decimals);
-        const contract = new ethers.Contract(param.contractAddress, ERC20Abi, options.rpcConfig.batchProvider);
+        const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
 
         // aurora RPC return the state before the transaction is applied
         let blockTag = param.blockNumber;
