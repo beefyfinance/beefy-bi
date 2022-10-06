@@ -18,47 +18,38 @@ import { samplingPeriodMs } from "../../../types/sampling";
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
-  return yargs.command(
-    "beefy daemon",
-    "Start the beefy importer daemon",
-    (yargs) =>
-      yargs.options({
-        chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
-        contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
-        currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
-        run: {
-          choices: ["historical-investments", "live-investments", "products", "prices"],
-          demand: false,
-          alias: "r",
-          describe: "what to run, all if not specified",
-        },
-      }),
-    async (argv) => {
-      logger.info("Starting import script", { argv });
+  return yargs
+    .command(
+      "$0 beefy daemon",
+      "Start the beefy importer daemon",
+      (yargs) =>
+        yargs.options({
+          chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+        }),
+      async (argv) => {
+        logger.info("Starting import daemon", { argv });
 
-      const chain = argv.chain as Chain | "all";
-      const filterChains = chain === "all" ? allChainIds : [chain];
-      const filterContractAddress = argv.contractAddress || null;
-      const forceCurrentBlockNumber = argv.currentBlockNumber || null;
+        const chain = argv.chain as Chain | "all";
+        const filterChains = chain === "all" ? allChainIds : [chain];
+        const filterContractAddress = null;
+        const forceCurrentBlockNumber = null;
 
-      if (forceCurrentBlockNumber !== null && chain === "all") {
-        throw new ProgrammerError("Cannot force current block number without a chain filter");
-      }
+        if (forceCurrentBlockNumber !== null && chain === "all") {
+          throw new ProgrammerError("Cannot force current block number without a chain filter");
+        }
 
-      logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
+        logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
 
-      return new Promise(async () => {
-        // if not defined, run as a daemon
-        if (argv.run === undefined) {
+        return new Promise<any>(async () => {
           (async () => {
             while (true) {
-              await importProducts();
+              await importProducts({ filterChains });
               await sleep(samplingPeriodMs["1day"]);
             }
           })();
           (async () => {
             while (true) {
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "live", filterChains, filterContractAddress });
+              await importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains, filterContractAddress });
               await sleep(samplingPeriodMs["1min"]);
             }
           })();
@@ -74,31 +65,60 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               await sleep(samplingPeriodMs["15min"]);
             }
           })();
-        } else {
-          // otherwise run the specified command
-          switch (argv.run) {
-            case "historical-investments":
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
-              break;
-            case "live-investments":
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "live", filterChains, filterContractAddress });
-              break;
-            case "products":
-              await importProducts();
-              break;
-            case "prices":
-              await importPrices();
-              break;
-          }
+        });
+      },
+    )
+    .command(
+      "$0 beefy run",
+      "Start a single beefy import",
+      (yargs) =>
+        yargs.options({
+          chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+          contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
+          currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+          importer: {
+            choices: ["historical", "recent", "products", "prices"],
+            demand: true,
+            alias: "i",
+            describe: "what to run, all if not specified",
+          },
+        }),
+      (argv): Promise<any> => {
+        logger.info("Starting import script", { argv });
+
+        const chain = argv.chain as Chain | "all";
+        const filterChains = chain === "all" ? allChainIds : [chain];
+        const filterContractAddress = argv.contractAddress || null;
+        const forceCurrentBlockNumber = argv.currentBlockNumber || null;
+
+        if (forceCurrentBlockNumber !== null && chain === "all") {
+          throw new ProgrammerError("Cannot force current block number without a chain filter");
         }
-      });
-    },
-  );
+
+        logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
+
+        switch (argv.importer) {
+          case "historical":
+            return importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
+          case "recent":
+            return importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains, filterContractAddress });
+          case "products":
+            return importProducts({ filterChains });
+          case "prices":
+            return importPrices();
+          default:
+            throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
+        }
+      },
+    );
 }
 
-async function importProducts() {
+async function importProducts(options: { filterChains: Chain[] }) {
   return withPgClient((client) => {
-    const pipeline$ = Rx.of(...allChainIds).pipe(importBeefyProducts$({ client }));
+    const pipeline$ = Rx.of(...allChainIds).pipe(
+      Rx.filter((chain) => options.filterChains.includes(chain)),
+      importBeefyProducts$({ client }),
+    );
     return consumeObservable(pipeline$);
   })();
 }
@@ -112,11 +132,11 @@ async function importPrices() {
 
 async function importInvestmentData(options: {
   forceCurrentBlockNumber: number | null;
-  strategy: "live" | "historical";
+  strategy: "recent" | "historical";
   filterChains: Chain[];
   filterContractAddress: string | null;
 }) {
-  const strategyImporter = options.strategy === "live" ? importChainRecentData$ : importChainHistoricalData$;
+  const strategyImporter = options.strategy === "recent" ? importChainRecentData$ : importChainHistoricalData$;
 
   return withPgClient(async (client: PoolClient) => {
     const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) =>
