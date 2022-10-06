@@ -72,7 +72,7 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
       WHERE feed_key like %L || ':%'`,
       [keyPrefix],
       client,
-    ).then((objs) => (objs.length > 0 ? objs : Promise.reject("No price feed found"))),
+    ),
   ).pipe(
     Rx.mergeAll(),
 

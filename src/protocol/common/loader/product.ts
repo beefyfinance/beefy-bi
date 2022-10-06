@@ -84,7 +84,7 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
       where product_key like %L || ':%'`,
       [keyPrefix],
       client,
-    ).then((products) => (products.length > 0 ? products : Promise.reject("No product found"))),
+    ),
   ).pipe(
     Rx.mergeAll(),
 
