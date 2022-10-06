@@ -1,7 +1,7 @@
 import axios from "axios";
 import { isArray, isString, sample } from "lodash";
 import { Chain } from "../../../types/chain";
-import { RPC_URLS } from "../../../utils/config";
+import { EXPLORER_URLS, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS, RPC_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
@@ -40,7 +40,7 @@ export function fetchContractCreationBlock$<TObj, TParams extends ContractCallPa
     Rx.map((chainObjs$) =>
       chainObjs$.pipe(
         // make sure we don't hit the rate limit of the exploreres
-        rateLimit$(10000),
+        rateLimit$(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS),
 
         getCreationBlock$,
       ),
@@ -55,7 +55,7 @@ async function getContractCreationBlock(contractAddress: string, chain: Chain): 
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
       data: { contractAddress, chain },
     });
-    return await getBlockScoutScrapingContractCreationBlock(contractAddress, explorerApiUrls[chain], chain);
+    return await getBlockScoutScrapingContractCreationBlock(contractAddress, EXPLORER_URLS[chain], chain);
   } else if (harmonyRpcChains.has(chain)) {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
@@ -63,29 +63,9 @@ async function getContractCreationBlock(contractAddress: string, chain: Chain): 
     });
     return await getHarmonyRpcCreationBlock(contractAddress, chain);
   } else {
-    return await getFromExplorerCreationBlock(contractAddress, explorerApiUrls[chain]);
+    return await getFromExplorerCreationBlock(contractAddress, EXPLORER_URLS[chain]);
   }
 }
-
-const explorerApiUrls: { [chain in Chain]: string } = {
-  cronos: "https://api.cronoscan.com/api",
-  bsc: "https://api.bscscan.com/api",
-  polygon: "https://api.polygonscan.com/api",
-  fantom: "https://api.ftmscan.com/api",
-  heco: "https://api.hecoinfo.com/api",
-  avax: "https://api.snowtrace.io//api",
-  moonbeam: "https://api-moonbeam.moonscan.io/api",
-  celo: "https://explorer.celo.org/",
-  moonriver: "https://api-moonriver.moonscan.io/api",
-  arbitrum: "https://api.arbiscan.io/api",
-  aurora: "https://api.aurorascan.dev/api",
-  metis: "https://andromeda-explorer.metis.io/",
-  harmony: "https://explorer.harmony.one/",
-  fuse: "https://explorer.fuse.io/",
-  emerald: "https://explorer.emerald.oasis.dev/",
-  optimism: "https://api-optimistic.etherscan.io/api",
-  syscoin: "",
-};
 
 const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald"]);
 const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);

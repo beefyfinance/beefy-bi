@@ -107,83 +107,24 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
 
 export const EXPLORER_URLS: { [chain in Chain]: string } = {
   arbitrum: "https://api.arbiscan.io/api",
-  aurora: "https://api.aurorascan.dev/api", //"https://explorer.mainnet.aurora.dev/",
+  aurora: "https://api.aurorascan.dev/api",
   avax: "https://api.snowtrace.io//api",
   bsc: "https://api.bscscan.com/api",
-  celo: "https://api.celoscan.xyz/api", // "https://explorer.celo.org/",
+  celo: "https://explorer.celo.org/",
   cronos: "https://api.cronoscan.com/api",
-  emerald: "https://explorer.emerald.oasis.dev/api", //"https://explorer.oasis.dev/",
+  emerald: "https://explorer.emerald.oasis.dev/",
   fantom: "https://api.ftmscan.com/api",
-  fuse: "https://explorer.fuse.io/api",
-  harmony: "https://explorer.harmony.one/api",
+  fuse: "https://explorer.fuse.io/",
+  harmony: "https://explorer.harmony.one/",
   heco: "https://api.hecoinfo.com/api",
-  metis: "https://andromeda-explorer.metis.io/api", //"https://stardust-explorer.metis.io/api"
+  metis: "https://andromeda-explorer.metis.io/",
   moonbeam: "https://api-moonbeam.moonscan.io/api",
   moonriver: "https://api-moonriver.moonscan.io/api",
   optimism: "https://api-optimistic.etherscan.io/api",
   polygon: "https://api.polygonscan.com/api",
   syscoin: "https://explorer.syscoin.org/api",
 };
-export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 6000;
-
-// -1 means no delay and no locking
-// 0 means no delay but one call at a time (locking)
-// > 0 is is minimum delay in ms between calls
-function _getDelayFromEnv(chain: Chain) {
-  const delay = process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
-  if (delay) {
-    const delayMs = parseInt(delay, 10);
-    if (delayMs < 0) {
-      return "no-limit";
-    } else {
-      return delayMs;
-    }
-  }
-  return 1000; // default to 1s between calls
-}
-export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
-  [chain in Chain]: number | "no-limit";
-} = {
-  arbitrum: _getDelayFromEnv("arbitrum"),
-  aurora: _getDelayFromEnv("aurora"),
-  avax: _getDelayFromEnv("avax"),
-  bsc: _getDelayFromEnv("bsc"),
-  celo: _getDelayFromEnv("celo"),
-  cronos: _getDelayFromEnv("cronos"),
-  emerald: _getDelayFromEnv("emerald"),
-  fantom: _getDelayFromEnv("fantom"),
-  fuse: _getDelayFromEnv("fuse"),
-  harmony: _getDelayFromEnv("harmony"),
-  heco: _getDelayFromEnv("heco"),
-  metis: _getDelayFromEnv("metis"),
-  moonbeam: _getDelayFromEnv("moonbeam"),
-  moonriver: _getDelayFromEnv("moonriver"),
-  optimism: _getDelayFromEnv("optimism"),
-  polygon: _getDelayFromEnv("polygon"),
-  syscoin: _getDelayFromEnv("syscoin"),
-};
-
-export const RPC_BACH_CALL_COUNT: {
-  [chain in Chain]: number | "no-batching";
-} = {
-  arbitrum: 100,
-  aurora: 100,
-  avax: 100,
-  bsc: 40, // current RPC don't like too big batches
-  celo: 100,
-  cronos: "no-batching", // cronos doesn't look it supports batching or ethers don't understand the response
-  emerald: "no-batching", // fetching fetch:emerald:0x74d6b1D419556d8A3E3038A9c8096DA0cA4beF24:creation_date: invalid request: max allowed of rounds in logs query is: 100
-  fantom: 100,
-  fuse: 50, // fuse is a bit slower than the others
-  harmony: 50, // harmony is a bit sensitive when batching too much (BUFFER_OVERRUN)
-  heco: 100,
-  metis: 50, // metis has large blocks
-  moonbeam: 100,
-  moonriver: 10, // too slow to handle much more
-  optimism: 100,
-  polygon: 100,
-  syscoin: 100,
-};
+export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 10_000;
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   arbitrum: 3000,
@@ -237,104 +178,3 @@ if (!allLogLevels.includes(log_level)) {
 }
 
 export const LOG_LEVEL: LogLevels = log_level as LogLevels;
-
-const CHAINS_WITH_ETHSCAN_BASED_EXPLORERS: Chain[] = [
-  "arbitrum",
-  // aurora explorer is missing transfer events
-  // ex: this trx is still "indexing" https://aurorascan.dev/tx/0x25baaf56da97b0aff012fcc571476cbb53a6d99c21aed0ae2c7bdb9d217045fe)
-  // without this trx, we have a user who'se only trx is a withdrawal: https://aurorascan.dev/token/0x1c9270ac5c42e51611d7b97b1004313d52c80293?a=0x9fd3174fe380591837047ccc0be7ac24b1ea9772
-  // Aurora RPC and explorer also disagree on block numbers for the same trx
-  // Explorer: https://aurorascan.dev/tx/0xbaba4c1f10dd6773a895a30a07e4ce7829145fb371facbab3c95d6415630e71e
-  //  -> block number: 64055210
-  // RPC: curl -s "https://mainnet.aurora.dev" -X POST -H "Content-Type: application/json" --data '{"method":"eth_getLogs","params":[{"address": "0x1c9270ac5C42E51611d7b97b1004313D52c80293","fromBlock": "0x3D167A9", "toBlock": "0x3D167AB"}],"id":1,"jsonrpc":"2.0"}' | jq
-  //  -> block number: 0x3d167ab -> 64055211
-  //"aurora",
-  "avax",
-  "bsc",
-  "celo",
-  // cronos explorer has missing events, like aurora https://cronoscan.com/token/0x2425d707a5C63ff5De83eB78f63e06c3f6eEaA1c?a=0x129Dd111C23a8AE4a14694eeb5fAAd7cE9Ed19e1
-  //"cronos",
-  "fantom",
-  "harmony",
-  "heco",
-  //"metis", too buggy to work with @see below for details
-  "moonbeam",
-  "moonriver",
-  "optimism",
-  "polygon",
-];
-
-let forceSource: "explorer" | "rpc" | null = null;
-export function shouldUseExplorer(chain: Chain) {
-  if (forceSource !== null) {
-    return forceSource === "explorer";
-  } else {
-    return CHAINS_WITH_ETHSCAN_BASED_EXPLORERS.includes(chain);
-  }
-}
-export function _forceUseSource(source: "explorer" | "rpc") {
-  forceSource = source;
-}
-/**
- * Why we don't use metis explorer api:
- *
- * https://andromeda-explorer.metis.io/api-docs
- * Error calling explorer https://andromeda-explorer.metis.io/api: {"message":"Required query parameters missing: topic0_1_opr","result":null,"status":"0"}
- * 
- * So we need to provide an extra parameter for metis, 2 values are possible: "or" and "and"
- * if we use "or" we get too much data
- * if we use "and" don't get any data
- *
- * Example with:
- *  - contract 0x0624ab4290f9305fb2de3fb287aa5cdcf36d6b51
- *  - trx https://andromeda-explorer.metis.io/tx/0xd5a5f77b2f0d012407adcbf10ff34ede63c42ade473d9273812a62444d3ca705/logs
- *
- * RPC and explorer api show logs for this transaction from this contract:
- *   curl "https://andromeda.metis.io/?owner=1088" -X POST -H "Content-Type: application/json" --data '{"method":"eth_getLogs","params":[{"address": "0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000","fromBlock": "0x2D88A8", "toBlock": "0x2D88A8"}],"id":1,"jsonrpc":"2.0"}' | jq
- *   {
-      "address": "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000",
-      "topics": [
-        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-        "0x0000000000000000000000000624ab4290f9305fb2de3fb287aa5cdcf36d6b51",
-        "0x000000000000000000000000c9b290ff37fa53272e9d71a0b13a444010af4497"
-      ],
-      "data": "0x000000000000000000000000000000000000000000000000187ab5b9e1c339c3",
-      "blockNumber": "0x2d88a8",
-      "transactionHash": "0xd5a5f77b2f0d012407adcbf10ff34ede63c42ade473d9273812a62444d3ca705",
-      "transactionIndex": "0x0",
-      "blockHash": "0xeb38b4b0fd9525f8eb17c7fc782f615829594bb85c3ec81c9dd2e8ab199146e7",
-      "logIndex": "0x15",
-      "removed": false
-    }
-
- * But we don't get any data from explorer api
- *   https://andromeda-explorer.metis.io/api?module=logs&action=getLogs&address=0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000&topic0=0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef&fromBlock=2984004&toBlock=2984204&topic1=0x0000000000000000000000000624ab4290f9305fb2de3fb287aa5cdcf36d6b51&topic0_1_opr=and
- *  {"message":"No logs found","result":[],"status":"0"}
- */
-/*
-interface ChainConfig {
-  name: Chain;
-  rpcEndpoints: {
-    url: string;
-    rateLimit: {
-      sharedLockProtected: boolean;
-      minDelayBetweenCallsMs: number;
-    };
-    batch: {
-      erc20Logs: number;
-      ppfsCalls: number;
-    };
-    maxBlocksPerQuery: number;
-  }[];
-  ethscanApiExplorer: {
-    url: string;
-    rateLimit: {
-      sharedLockProtected: boolean;
-      minDelayBetweenCallsMs: number;
-    };
-  };
-  msPerBlockEstimate: number;
-}
-
-const CHAIN_CONFIGS: Record<Chain, ChainConfig> = {};
-*/
