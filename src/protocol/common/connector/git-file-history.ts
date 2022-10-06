@@ -2,7 +2,7 @@ import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { sortBy } from "lodash";
-import { callLockProtectedGitRepo } from "../../../lib/shared-resources/shared-gitrepo";
+import { callLockProtectedGitRepo } from "../../../utils/shared-resources/shared-gitrepo";
 import { fileOrDirExists } from "../../../utils/fs";
 import { rootLogger } from "../../../utils/logger";
 

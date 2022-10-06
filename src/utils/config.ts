@@ -166,6 +166,43 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   syscoin: 100000,
 };
 
+// -1 means no delay and no locking
+// 0 means no delay but one call at a time (locking)
+// > 0 is is minimum delay in ms between calls
+function _getDelayFromEnv(chain: Chain) {
+  const delay = process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
+  if (delay) {
+    const delayMs = parseInt(delay, 10);
+    if (delayMs < 0) {
+      return "no-limit";
+    } else {
+      return delayMs;
+    }
+  }
+  return 1000; // default to 1s between calls
+}
+export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
+  [chain in Chain]: number | "no-limit";
+} = {
+  arbitrum: _getDelayFromEnv("arbitrum"),
+  aurora: _getDelayFromEnv("aurora"),
+  avax: _getDelayFromEnv("avax"),
+  bsc: _getDelayFromEnv("bsc"),
+  celo: _getDelayFromEnv("celo"),
+  cronos: _getDelayFromEnv("cronos"),
+  emerald: _getDelayFromEnv("emerald"),
+  fantom: _getDelayFromEnv("fantom"),
+  fuse: _getDelayFromEnv("fuse"),
+  harmony: _getDelayFromEnv("harmony"),
+  heco: _getDelayFromEnv("heco"),
+  metis: _getDelayFromEnv("metis"),
+  moonbeam: _getDelayFromEnv("moonbeam"),
+  moonriver: _getDelayFromEnv("moonriver"),
+  optimism: _getDelayFromEnv("optimism"),
+  polygon: _getDelayFromEnv("polygon"),
+  syscoin: _getDelayFromEnv("syscoin"),
+};
+
 export const DATA_DIRECTORY = process.env.DATA_DIRECTORY || path.join(__dirname, "..", "..", "data", "indexed-data");
 
 export const GIT_WORK_DIRECTORY = process.env.GIT_WORK_DIRECTORY || path.join(__dirname, "..", "..", "data", "git-work");

@@ -1,8 +1,9 @@
 import { cloneDeep } from "lodash";
-import { allChainIds, Chain } from "../types/chain";
-import { allRpcCallMethods, RpcCallMethod } from "../types/rpc-config";
-import { rootLogger } from "./logger";
-import { ProgrammerError } from "./rxjs/utils/programmer-error";
+import { allChainIds, Chain } from "../../types/chain";
+import { allRpcCallMethods, RpcCallMethod } from "../../types/rpc-config";
+import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../config";
+import { rootLogger } from "../logger";
+import { ProgrammerError } from "../rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
@@ -224,10 +225,18 @@ const findings = (() => {
   return rawLimitations;
 })();
 
-export function getRpcLimitations(chain: Chain, rpcUrl: string) {
+export interface RpcLimitations {
+  eth_getLogs: number | null;
+  eth_call: number | null;
+  eth_getBlockByNumber: number | null;
+  eth_blockNumber: number | null;
+  minDelayBetweenCalls: number | "no-limit";
+}
+
+export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
   for (const [url, content] of Object.entries(findings[chain])) {
     if (rpcUrl.startsWith(url)) {
-      return content;
+      return { ...content, minDelayBetweenCalls: MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain] };
     }
   }
   throw new ProgrammerError({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });

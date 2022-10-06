@@ -7,7 +7,7 @@ import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB, RPC_U
 import { addDebugLogsToProvider } from "../../../../utils/ethers";
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/block-query";
-import { getRpcLimitations } from "../../../../utils/rpc-limitations";
+import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
 import { ProductImportQuery } from "../../../common/types/product-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
@@ -27,7 +27,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
-    maxBatchProviderSize: getRpcLimitations(chain, rpcOptions.url),
+    limitations: getRpcLimitations(chain, rpcOptions.url),
   };
 
   addDebugLogsToProvider(rpcConfig.linearProvider);
@@ -122,7 +122,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
-    maxBatchProviderSize: getRpcLimitations(chain, rpcOptions.url),
+    limitations: getRpcLimitations(chain, rpcOptions.url),
   };
 
   addDebugLogsToProvider(rpcConfig.linearProvider);

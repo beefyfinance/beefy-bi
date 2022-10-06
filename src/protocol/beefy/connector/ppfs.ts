@@ -6,12 +6,11 @@ import { sortBy } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import * as Rx from "rxjs";
 import { RpcConfig } from "../../../types/rpc-config";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../lib/rpc/archive-node-needed";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
 import { DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
-import { getRpcRetryConfig } from "../../common/utils/rpc-retry-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 

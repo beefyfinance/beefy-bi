@@ -9,6 +9,8 @@ import { getRpcRetryConfig } from "./rpc-retry-config";
 import { RpcCallMethod, RpcConfig } from "../../../types/rpc-config";
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
+import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-query-group" });
 
@@ -62,7 +64,7 @@ export function batchRpcCalls$<
   const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.streamConfig.maxTotalRetryMs });
 
   // get the rpc provider maximum batch size
-  const methodLimitations = options.rpcConfig.maxBatchProviderSize;
+  const methodLimitations = options.rpcConfig.limitations;
 
   // find out the max number of objects to process in a batch
   let canUseBatchProvider = true;
@@ -88,6 +90,27 @@ export function batchRpcCalls$<
     Rx.mergeMap(async (objs: TInputObj[]) => {
       const contractCalls = objs.map((obj) => options.getQuery(obj));
 
+      const provider = canUseBatchProvider ? options.rpcConfig.batchProvider : options.rpcConfig.linearProvider;
+
+      const work = async () => {
+        logger.trace({
+          msg: "Ready to call RPC. " + options.logInfos.msg,
+          data: { chain: options.rpcConfig.chain, ...options.logInfos.data },
+        });
+
+        try {
+          const res = await options.processBatch(provider, contractCalls);
+          return res;
+        } catch (error) {
+          if (error instanceof ArchiveNodeNeededError) {
+            throw error;
+          } else if (isErrorDueToMissingDataFromNode(error)) {
+            throw new ArchiveNodeNeededError(options.rpcConfig.chain, error);
+          }
+          throw error;
+        }
+      };
+
       try {
         // retry the call if it fails
         const responses = await backOff(() => {
@@ -97,16 +120,12 @@ export function batchRpcCalls$<
             msg: "Acquiring provider lock for chain. " + options.logInfos.msg,
             data: { chain: options.rpcConfig.chain, ...options.logInfos.data },
           });
-          return chainLock.acquire(options.rpcConfig.chain, async () => {
-            logger.trace({
-              msg: "Lock acquired for chain. " + options.logInfos.msg,
-              data: { chain: options.rpcConfig.chain, ...options.logInfos.data },
-            });
-            const provider = canUseBatchProvider ? options.rpcConfig.batchProvider : options.rpcConfig.linearProvider;
-            const res = await options.processBatch(provider, contractCalls);
-            return res;
-          });
+
+          return callLockProtectedRpc(options.rpcConfig.chain, provider, options.rpcConfig.limitations, () =>
+            chainLock.acquire(options.rpcConfig.chain, work),
+          );
         }, retryConfig);
+
         if (responses.length !== objs.length) {
           throw new ProgrammerError({
             msg: "Query and result length mismatch",

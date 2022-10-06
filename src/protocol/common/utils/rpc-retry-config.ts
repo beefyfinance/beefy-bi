@@ -1,5 +1,5 @@
 import { IBackOffOptions } from "exponential-backoff";
-import { shouldRetryRpcError } from "../../../lib/rpc/archive-node-needed";
+import { shouldRetryRpcError } from "../../../utils/rpc/archive-node-needed";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError, shouldRetryProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
 

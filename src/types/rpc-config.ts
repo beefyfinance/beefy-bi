@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { RpcLimitations } from "../utils/rpc/rpc-limitations";
 import { Chain } from "./chain";
 
 export interface RpcConfig {
@@ -7,9 +8,7 @@ export interface RpcConfig {
   // most should use the batch provider
   linearProvider: ethers.providers.JsonRpcProvider;
   batchProvider: ethers.providers.JsonRpcBatchProvider;
-  maxBatchProviderSize: {
-    [method in RpcCallMethod]: number | null; // null meaning it's not supported
-  };
+  limitations: RpcLimitations;
 }
 
 export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber";
