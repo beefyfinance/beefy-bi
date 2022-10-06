@@ -1,1 +1,1 @@
-export * from "./protocol/beefy/loader/beefy-live";
+export * from "./script/run";

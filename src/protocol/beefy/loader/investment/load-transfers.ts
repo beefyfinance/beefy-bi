@@ -1,20 +1,20 @@
 import { PoolClient } from "pg";
-import { Chain } from "../../../types/chain";
-import { DbProduct } from "../../common/loader/product";
+import { Chain } from "../../../../types/chain";
+import { DbProduct } from "../../../common/loader/product";
 import * as Rx from "rxjs";
-import { ERC20Transfer } from "../../common/connector/erc20-transfers";
-import { fetchERC20TokenBalance$ } from "../../common/connector/owner-balance";
-import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
-import { upsertInvestor$ } from "../../common/loader/investor";
-import { upsertInvestment$ } from "../../common/loader/investment";
+import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
+import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
+import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
+import { upsertInvestor$ } from "../../../common/loader/investor";
+import { upsertInvestment$ } from "../../../common/loader/investment";
 import Decimal from "decimal.js";
-import { normalizeAddress } from "../../../utils/ethers";
-import { rootLogger } from "../../../utils/logger";
-import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
-import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
-import { RpcConfig } from "../../../types/rpc-config";
+import { normalizeAddress } from "../../../../utils/ethers";
+import { rootLogger } from "../../../../utils/logger";
+import { ErrorEmitter, ProductImportQuery } from "../../../common/types/product-query";
+import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { RpcConfig } from "../../../../types/rpc-config";
 
-const logger = rootLogger.child({ module: "common", component: "transfer-loader" });
+const logger = rootLogger.child({ module: "beefy", component: "import-transfer" });
 
 export type TransferWithRate = ProductImportQuery<DbProduct> & {
   transfer: ERC20Transfer;

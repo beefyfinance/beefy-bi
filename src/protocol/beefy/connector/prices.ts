@@ -3,7 +3,7 @@ import { BEEFY_DATA_URL } from "../../../utils/config";
 import { SamplingPeriod } from "../../../types/sampling";
 import { rootLogger } from "../../../utils/logger";
 
-interface PriceSnapshot {
+export interface PriceSnapshot {
   oracleId: string;
   datetime: Date;
   value: number;

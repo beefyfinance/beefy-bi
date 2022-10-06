@@ -8,7 +8,7 @@ import { rootLogger } from "../../../utils/logger";
 
 const logger = rootLogger.child({ module: "prices" });
 
-interface DbPrice {
+export interface DbPrice {
   datetime: Date;
   priceFeedId: number;
   usdValue: Decimal;

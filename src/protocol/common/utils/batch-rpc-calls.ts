@@ -103,7 +103,8 @@ export function batchRpcCalls$<
               data: { chain: options.rpcConfig.chain, ...options.logInfos.data },
             });
             const provider = canUseBatchProvider ? options.rpcConfig.batchProvider : options.rpcConfig.linearProvider;
-            return options.processBatch(provider, contractCalls);
+            const res = await options.processBatch(provider, contractCalls);
+            return res;
           });
         }, retryConfig);
         if (responses.length !== objs.length) {
