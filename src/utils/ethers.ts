@@ -1,5 +1,6 @@
 import * as ethers from "ethers";
 import { rootLogger } from "./logger";
+import { removeSecretsFromRpcUrl } from "./rpc/remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "utils", component: "ethers" });
 
@@ -13,6 +14,7 @@ export function normalizeAddress(address: string) {
 }
 
 export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider) {
+  const safeToLogUrl = removeSecretsFromRpcUrl(provider.connection.url);
   provider.on(
     "debug",
     (
@@ -34,11 +36,11 @@ export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvide
           },
     ) => {
       if (event.action === "request" || event.action === "requestBatch") {
-        logger.trace({ msg: "RPC request", data: { request: event.request } });
+        logger.trace({ msg: "RPC request", data: { request: event.request, rpcUrl: safeToLogUrl } });
       } else if (event.action === "response" && "response" in event) {
-        logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response } });
+        logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response, rpcUrl: safeToLogUrl } });
       } else if (event.action === "response" && "error" in event) {
-        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error } });
+        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
       }
     },
   );
