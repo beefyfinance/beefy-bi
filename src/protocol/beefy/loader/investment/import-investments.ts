@@ -4,7 +4,7 @@ import { PoolClient } from "pg";
 import { ethers } from "ethers";
 import { sample } from "lodash";
 import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB, RPC_URLS } from "../../../../utils/config";
-import { addDebugLogsToProvider } from "../../../../utils/ethers";
+import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../../../../utils/ethers";
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/block-query";
 import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
@@ -32,6 +32,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
   addDebugLogsToProvider(rpcConfig.linearProvider);
   addDebugLogsToProvider(rpcConfig.batchProvider);
+  monkeyPatchEthersBatchProvider(rpcConfig.batchProvider);
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
@@ -127,6 +128,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
 
   addDebugLogsToProvider(rpcConfig.linearProvider);
   addDebugLogsToProvider(rpcConfig.batchProvider);
+  monkeyPatchEthersBatchProvider(rpcConfig.batchProvider);
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing live data on a small amount of queries (one per vault)

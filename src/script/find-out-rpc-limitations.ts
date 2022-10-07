@@ -5,10 +5,11 @@ import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { runMain } from "../utils/process";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import { rootLogger } from "../utils/logger";
-import { addDebugLogsToProvider } from "../utils/ethers";
+import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../utils/ethers";
 import { RpcCallMethod } from "../types/rpc-config";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
+import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
@@ -59,7 +60,7 @@ runMain(main);
  * With this information, generate a config file we can use on execution
  **/
 async function testRpcLimits(chain: Chain, rpcUrl: string) {
-  findings[chain][rpcUrl] = {
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = {
     eth_getLogs: null,
     eth_call: null,
     eth_getBlockByNumber: null,
@@ -70,6 +71,8 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
 
   const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: 30_000 };
   const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions);
+  monkeyPatchEthersBatchProvider(batchProvider);
+
   const linearProvider = new ethers.providers.JsonRpcProvider(rpcOptions);
   addDebugLogsToProvider(batchProvider);
   addDebugLogsToProvider(linearProvider);
@@ -80,8 +83,8 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
 
   const createSaveFinding = (key: RpcCallMethod) => (n: number) => {
-    if ((findings[chain][rpcUrl][key] || 0) < n) {
-      findings[chain][rpcUrl][key] = n;
+    if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] || 0) < n) {
+      findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] = n;
     }
     console.dir(findings, { depth: null });
   };
@@ -130,7 +133,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
     return Promise.all(promises);
   });
 
-  logger.info({ msg: "Testing done for rpc", data: { chain, rpcUrl, findings: findings[chain][rpcUrl] } });
+  logger.info({ msg: "Testing done for rpc", data: { chain, rpcUrl, findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] } });
 }
 
 async function findTheLimit<T>(saveFinding: (n: number) => void, process: (n: number) => Promise<T>) {
