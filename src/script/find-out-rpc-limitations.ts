@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { allChainIds, Chain } from "../types/chain";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, RPC_URLS } from "../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_URLS } from "../utils/config";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { runMain } from "../utils/process";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
@@ -10,6 +10,7 @@ import { RpcCallMethod } from "../types/rpc-config";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
+import { ProgrammerError } from "../utils/rxjs/utils/programmer-error";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
@@ -36,17 +37,13 @@ async function main() {
     findings[chainFilter] = {};
     await testRpcLimits(chainFilter, rpcFilter);
   } else {
-    for (const chain of allChainIds) {
-      if (chainFilter && chain !== chainFilter) {
-        continue;
-      }
+    const allParams = allChainIds.map((chain) => RPC_URLS[chain].map((rpcUrl) => ({ chain, rpcUrl }))).flat();
 
+    for (const { chain } of allParams) {
       findings[chain] = {};
-
-      for (const rpcUrl of RPC_URLS[chain]) {
-        await testRpcLimits(chain, rpcUrl);
-      }
     }
+
+    await Promise.all(allParams.map(({ chain, rpcUrl }) => testRpcLimits(chain, rpcUrl)));
   }
 
   logger.info({ msg: "All done", data: { findings } });
@@ -67,7 +64,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
     eth_blockNumber: null,
   };
 
-  logger.info({ msg: "testing rpc", data: { chain, rpcUrl } });
+  logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
   const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: 30_000 };
   const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions);
@@ -78,33 +75,33 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   addDebugLogsToProvider(linearProvider);
 
   // find out the latest block number
-  logger.info({ msg: "fetching latest block number" });
+  logger.info({ msg: "fetching latest block number", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
   const latestBlockNumber = await linearProvider.getBlockNumber();
   const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
 
   const createSaveFinding = (key: RpcCallMethod) => (n: number) => {
     if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] || 0) < n) {
       findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] = n;
+      logger.debug({ msg: "Updated findings", data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: key, newValue: n } });
     }
-    console.dir(findings, { depth: null });
   };
 
   // eth_getLogs
-  logger.info({ msg: "Testing batch eth_getLogs limitations" });
-  await findTheLimit(createSaveFinding("eth_getLogs"), (i) => {
+  logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  await findTheLimit(chain, createSaveFinding("eth_getLogs"), (i) => {
     const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
     const eventFilter = contract.filters.Transfer();
     const promises = Array.from({ length: i }).map((_, i) => {
-      const fromBlock = latestBlockNumber - i * maxBlocksPerQuery;
-      const toBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
+      const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
+      const toBlock = latestBlockNumber - i * maxBlocksPerQuery;
       return contract.queryFilter(eventFilter, fromBlock, toBlock);
     });
     return Promise.all(promises);
   });
 
   // eth_call
-  logger.info({ msg: "Testing batch eth_call limitations" });
-  await findTheLimit(createSaveFinding("eth_call"), (i) => {
+  logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  await findTheLimit(chain, createSaveFinding("eth_call"), (i) => {
     const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
     const promises = Array.from({ length: i }).map((_, i) => {
       const blockTag = latestBlockNumber - i * maxBlocksPerQuery;
@@ -114,64 +111,88 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   });
 
   // eth_getBlockByNumber
-  logger.info({ msg: "Testing batch eth_getBlockByNumber limitations" });
-  await findTheLimit(createSaveFinding("eth_getBlockByNumber"), (i) => {
-    const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
+  logger.info({ msg: "Testing batch eth_getBlockByNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  await findTheLimit(chain, createSaveFinding("eth_getBlockByNumber"), (i) => {
     const promises = Array.from({ length: i }).map((_, i) => {
       const blockTag = latestBlockNumber - i * maxBlocksPerQuery;
-      return contract.getBlock(blockTag);
+      return batchProvider.getBlock(blockTag);
     });
     return Promise.all(promises);
   });
 
   // eth_blockNumber
-  logger.info({ msg: "Testing batch eth_blockNumber limitations" });
-  await findTheLimit(createSaveFinding("eth_blockNumber"), (i) => {
+  logger.info({ msg: "Testing batch eth_blockNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  await findTheLimit(chain, createSaveFinding("eth_blockNumber"), (i) => {
     const promises = Array.from({ length: i }).map((_, i) => {
       return batchProvider.getBlockNumber();
     });
     return Promise.all(promises);
   });
 
-  logger.info({ msg: "Testing done for rpc", data: { chain, rpcUrl, findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] } });
+  logger.info({
+    msg: "Testing done for rpc",
+    data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] },
+  });
 }
 
-async function findTheLimit<T>(saveFinding: (n: number) => void, process: (n: number) => Promise<T>) {
-  const maxBatchSize = 500;
-  const waitBeforeNextTest = 1000;
-  async function doRpcAllowThisMuch(batchSize: number) {
-    try {
-      await process(batchSize);
-      logger.debug({ msg: "batch call succeeded", data: { batchSize } });
-      saveFinding(batchSize);
+async function doRpcAllowThisMuch(options: {
+  chain: Chain;
+  process: (i: number) => Promise<any>;
+  batchSize: number;
+  maxBatchSize: number;
+  lastSuccessfullBatchSize: number;
+}) {
+  const waitBeforeNextTest = MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.chain];
+  try {
+    await options.process(options.batchSize);
+    logger.debug({ msg: "batch call succeeded", data: options });
+    if (waitBeforeNextTest !== "no-limit") {
       await sleep(waitBeforeNextTest);
-      // save the findings
-      return true;
-    } catch (e) {
-      logger.info({ msg: "batch limitations found", data: { batchSize } });
-      logger.error(e);
-      return false;
     }
+    // save the findings
+    return true;
+  } catch (e) {
+    logger.info({ msg: "batch limitations found", data: options });
+    logger.error(e);
+    return false;
   }
+}
 
-  // test 1, just to make sure we can do this
-  await doRpcAllowThisMuch(1);
+async function findTheLimit<T>(chain: Chain, saveFinding: (n: number) => void, process: (n: number) => Promise<T>) {
+  const maxBatchSize = 500;
+  // work our way up to find the limit
+  // this avoids overloading the rpc right away (compared to testing the max limit first and working our way down)
+  let batchSize = 1;
+  let lastSuccessfullBatchSize = batchSize;
+  let maxBatchSizeForThisCall = maxBatchSize;
+  let infiniteLoopCounter = 1000;
+  while (infiniteLoopCounter > 0) {
+    infiniteLoopCounter--;
+    const ok = await doRpcAllowThisMuch({ batchSize, maxBatchSize: maxBatchSizeForThisCall, lastSuccessfullBatchSize, chain, process });
+    // maybe the limit is higher
+    if (ok) {
+      saveFinding(batchSize);
+      if (batchSize + 1 >= maxBatchSizeForThisCall) {
+        // we reached the max
+        break;
+      }
 
-  // first, try the max, we never know
-  if (await doRpcAllowThisMuch(maxBatchSize)) {
-    return maxBatchSize;
-  }
-
-  // then work by halves
-  let min = 1;
-  let max = maxBatchSize;
-  while (max - min > 1) {
-    const mid = Math.floor((min + max) / 2);
-    if (await doRpcAllowThisMuch(mid)) {
-      min = mid;
+      lastSuccessfullBatchSize = batchSize;
+      batchSize = Math.min(batchSize * 2, maxBatchSizeForThisCall);
     } else {
-      max = mid;
+      // the limit is lower
+      maxBatchSizeForThisCall = batchSize;
+      batchSize = Math.floor((lastSuccessfullBatchSize + maxBatchSizeForThisCall) / 2);
+
+      if (batchSize + 1 >= maxBatchSizeForThisCall) {
+        // we are done
+        break;
+      }
     }
   }
-  return min;
+
+  if (infiniteLoopCounter === 0) {
+    throw new ProgrammerError("Infinite loop detected");
+  }
+  return batchSize;
 }

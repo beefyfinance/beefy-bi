@@ -11,144 +11,138 @@ const findings = (() => {
   const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: { [method in RpcCallMethod]: number | null } } } = {
     arbitrum: {
       "https://rpc.ankr.com/arbitrum": {
-        eth_getLogs: 3,
-        eth_call: 3,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 3,
+        eth_getLogs: 2,
+        eth_call: 12,
+        eth_getBlockByNumber: 10,
+        eth_blockNumber: null,
       },
     },
     aurora: {
       "https://mainnet.aurora.dev": {
-        eth_getLogs: null,
+        eth_getLogs: 256,
         eth_call: 500,
-        eth_getBlockByNumber: null,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     avax: {
       "https://rpc.ankr.com/avalanche": {
-        eth_getLogs: null,
+        eth_getLogs: 2,
         eth_call: 500,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: 1,
       },
     },
     bsc: {
       "https://rpc.ankr.com/bsc": {
-        eth_getLogs: 3,
-        eth_call: 500,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getLogs: null,
+        eth_call: null,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
     celo: {
       "https://rpc.ankr.com/celo": {
-        eth_getLogs: 3,
+        eth_getLogs: 1,
         eth_call: 1,
         eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_blockNumber: null,
       },
     },
     cronos: {
       "https://evm-cronos.crypto.org": {
-        eth_getLogs: 3,
-        eth_call: 3,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 1,
+        eth_getLogs: 2,
+        eth_call: 2,
+        eth_getBlockByNumber: 2,
+        eth_blockNumber: 2,
       },
     },
     emerald: {
       "https://emerald.oasis.dev": {
-        eth_getLogs: null,
-        eth_call: 427,
-        eth_getBlockByNumber: null,
+        eth_getLogs: 500,
+        eth_call: 500,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     fantom: {
       "https://rpc.ankr.com/fantom": {
-        eth_getLogs: 3,
+        eth_getLogs: 1,
         eth_call: 500,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: 1,
       },
     },
     fuse: {
       "https://explorer-node.fuse.io": {
         eth_getLogs: null,
         eth_call: null,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: 128,
       },
     },
     harmony: {
       "https://rpc.ankr.com/harmony": {
-        eth_getLogs: 3,
+        eth_getLogs: 2,
         eth_call: 500,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
     heco: {
       "https://http-mainnet.hecochain.com": {
-        eth_getLogs: 500,
-        eth_call: 1,
-        eth_getBlockByNumber: null,
+        eth_getLogs: 28,
+        eth_call: null,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     metis: {
-      "https://andromeda.metis.io/?owner=": {
-        eth_getLogs: 500,
-        eth_call: 499,
-        eth_getBlockByNumber: null,
+      "https://andromeda.metis.io": {
+        eth_getLogs: 2,
+        eth_call: 378,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        eth_getLogs: 3,
-        eth_call: 218,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 218,
+        eth_getLogs: 1,
+        eth_call: 64,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
     moonriver: {
-      "https://moonriver.api.onfinality.io/public": {
-        eth_getLogs: 500,
-        eth_call: 249,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
-      },
       "https://rpc.api.moonriver.moonbeam.network": {
-        eth_getLogs: 500,
-        eth_call: 124,
-        eth_getBlockByNumber: null,
+        eth_getLogs: 2,
+        eth_call: 378,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     optimism: {
       "https://rpc.ankr.com/optimism": {
-        eth_getLogs: 3,
+        eth_getLogs: 8,
         eth_call: 500,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
     polygon: {
       "https://rpc.ankr.com/polygon": {
-        eth_getLogs: 3,
-        eth_call: 499,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getLogs: 1,
+        eth_call: null,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
     syscoin: {
       "https://rpc.ankr.com/syscoin": {
-        eth_getLogs: 3,
+        eth_getLogs: 12,
         eth_call: 1,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_getBlockByNumber: 500,
+        eth_blockNumber: null,
       },
     },
   };
@@ -161,9 +155,14 @@ const findings = (() => {
     "rpc.api.moonriver.moonbeam.network": 10_000,
   };
 
+  // some rpc are just too bad to be used with batching
   const disableBatchingFor = {
     "moonriver.api.onfinality.io": true,
   };
+
+  // make sure we don't hit limitations exactly
+  const safetyMargin = 0.8;
+  const maxBatchSize = 500;
 
   for (const chain of allChainIds) {
     for (const rpcUrl of Object.keys(rawLimitations[chain])) {
@@ -171,46 +170,48 @@ const findings = (() => {
       let wasUpdated = false;
       const limitationCopy = cloneDeep(rpcLimitations);
 
-      for (const internalTimeoutRpc of Object.keys(internalTimeoutMs)) {
-        const rpcTimeout = internalTimeoutMs[internalTimeoutRpc as keyof typeof internalTimeoutMs];
+      for (const method of allRpcCallMethods) {
+        const oldLimit = rpcLimitations[method];
+        if (oldLimit === null) {
+          continue;
+        }
 
-        if (rpcUrl.includes(internalTimeoutRpc)) {
-          for (const method of allRpcCallMethods) {
-            const oldLimit = rpcLimitations[method];
-            if (oldLimit !== null) {
-              let newLimit = oldLimit;
+        let newLimit: number | null = oldLimit;
 
-              if (rpcTimeout <= 10_000) {
-                newLimit = Math.min(30, oldLimit);
-              } else if (rpcTimeout <= 5_000) {
-                newLimit = Math.min(10, oldLimit);
-              }
-
-              if (newLimit !== oldLimit) {
-                logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-                rpcLimitations[method] = newLimit;
-                wasUpdated = true;
-              }
+        // reduce the limit for those RPCs with a timeout
+        for (const internalTimeoutRpc of Object.keys(internalTimeoutMs)) {
+          const rpcTimeout = internalTimeoutMs[internalTimeoutRpc as keyof typeof internalTimeoutMs];
+          if (rpcUrl.includes(internalTimeoutRpc)) {
+            if (rpcTimeout <= 10_000) {
+              newLimit = Math.min(30, oldLimit);
+            } else if (rpcTimeout <= 5_000) {
+              newLimit = Math.min(10, oldLimit);
             }
           }
         }
-      }
 
-      for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
-        const disableBatching = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
-
-        if (rpcUrl.includes(disableBatchingRpc) && disableBatching) {
-          for (const method of allRpcCallMethods) {
-            const oldLimit = rpcLimitations[method];
-            const newLimit = null;
-            if (oldLimit !== null) {
-              if (newLimit !== oldLimit) {
-                logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-                rpcLimitations[method] = newLimit;
-                wasUpdated = true;
-              }
-            }
+        // disable batching if required
+        for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
+          const isBatchingDisabled = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
+          if (isBatchingDisabled) {
+            newLimit = null;
           }
+        }
+
+        // apply safety margin
+        if (newLimit !== null && newLimit !== maxBatchSize) {
+          newLimit = Math.floor(newLimit * safetyMargin);
+        }
+
+        // disable batching if it's only 1
+        if (newLimit === 1) {
+          newLimit = null;
+        }
+
+        if (newLimit !== oldLimit) {
+          logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+          rpcLimitations[method] = newLimit;
+          wasUpdated = true;
         }
       }
 
