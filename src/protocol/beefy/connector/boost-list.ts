@@ -48,10 +48,7 @@ export interface BeefyBoost {
   reward_token_price_feed_key: string;
 }
 
-export function beefyBoostsFromGitHistory$(
-  chain: Chain,
-  allChaiVaults: Record<string, BeefyVault>,
-): Rx.Observable<BeefyBoost> {
+export function beefyBoostsFromGitHistory$(chain: Chain, allChaiVaults: Record<string, BeefyVault>): Rx.Observable<BeefyBoost> {
   logger.debug({ msg: "Fetching boost list from beefy-v2 repo git history", data: { chain } });
 
   const fileContentStreamV2 = gitStreamFileVersions({
@@ -88,17 +85,17 @@ export function beefyBoostsFromGitHistory$(
     }),
 
     // just emit the boost
-    Rx.map(({ boost }) => {
+    Rx.concatMap(({ boost }) => {
       const vault = allChaiVaults[normalizeVaultId(boost.poolId)];
       if (!vault) {
-        throw new Error(`Could not find vault for boost ${boost.id}: ${boost.poolId}`);
+        logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: boost.poolId } });
+        return Rx.EMPTY;
       }
-      return rawBoostToBeefyBoost(chain, boost, vault);
+      return Rx.of(rawBoostToBeefyBoost(chain, boost, vault));
     }),
 
     Rx.tap({
-      complete: () =>
-        logger.debug({ msg: "Finished fetching boost list from beefy-v2 repo git history", data: { chain } }),
+      complete: () => logger.debug({ msg: "Finished fetching boost list from beefy-v2 repo git history", data: { chain } }),
     }),
   );
 }

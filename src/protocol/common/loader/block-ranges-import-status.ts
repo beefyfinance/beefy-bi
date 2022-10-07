@@ -10,7 +10,6 @@ import { ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "./product";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
-import { samplingPeriodMs } from "../../../types/sampling";
 
 const logger = rootLogger.child({ module: "common", component: "block-ranges-import-status" });
 

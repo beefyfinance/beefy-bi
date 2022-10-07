@@ -46,7 +46,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 13, "x": 0, "y": 0 },
+      "gridPos": { "h": 13, "w": 12, "x": 0, "y": 0 },
       "id": 2,
       "options": {
         "barRadius": 0,
@@ -94,7 +94,49 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 10 },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 13 },
+      "id": 6,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": false, "displayName": "latest_covered_block_number" }]
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    p.chain, \n    max((import_data->'data'->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_status i\n  join product p on p.product_id = i.product_id\n  group by 1\n)\nselect \n  product_key, \n  i.import_data is not null as has_import_status,\n  (import_data->'data'->>'contractCreatedAtBlock')::integer as contract_creation_block,\n  (import_data->'data'->>'chainLatestBlockNumber')::integer as latest_covered_block_number,\n  b.last_covered as last_block_number_covered_for_chain,\n  b.last_covered - coalesce((import_data->'data'->>'chainLatestBlockNumber')::integer, (import_data->'data'->>'contractCreatedAtBlock')::integer) as blocks_to_cover\nfrom product p\nleft join import_status i on p.product_id = i.product_id\nleft join max_block_number_by_chain b on p.chain = b.chain",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Product import stats",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 24 },
       "id": 4,
       "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
       "pluginVersion": "9.0.2",
@@ -125,6 +167,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
