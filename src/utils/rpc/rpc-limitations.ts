@@ -204,7 +204,7 @@ const findings = (() => {
         }
 
         // disable batching if it's only 1
-        if (newLimit === 1) {
+        if (newLimit !== null && newLimit <= 1) {
           newLimit = null;
         }
 
