@@ -204,8 +204,8 @@ export function importProductBlockRange$(options: {
     Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, 300),
 
     Rx.tap((items) =>
-      logger.info({
-        msg: "========================================= BEFORE ==================================================",
+      logger.debug({
+        msg: "Importing a batch of transfers",
         data: { count: items.length, transferLen: items.map((i) => i.transfers.length).reduce((a, b) => a + b, 0) },
       }),
     ),
@@ -243,17 +243,13 @@ export function importProductBlockRange$(options: {
       );
     }, options.streamConfig.workConcurrency),
 
-    Rx.pipe(
-      Rx.tap((items) =>
-        logger.info({
-          msg: "========================================= DONE ==================================================",
-          data: { count: items.length },
-        }),
-      ),
-
-      Rx.tap(() => logger.info({ msg: "Imported transfers batch" })),
-
-      Rx.mergeAll(), // flatten items
+    Rx.tap((items) =>
+      logger.debug({
+        msg: "Done importing a transfer batch",
+        data: { count: items.length },
+      }),
     ),
+
+    Rx.mergeAll(), // flatten items
   );
 }

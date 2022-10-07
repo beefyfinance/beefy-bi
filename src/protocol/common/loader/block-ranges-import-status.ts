@@ -101,6 +101,13 @@ export function updateBlockRangesImportStatus$(options: { client: PoolClient; st
         newImportStatus.importData.data.blockRangesToRetry = rangeMerge(newImportStatus.importData.data.blockRangesToRetry);
 
         const rangeResults = items.map((item) => ({ range: item.blockRange, success: item.success }));
+
+        // update the latest block number we know about
+        newImportStatus.importData.data.chainLatestBlockNumber = Math.max(
+          max(items.map((item) => item.latestBlockNumber)) || 0,
+          newImportStatus.importData.data.chainLatestBlockNumber || 0 /* in case it's not set yet */,
+        );
+
         logger.debug({
           msg: "Updating import status",
           data: {
@@ -111,12 +118,6 @@ export function updateBlockRangesImportStatus$(options: { client: PoolClient; st
             newImportStatus,
           },
         });
-
-        // update the latest block number we know about
-        newImportStatus.importData.data.chainLatestBlockNumber = Math.max(
-          max(items.map((item) => item.latestBlockNumber)) || 0,
-          newImportStatus.importData.data.chainLatestBlockNumber || 0 /* in case it's not set yet */,
-        );
 
         return newImportStatus;
       },
