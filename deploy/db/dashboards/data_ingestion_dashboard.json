@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1665167765377,
+  "iteration": 1665167765381,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -84,7 +84,7 @@
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Percent of blocks covered (from contract creation to latest known block for the import system)",
+      "title": "Block coverage status",
       "type": "barchart"
     },
     {
@@ -134,7 +134,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with all_chains as (\n  select distinct chain from product\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\ngroup by 1 \norder by 1;",
+          "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\ngroup by 1 \norder by 1;",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -151,15 +151,11 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
           "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
         },
-        "overrides": []
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
+        ]
       },
       "gridPos": { "h": 11, "w": 24, "x": 0, "y": 15 },
       "id": 6,
@@ -185,44 +181,6 @@
       ],
       "title": "Product import stats",
       "type": "table"
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 26 },
-      "id": 4,
-      "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT *\nFROM\n  product\nwhere product_id not in (\n  select product_id\n  from import_status\n)\n",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-        }
-      ],
-      "title": "Product Without an import status",
-      "type": "table"
     }
   ],
   "schemaVersion": 36,
@@ -231,7 +189,7 @@
   "templating": {
     "list": [
       {
-        "current": { "selected": false, "text": ["All"], "value": ["$__all"] },
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain from product",
         "hide": 0,
@@ -253,6 +211,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 9,
+  "version": 11,
   "weekStart": ""
 }
