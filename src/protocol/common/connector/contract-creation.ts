@@ -71,13 +71,35 @@ const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "e
 const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
 
 async function getFromExplorerCreationBlock(contractAddress: string, explorerUrl: string) {
-  var url = explorerUrl + `?module=account&action=txlist&address=${contractAddress}&startblock=1&endblock=999999999&page=1&offset=1&sort=asc&limit=1`;
-  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, url } });
+  const params = {
+    module: "account",
+    action: "txlist",
+    address: contractAddress,
+    startblock: 1,
+    endblock: 999999999,
+    page: 1,
+    offset: 1,
+    sort: "asc",
+    limit: 1,
+  };
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, explorerUrl, params } });
 
-  const resp = await axios.get(url);
+  const resp = await axios.get(explorerUrl, {
+    params: {
+      module: "account",
+      action: "txlist",
+      address: contractAddress,
+      startblock: 1,
+      endblock: 999999999,
+      page: 1,
+      offset: 1,
+      sort: "asc",
+      limit: 1,
+    },
+  });
 
   if (!isArray(resp.data.result) || resp.data.result.length === 0) {
-    logger.error({ msg: "No contract creation transaction found", data: { contractAddress, url, data: resp.data } });
+    logger.error({ msg: "No contract creation transaction found", data: { contractAddress, explorerUrl, params, data: resp.data } });
     throw new Error("No contract creation transaction found");
   }
   let blockNumber: number | string = resp.data.result[0].blockNumber;
