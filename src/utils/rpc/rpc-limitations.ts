@@ -158,6 +158,7 @@ const findings = (() => {
   // some rpc are just too bad to be used with batching
   const disableBatchingFor = {
     "moonriver.api.onfinality.io": true,
+    "rpc.api.moonriver.moonbeam.network": true,
   };
 
   // make sure we don't hit limitations exactly
