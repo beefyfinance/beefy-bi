@@ -84,19 +84,7 @@ async function getFromExplorerCreationBlock(contractAddress: string, explorerUrl
   };
   logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, explorerUrl, params } });
 
-  const resp = await axios.get(explorerUrl, {
-    params: {
-      module: "account",
-      action: "txlist",
-      address: contractAddress,
-      startblock: 1,
-      endblock: 999999999,
-      page: 1,
-      offset: 1,
-      sort: "asc",
-      limit: 1,
-    },
-  });
+  const resp = await axios.get(explorerUrl, { params });
 
   if (!isArray(resp.data.result) || resp.data.result.length === 0) {
     logger.error({ msg: "No contract creation transaction found", data: { contractAddress, explorerUrl, params, data: resp.data } });
