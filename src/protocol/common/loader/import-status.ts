@@ -15,6 +15,8 @@ import { DbProduct } from "./product";
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
 interface BlockRangesImportStatus {
+  chainLatestBlockNumber: number;
+
   contractCreatedAtBlock: number;
   // already imported once range
   coveredBlockRange: Range;

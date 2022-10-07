@@ -11,10 +11,10 @@ import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
 import { ProductImportQuery } from "../../../common/types/product-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
-import { bufferUntilBelowMachineThresholds } from "../../../../utils/rxjs/utils/buffer-until-below-machine-threshold";
+import { looselessThrottleUntilBelowMachineThresholds } from "../../../../utils/rxjs/utils/looseless-throttle-until-below-machine-threshold";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { importProductBlockRange$ } from "./product-block-range";
-import { addMissingBlockRangesImportStatus$, updateBeefyImportStatus$ } from "../../../common/loader/block-ranges-import-status";
+import { addMissingBlockRangesImportStatus$, updateBlockRangesImportStatus$ } from "../../../common/loader/block-ranges-import-status";
 import { rootLogger } from "../../../../utils/logger";
 
 export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
@@ -37,7 +37,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // since we are doing many historical queries at once, we cannot afford to do many at once
     workConcurrency: 1,
     // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxInputWaitMs: 5 * 60 * 1000,
+    maxInputWaitMs: 30 * 1000,
     maxInputTake: 500,
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
@@ -69,21 +69,21 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
         forceCurrentBlockNumber,
         streamConfig,
         getImportStatus: (item) => item.importStatus,
-        formatOutput: (item, blockQueries) => ({ ...item, blockQueries }),
+        formatOutput: (item, latestBlockNumber, blockQueries) => ({ ...item, blockQueries, latestBlockNumber }),
       }),
 
       // convert to stream of product queries
       Rx.concatMap((item) =>
         item.blockQueries.map((blockRange): ProductImportQuery<DbBeefyProduct> => {
           const { blockQueries, ...rest } = item;
-          return { ...rest, blockRange };
+          return { ...rest, blockRange, latestBlockNumber: item.latestBlockNumber };
         }),
       ),
     ),
 
     // some backpressure mechanism
     Rx.pipe(
-      bufferUntilBelowMachineThresholds({
+      looselessThrottleUntilBelowMachineThresholds({
         sendInitialBurstOf: streamConfig.maxInputTake,
         checkIntervalMs: BACKPRESSURE_CHECK_INTERVAL_MS,
         checkIntervalJitterMs: 2000,
@@ -106,7 +106,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
     ),
 
-    updateBeefyImportStatus$({ client, streamConfig }),
+    updateBlockRangesImportStatus$({ client, streamConfig }),
 
     Rx.finalize(() => logger.info({ msg: "Finished importing historical data", data: { chain } })),
   );
@@ -168,7 +168,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
       forceCurrentBlockNumber,
       streamConfig: streamConfig,
       getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
-      formatOutput: (item, blockRange) => ({ ...item, blockRange }),
+      formatOutput: (item, latestBlockNumber, blockRange) => ({ ...item, blockRange, latestBlockNumber }),
     }),
 
     // process the queries

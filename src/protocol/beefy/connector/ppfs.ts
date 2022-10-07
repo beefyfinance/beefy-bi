@@ -11,6 +11,7 @@ import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-
 import Decimal from "decimal.js";
 import { DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
+import { getRpcRetryConfig } from "../../common/utils/rpc-retry-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -44,6 +45,7 @@ export function fetchBeefyPPFS$<
       eth_getBlockByNumber: 0,
       eth_getLogs: 0,
     },
+    getCallMultiplierForObj: (obj) => options.getPPFSCallParams(obj).blockNumbers.length,
     emitErrors: options.emitErrors,
     streamConfig: options.streamConfig,
     getQuery: options.getPPFSCallParams,

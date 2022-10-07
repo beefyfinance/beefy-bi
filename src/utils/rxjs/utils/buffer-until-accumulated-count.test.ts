@@ -1,14 +1,14 @@
 import * as Rx from "rxjs";
 import { sleep } from "../../async";
-import { bufferUntilKeyChanged } from "./buffer-until-key-change";
+import { bufferUntilAccumulatedCountReached } from "./buffer-until-accumulated-count";
 import { consumeObservable } from "./consume-observable";
 
-describe("bufferUntilKeyChanged", () => {
+describe("bufferUntilAccumulatedCountReachedOrTimePassed", () => {
   it("should do simple buffering properly", async () => {
-    const pipeline$ = Rx.from([1, 1, 1, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5]).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 100,
+    const pipeline$ = Rx.from([1, 1, 1, 2, 3, 2, 1, 2, 1, 3]).pipe(
+      bufferUntilAccumulatedCountReached({
+        getCount: (x) => x,
+        maxBufferSize: 5,
         maxBufferTimeMs: 1000,
         pollFrequencyMs: 10,
         pollJitterMs: 0,
@@ -17,14 +17,14 @@ describe("bufferUntilKeyChanged", () => {
       Rx.toArray(),
     );
     const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([[1, 1, 1], [2], [3, 3], [4, 4, 4], [5, 5, 5, 5], [4, 4], [5, 5, 5, 5]]);
+    expect(result).toEqual([[1, 1, 1, 2], [3, 2], [1, 2, 1], [3]]);
   });
 
   it("should buffer when only one group is present", async () => {
     const pipeline$ = Rx.from([1, 1, 1]).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 100,
+      bufferUntilAccumulatedCountReached({
+        getCount: (x) => x,
+        maxBufferSize: 5,
         maxBufferTimeMs: 1000,
         pollFrequencyMs: 10,
         pollJitterMs: 0,
@@ -36,11 +36,11 @@ describe("bufferUntilKeyChanged", () => {
     expect(result).toEqual([[1, 1, 1]]);
   });
 
-  it("should allow for a max buffer size to be set", async () => {
-    const pipeline$ = Rx.from([1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 3,
+  it("should send one if item is already too big present", async () => {
+    const pipeline$ = Rx.from([1, 1, 1, 10, 1, 1, 1]).pipe(
+      bufferUntilAccumulatedCountReached({
+        getCount: (x) => x,
+        maxBufferSize: 5,
         maxBufferTimeMs: 1000,
         pollFrequencyMs: 10,
         pollJitterMs: 0,
@@ -49,20 +49,14 @@ describe("bufferUntilKeyChanged", () => {
       Rx.toArray(),
     );
     const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([
-      [1, 1, 1],
-      [1, 1, 1],
-      [1, 1],
-      [2, 2, 2],
-      [2, 2],
-    ]);
+    expect(result).toEqual([[1, 1, 1], [10], [1, 1, 1]]);
   });
 
   it("should not emit an empty buffer", async () => {
     const pipeline$ = Rx.from([]).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 100,
+      bufferUntilAccumulatedCountReached({
+        getCount: (x) => x,
+        maxBufferSize: 5,
         maxBufferTimeMs: 1000,
         pollFrequencyMs: 10,
         pollJitterMs: 0,
@@ -72,22 +66,6 @@ describe("bufferUntilKeyChanged", () => {
     );
     const result = await consumeObservable(pipeline$);
     expect(result).toEqual([]);
-  });
-
-  it("should emit when we have only one entry", async () => {
-    const pipeline$ = Rx.from([10]).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 100,
-        maxBufferTimeMs: 1000,
-        pollFrequencyMs: 10,
-        pollJitterMs: 0,
-        logInfos: { msg: "test" },
-      }),
-      Rx.toArray(),
-    );
-    const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([[10]]);
   });
 
   it("should send buffer if enough time has passed", async () => {
@@ -111,9 +89,9 @@ describe("bufferUntilKeyChanged", () => {
         subscriber.complete();
       })();
     }).pipe(
-      bufferUntilKeyChanged({
-        getKey: (x) => `${x}`,
-        maxBufferSize: 100,
+      bufferUntilAccumulatedCountReached({
+        getCount: (x) => x,
+        maxBufferSize: 5,
         maxBufferTimeMs: 100,
         pollFrequencyMs: 1,
         pollJitterMs: 0,
@@ -122,6 +100,6 @@ describe("bufferUntilKeyChanged", () => {
       Rx.toArray(),
     );
     const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([[1, 1, 1, 1, 1, 1, 1], [1, 1], [1], [5]]);
+    expect(result).toEqual([[1, 1, 1, 1, 1], [1, 1], [1, 1], [1], [5]]);
   });
 });

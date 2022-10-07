@@ -1,10 +1,11 @@
+import { sum } from "lodash";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../logger";
 
-const logger = rootLogger.child({ module: "rxjs-utils", component: "buffer-until-key-changed" });
+const logger = rootLogger.child({ module: "rxjs-utils", component: "buffer-until-accumulated-count" });
 
-export function bufferUntilKeyChanged<TObj>(options: {
-  getKey: (obj: TObj) => string;
+export function bufferUntilAccumulatedCountReached<TObj>(options: {
+  getCount: (obj: TObj) => number;
   maxBufferSize: number;
   maxBufferTimeMs: number;
   pollFrequencyMs: number;
@@ -12,25 +13,21 @@ export function bufferUntilKeyChanged<TObj>(options: {
   logInfos: { msg: string; data?: Record<string, unknown> };
 }): Rx.OperatorFunction<TObj, TObj[]> {
   let objBuffer = [] as TObj[];
+  let bufferTotal = 0;
 
   let sourceObsFinalized = false;
 
   function flushBuffer() {
-    // find how much we can send, but always send at least one
-    // until key changed or max buffer size reached
-
-    let previousKey = null;
+    // find how much we can send
+    let count = 0;
     let i = 0;
-    for (; i < objBuffer.length && i < options.maxBufferSize; i++) {
+    for (; i < objBuffer.length; i++) {
       const obj = objBuffer[i];
-      const objKey = options.getKey(obj);
-      if (previousKey === null) {
-        previousKey = objKey;
-      }
-      // we have reached the end of the current key
-      if (objKey !== previousKey) {
+      const objCount = options.getCount(obj);
+      if (count + objCount > options.maxBufferSize) {
         break;
       }
+      count += objCount;
     }
     // send the first item anyway if it is too big
     if (i === 0) {
@@ -38,6 +35,9 @@ export function bufferUntilKeyChanged<TObj>(options: {
     }
     const toSend = objBuffer.slice(0, i);
     objBuffer = objBuffer.slice(i);
+
+    // reset the buffer total
+    bufferTotal = sum(objBuffer.map(options.getCount));
 
     return toSend;
   }
@@ -64,8 +64,8 @@ export function bufferUntilKeyChanged<TObj>(options: {
         return;
       }
 
-      // send the buffer if we have reached the buffer size
-      if (objBuffer.length >= options.maxBufferSize) {
+      // send the buffer if we have reached the count limit
+      if (bufferTotal >= options.maxBufferSize) {
         const toSend = flushBuffer();
         subscriber.next(() => Rx.of(toSend));
         return;
@@ -82,6 +82,7 @@ export function bufferUntilKeyChanged<TObj>(options: {
     // queue up items as they come in
     Rx.map((obj: TObj) => {
       objBuffer.push(obj);
+      bufferTotal += options.getCount(obj);
       return () => Rx.EMPTY as Rx.Observable<TObj[]>;
     }),
 

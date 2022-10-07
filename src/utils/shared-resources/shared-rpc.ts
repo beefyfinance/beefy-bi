@@ -36,7 +36,7 @@ export async function callLockProtectedRpc<TRes>(
         const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
 
         const now = new Date();
-        logger.debug({
+        logger.trace({
           msg: "Last call was",
           data: { lastCallDate: lastCallDate.toISOString(), now: now.toISOString() },
         });
@@ -44,9 +44,9 @@ export async function callLockProtectedRpc<TRes>(
         // wait a bit before calling the rpc again if needed
         if (delayBetweenCalls !== "no-limit") {
           if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-            logger.debug({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } });
+            logger.trace({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } });
             await sleep(delayBetweenCalls);
-            logger.debug({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } });
+            logger.trace({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } });
           }
         }
         // now we are going to call, so set the last call date
@@ -65,12 +65,12 @@ export async function callLockProtectedRpc<TRes>(
       };
 
       if (delayBetweenCalls === "no-limit") {
-        logger.debug({ msg: "No lock needed for", data: { publicRpcUrl, resourceId: rpcLockId } });
+        logger.trace({ msg: "No lock needed for", data: { publicRpcUrl, resourceId: rpcLockId } });
         return doWork();
       } else {
-        logger.debug({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId: rpcLockId } });
+        logger.trace({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId: rpcLockId } });
         return redlock.using([rpcLockId], 2 * 60 * 1000, async () => {
-          logger.debug({ msg: " Acquired lock for", data: { publicRpcUrl, resourceId: rpcLockId } });
+          logger.trace({ msg: " Acquired lock for", data: { publicRpcUrl, resourceId: rpcLockId } });
           return doWork();
         });
       }
@@ -85,7 +85,7 @@ export async function callLockProtectedRpc<TRes>(
           msg: "RPC error, retrying",
           data: { attemptNumber, publicRpcUrl, resourceId: rpcLockId, error: error.message },
         };
-        if (attemptNumber < 3) logger.debug(message);
+        if (attemptNumber < 3) logger.trace(message);
         else if (attemptNumber < 9) logger.info(message);
         else if (attemptNumber < 10) logger.warn(message);
         else logger.error(message);

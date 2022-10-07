@@ -201,7 +201,15 @@ export function importProductBlockRange$(options: {
     }),
 
     // work by batches of 300 block range
-    Rx.bufferCount(300),
+    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, 300),
+
+    Rx.tap((items) =>
+      logger.info({
+        msg: "========================================= BEFORE ==================================================",
+        data: { count: items.length, transferLen: items.map((i) => i.transfers.length).reduce((a, b) => a + b, 0) },
+      }),
+    ),
+
     Rx.mergeMap((items) => {
       const itemsTransfers = items.map((item) =>
         item.transfers.map(
@@ -211,6 +219,7 @@ export function importProductBlockRange$(options: {
             product: item.product,
             sharesRate: item.ppfss[idx],
             blockRange: item.blockRange,
+            latestBlockNumber: item.latestBlockNumber,
           }),
         ),
       );
@@ -233,6 +242,18 @@ export function importProductBlockRange$(options: {
         Rx.map(() => items.map((item) => ({ ...item, success: true }))),
       );
     }, options.streamConfig.workConcurrency),
-    Rx.mergeAll(), // flatten items
+
+    Rx.pipe(
+      Rx.tap((items) =>
+        logger.info({
+          msg: "========================================= DONE ==================================================",
+          data: { count: items.length },
+        }),
+      ),
+
+      Rx.tap(() => logger.info({ msg: "Imported transfers batch" })),
+
+      Rx.mergeAll(), // flatten items
+    ),
   );
 }

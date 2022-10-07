@@ -11,6 +11,7 @@ import AsyncLock from "async-lock";
 import { ethers } from "ethers";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
+import { bufferUntilAccumulatedCountReached } from "../../../utils/rxjs/utils/buffer-until-accumulated-count";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-query-group" });
 
@@ -45,15 +46,16 @@ export function batchRpcCalls$<
   TResp,
   TRes extends ProductImportQuery<TProduct>,
 >(options: {
-  rpcConfig: RpcConfig;
   getQuery: (obj: TInputObj) => TQueryObj;
   processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TResp[]>;
   // we are doing this much rpc calls per input object
   // this is used to calculate the input batch to send to the client
   // and to know if we can inject the batch provider or if we should use the regular provider
+  rpcConfig: RpcConfig;
   rpcCallsPerInputObj: {
     [method in RpcCallMethod]: number;
   };
+  getCallMultiplierForObj?: (obj: TInputObj) => number;
   // errors
   streamConfig: BatchStreamConfig;
   emitErrors: ErrorEmitter;
@@ -70,6 +72,10 @@ export function batchRpcCalls$<
   let canUseBatchProvider = true;
   let maxInputObjsPerBatch = options.streamConfig.maxInputTake;
   for (const [method, count] of Object.entries(options.rpcCallsPerInputObj)) {
+    // we don't use this method so we don't care
+    if (count <= 0) {
+      continue;
+    }
     const maxCount = methodLimitations[method as RpcCallMethod];
     if (maxCount === null) {
       canUseBatchProvider = false;
@@ -81,10 +87,25 @@ export function batchRpcCalls$<
   if (!canUseBatchProvider) {
     maxInputObjsPerBatch = options.streamConfig.maxInputTake;
   }
+  logger.trace({
+    msg: "batchRpcCalls$ config. " + options.logInfos.msg,
+    data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations, ...options.logInfos.data },
+  });
 
   return Rx.pipe(
     // take a batch of items
-    Rx.bufferTime<TInputObj>(options.streamConfig.maxInputWaitMs, undefined, maxInputObjsPerBatch),
+    bufferUntilAccumulatedCountReached<TInputObj>({
+      maxBufferSize: maxInputObjsPerBatch,
+      maxBufferTimeMs: options.streamConfig.maxInputWaitMs,
+      pollFrequencyMs: 150,
+      pollJitterMs: 50,
+      logInfos: options.logInfos,
+      getCount: options.getCallMultiplierForObj || (() => 1),
+    }),
+
+    Rx.tap((objs) =>
+      logger.trace({ msg: "batchRpcCalls$ - batch. " + options.logInfos.msg, data: { ...options.logInfos.data, objsCount: objs.length } }),
+    ),
 
     // for each batch, fetch the transfers
     Rx.mergeMap(async (objs: TInputObj[]) => {
@@ -143,6 +164,12 @@ export function batchRpcCalls$<
         return Rx.EMPTY;
       }
     }, options.streamConfig.workConcurrency),
+
+    Rx.tap(
+      (objs) =>
+        Array.isArray(objs) &&
+        logger.trace({ msg: "batchRpcCalls$ - done. " + options.logInfos.msg, data: { ...options.logInfos.data, objsCount: objs.length } }),
+    ),
 
     // flatten
     Rx.mergeAll(),

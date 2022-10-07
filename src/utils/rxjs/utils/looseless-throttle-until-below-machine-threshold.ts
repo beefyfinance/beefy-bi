@@ -4,7 +4,7 @@ import { ProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "buffer-until-below-machine-threshold" });
 
-export function bufferUntilBelowMachineThresholds<TObj>(options: {
+export function looselessThrottleUntilBelowMachineThresholds<TObj>(options: {
   sendInitialBurstOf: number; // ramp up to speed quickly by sending a large burst
   checkIntervalMs: number; // then every X ms
   checkIntervalJitterMs: number; // add a bit of jitter to the check interval
@@ -65,6 +65,11 @@ export function bufferUntilBelowMachineThresholds<TObj>(options: {
         subscriber.complete();
       }
     }, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
+
+    return () => {
+      logger.trace({ msg: "Releaser unsubscribed" });
+      clearInterval(poller);
+    };
   });
 
   let remainingInitialBurst = options.sendInitialBurstOf;

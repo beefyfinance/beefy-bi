@@ -1,5 +1,5 @@
 import * as Rx from "rxjs";
-import { cloneDeep } from "lodash";
+import { cloneDeep, max } from "lodash";
 import { addMissingImportStatus, DbImportStatus, updateImportStatus } from "./import-status";
 import { rangeExclude, rangeMerge } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
@@ -10,6 +10,7 @@ import { ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "./product";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
+import { samplingPeriodMs } from "../../../types/sampling";
 
 const logger = rootLogger.child({ module: "common", component: "block-ranges-import-status" });
 
@@ -28,6 +29,7 @@ export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(o
       getInitialImportData: (_, contractCreationInfo) => ({
         type: "block-ranges",
         data: {
+          chainLatestBlockNumber: contractCreationInfo.blockNumber,
           contractCreatedAtBlock: contractCreationInfo.blockNumber,
           coveredBlockRange: {
             from: contractCreationInfo.blockNumber,
@@ -40,14 +42,23 @@ export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(o
   );
 }
 
-export function updateBeefyImportStatus$(options: { client: PoolClient; streamConfig: BatchStreamConfig }) {
+export function updateBlockRangesImportStatus$(options: { client: PoolClient; streamConfig: BatchStreamConfig }) {
   return Rx.pipe(
     // merge the statuses ranges together to call updateImportStatus less often
     // but flush often enough so we don't go too long before updating the status
-    bufferUntilKeyChanged(
-      (item: ProductImportQuery<DbProduct> & { success: boolean }) => `${item.product.productId}`,
-      options.streamConfig.maxInputTake,
-    ),
+    bufferUntilKeyChanged({
+      getKey: (item: ProductImportQuery<DbProduct> & { success: boolean }) => {
+        // also make sure we flush every now and then
+        const flushTimeKey = Math.floor(Date.now() / options.streamConfig.maxInputWaitMs);
+        options.streamConfig.maxInputTake;
+        return `${item.product.productId}-${flushTimeKey}`;
+      },
+      logInfos: { msg: "Merging block ranges import status", data: {} },
+      maxBufferSize: options.streamConfig.maxInputTake,
+      maxBufferTimeMs: options.streamConfig.maxInputWaitMs,
+      pollFrequencyMs: 150,
+      pollJitterMs: 50,
+    }),
 
     // update the import status with the new block range
     updateImportStatus({
@@ -100,6 +111,12 @@ export function updateBeefyImportStatus$(options: { client: PoolClient; streamCo
             newImportStatus,
           },
         });
+
+        // update the latest block number we know about
+        newImportStatus.importData.data.chainLatestBlockNumber = Math.max(
+          max(items.map((item) => item.latestBlockNumber)) || 0,
+          newImportStatus.importData.data.chainLatestBlockNumber || 0 /* in case it's not set yet */,
+        );
 
         return newImportStatus;
       },
