@@ -203,7 +203,7 @@ export async function db_migrate() {
 
       CREATE OR REPLACE FUNCTION jsonb_import_ranges_size_sum(jsonb) RETURNS integer
       AS $$
-        select sum(jsonb_import_range_size(size))
+        select coalesce(sum(jsonb_import_range_size(size)), 0)
         from ( select * from jsonb_array_elements($1)) as range_size(size)
       $$
       LANGUAGE SQL
