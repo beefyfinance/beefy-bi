@@ -35,7 +35,7 @@ const findings = (() => {
     },
     bsc: {
       "https://rpc.ankr.com/bsc": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 500,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -43,7 +43,7 @@ const findings = (() => {
     },
     celo: {
       "https://rpc.ankr.com/celo": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 1,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -67,7 +67,7 @@ const findings = (() => {
     },
     fantom: {
       "https://rpc.ankr.com/fantom": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 500,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -83,7 +83,7 @@ const findings = (() => {
     },
     harmony: {
       "https://rpc.ankr.com/harmony": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 500,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -107,7 +107,7 @@ const findings = (() => {
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 218,
         eth_getBlockByNumber: null,
         eth_blockNumber: 218,
@@ -129,7 +129,7 @@ const findings = (() => {
     },
     optimism: {
       "https://rpc.ankr.com/optimism": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 500,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -137,7 +137,7 @@ const findings = (() => {
     },
     polygon: {
       "https://rpc.ankr.com/polygon": {
-        eth_getLogs: 500,
+        eth_getLogs: 3,
         eth_call: 499,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
@@ -145,7 +145,7 @@ const findings = (() => {
     },
     syscoin: {
       "https://rpc.ankr.com/syscoin": {
-        eth_getLogs: 57,
+        eth_getLogs: 3,
         eth_call: 1,
         eth_getBlockByNumber: null,
         eth_blockNumber: 500,
