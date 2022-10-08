@@ -130,7 +130,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   arbitrum: 3000,
   aurora: 3000,
   avax: 2048, // requested too many blocks from 3052900 to 3055899, maximum is set to 2048
-  bsc: 3000,
+  bsc: 2000,
   celo: 3000,
   cronos: 1000, // 2k for https://evm-cronos.crypto.org
   emerald: 100, // invalid request: max allowed of rounds in logs query is: 100

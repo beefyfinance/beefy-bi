@@ -77,7 +77,17 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   // find out the latest block number
   logger.info({ msg: "fetching latest block number", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
   const latestBlockNumber = await linearProvider.getBlockNumber();
-  const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[chain];
+  const maxBlocksPerQuery = Math.max(
+    1,
+    Math.floor(
+      /*
+        reduce the max number of blocks because we are hitting
+        a very heavy traffic contract (wgas contract) 
+        some rpc (bsc) have a hard time returning large amounts of data
+      */
+      CHAIN_RPC_MAX_QUERY_BLOCKS[chain] / 100,
+    ),
+  );
 
   const createSaveFinding = (key: RpcCallMethod) => (n: number) => {
     if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] || 0) < n) {
