@@ -42,7 +42,8 @@ export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvide
       } else if (event.action === "response" && "response" in event) {
         logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response, rpcUrl: safeToLogUrl } });
       } else if (event.action === "response" && "error" in event) {
-        logger.error({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
+        // retryable errors are logged at a higher level
+        logger.trace({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
       }
     },
   );
