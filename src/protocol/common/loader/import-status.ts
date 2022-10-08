@@ -1,4 +1,4 @@
-import { keyBy } from "lodash";
+import { get, isArray, keyBy, omit } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
@@ -21,7 +21,7 @@ interface BlockRangesImportStatus {
 
   contractCreatedAtBlock: number;
   // already imported once range
-  coveredBlockRange: Range;
+  coveredBlockRanges: Range[];
   // ranges where an error occured
   blockRangesToRetry: Range[];
 }
@@ -67,7 +67,7 @@ export function upsertImportStatus$<TInput, TRes>(options: {
         if (!importStatus) {
           throw new ProgrammerError({ msg: "Upserted import status not found", data: obj });
         }
-        importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
+        hydrateImportStatus(importStatus);
         return options.formatOutput(obj.obj, importStatus);
       });
     }),
@@ -107,9 +107,11 @@ export function fetchImportStatus$<TObj, TRes>(options: {
       const idMap = keyBy(results, "productId");
       return objAndData.map((obj) => {
         const importStatus = idMap[obj.productId] ?? null;
+
         if (importStatus) {
-          importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
+          hydrateImportStatus(importStatus);
         }
+
         return options.formatOutput(obj.obj, importStatus);
       });
     }),
@@ -141,6 +143,7 @@ export function updateImportStatus<TObj, TRes>(options: {
         if (!importStatus) {
           throw new Error(`Import status not found for product ${productId}`);
         }
+        hydrateImportStatus(importStatus);
 
         const newImportStatus = options.mergeImportStatus(obj, importStatus);
         logger.trace({ msg: "updateImportStatus (merged)", data: newImportStatus });
@@ -214,4 +217,16 @@ export function addMissingImportStatus<TProduct extends DbProduct>(options: {
     // now all objects have an import status (and a contract creation block)
     Rx.mergeAll(),
   );
+}
+
+function hydrateImportStatus(importStatus: DbImportStatus) {
+  // hydrate dates properly
+  importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
+
+  // migrate to new format (to remove once everyone row has migrated)
+  if (!isArray(importStatus.importData.data.coveredBlockRanges)) {
+    const oldRange = get(importStatus.importData.data, "coveredBlockRange", null) as Range | null;
+    importStatus.importData.data.coveredBlockRanges = oldRange !== null ? [oldRange] : [];
+    importStatus.importData.data = omit(importStatus.importData.data, "coveredBlockRange");
+  }
 }

@@ -31,10 +31,7 @@ export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(o
           lastImportDate: new Date(),
           chainLatestBlockNumber: contractCreationInfo.blockNumber,
           contractCreatedAtBlock: contractCreationInfo.blockNumber,
-          coveredBlockRange: {
-            from: contractCreationInfo.blockNumber,
-            to: contractCreationInfo.blockNumber,
-          },
+          coveredBlockRanges: [],
           blockRangesToRetry: [],
         },
       }),
@@ -74,15 +71,9 @@ export function updateBlockRangesImportStatus$(options: { client: PoolClient; st
         const blockRanges = items.map((item) => item.blockRange);
         const newImportStatus = cloneDeep(importStatus);
 
-        // either way, we covered this range, we need to remember that
-        const mergedRange = rangeMerge([newImportStatus.importData.data.coveredBlockRange, ...blockRanges]);
-        newImportStatus.importData.data.coveredBlockRange = mergedRange[0]; // only take the first one
-        if (mergedRange.length > 1) {
-          logger.warn({
-            msg: "Unexpectedly merged multiple block ranges",
-            data: { productId, blockRanges, mergedRange, importStatus: newImportStatus },
-          });
-        }
+        // either way, we covered this range, we need to remember which range we covered
+        const mergedRanges = rangeMerge([...newImportStatus.importData.data.coveredBlockRanges, ...blockRanges]);
+        newImportStatus.importData.data.coveredBlockRanges = mergedRanges; // only take the first one
 
         for (const item of items) {
           const blockRange = item.blockRange;

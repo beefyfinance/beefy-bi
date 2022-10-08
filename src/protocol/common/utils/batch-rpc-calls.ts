@@ -12,6 +12,7 @@ import { ethers } from "ethers";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { bufferUntilAccumulatedCountReached } from "../../../utils/rxjs/utils/buffer-until-accumulated-count";
+import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -85,7 +86,12 @@ export function batchRpcCalls$<
   }
 
   if (!canUseBatchProvider) {
-    maxInputObjsPerBatch = 1;
+    // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
+    if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.rpcConfig.chain] === "no-limit") {
+      maxInputObjsPerBatch = Math.max(1, Math.floor(options.streamConfig.maxInputTake / 0.1));
+    } else {
+      maxInputObjsPerBatch = 1;
+    }
   }
   logger.trace({
     msg: "batchRpcCalls$ config. " + options.logInfos.msg,

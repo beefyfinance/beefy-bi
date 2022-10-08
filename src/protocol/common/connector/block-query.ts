@@ -124,14 +124,18 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
         to: item.latestBlockNumber - waitForBlockPropagation,
       };
 
-      // exclude the range we already covered
-      let ranges = rangeExclude(fullRange, importStatus.importData.data.coveredBlockRange);
+      let ranges = [fullRange];
+
+      // exclude the ranges we already covered
+      for (const coveredRange of importStatus.importData.data.coveredBlockRanges) {
+        ranges = ranges.flatMap((range) => rangeExclude(range, coveredRange));
+      }
 
       // split in ranges no greater than the maximum allowed
       ranges = ranges.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
 
-      // order by oldest first
-      ranges = ranges.sort((a, b) => a.from - b.from);
+      // order by newset first since it's more important and more likely to be available via RPC calls
+      ranges = ranges.sort((a, b) => b.to - a.to);
 
       // then add the ranges we had error on at the end
       const rangesToRetry = importStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
@@ -139,7 +143,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
         ranges.push(erroredRange);
       }
 
-      // limit the amount of queries
+      // limit the amount of queries sent
       if (ranges.length > 300) {
         ranges = ranges.slice(0, 300);
       }
