@@ -2,12 +2,11 @@ import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
 import { getRedisClient, getRedlock } from "./shared-lock";
-import { ArchiveNodeNeededError } from "../rpc/archive-node-needed";
 import { rootLogger } from "../../utils/logger";
 import { RpcLimitations } from "../rpc/rpc-limitations";
 import { ethers } from "ethers";
 import { removeSecretsFromRpcUrl } from "../rpc/remove-secrets-from-rpc-url";
-import { ProgrammerError } from "../rxjs/utils/programmer-error";
+import { isErrorRetryable } from "../retryable-error";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 
@@ -90,14 +89,7 @@ export async function callLockProtectedRpc<TRes>(
         else if (attemptNumber < 10) logger.warn(message);
         else logger.error(message);
 
-        // some errors are not recoverable
-        if (error instanceof ArchiveNodeNeededError) {
-          return false;
-        }
-        if (error instanceof ProgrammerError) {
-          return false;
-        }
-        return true;
+        return isErrorRetryable(error);
       },
       startingDelay: delayBetweenCalls !== "no-limit" ? delayBetweenCalls : 0,
       timeMultiple: 5,

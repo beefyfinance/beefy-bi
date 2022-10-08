@@ -4,7 +4,7 @@ import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 

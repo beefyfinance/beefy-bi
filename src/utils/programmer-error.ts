@@ -8,6 +8,9 @@ export class ProgrammerError extends Error {
   }
 }
 
-export function shouldRetryProgrammerError(err: any): boolean {
-  return !(err instanceof ProgrammerError);
+export function isProgrammerError(err: any): boolean {
+  if (err instanceof ProgrammerError) {
+    return true;
+  }
+  return false;
 }

@@ -8,7 +8,7 @@ import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ContractCreationInfos, fetchContractCreationBlock$ } from "../connector/contract-creation";
 import { DbProduct } from "./product";
 

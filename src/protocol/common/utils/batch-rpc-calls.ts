@@ -1,7 +1,7 @@
 import * as Rx from "rxjs";
 import { backOff } from "exponential-backoff";
 import { zipWith } from "lodash";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { rootLogger } from "../../../utils/logger";
 import { DbProduct } from "../loader/product";

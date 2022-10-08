@@ -1,7 +1,7 @@
 import { IBackOffOptions } from "exponential-backoff";
-import { shouldRetryRpcError } from "../../../utils/rpc/archive-node-needed";
+import { isErrorRetryable } from "../../../utils/retryable-error";
 import { rootLogger } from "../../../utils/logger";
-import { ProgrammerError, shouldRetryProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError, isProgrammerError } from "../../../utils/programmer-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });
 
@@ -42,8 +42,8 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
 
     jitter: "full",
     retry: (error, attemptNumber) => {
-      const shouldRetry = shouldRetryRpcError(error) && shouldRetryProgrammerError(error);
-      if (shouldRetry) {
+      const isRetryable = isErrorRetryable(error);
+      if (isRetryable) {
         const logMsg = { msg: `RPC Error caught, will retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } };
         if (attemptNumber < 3) logger.trace(logMsg);
         else if (attemptNumber < 5) logger.debug(logMsg);
@@ -55,10 +55,10 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
         }
         //console.log(error);
       } else {
-        logger.debug({ msg: `Unretryable error caught, will not retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } });
+        logger.debug({ msg: `Unretryable RPC Error caught, will not retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } });
         logger.error(error);
       }
-      return shouldRetry;
+      return isRetryable;
     },
   };
 }

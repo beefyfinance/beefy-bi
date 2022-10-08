@@ -10,7 +10,7 @@ import { loadTransfers$, TransferWithRate } from "./load-transfers";
 import { ErrorEmitter, ProductImportQuery } from "../../../common/types/product-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
-import { ProgrammerError } from "../../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../../utils/programmer-error";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { rootLogger } from "../../../../utils/logger";
 

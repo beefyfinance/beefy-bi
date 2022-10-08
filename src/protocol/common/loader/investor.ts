@@ -3,7 +3,7 @@ import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 
 interface DbInvestor {
   investorId: number;

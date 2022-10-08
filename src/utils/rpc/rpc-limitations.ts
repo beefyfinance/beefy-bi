@@ -3,7 +3,7 @@ import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods, RpcCallMethod } from "../../types/rpc-config";
 import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../config";
 import { rootLogger } from "../logger";
-import { ProgrammerError } from "../rxjs/utils/programmer-error";
+import { ProgrammerError } from "../programmer-error";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 

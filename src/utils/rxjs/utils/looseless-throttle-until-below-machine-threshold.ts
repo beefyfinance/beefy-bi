@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { rootLogger } from "../../logger";
-import { ProgrammerError } from "./programmer-error";
+import { ProgrammerError } from "../../programmer-error";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "buffer-until-below-machine-threshold" });
 

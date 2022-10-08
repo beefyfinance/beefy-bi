@@ -1,5 +1,5 @@
 import { Chain } from "../../types/chain";
-import { get, isObjectLike, isString, sample } from "lodash";
+import { get, isObjectLike, isString } from "lodash";
 
 export class ArchiveNodeNeededError extends Error {
   constructor(public readonly chain: Chain, public readonly error: any) {
@@ -41,9 +41,14 @@ export function isErrorDueToMissingDataFromNode(error: any) {
   return false;
 }
 
-export function shouldRetryRpcError(error: any) {
-  // missing data can't be retried
-  return !isErrorDueToMissingDataFromNode(error);
+export function isArchiveNodeNeededError(error: any) {
+  if (error instanceof ArchiveNodeNeededError) {
+    return true;
+  }
+  if (isErrorDueToMissingDataFromNode(error)) {
+    return true;
+  }
+  return false;
 }
 
 function parseJSON(json: string): any {

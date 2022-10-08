@@ -6,7 +6,7 @@ import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { flatten, groupBy, zipWith } from "lodash";
 import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
 import { DbProduct } from "../loader/product";
 import { RpcConfig } from "../../../types/rpc-config";

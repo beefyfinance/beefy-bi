@@ -10,7 +10,7 @@ import { sleep } from "../../../utils/async";
 import { importBeefyProducts$ } from "../loader/products";
 import { importBeefyPrices$ } from "../loader/prices";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
-import { ProgrammerError } from "../../../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import yargs from "yargs";
 import { priceFeedList$ } from "../../common/loader/price-feed";
 import { samplingPeriodMs } from "../../../types/sampling";
