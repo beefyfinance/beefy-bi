@@ -3,6 +3,7 @@ import { allChainIds, Chain } from "../../../../types/chain";
 import { PoolClient } from "pg";
 import { ethers } from "ethers";
 import { sample, sortBy } from "lodash";
+import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
 import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB, RPC_URLS } from "../../../../utils/config";
 import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../../../../utils/ethers";
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
@@ -11,7 +12,6 @@ import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
 import { ProductImportQuery } from "../../../common/types/product-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
-import { looselessThrottleUntilBelowMachineThresholds } from "../../../../utils/rxjs/utils/looseless-throttle-until-below-machine-threshold";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { importProductBlockRange$ } from "./product-block-range";
 import { addMissingBlockRangesImportStatus$, updateBlockRangesImportStatus$ } from "../../../common/loader/block-ranges-import-status";
@@ -91,12 +91,9 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
     // some backpressure mechanism
     Rx.pipe(
-      looselessThrottleUntilBelowMachineThresholds({
-        sendInitialBurstOf: streamConfig.maxInputTake,
-        checkIntervalMs: BACKPRESSURE_CHECK_INTERVAL_MS,
-        checkIntervalJitterMs: 2000,
-        maxMemoryThresholdMb: BACKPRESSURE_MEMORY_THRESHOLD_MB,
-        sendByBurstOf: streamConfig.maxInputTake,
+      memoryBackpressure$({
+        logData: { msg: "import-historical-data", data: { chain } },
+        sendBurstsOf: streamConfig.maxInputTake,
       }),
 
       Rx.tap((item) => logger.info({ msg: "processing product", data: { productId: item.product.productId, blockRange: item.blockRange } })),

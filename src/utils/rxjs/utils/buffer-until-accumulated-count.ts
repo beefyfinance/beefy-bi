@@ -50,7 +50,6 @@ export function bufferUntilAccumulatedCountReached<TObj>(options: {
       if (objBuffer.length <= 0) {
         // here we are fully done
         if (sourceObsFinalized) {
-          clearInterval(poller);
           subscriber.complete();
         }
         return;
