@@ -12,9 +12,8 @@ import { ethers } from "ethers";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { bufferUntilAccumulatedCountReached } from "../../../utils/rxjs/utils/buffer-until-accumulated-count";
-import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
 
-const logger = rootLogger.child({ module: "utils", component: "batch-query-group" });
+const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
 export interface BatchStreamConfig {
   // how many items to take from the input stream before making groups
