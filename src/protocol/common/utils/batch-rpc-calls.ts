@@ -86,11 +86,7 @@ export function batchRpcCalls$<
   }
 
   if (!canUseBatchProvider) {
-    if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.rpcConfig.chain] === "no-limit") {
-      maxInputObjsPerBatch = options.streamConfig.maxInputTake;
-    } else {
-      maxInputObjsPerBatch = 1;
-    }
+    maxInputObjsPerBatch = 1;
   }
   logger.trace({
     msg: "batchRpcCalls$ config. " + options.logInfos.msg,
@@ -108,12 +104,10 @@ export function batchRpcCalls$<
       getCount: options.getCallMultiplierForObj || (() => 1),
     }),
 
-    Rx.tap((objs) =>
-      logger.trace({ msg: "batchRpcCalls$ - batch. " + options.logInfos.msg, data: { ...options.logInfos.data, objsCount: objs.length } }),
-    ),
-
     // for each batch, fetch the transfers
     Rx.mergeMap(async (objs: TInputObj[]) => {
+      logger.trace({ msg: "batchRpcCalls$ - batch. " + options.logInfos.msg, data: { ...options.logInfos.data, objsCount: objs.length } });
+
       const contractCalls = objs.map((obj) => options.getQuery(obj));
 
       const provider = canUseBatchProvider ? options.rpcConfig.batchProvider : options.rpcConfig.linearProvider;
