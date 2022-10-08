@@ -3,20 +3,12 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
-          "type": "dashboard"
-        },
+        "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
         "type": "dashboard"
       }
     ]
@@ -24,34 +16,17 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1663544422261,
+  "id": 26,
+  "iteration": 1665234416230,
   "links": [],
   "liveNow": false,
   "panels": [
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 4, "panels": [], "title": "USD value", "type": "row" },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 4,
-      "panels": [],
-      "title": "Row title",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "color": { "mode": "palette-classic" },
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
@@ -59,94 +34,156 @@
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
             ]
           },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 16,
-        "w": 24,
-        "x": 0,
-        "y": 1
-      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 1 },
       "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $investor_id\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(usd_value::numeric, datetime)) as usd_value\n  from asset_price_ts\n  where \n    $__timeFilter(datetime)\n    and price_feed_id in ($price_feed_ids)\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p.usd_value) as \"$\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_ts p on b.datetime = p.datetime and pr.price_feed_id = p.price_feed_id\norder by 1;",
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(usd_value::numeric, datetime)) as usd_value\n  from asset_price_ts\n  where \n    $__timeFilter(datetime)\n    and price_feed_id in ($_price_feed_ids)\n  group by 1,2\n),\nprice_ts as (\n  select * from price_gf_ts where usd_value is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p.usd_value) as \"$\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_ts p on b.datetime = p.datetime and pr.price_feed_id = p.price_feed_id\norder by 1;",
           "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
+          "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
       "title": "Investor Vault balances",
+      "type": "timeseries"
+    },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }, "id": 8, "panels": [], "title": "Underlying value", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 18 },
+      "id": 5,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts \n  where balance is not null and balance > 0\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  b.balance \"underlying_balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor Vault underlying balances",
+      "type": "timeseries"
+    },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }, "id": 10, "panels": [], "title": "Moo Token Value", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 35 },
+      "id": 6,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nwith balance_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last((investment_data->>'balance')::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n),\nbalance_ts as (\n  select * from balance_gf_ts \n  where balance is not null and balance > 0\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  b.balance \"moo_token_balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor Vault Moo Token balances",
       "type": "timeseries"
     }
   ],
@@ -157,39 +194,65 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": false,
-          "text": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
-          "value": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2"
-        },
+        "current": { "selected": false, "text": "0x07DbaEb4B8ee9E272774138FC076c539AD402F5b", "value": "0x07DbaEb4B8ee9E272774138FC076c539AD402F5b" },
         "hide": 0,
         "name": "investor_address",
         "options": [
-          {
-            "selected": true,
-            "text": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
-            "value": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2"
-          }
+          { "selected": true, "text": "0x07DbaEb4B8ee9E272774138FC076c539AD402F5b", "value": "0x07DbaEb4B8ee9E272774138FC076c539AD402F5b" }
         ],
-        "query": "0x23f6030ed4bb66f4a3077e57a4bed7ffe0eb8cd2",
+        "query": "0x07DbaEb4B8ee9E272774138FC076c539AD402F5b",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "19",
-          "value": "19"
-        },
-        "datasource": {
-          "type": "postgres",
-          "uid": "P1A7A05C63CAD1F73"
-        },
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "1m",
+        "current": { "selected": true, "text": "1h", "value": "1h" },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          { "selected": false, "text": "auto", "value": "$__auto_interval_interval" },
+          { "selected": false, "text": "1m", "value": "1m" },
+          { "selected": false, "text": "10m", "value": "10m" },
+          { "selected": false, "text": "30m", "value": "30m" },
+          { "selected": true, "text": "1h", "value": "1h" },
+          { "selected": false, "text": "6h", "value": "6h" },
+          { "selected": false, "text": "12h", "value": "12h" },
+          { "selected": false, "text": "1d", "value": "1d" },
+          { "selected": false, "text": "7d", "value": "7d" },
+          { "selected": false, "text": "14d", "value": "14d" },
+          { "selected": false, "text": "30d", "value": "30d" }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "current": { "selected": true, "text": ["optimism"], "value": ["optimism"] },
+        "definition": "select distinct chain from product",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from product",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "866", "value": "866" },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = address",
         "hide": 0,
         "includeAll": false,
         "multi": false,
-        "name": "investor_id",
+        "name": "_investor_id",
         "options": [],
         "query": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = address",
         "refresh": 1,
@@ -199,96 +262,15 @@
         "type": "query"
       },
       {
-        "auto": true,
-        "auto_count": 30,
-        "auto_min": "1m",
-        "current": {
-          "selected": false,
-          "text": "auto",
-          "value": "$__auto_interval_interval"
-        },
-        "hide": 0,
-        "name": "interval",
-        "options": [
-          {
-            "selected": true,
-            "text": "auto",
-            "value": "$__auto_interval_interval"
-          },
-          {
-            "selected": false,
-            "text": "1m",
-            "value": "1m"
-          },
-          {
-            "selected": false,
-            "text": "10m",
-            "value": "10m"
-          },
-          {
-            "selected": false,
-            "text": "30m",
-            "value": "30m"
-          },
-          {
-            "selected": false,
-            "text": "1h",
-            "value": "1h"
-          },
-          {
-            "selected": false,
-            "text": "6h",
-            "value": "6h"
-          },
-          {
-            "selected": false,
-            "text": "12h",
-            "value": "12h"
-          },
-          {
-            "selected": false,
-            "text": "1d",
-            "value": "1d"
-          },
-          {
-            "selected": false,
-            "text": "7d",
-            "value": "7d"
-          },
-          {
-            "selected": false,
-            "text": "14d",
-            "value": "14d"
-          },
-          {
-            "selected": false,
-            "text": "30d",
-            "value": "30d"
-          }
-        ],
-        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
-        "queryValue": "",
-        "refresh": 2,
-        "skipUrlSync": false,
-        "type": "interval"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "datasource": {
-          "type": "postgres",
-          "uid": "P1A7A05C63CAD1F73"
-        },
-        "definition": "select distinct product_id\nfrom investment_balance_ts\nwhere investor_id = $investor_id",
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select distinct b.product_id\nfrom investment_balance_ts b\njoin product p on p.product_id = b.product_id\nwhere investor_id = $_investor_id and chain in ($chain)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
-        "name": "product_ids",
+        "name": "_product_ids",
         "options": [],
-        "query": "select distinct product_id\nfrom investment_balance_ts\nwhere investor_id = $investor_id",
+        "query": "select distinct b.product_id\nfrom investment_balance_ts b\njoin product p on p.product_id = b.product_id\nwhere investor_id = $_investor_id and chain in ($chain)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -296,22 +278,15 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "datasource": {
-          "type": "postgres",
-          "uid": "P1A7A05C63CAD1F73"
-        },
-        "definition": "select price_feed_id\nfrom product\nwhere product_id in ($product_ids)",
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "select price_feed_id\nfrom product\nwhere product_id in ($_product_ids)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
-        "name": "price_feed_ids",
+        "name": "_price_feed_ids",
         "options": [],
-        "query": "select price_feed_id\nfrom product\nwhere product_id in ($product_ids)",
+        "query": "select price_feed_id\nfrom product\nwhere product_id in ($_product_ids)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -320,14 +295,11 @@
       }
     ]
   },
-  "time": {
-    "from": "now-24h",
-    "to": "now"
-  },
+  "time": { "from": "2022-09-01T08:59:54.000Z", "to": "2022-10-08T13:20:45.000Z" },
   "timepicker": {},
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 12,
+  "version": 2,
   "weekStart": ""
 }
