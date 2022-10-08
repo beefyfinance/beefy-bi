@@ -2,7 +2,7 @@ import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../../types/chain";
 import { PoolClient } from "pg";
 import { ethers } from "ethers";
-import { sample } from "lodash";
+import { sample, sortBy } from "lodash";
 import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB, RPC_URLS } from "../../../../utils/config";
 import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../../../../utils/ethers";
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
@@ -60,6 +60,13 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       getContractAddress: (product) =>
         product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
     }),
+
+    // process first the products we imported the least
+    Rx.pipe(
+      Rx.toArray(),
+      Rx.map((items) => sortBy(items, (item) => item.importStatus.importData.data.lastImportDate)),
+      Rx.concatAll(),
+    ),
 
     Rx.pipe(
       // generate the block ranges to import

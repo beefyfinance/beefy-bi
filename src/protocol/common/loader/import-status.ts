@@ -15,6 +15,8 @@ import { DbProduct } from "./product";
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
 interface BlockRangesImportStatus {
+  lastImportDate: Date;
+
   chainLatestBlockNumber: number;
 
   contractCreatedAtBlock: number;
@@ -65,6 +67,7 @@ export function upsertImportStatus$<TInput, TRes>(options: {
         if (!importStatus) {
           throw new ProgrammerError({ msg: "Upserted import status not found", data: obj });
         }
+        importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
         return options.formatOutput(obj.obj, importStatus);
       });
     }),
@@ -102,7 +105,13 @@ export function fetchImportStatus$<TObj, TRes>(options: {
       );
 
       const idMap = keyBy(results, "productId");
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.productId] ?? null));
+      return objAndData.map((obj) => {
+        const importStatus = idMap[obj.productId] ?? null;
+        if (importStatus) {
+          importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
+        }
+        return options.formatOutput(obj.obj, importStatus);
+      });
     }),
 
     // flatten objects

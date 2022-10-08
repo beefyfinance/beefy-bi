@@ -28,6 +28,7 @@ export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(o
       getInitialImportData: (_, contractCreationInfo) => ({
         type: "block-ranges",
         data: {
+          lastImportDate: new Date(),
           chainLatestBlockNumber: contractCreationInfo.blockNumber,
           contractCreatedAtBlock: contractCreationInfo.blockNumber,
           coveredBlockRange: {
@@ -106,6 +107,9 @@ export function updateBlockRangesImportStatus$(options: { client: PoolClient; st
           max(items.map((item) => item.latestBlockNumber)) || 0,
           newImportStatus.importData.data.chainLatestBlockNumber || 0 /* in case it's not set yet */,
         );
+
+        // update the last import date
+        newImportStatus.importData.data.lastImportDate = new Date();
 
         logger.debug({
           msg: "Updating import status",
