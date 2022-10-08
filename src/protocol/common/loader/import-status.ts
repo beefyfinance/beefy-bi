@@ -222,11 +222,4 @@ export function addMissingImportStatus<TProduct extends DbProduct>(options: {
 function hydrateImportStatus(importStatus: DbImportStatus) {
   // hydrate dates properly
   importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
-
-  // migrate to new format (to remove once everyone row has migrated)
-  if (!isArray(importStatus.importData.data.coveredBlockRanges)) {
-    const oldRange = get(importStatus.importData.data, "coveredBlockRange", null) as Range | null;
-    importStatus.importData.data.coveredBlockRanges = oldRange !== null ? [oldRange] : [];
-    importStatus.importData.data = omit(importStatus.importData.data, "coveredBlockRange");
-  }
 }

@@ -10,7 +10,7 @@ import { RpcCallMethod } from "../types/rpc-config";
 import yargs from "yargs";
 import { sleep } from "../utils/async";
 import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
-import { ProgrammerError } from "../utils/rxjs/utils/programmer-error";
+import { ProgrammerError } from "../utils/programmer-error";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
