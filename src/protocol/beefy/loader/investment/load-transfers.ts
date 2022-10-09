@@ -90,7 +90,8 @@ export function loadTransfers$(options: {
         blockNumber: item.transfer.blockNumber,
         productId: item.product.productId,
         investorId: item.investorId,
-        // balance is expressed in underlying amount
+        // balance is expressed in underlying amount to avoid
+        // putting knowledge about this product behavior on the frontend
         balance: item.vaultSharesBalance.mul(item.sharesRate),
         investmentData: {
           chain: options.chain,

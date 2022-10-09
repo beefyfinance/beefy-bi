@@ -85,7 +85,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
         a very heavy traffic contract (wgas contract) 
         some rpc (bsc) have a hard time returning large amounts of data
       */
-      CHAIN_RPC_MAX_QUERY_BLOCKS[chain] / 100,
+      CHAIN_RPC_MAX_QUERY_BLOCKS[chain] / 10,
     ),
   );
 

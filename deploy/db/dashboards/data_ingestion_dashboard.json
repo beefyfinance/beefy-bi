@@ -230,42 +230,101 @@
       "title": "Investment logs by chain",
       "type": "barchart"
     },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "id": 16, "panels": [], "title": "Metrics by product", "type": "row" },
     {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
-          "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": [
-          { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
-        ]
-      },
-      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 29 },
-      "id": 6,
-      "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [] },
-      "pluginVersion": "9.0.2",
-      "targets": [
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "id": 16,
+      "panels": [
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain_from_import_status as materialized (\n  select \n    p.chain, \n    max((import_data->'data'->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_status i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain_from_investments as materialized (\n  select \n    p.chain, \n    last(block_number, datetime) as last_covered\n  from investment_balance_ts i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain as (\n  select \n    im.chain,\n    greatest(im.last_covered, coalesce(iv.last_covered, 0)) as last_covered\n  from max_block_number_by_chain_from_import_status im\n  left join max_block_number_by_chain_from_investments iv on im.chain = iv.chain\n)\nselect \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->'data'->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'data'->'coveredBlockRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges') as blocks_covered,\n    (b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges')\n    as rest_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'blockRangesToRetry') as blocks_to_retry\nfrom product p\nleft join import_status i on p.product_id = i.product_id\nleft join max_block_number_by_chain b on p.chain = b.chain\nwhere p.chain in ($chain)",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 0,
+                "pointSize": 24,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "always",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 29 },
+          "id": 20,
+          "options": { "legend": { "calcs": [], "displayMode": "hidden", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  coalesce((import_data->'data'->>'lastImportDate')::timestamp with time zone, now() - '4 weeks'::interval) as time,\n  p.product_key,\n  coalesce(extract(epoch from ((import_data->'data'->>'lastImportDate')::timestamp)), extract(epoch from (now() - '4 weeks'::interval)) - p.product_id * 1000) as metric\nFROM\n  import_status i\n  join product p on p.product_id = i.product_id\norder by 1",
+              "refId": "A",
+              "select": [[{ "params": ["value"], "type": "column" }]],
+              "timeColumn": "time",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Last import date per product",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "has_import_status" },
+                "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }]
+              }
+            ]
+          },
+          "gridPos": { "h": 11, "w": 24, "x": 0, "y": 43 },
+          "id": 6,
+          "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [] },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain_from_import_status as materialized (\n  select \n    p.chain, \n    max((import_data->'data'->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_status i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain_from_investments as materialized (\n  select \n    p.chain, \n    last(block_number, datetime) as last_covered\n  from investment_balance_ts i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain as (\n  select \n    im.chain,\n    greatest(im.last_covered, coalesce(iv.last_covered, 0)) as last_covered\n  from max_block_number_by_chain_from_import_status im\n  left join max_block_number_by_chain_from_investments iv on im.chain = iv.chain\n)\nselect \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->'data'->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'data'->'coveredBlockRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges') as blocks_covered,\n    (b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges')\n    as rest_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'blockRangesToRetry') as blocks_to_retry\nfrom product p\nleft join import_status i on p.product_id = i.product_id\nleft join max_block_number_by_chain b on p.chain = b.chain\nwhere p.chain in ($chain)",
+              "refId": "A",
+              "select": [[{ "params": ["value"], "type": "column" }]],
+              "timeColumn": "time",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Product import stats",
+          "type": "table"
         }
       ],
-      "title": "Product import stats",
-      "type": "table"
+      "title": "Metrics by product",
+      "type": "row"
     }
   ],
+  "refresh": false,
   "schemaVersion": 36,
   "style": "dark",
   "tags": [],
@@ -289,11 +348,11 @@
       }
     ]
   },
-  "time": { "from": "now-6h", "to": "now" },
+  "time": { "from": "2022-10-08T08:33:32.805Z", "to": "2022-10-08T17:27:14.417Z" },
   "timepicker": {},
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 17,
+  "version": 18,
   "weekStart": ""
 }

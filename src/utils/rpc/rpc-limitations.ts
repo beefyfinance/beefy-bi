@@ -13,15 +13,15 @@ const findings = (() => {
       "https://rpc.ankr.com/arbitrum": {
         eth_getLogs: 4,
         eth_call: 4,
-        eth_getBlockByNumber: 16,
-        eth_blockNumber: 18,
+        eth_getBlockByNumber: null,
+        eth_blockNumber: null,
       },
     },
     aurora: {
       "https://mainnet.aurora.dev": {
         eth_getLogs: 500,
-        eth_call: 500,
-        eth_getBlockByNumber: 500,
+        eth_call: 1,
+        eth_getBlockByNumber: 1,
         eth_blockNumber: 500,
       },
     },
@@ -30,21 +30,21 @@ const findings = (() => {
         eth_getLogs: 10,
         eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_blockNumber: 2,
       },
     },
     bsc: {
       "https://rpc.ankr.com/bsc": {
-        eth_getLogs: 36,
-        eth_call: 256,
-        eth_getBlockByNumber: 500,
+        eth_getLogs: 4,
+        eth_call: 16,
+        eth_getBlockByNumber: 32,
         eth_blockNumber: null,
       },
     },
     celo: {
       "https://rpc.ankr.com/celo": {
-        eth_getLogs: 144,
-        eth_call: 2,
+        eth_getLogs: 8,
+        eth_call: 1,
         eth_getBlockByNumber: null,
         eth_blockNumber: null,
       },
@@ -60,15 +60,15 @@ const findings = (() => {
     emerald: {
       "https://emerald.oasis.dev": {
         eth_getLogs: 500,
-        eth_call: 500,
+        eth_call: 1,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     fantom: {
       "https://rpc.ankr.com/fantom": {
-        eth_getLogs: 176,
-        eth_call: 500,
+        eth_getLogs: 8,
+        eth_call: 128,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
@@ -76,7 +76,7 @@ const findings = (() => {
     fuse: {
       "https://explorer-node.fuse.io": {
         eth_getLogs: 4,
-        eth_call: 500,
+        eth_call: 64,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
@@ -91,15 +91,15 @@ const findings = (() => {
     },
     heco: {
       "https://http-mainnet.hecochain.com": {
-        eth_getLogs: 500,
-        eth_call: 2,
+        eth_getLogs: 32,
+        eth_call: null,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     metis: {
       "https://andromeda.metis.io": {
-        eth_getLogs: 500,
+        eth_getLogs: 36,
         eth_call: 500,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
@@ -107,41 +107,41 @@ const findings = (() => {
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        eth_getLogs: 64,
-        eth_call: 500,
-        eth_getBlockByNumber: 500,
+        eth_getLogs: 2,
+        eth_call: null,
+        eth_getBlockByNumber: 1,
         eth_blockNumber: null,
       },
     },
     moonriver: {
       "https://rpc.api.moonriver.moonbeam.network": {
-        eth_getLogs: 500,
-        eth_call: 128,
+        eth_getLogs: 80,
+        eth_call: 500,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     optimism: {
       "https://rpc.ankr.com/optimism": {
-        eth_getLogs: 500,
-        eth_call: 2,
+        eth_getLogs: 144,
+        eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_blockNumber: 1,
       },
     },
     polygon: {
       "https://rpc.ankr.com/polygon": {
-        eth_getLogs: 216,
-        eth_call: 500,
+        eth_getLogs: 16,
+        eth_call: 8,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 8,
+        eth_blockNumber: 2,
       },
     },
     syscoin: {
       "https://rpc.ankr.com/syscoin": {
-        eth_getLogs: 500,
-        eth_call: 4,
-        eth_getBlockByNumber: 256,
+        eth_getLogs: 64,
+        eth_call: 1,
+        eth_getBlockByNumber: null,
         eth_blockNumber: null,
       },
     },
