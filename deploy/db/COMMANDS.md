@@ -37,7 +37,8 @@ select ht.object_type, ht.table_display_name, ht.table_internal_name,
     pg_size_pretty(htds.table_bytes) as table_size,
     pg_size_pretty(htds.index_bytes) as index_bytes,
     pg_size_pretty(htds.toast_bytes) as toast_bytes,
-    pg_size_pretty(htds.total_bytes) as total_bytes
+    pg_size_pretty(htds.total_bytes) as total_bytes,
+    htds.total_bytes as raw_total_bytes
 from timescale_objects as ht,
 lateral (
     select
@@ -95,6 +96,7 @@ select
       pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size
  from
       pg_catalog.pg_statio_user_tables
+where schemaname not in ('_timescaledb_config', '_timescaledb_internal', '_timescaledb_catalog', '_timescaledb_cache')
 order by pg_total_relation_size(relid) desc;
 
 

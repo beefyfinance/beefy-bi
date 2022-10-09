@@ -1,4 +1,4 @@
-import { get, isArray, keyBy, omit } from "lodash";
+import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
@@ -14,23 +14,20 @@ import { DbProduct } from "./product";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
-interface BlockRangesImportStatus {
-  lastImportDate: Date;
-
-  chainLatestBlockNumber: number;
-
-  contractCreatedAtBlock: number;
-  // already imported once range
-  coveredBlockRanges: Range[];
-  // ranges where an error occured
-  blockRangesToRetry: Range[];
-}
-
 export interface DbImportStatus {
   productId: number;
   importData: {
     type: "block-ranges";
-    data: BlockRangesImportStatus;
+    data: {
+      contractCreatedAtBlock: number;
+      chainLatestBlockNumber: number;
+      // last time we imported some data for this product
+      lastImportDate: Date;
+      // already imported once range
+      coveredBlockRanges: Range[];
+      // ranges where an error occured
+      blockRangesToRetry: Range[];
+    };
   };
 }
 
@@ -222,4 +219,5 @@ export function addMissingImportStatus<TProduct extends DbProduct>(options: {
 function hydrateImportStatus(importStatus: DbImportStatus) {
   // hydrate dates properly
   importStatus.importData.data.lastImportDate = new Date(importStatus.importData.data.lastImportDate || 0);
+  //importStatus.importData.snapsthot.lastImportDate = new Date(importStatus.importData.snapsthot.lastImportDate || 0);
 }

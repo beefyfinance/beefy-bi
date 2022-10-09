@@ -2,10 +2,10 @@ import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE, RPC_URLS } from "../../../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 import { DbImportStatus } from "../loader/import-status";
 import NodeCache from "node-cache";
-import { Range, rangeExclude, rangeSlitToMaxLength } from "../../../utils/range";
+import { Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { backOff } from "exponential-backoff";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
@@ -127,21 +127,17 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       let ranges = [fullRange];
 
       // exclude the ranges we already covered
-      for (const coveredRange of importStatus.importData.data.coveredBlockRanges) {
-        ranges = ranges.flatMap((range) => rangeExclude(range, coveredRange));
-      }
+      ranges = rangeArrayExclude(ranges, importStatus.importData.data.coveredBlockRanges);
 
       // split in ranges no greater than the maximum allowed
-      ranges = ranges.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
+      ranges = rangeSplitManyToMaxLength(ranges, maxBlocksPerQuery);
 
       // order by newset first since it's more important and more likely to be available via RPC calls
       ranges = ranges.sort((a, b) => b.to - a.to);
 
       // then add the ranges we had error on at the end
-      const rangesToRetry = importStatus.importData.data.blockRangesToRetry.flatMap((range) => rangeSlitToMaxLength(range, maxBlocksPerQuery));
-      for (const erroredRange of rangesToRetry) {
-        ranges.push(erroredRange);
-      }
+      const rangesToRetry = rangeSplitManyToMaxLength(importStatus.importData.data.blockRangesToRetry, maxBlocksPerQuery);
+      ranges = ranges.concat(rangesToRetry);
 
       // limit the amount of queries sent
       if (ranges.length > 300) {

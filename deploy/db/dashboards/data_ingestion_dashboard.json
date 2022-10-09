@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1665234224229,
+  "iteration": 1665306066440,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -258,7 +258,7 @@
                 "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
             },
             "overrides": []
           },
@@ -289,7 +289,7 @@
               "color": { "mode": "thresholds" },
               "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
             },
             "overrides": [
               {
@@ -309,7 +309,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with max_block_number_by_chain_from_import_status as materialized (\n  select \n    p.chain, \n    max((import_data->'data'->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_status i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain_from_investments as materialized (\n  select \n    p.chain, \n    last(block_number, datetime) as last_covered\n  from investment_balance_ts i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain as (\n  select \n    im.chain,\n    greatest(im.last_covered, coalesce(iv.last_covered, 0)) as last_covered\n  from max_block_number_by_chain_from_import_status im\n  left join max_block_number_by_chain_from_investments iv on im.chain = iv.chain\n)\nselect \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->'data'->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'data'->'coveredBlockRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges') as blocks_covered,\n    (b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges')\n    as rest_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'blockRangesToRetry') as blocks_to_retry\nfrom product p\nleft join import_status i on p.product_id = i.product_id\nleft join max_block_number_by_chain b on p.chain = b.chain\nwhere p.chain in ($chain)",
+              "rawSql": "with max_block_number_by_chain_from_import_status as materialized (\n  select \n    p.chain, \n    max((import_data->'data'->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_status i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain_from_investments as materialized (\n  select \n    p.chain, \n    last(block_number, datetime) as last_covered\n  from investment_balance_ts i\n  join product p on p.product_id = i.product_id\n  group by 1\n),\nmax_block_number_by_chain as (\n  select \n    im.chain,\n    greatest(im.last_covered, coalesce(iv.last_covered, 0)) as last_covered\n  from max_block_number_by_chain_from_import_status im\n  left join max_block_number_by_chain_from_investments iv on im.chain = iv.chain\n)\nselect \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->'data'->>'lastImportDate')::timestamp as last_import_date,\n    (import_data->'data'->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'data'->'coveredBlockRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges') as blocks_covered,\n    (b.last_covered - (import_data->'data'->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_import_ranges_size_sum(import_data->'data'->'coveredBlockRanges')\n    as rest_to_cover,\n    jsonb_import_ranges_size_sum(import_data->'data'->'blockRangesToRetry') as blocks_to_retry\nfrom product p\nleft join import_status i on p.product_id = i.product_id\nleft join max_block_number_by_chain b on p.chain = b.chain\nwhere p.chain in ($chain)",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -348,11 +348,11 @@
       }
     ]
   },
-  "time": { "from": "2022-10-08T08:33:32.805Z", "to": "2022-10-08T17:27:14.417Z" },
+  "time": { "from": "now-7d", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 18,
+  "version": 19,
   "weekStart": ""
 }

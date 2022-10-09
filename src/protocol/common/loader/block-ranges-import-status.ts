@@ -1,7 +1,7 @@
 import * as Rx from "rxjs";
 import { cloneDeep, max } from "lodash";
 import { addMissingImportStatus, DbImportStatus, updateImportStatus } from "./import-status";
-import { rangeExclude, rangeMerge } from "../../../utils/range";
+import { rangeArrayExclude, rangeMerge } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 import { rootLogger } from "../../../utils/logger";
 import { PoolClient } from "pg";
@@ -28,9 +28,9 @@ export function addMissingBlockRangesImportStatus$<TProduct extends DbProduct>(o
       getInitialImportData: (_, contractCreationInfo) => ({
         type: "block-ranges",
         data: {
-          lastImportDate: new Date(),
           chainLatestBlockNumber: contractCreationInfo.blockNumber,
           contractCreatedAtBlock: contractCreationInfo.blockNumber,
+          lastImportDate: new Date(),
           coveredBlockRanges: [],
           blockRangesToRetry: [],
         },
@@ -75,21 +75,13 @@ export function updateBlockRangesImportStatus$(options: { client: PoolClient; st
         const mergedRanges = rangeMerge([...newImportStatus.importData.data.coveredBlockRanges, ...blockRanges]);
         newImportStatus.importData.data.coveredBlockRanges = mergedRanges; // only take the first one
 
-        for (const item of items) {
-          const blockRange = item.blockRange;
-          if (item.success) {
-            // remove the retried range if present
-            newImportStatus.importData.data.blockRangesToRetry = newImportStatus.importData.data.blockRangesToRetry.flatMap((range) =>
-              rangeExclude(range, blockRange),
-            );
-          } else {
-            // add it if not present
-            newImportStatus.importData.data.blockRangesToRetry.push(blockRange);
-          }
-        }
+        const successRanges = rangeMerge(items.filter((item) => item.success).map((item) => item.blockRange));
+        const errorRanges = rangeMerge(items.filter((item) => !item.success).map((item) => item.blockRange));
 
-        // merge the ranges to retry to avoid duplicates
-        newImportStatus.importData.data.blockRangesToRetry = rangeMerge(newImportStatus.importData.data.blockRangesToRetry);
+        // remove success from the ranges we need to retry
+        newImportStatus.importData.data.blockRangesToRetry = rangeArrayExclude(newImportStatus.importData.data.blockRangesToRetry, successRanges);
+        // add error ranges to the ranges we need to retry
+        newImportStatus.importData.data.blockRangesToRetry = rangeMerge([...newImportStatus.importData.data.blockRangesToRetry, ...errorRanges]);
 
         const rangeResults = items.map((item) => ({ range: item.blockRange, success: item.success }));
 
