@@ -17,11 +17,91 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1665306066440,
+  "iteration": 1665306066442,
   "links": [],
   "liveNow": false,
   "panels": [
-    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 12, "title": "Total platform metrics", "type": "row" },
+    {
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 24,
+      "panels": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 11, "w": 10, "x": 0, "y": 1 },
+          "id": 18,
+          "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "select \n  table_name,\n  total_size,\n  data_size,\n  index_size,\n  external_size\nfrom (\n(\n  select --schemaname as table_schema,\n         relname as table_name,\n         pg_size_pretty(pg_total_relation_size(relid)) as total_size,\n         pg_size_pretty(pg_relation_size(relid)) as data_size,\n         pg_size_pretty(pg_indexes_size(relid)) as index_size,\n         pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size,\n         pg_total_relation_size(relid) as raw_total_relation_size\n  from pg_catalog.pg_statio_user_tables\n  where schemaname not in ('_timescaledb_config', '_timescaledb_internal', '_timescaledb_catalog', '_timescaledb_cache')\n  and relname not like '%_ts'\n  order by pg_total_relation_size(relid) desc,\n           pg_relation_size(relid) desc\n)\nUNION ALL\n(\n  with timescale_objects as (\n      select\n          'hypertable' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          hypertable_schema || '.' || hypertable_name as table_internal_name\n      from timescaledb_information.hypertables\n      UNION ALL\n      select\n          'continuous aggregate' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          materialization_hypertable_schema || '.' || materialization_hypertable_name as table_internal_name\n      from timescaledb_information.continuous_aggregates\n  )\n  select --ht.object_type, \n      ht.table_display_name, \n      --ht.table_internal_name,\n      pg_size_pretty(htds.total_bytes) as total_bytes,\n      pg_size_pretty(htds.table_bytes) as table_size,\n      pg_size_pretty(htds.index_bytes) as index_bytes,\n      pg_size_pretty(htds.toast_bytes) as toast_bytes,\n      htds.total_bytes as raw_total_bytes\n  from timescale_objects as ht,\n  lateral (\n      select\n          sum(table_bytes) as table_bytes,\n          sum(index_bytes) as index_bytes,\n          sum(toast_bytes) as toast_bytes,\n          sum(total_bytes) as total_bytes\n      from hypertable_detailed_size(ht.table_internal_name)\n  ) as htds\n  order by htds.total_bytes desc\n)\n) as t\norder by raw_total_relation_size desc",
+              "refId": "A",
+              "select": [[{ "params": ["value"], "type": "column" }]],
+              "timeColumn": "time",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Pg table size",
+          "type": "table"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 11, "w": 14, "x": 10, "y": 1 },
+          "id": 22,
+          "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n    idstat.relname AS TABLE_NAME,\n    indexrelname AS index_name,\n    idstat.idx_scan AS index_scans_count,\n    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,\n    tabstat.idx_scan AS table_reads_index_count,\n    tabstat.seq_scan AS table_reads_seq_count,\n    tabstat.seq_scan + tabstat.idx_scan AS table_reads_count,\n    n_tup_upd + n_tup_ins + n_tup_del AS table_writes_count,\n    pg_size_pretty(pg_relation_size(idstat.relid)) AS table_size\nFROM\n    pg_stat_user_indexes AS idstat\nJOIN\n    pg_indexes\n    ON\n    indexrelname = indexname\n    AND\n    idstat.schemaname = pg_indexes.schemaname\nJOIN\n    pg_stat_user_tables AS tabstat\n    ON\n    idstat.relid = tabstat.relid\nWHERE\n    indexdef !~* 'unique'\nORDER BY\n    idstat.idx_scan DESC,\n    pg_relation_size(indexrelid) DESC",
+              "refId": "A",
+              "select": [[{ "params": ["value"], "type": "column" }]],
+              "timeColumn": "time",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Pg index stats",
+          "type": "table"
+        }
+      ],
+      "title": "Postgresql statistics",
+      "type": "row"
+    },
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 1 }, "id": 12, "title": "Total platform metrics", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -46,7 +126,7 @@
           }
         ]
       },
-      "gridPos": { "h": 11, "w": 8, "x": 0, "y": 1 },
+      "gridPos": { "h": 11, "w": 8, "x": 0, "y": 2 },
       "id": 9,
       "options": {
         "displayLabels": ["percent", "name"],
@@ -73,40 +153,7 @@
       "title": "Block coverage status",
       "type": "piechart"
     },
-    {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
-          "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 11, "w": 16, "x": 8, "y": 1 },
-      "id": 18,
-      "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "select * from (\n    select \n      'investment_balance_ts' as table_name, \n      (select count(*) from investment_balance_ts) as row_count, \n      pg_size_pretty(sum(total_bytes)) as bytes_pretty,\n      sum(total_bytes) as raw_bytes\n    from hypertable_detailed_size('investment_balance_ts')\n    UNION ALL \n    select \n      'asset_price_ts' as table_name, \n      (select count(*) from asset_price_ts) as row_count, \n      pg_size_pretty(sum(total_bytes)) as bytes_pretty,\n      sum(total_bytes) as raw_bytes\n    from hypertable_detailed_size('asset_price_ts')\n    UNION ALL \n    SELECT 'investor', (select count(*) from investor),  pg_size_pretty (pg_relation_size('investor')), pg_relation_size('investor')\n    UNION ALL \n    SELECT 'product', (select count(*) from product),  pg_size_pretty (pg_relation_size('product')), pg_relation_size('product')\n    UNION ALL \n    SELECT 'price_feed', (select count(*) from price_feed),  pg_size_pretty (pg_relation_size('price_feed')), pg_relation_size('price_feed')\n    UNION ALL \n    SELECT 'import_status', (select count(*) from import_status),  pg_size_pretty (pg_relation_size('import_status')), pg_relation_size('import_status')\n    ) as t\n  order by 4 desc",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-        }
-      ],
-      "title": "investment_balance_ts total_size",
-      "type": "table"
-    },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 }, "id": 14, "panels": [], "title": "Metrics By chain", "type": "row" },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 }, "id": 14, "panels": [], "title": "Metrics By chain", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -141,7 +188,7 @@
           }
         ]
       },
-      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 13 },
+      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 14 },
       "id": 8,
       "options": {
         "barRadius": 0,
@@ -199,7 +246,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 13 },
+      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 14 },
       "id": 10,
       "options": {
         "barRadius": 0,
@@ -232,7 +279,7 @@
     },
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
       "id": 16,
       "panels": [
         {
@@ -353,6 +400,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 19,
+  "version": 21,
   "weekStart": ""
 }

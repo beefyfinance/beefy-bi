@@ -49,18 +49,23 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               await sleep(samplingPeriodMs["1day"]);
             }
           })();
-          (async () => {
-            while (true) {
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains, filterContractAddress });
-              await sleep(samplingPeriodMs["1min"]);
+          for (const chain of allChainIds) {
+            if (!filterChains.includes(chain)) {
+              continue;
             }
-          })();
-          (async () => {
-            while (true) {
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
-              await sleep(samplingPeriodMs["15min"]);
-            }
-          })();
+            (async () => {
+              while (true) {
+                await importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains: [chain], filterContractAddress });
+                await sleep(samplingPeriodMs["1min"]);
+              }
+            })();
+            (async () => {
+              while (true) {
+                await importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains: [chain], filterContractAddress });
+                await sleep(samplingPeriodMs["15min"]);
+              }
+            })();
+          }
           (async () => {
             while (true) {
               await importPrices();
