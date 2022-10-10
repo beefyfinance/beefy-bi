@@ -193,7 +193,7 @@ export async function db_migrate() {
       end
       $jsonb_merge_func$;
 
-      CREATE OR REPLACE FUNCTION jsonb_import_range_size(jsonb) RETURNS integer 
+      CREATE OR REPLACE FUNCTION jsonb_int_range_size(jsonb) RETURNS integer 
       AS $$
         select ($1->>'to')::integer - ($1->>'from')::integer + 1
       $$
@@ -201,9 +201,9 @@ export async function db_migrate() {
       IMMUTABLE
       RETURNS NULL ON NULL INPUT;
 
-      CREATE OR REPLACE FUNCTION jsonb_import_ranges_size_sum(jsonb) RETURNS integer
+      CREATE OR REPLACE FUNCTION jsonb_int_ranges_size_sum(jsonb) RETURNS integer
       AS $$
-        select coalesce(sum(jsonb_import_range_size(size)), 0)
+        select coalesce(sum(jsonb_int_range_size(size)), 0)
         from (select * from jsonb_array_elements($1)) as range_size(size)
       $$
       LANGUAGE SQL

@@ -223,4 +223,8 @@ update product_import set import_data = jsonb_build_object(
         'toRetry', import_data->'data'->'blockRangesToRetry'
     )
 );
+
+DROP FUNCTION jsonb_import_ranges_size_sum(jsonb);
+DROP FUNCTION jsonb_import_range_size(jsonb);
+
 ```
