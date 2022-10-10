@@ -205,26 +205,55 @@ alter table price_feed add column to_asset_key character varying;
 update price_feed set from_asset_key = case when external_id like '%-%' then feed_key else external_id end;
 update price_feed set to_asset_key = 'fiat:USD';
 alter table price_feed add column _feed_data jsonb;
+alter table price_feed alter column from_asset_key set not null;
+alter table price_feed alter column to_asset_key set not null;
 update price_feed set _feed_data = jsonb_build_object('active', price_feed_data->'is_active');
 alter table price_feed alter column _feed_data set not null;
 alter table price_feed drop column price_feed_data;
 alter table price_feed rename column _feed_data to price_feed_data;
 
-alter table asset_price_ts rename to price_ts;
-alter table price_ts rename column usd_value to price;
 
-alter table import_status rename to product_import;
-update product_import set import_data = jsonb_build_object(
-    'contractCreatedAtBlock', import_data->'data'->'contractCreatedAtBlock',
-    'chainLatestBlockNumber', import_data->'data'->'chainLatestBlockNumber',
-    'ranges', jsonb_build_object(
-        'lastImportDate', import_data->'data'->'lastImportDate',
-        'coveredRanges', import_data->'data'->'coveredBlockRanges',
-        'toRetry', import_data->'data'->'blockRangesToRetry'
-    )
-);
+
+    CREATE TABLE IF NOT EXISTS price_ts (
+      datetime TIMESTAMPTZ NOT NULL,
+      price_feed_id integer not null references price_feed(price_feed_id),
+      price evm_decimal_256 not null
+    );
+
+    insert into price_ts (datetime, price_feed_id, price) (
+      select
+        datetime,
+        price_feed_id,
+        usd_value
+      from asset_price_ts
+    );
+    drop table asset_price_ts;
+
+
+    CREATE TABLE IF NOT EXISTS product_import (
+      product_id integer not null references product(product_id) PRIMARY KEY,
+
+      import_data jsonb NOT NULL
+    );
+    insert into product_import (product_id, import_data) (
+      select
+        product_id,
+        jsonb_build_object(
+            'contractCreatedAtBlock', import_data->'data'->'contractCreatedAtBlock',
+            'chainLatestBlockNumber', import_data->'data'->'chainLatestBlockNumber',
+            'ranges', jsonb_build_object(
+                'lastImportDate', import_data->'data'->'lastImportDate',
+                'coveredRanges', import_data->'data'->'coveredBlockRanges',
+                'toRetry', import_data->'data'->'blockRangesToRetry'
+            )
+        )
+      from import_status
+    );
+    drop table import_status;
 
 DROP FUNCTION jsonb_import_ranges_size_sum(jsonb);
 DROP FUNCTION jsonb_import_range_size(jsonb);
 
+-- WAIIIIIIT
+DROP DATABASE beefy_bck;
 ```
