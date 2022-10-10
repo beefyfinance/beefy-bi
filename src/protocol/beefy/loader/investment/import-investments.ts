@@ -102,7 +102,12 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
         sendBurstsOf: streamConfig.maxInputTake,
       }),
 
-      Rx.tap((item) => logger.info({ msg: "processing product", data: { productId: item.product.productId, blockRange: item.blockRange } })),
+      Rx.tap((item) =>
+        logger.info({
+          msg: "processing product",
+          data: { chain: item.product.chain, productId: item.product.productId, product_key: item.product.productKey, blockRange: item.blockRange },
+        }),
+      ),
     ),
 
     // process the queries
