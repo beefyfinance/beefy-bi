@@ -50,7 +50,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
   streamConfig: BatchStreamConfig;
-  formatOutput: (obj: TObj, latestBlockNumber: number, latestBlockQuery: Range) => TRes;
+  formatOutput: (obj: TObj, latestBlockNumber: number, latestBlockQuery: Range<number>) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
@@ -98,7 +98,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
   rpcConfig: RpcConfig;
   streamConfig: BatchStreamConfig;
   getImportStatus: (obj: TObj) => DbImportStatus;
-  formatOutput: (obj: TObj, latestBlockNumber: number, historicalBlockQueries: Range[]) => TRes;
+  formatOutput: (obj: TObj, latestBlockNumber: number, historicalBlockQueries: Range<number>[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // go get the latest block number for this chain

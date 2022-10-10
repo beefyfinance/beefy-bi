@@ -1,15 +1,56 @@
-import { clone, cloneDeep } from "lodash";
+import { clone, cloneDeep, isDate } from "lodash";
+import { ProgrammerError } from "./programmer-error";
 
-export interface Range {
-  from: number;
-  to: number;
+type SupportedRangeTypes = number | Date;
+
+export interface Range<T extends SupportedRangeTypes> {
+  from: T;
+  to: T;
 }
 
-export function rangeArrayExclude(ranges: Range[], exclude: Range[]) {
+interface RangeStrategy<T extends SupportedRangeTypes> {
+  nextValue: (value: T) => T;
+  previousValue: (value: T) => T;
+  compare: (a: T, b: T) => number;
+  max: (a: T, b: T) => T;
+  diff: (a: T, b: T) => T;
+  add: (a: T, b: number) => T;
+}
+const rangeStrategies = {
+  number: {
+    nextValue: (value: number) => value + 1,
+    previousValue: (value: number) => value - 1,
+    compare: (a: number, b: number) => a - b,
+    max: (a: number, b: number) => Math.max(a, b),
+    diff: (a: number, b: number) => a - b,
+    add: (a: number, b: number) => a + b,
+  } as RangeStrategy<number>,
+  date: {
+    nextValue: (value: Date) => new Date(value.getTime() + 1),
+    previousValue: (value: Date) => new Date(value.getTime() - 1),
+    compare: (a: Date, b: Date) => a.getTime() - b.getTime(),
+    max: (a: Date, b: Date) => (a.getTime() > b.getTime() ? a : b),
+    diff: (a: Date, b: Date) => new Date(a.getTime() - b.getTime()),
+    add: (a: Date, b: number) => new Date(a.getTime() + b),
+  } as RangeStrategy<Date>,
+};
+
+function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): RangeStrategy<T> {
+  const val = range.from;
+  if (isDate(val)) {
+    return rangeStrategies.date as any as RangeStrategy<T>;
+  } else if (typeof val === "number") {
+    return rangeStrategies.number as any as RangeStrategy<T>;
+  } else {
+    throw new ProgrammerError("Unsupported range type: " + typeof val);
+  }
+}
+
+export function rangeArrayExclude<T extends SupportedRangeTypes>(ranges: Range<T>[], exclude: Range<T>[], strategy?: RangeStrategy<T>) {
   return ranges.flatMap((range) => rangeExcludeMany(range, exclude));
 }
 
-export function rangeExcludeMany(range: Range, exclude: Range[]): Range[] {
+export function rangeExcludeMany<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   let ranges = [range];
   for (const ex of exclude) {
     for (let i = 0; i < ranges.length; i++) {
@@ -34,11 +75,13 @@ export function rangeExcludeMany(range: Range, exclude: Range[]): Range[] {
   return ranges;
 }
 
-export function rangeEqual(a: Range, b: Range) {
-  return a.from === b.from && a.to === b.to;
+export function rangeEqual<T extends SupportedRangeTypes>(a: Range<T>, b: Range<T>, strategy?: RangeStrategy<T>) {
+  const strat = strategy || getRangeStrategy(a);
+  return strat.compare(a.from, b.from) === 0 && strat.compare(a.to, b.to) === 0;
 }
 
-export function rangeExclude(range: Range, exclude: Range): Range[] {
+export function rangeExclude<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>, strategy?: RangeStrategy<T>): Range<T>[] {
+  const strat = strategy || getRangeStrategy(range);
   // ranges are exclusives
   if (range.to < exclude.from) {
     return [clone(range)];
@@ -55,45 +98,46 @@ export function rangeExclude(range: Range, exclude: Range): Range[] {
   // exclusion is inside the range
   if (range.from < exclude.from && range.to > exclude.to) {
     return [
-      { from: range.from, to: exclude.from - 1 },
-      { from: exclude.to + 1, to: range.to },
+      { from: range.from, to: strat.previousValue(exclude.from) },
+      { from: strat.nextValue(exclude.to), to: range.to },
     ];
   }
 
   // exclusion overlaps the range start
   if (range.from >= exclude.from && range.to >= exclude.to) {
-    return [{ from: exclude.to + 1, to: range.to }];
+    return [{ from: strat.nextValue(exclude.to), to: range.to }];
   }
 
   // exclusion overlaps the range end
   if (range.from <= exclude.from && range.to <= exclude.to) {
-    return [{ from: range.from, to: exclude.from - 1 }];
+    return [{ from: range.from, to: strat.previousValue(exclude.from) }];
   }
 
   return [];
 }
 
-export function rangeMerge(ranges: Range[]): Range[] {
+export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   if (ranges.length <= 1) {
     return cloneDeep(ranges);
   }
-  const sortedRanges = ranges.sort((a, b) => a.from - b.from);
-  const mergedRanges: Range[] = [];
+  const strat = strategy || getRangeStrategy(ranges[0]);
+  const sortedRanges = ranges.sort((a, b) => strat.compare(a.from, b.from));
+  const mergedRanges: Range<T>[] = [];
 
-  let currentMergedRange: Range | null = null;
+  let currentMergedRange: Range<T> | null = null;
   for (const range of sortedRanges) {
     if (!currentMergedRange) {
       currentMergedRange = clone(range);
       continue;
     }
 
-    if (range.from === currentMergedRange.from) {
-      currentMergedRange.to = Math.max(currentMergedRange.to, range.to);
+    if (strat.compare(range.from, currentMergedRange.from) === 0) {
+      currentMergedRange.to = strat.max(currentMergedRange.to, range.to);
       continue;
     }
 
-    if (range.from <= currentMergedRange.to + 1) {
-      currentMergedRange.to = Math.max(currentMergedRange.to, range.to);
+    if (range.from <= strat.nextValue(currentMergedRange.to)) {
+      currentMergedRange.to = strat.max(currentMergedRange.to, range.to);
       continue;
     }
 
@@ -110,13 +154,14 @@ export function rangeMerge(ranges: Range[]): Range[] {
   return mergedRanges;
 }
 
-export function rangeSlitToMaxLength(range: Range, maxLength: number): Range[] {
-  const ranges: Range[] = [];
-  let currentRange: Range = clone(range);
+export function rangeSlitToMaxLength<T extends SupportedRangeTypes>(range: Range<T>, maxLength: number, strategy?: RangeStrategy<T>): Range<T>[] {
+  const strat = strategy || getRangeStrategy(range);
+  const ranges: Range<T>[] = [];
+  let currentRange: Range<T> = clone(range);
 
-  while (currentRange.to - currentRange.from + 1 > maxLength) {
-    ranges.push({ from: currentRange.from, to: currentRange.from + maxLength - 1 });
-    currentRange.from += maxLength;
+  while (strat.nextValue(strat.diff(currentRange.to, currentRange.from)) > maxLength) {
+    ranges.push({ from: currentRange.from, to: strat.previousValue(strat.add(currentRange.from, maxLength)) });
+    currentRange.from = strat.add(currentRange.from, maxLength);
   }
 
   ranges.push(currentRange);
@@ -124,6 +169,11 @@ export function rangeSlitToMaxLength(range: Range, maxLength: number): Range[] {
   return ranges;
 }
 
-export function rangeSplitManyToMaxLength(ranges: Range[], maxLength: number): Range[] {
-  return ranges.flatMap((range) => rangeSlitToMaxLength(range, maxLength));
+export function rangeSplitManyToMaxLength<T extends SupportedRangeTypes>(
+  ranges: Range<T>[],
+  maxLength: number,
+  strategy?: RangeStrategy<T>,
+): Range<T>[] {
+  const strat = strategy || (ranges.length > 0 ? getRangeStrategy(ranges[0]) : undefined);
+  return ranges.flatMap((range) => rangeSlitToMaxLength(range, maxLength, strat));
 }

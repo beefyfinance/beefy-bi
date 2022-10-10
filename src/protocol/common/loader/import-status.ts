@@ -24,9 +24,9 @@ export interface DbImportStatus {
       // last time we imported some data for this product
       lastImportDate: Date;
       // already imported once range
-      coveredBlockRanges: Range[];
+      coveredBlockRanges: Range<number>[];
       // ranges where an error occured
-      blockRangesToRetry: Range[];
+      blockRangesToRetry: Range<number>[];
     };
   };
 }

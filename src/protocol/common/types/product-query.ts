@@ -3,7 +3,7 @@ import { DbProduct } from "../loader/product";
 
 export interface ProductImportQuery<TProduct extends DbProduct = DbProduct> {
   product: TProduct;
-  blockRange: Range;
+  blockRange: Range<number>;
   latestBlockNumber: number;
 }
 
