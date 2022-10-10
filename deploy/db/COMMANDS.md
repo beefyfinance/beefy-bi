@@ -185,3 +185,42 @@ order by
 
 
 ```
+
+```
+\c postgres
+
+create database beefy_bck with template beefy;
+-- if needed
+SELECT pg_terminate_backend(pid)
+         FROM pg_stat_activity
+         WHERE pid <> pg_backend_pid()
+               AND datname IS NOT NULL
+               AND leader_pid IS NULL;
+
+\c beefy
+
+-- migrate price feed table
+alter table price_feed add column from_asset_key character varying;
+alter table price_feed add column to_asset_key character varying;
+update price_feed set from_asset_key = case when external_id like '%-%' then feed_key else external_id end;
+update price_feed set to_asset_key = 'fiat:USD';
+alter table price_feed add column _feed_data jsonb;
+update price_feed set _feed_data = jsonb_build_object('active', price_feed_data->'is_active');
+alter table price_feed alter column _feed_data set not null;
+alter table price_feed drop column price_feed_data;
+alter table price_feed rename column _feed_data to price_feed_data;
+
+alter table asset_price_ts rename to price_ts;
+alter table price_ts rename column usd_value to price;
+
+alter table import_status rename to product_import;
+update product_import set import_data = jsonb_build_object(
+    'contractCreatedAtBlock', import_data->'data'->'contractCreatedAtBlock',
+    'chainLatestBlockNumber', import_data->'data'->'chainLatestBlockNumber',
+    'ranges', jsonb_build_object(
+        'lastImportDate', import_data->'data'->'lastImportDate',
+        'coveredRanges', import_data->'data'->'coveredBlockRanges',
+        'toRetry', import_data->'data'->'blockRangesToRetry'
+    )
+);
+```

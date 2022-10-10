@@ -5,6 +5,7 @@ import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from ".
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { ImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
@@ -12,8 +13,10 @@ export interface DbPriceFeed {
   priceFeedId: number;
   feedKey: string;
   externalId: string;
+  fromAssetKey: string;
+  toAssetKey: string;
   priceFeedData: {
-    is_active: boolean;
+    active: boolean;
   };
 }
 
@@ -35,12 +38,31 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
       const objAndData = objs.map((obj) => ({ obj, feedData: options.getFeedData(obj) }));
 
       const results = await db_query<DbPriceFeed>(
-        `INSERT INTO price_feed (feed_key, external_id, price_feed_data) VALUES %L
+        `INSERT INTO price_feed (feed_key, external_id, from_asset_key, to_asset_key, price_feed_data) VALUES %L
               ON CONFLICT (feed_key) 
               -- DO NOTHING -- can't use DO NOTHING because we need to return the id
-              DO UPDATE SET feed_key = EXCLUDED.feed_key, external_id = EXCLUDED.external_id, price_feed_data = jsonb_merge(price_feed.price_feed_data, EXCLUDED.price_feed_data)
-              RETURNING price_feed_id as "priceFeedId", feed_key as "feedKey", external_id as "externalId"`,
-        [uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [obj.feedData.feedKey, obj.feedData.externalId, obj.feedData.priceFeedData])],
+              DO UPDATE SET 
+                feed_key = EXCLUDED.feed_key, 
+                from_asset_key = EXCLUDED.from_asset_key,
+                to_asset_key = EXCLUDED.to_asset_key,
+                external_id = EXCLUDED.external_id, 
+                price_feed_data = jsonb_merge(price_feed.price_feed_data, EXCLUDED.price_feed_data)
+              RETURNING 
+                price_feed_id as "priceFeedId", 
+                feed_key as "feedKey",
+                external_id as "externalId", 
+                from_asset_key as "fromAssetKey",
+                to_asset_key as "toAssetKey",
+                price_feed_data as "priceFeedData"`,
+        [
+          uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [
+            obj.feedData.feedKey,
+            obj.feedData.externalId,
+            obj.feedData.fromAssetKey,
+            obj.feedData.toAssetKey,
+            obj.feedData.priceFeedData,
+          ]),
+        ],
         options.client,
       );
 
@@ -67,6 +89,8 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
         price_feed_id as "priceFeedId",
         feed_key as "feedKey",
         external_id as "externalId",
+        from_asset_key as "fromAssetKey",
+        to_asset_key as "toAssetKey",
         price_feed_data as "priceFeedData"
       FROM price_feed 
       WHERE feed_key like %L || ':%'`,
@@ -104,6 +128,8 @@ export function fetchDbPriceFeed$<TObj, TRes>(options: {
           price_feed_id as "priceFeedId",
           feed_key as "feedKey",
           external_id as "externalId",
+          from_asset_key as "fromAssetKey",
+          to_asset_key as "toAssetKey",
           priceFeedData as "priceFeedData"
         FROM price_feed 
         WHERE price_feed_id IN (%L)`,

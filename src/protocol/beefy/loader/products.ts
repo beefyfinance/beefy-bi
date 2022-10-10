@@ -27,13 +27,18 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
     Rx.pipe(
       upsertPriceFeed$({
         client: options.client,
-        getFeedData: (vaultData) => ({
-          // oracleIds are unique globally
-          feedKey: `beefy:${vaultData.vault.want_price_feed_key}`,
-          // we are going to express the user balance in want amount
-          externalId: vaultData.vault.want_price_feed_key,
-          priceFeedData: { is_active: !vaultData.vault.eol },
-        }),
+        getFeedData: (vaultData) => {
+          const vaultId = normalizeVaultId(vaultData.vault.id);
+          return {
+            // oracleIds are unique globally
+            feedKey: `beefy:vault:${vaultData.vault.want_price_feed_key}`,
+            // we are going to express the user balance in want amount
+            externalId: vaultData.vault.want_price_feed_key,
+            fromAssetKey: `${vaultData.vault.protocol}:${vaultData.chain}:${vaultData.vault.protocol_product}`,
+            toAssetKey: "fiat:USD", // to USD
+            priceFeedData: { active: !vaultData.vault.eol },
+          };
+        },
         formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
       }),
 

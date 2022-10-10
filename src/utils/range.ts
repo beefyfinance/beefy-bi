@@ -1,7 +1,7 @@
 import { clone, cloneDeep, isDate } from "lodash";
 import { ProgrammerError } from "./programmer-error";
 
-type SupportedRangeTypes = number | Date;
+export type SupportedRangeTypes = number | Date;
 
 export interface Range<T extends SupportedRangeTypes> {
   from: T;

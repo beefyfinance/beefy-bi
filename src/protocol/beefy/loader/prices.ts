@@ -15,7 +15,7 @@ export function importBeefyPrices$(options: { client: PoolClient }) {
       Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy prices", data: priceFeed })),
 
       // only live price feeds
-      Rx.filter((priceFeed) => priceFeed.priceFeedData.is_active),
+      Rx.filter((priceFeed) => priceFeed.priceFeedData.active),
 
       // map to an object where we can add attributes to safely
       Rx.map((priceFeed) => ({ priceFeed })),
@@ -68,7 +68,7 @@ export function importBeefyPrices$(options: { client: PoolClient }) {
       getPriceData: (priceData) => ({
         datetime: priceData.price.datetime,
         priceFeedId: priceData.priceFeed.priceFeedId,
-        usdValue: new Decimal(priceData.price.value),
+        price: new Decimal(priceData.price.value),
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),

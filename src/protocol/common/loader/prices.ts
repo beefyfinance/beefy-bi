@@ -11,7 +11,7 @@ const logger = rootLogger.child({ module: "prices" });
 export interface DbPrice {
   datetime: Date;
   priceFeedId: number;
-  usdValue: Decimal;
+  price: Decimal;
 }
 
 export function upsertPrices$<TInput, TRes>(options: {
@@ -38,10 +38,10 @@ export function upsertPrices$<TInput, TRes>(options: {
         `INSERT INTO asset_price_ts (
             datetime,
             price_feed_id,
-            usd_value
+            price
           ) VALUES %L
           ON CONFLICT (price_feed_id, datetime) DO NOTHING`,
-        [objAndData.map(({ priceData }) => [priceData.datetime, priceData.priceFeedId, priceData.usdValue.toString()])],
+        [objAndData.map(({ priceData }) => [priceData.datetime, priceData.priceFeedId, priceData.price.toString()])],
         options.client,
       );
 

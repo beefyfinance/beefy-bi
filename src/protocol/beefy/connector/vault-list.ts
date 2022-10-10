@@ -33,6 +33,8 @@ export interface BeefyVault {
   want_address: string;
   want_decimals: number;
   eol: boolean;
+  protocol: string;
+  protocol_product: string;
   is_gov_vault: boolean;
   assets: string[];
   want_price_feed_key: string;
@@ -146,8 +148,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     Rx.map(({ vault }) => rawVaultToBeefyVault(chain, vault)),
 
     Rx.tap({
-      complete: () =>
-        logger.debug({ msg: "Finished fetching vault list from beefy-v2 repo git history", data: { chain } }),
+      complete: () => logger.debug({ msg: "Finished fetching vault list from beefy-v2 repo git history", data: { chain } }),
     }),
   );
 }
@@ -155,6 +156,21 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
 function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault {
   try {
     const wnative = getChainWNativeTokenAddress(chain);
+
+    // try to extract protocol
+    let protocol = rawVault.oracleId;
+    let protocol_product = rawVault.oracleId;
+    if (rawVault.oracleId.includes("-")) {
+      const parts = rawVault.oracleId.split("-");
+      protocol = parts[0];
+      protocol_product = parts.slice(1).join("-");
+    } else if (rawVault.oracleId.startsWith("be")) {
+      protocol = "beefy";
+      protocol_product = rawVault.oracleId;
+    } else {
+      protocol = "unknown";
+      protocol_product = rawVault.oracleId;
+    }
     return {
       id: rawVault.id,
       chain,
@@ -166,6 +182,8 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault
       eol: rawVault.status === "eol",
       is_gov_vault: rawVault.isGovVault || false,
       assets: rawVault.assets || [],
+      protocol,
+      protocol_product,
       want_price_feed_key: rawVault.oracleId,
     };
   } catch (error) {

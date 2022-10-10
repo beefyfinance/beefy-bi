@@ -218,6 +218,9 @@ export async function db_migrate() {
       -- unique price feed identifier
       feed_key varchar NOT NULL UNIQUE,
       external_id varchar NOT NULL, -- the id used by the feed
+      -- what this price represents, can be used to get an usd value or a token conversion rate
+      from_asset_key character varying NOT NULL,
+      to_asset_key character varying NOT NULL,
       -- all relevant price feed data: eol, etc
       price_feed_data jsonb NOT NULL
     );
@@ -278,14 +281,14 @@ export async function db_migrate() {
 
   // price data
   await db_query(`
-    CREATE TABLE IF NOT EXISTS asset_price_ts (
+    CREATE TABLE IF NOT EXISTS price_ts (
       datetime TIMESTAMPTZ NOT NULL,
       price_feed_id integer not null references price_feed(price_feed_id),
-      usd_value evm_decimal_256 not null
+      price evm_decimal_256 not null
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS asset_price_ts_uniq ON asset_price_ts(price_feed_id, datetime);
+    CREATE UNIQUE INDEX IF NOT EXISTS price_ts_uniq ON price_ts(price_feed_id, datetime);
     SELECT create_hypertable(
-      relation => 'asset_price_ts',
+      relation => 'price_ts',
       time_column_name => 'datetime', 
       chunk_time_interval => INTERVAL '7 days', 
       if_not_exists => true
@@ -294,10 +297,18 @@ export async function db_migrate() {
 
   // a table to store which data we already imported and which range needs to be retried
   // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
-  // it's split from the product but maybe it should not
+  // it's split from the product to separate concerns but maybe it should not as it's a 1-1 relation
   await db_query(`
-    CREATE TABLE IF NOT EXISTS import_status (
+    CREATE TABLE IF NOT EXISTS product_import (
       product_id integer not null references product(product_id) PRIMARY KEY,
+
+      import_data jsonb NOT NULL
+    );
+  `);
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS price_feed_import (
+      price_feed_id integer not null references price_feed(price_feed_id) PRIMARY KEY,
 
       import_data jsonb NOT NULL
     );

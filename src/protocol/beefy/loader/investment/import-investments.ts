@@ -9,14 +9,13 @@ import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../../..
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/block-query";
 import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
-import { ProductImportQuery } from "../../../common/types/product-query";
+import { ProductImportQuery, ProductImportResult } from "../../../common/types/product-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { importProductBlockRange$ } from "./product-block-range";
-import { addMissingBlockRangesImportStatus$, updateBlockRangesImportStatus$ } from "../../../common/loader/block-ranges-import-status";
+import { addMissingProductImport$, updateProductImport$ } from "../../../common/loader/product-import";
 import { rootLogger } from "../../../../utils/logger";
-import { rangeArrayExclude, rangeExclude } from "../../../../utils/range";
 
 function createRpcConfig(chain: Chain): RpcConfig {
   const rpcOptions: ethers.utils.ConnectionInfo = {
@@ -59,18 +58,19 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // add typings to the input item
     Rx.filter((_: DbBeefyProduct) => true),
 
-    addMissingBlockRangesImportStatus$({
+    addMissingProductImport$({
       client,
       chain,
       rpcConfig,
       getContractAddress: (product) =>
         product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
+      formatOutput: (product, productImport) => ({ product, productImport }),
     }),
 
     // process first the products we imported the least
     Rx.pipe(
       Rx.toArray(),
-      Rx.map((items) => sortBy(items, (item) => item.importStatus.importData.data.lastImportDate)),
+      Rx.map((items) => sortBy(items, (item) => item.productImport.importData.ranges.lastImportDate)),
       Rx.concatAll(),
     ),
 
@@ -82,7 +82,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
         rpcConfig,
         forceCurrentBlockNumber,
         streamConfig,
-        getImportStatus: (item) => item.importStatus,
+        getProductImport: (item) => item.productImport,
         formatOutput: (item, latestBlockNumber, blockQueries) => ({ ...item, blockQueries, latestBlockNumber }),
       }),
 
@@ -110,14 +110,16 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
     // handle the results
     Rx.pipe(
+      Rx.map((item) => ({ ...item, success: true })),
       // make sure we close the errors observable when we are done
       Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
       // merge the errors back in, all items here should have been successfully treated
-      Rx.mergeWith(productErrors$),
-      Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
+      Rx.mergeWith(productErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
+      // make sure the type is correct
+      Rx.map((item): ProductImportResult<DbBeefyProduct> => item),
     ),
 
-    updateBlockRangesImportStatus$({ client, streamConfig }),
+    updateProductImport$({ client, streamConfig }),
 
     Rx.finalize(() => logger.info({ msg: "Finished importing historical data", data: { chain } })),
   );
@@ -194,89 +196,3 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     ),
   );
 }
-
-/*
-
-export function importChainBalanceSnapshots$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
-  const logger = rootLogger.child({ module: "beefy", component: "import-balance-snapshots" });
-
-  const rpcConfig = createRpcConfig(chain);
-
-  const streamConfig: BatchStreamConfig = {
-    // since we are doing many historical queries at once, we cannot afford to do many at once
-    workConcurrency: 1,
-    // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxInputWaitMs: 30 * 1000,
-    maxInputTake: 500,
-    // and we can affort longer retries
-    maxTotalRetryMs: 30_000,
-  };
-
-  const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
-
-  return Rx.pipe(
-    // add typings to the input item
-    Rx.filter((_: DbBeefyProduct) => true),
-
-    addMissingBlockRangesImportStatus$({
-      client,
-      chain,
-      rpcConfig,
-      getContractAddress: (product) =>
-        product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
-    }),
-
-    // process first the products we imported the least
-    Rx.pipe(
-      Rx.toArray(),
-      Rx.map((items) => sortBy(items, (item) => item.importStatus.importData.snapsthot.lastImportDate)),
-      Rx.concatAll(),
-    ),
-
-    // find out which investor+product need snapshoting
-    // take into account imported data (we don't want to create snapshots for data ranges in error or not covered)
-    // generate the 0 transfer
-    Rx.pipe(
-      Rx.map((product) => {
-        const historical = product.importStatus.importData.historical;
-        const snapshot = product.importStatus.importData.snapsthot;
-
-        // get the range of blocks where we have valid historical data for
-        let ranges = historical.coveredBlockRanges;
-        ranges = rangeArrayExclude(ranges, historical.blockRangesToRetry);
-
-        // remove the ranges where we already have snapshots
-        ranges = rangeArrayExclude(ranges, snapshot.);
-      }),
-    ),
-
-    // some backpressure mechanism
-    Rx.pipe(
-      memoryBackpressure$({
-        logData: { msg: "import-historical-data", data: { chain } },
-        sendBurstsOf: streamConfig.maxInputTake,
-      }),
-
-      Rx.tap((item) => logger.info({ msg: "processing product", data: { productId: item.product.productId, blockRange: item.blockRange } })),
-    ),
-
-    // fetch ppfs for this transfer
-    // import the transfer (get balance)
-    importTransfers$,
-
-    // handle the results and errors
-    Rx.pipe(
-      // make sure we close the errors observable when we are done
-      Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
-      // merge the errors back in, all items here should have been successfully treated
-      Rx.mergeWith(productErrors$),
-      Rx.map((item) => ({ ...item, success: "success" in item ? item.success : false })),
-    ),
-
-    // update the import status
-    updateBlockRangesImportStatus$({ client, streamConfig }),
-
-    Rx.finalize(() => logger.info({ msg: "Finished importing investor snapshots data", data: { chain } })),
-  );
-}
-*/
