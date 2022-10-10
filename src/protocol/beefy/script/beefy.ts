@@ -126,6 +126,7 @@ async function importProducts(options: { filterChains: Chain[] }) {
       Rx.filter((chain) => options.filterChains.includes(chain)),
       importBeefyProducts$({ client }),
     );
+    logger.info({ msg: "importing products", data: { options } });
     return consumeObservable(pipeline$);
   })();
 }
@@ -133,6 +134,7 @@ async function importProducts(options: { filterChains: Chain[] }) {
 async function importPrices() {
   return withPgClient((client) => {
     const pipeline$ = priceFeedList$(client, "beefy").pipe(importBeefyPrices$({ client }));
+    logger.info({ msg: "importing prices" });
     return consumeObservable(pipeline$);
   })();
 }
@@ -163,6 +165,7 @@ async function importInvestmentData(options: {
       // load  historical data
       loaderByChain$(process),
     );
+    logger.info({ msg: "importing investment data", data: { options } });
     return consumeObservable(pipeline$);
   })();
 }
