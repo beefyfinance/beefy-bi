@@ -93,7 +93,7 @@ export function findMissingPriceRangeInDb$<TObj, TRes>(options: {
         `SELECT 
             price_feed_id as "priceFeedId",
             last(datetime, datetime) as "lastInsertedDatetime"
-          FROM asset_price_ts 
+          FROM price_ts 
           WHERE price_feed_id IN (%L)
           GROUP BY price_feed_id`,
         [objs.map((o) => options.getFeedId(o))],
