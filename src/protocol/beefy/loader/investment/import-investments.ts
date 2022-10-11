@@ -9,13 +9,15 @@ import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../../..
 import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/block-query";
 import { getRpcLimitations } from "../../../../utils/rpc/rpc-limitations";
-import { ProductImportQuery, ProductImportResult } from "../../../common/types/product-query";
+import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { RpcConfig } from "../../../../types/rpc-config";
 import { importProductBlockRange$ } from "./product-block-range";
-import { addMissingProductImport$, updateProductImport$ } from "../../../common/loader/product-import";
+import { addMissingImportState$, DbProductInvestmentImportState, updateImportState$ } from "../../../common/loader/import-state";
 import { rootLogger } from "../../../../utils/logger";
+import { fetchContractCreationBlock$ } from "../../../common/connector/contract-creation";
+import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 
 function createRpcConfig(chain: Chain): RpcConfig {
   const rpcOptions: ethers.utils.ConnectionInfo = {
@@ -48,29 +50,58 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };
-  const {
-    observable: productErrors$,
-    next: emitErrors,
-    complete: completeProductErrors$,
-  } = createObservableWithNext<ProductImportQuery<DbProduct>>();
+  const { observable: productErrors$, next: emitErrors, complete: completeProductErrors$ } = createObservableWithNext<ImportQuery<DbProduct>>();
+
+  const getImportStateKey = (productId: number) => `product:investment:${productId}`;
 
   return Rx.pipe(
     // add typings to the input item
     Rx.filter((_: DbBeefyProduct) => true),
 
-    addMissingProductImport$({
+    addMissingImportState$({
       client,
       chain,
       rpcConfig,
-      getContractAddress: (product) =>
-        product.productData.type === "beefy:vault" ? product.productData.vault.contract_address : product.productData.boost.contract_address,
-      formatOutput: (product, productImport) => ({ product, productImport }),
+      getImportStateKey: (item) => getImportStateKey(item.productId),
+      addDefaultImportData$: (formatOutput) =>
+        Rx.pipe(
+          // initialize the import state
+          // find the contract creation block
+          fetchContractCreationBlock$({
+            rpcConfig: rpcConfig,
+            getCallParams: (item) => ({
+              chain: chain,
+              contractAddress:
+                item.productData.type === "beefy:vault" ? item.productData.vault.contract_address : item.productData.boost.contract_address,
+            }),
+            formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+          }),
+
+          // drop those without a creation info
+          excludeNullFields$("contractCreationInfo"),
+
+          Rx.map((item) =>
+            formatOutput(item, {
+              type: "product:investment",
+              productId: item.productId,
+              chain: item.chain,
+              chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
+              contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
+              ranges: {
+                lastImportDate: new Date(),
+                coveredRanges: [],
+                toRetry: [],
+              },
+            }),
+          ),
+        ),
+      formatOutput: (product, importState) => ({ target: product, importState }),
     }),
 
     // process first the products we imported the least
     Rx.pipe(
       Rx.toArray(),
-      Rx.map((items) => sortBy(items, (item) => item.productImport.importData.ranges.lastImportDate)),
+      Rx.map((items) => sortBy(items, (item) => item.importState.importData.ranges.lastImportDate)),
       Rx.concatAll(),
     ),
 
@@ -82,13 +113,14 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
         rpcConfig,
         forceCurrentBlockNumber,
         streamConfig,
-        getProductImport: (item) => item.productImport,
+        getImport: (item) => item.importState as DbProductInvestmentImportState,
+        getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
         formatOutput: (item, latestBlockNumber, blockQueries) => ({ ...item, blockQueries, latestBlockNumber }),
       }),
 
       // convert to stream of product queries
       Rx.concatMap((item) =>
-        item.blockQueries.map((blockRange): ProductImportQuery<DbBeefyProduct> => {
+        item.blockQueries.map((blockRange) => {
           const { blockQueries, ...rest } = item;
           return { ...rest, blockRange, latestBlockNumber: item.latestBlockNumber };
         }),
@@ -98,14 +130,14 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // some backpressure mechanism
     Rx.pipe(
       memoryBackpressure$({
-        logData: { msg: "import-historical-data", data: { chain } },
+        logInfos: { msg: "import-historical-data", data: { chain } },
         sendBurstsOf: streamConfig.maxInputTake,
       }),
 
       Rx.tap((item) =>
         logger.info({
           msg: "processing product",
-          data: { chain: item.product.chain, productId: item.product.productId, product_key: item.product.productKey, blockRange: item.blockRange },
+          data: { chain: item.target.chain, productId: item.target.productId, product_key: item.target.productKey, blockRange: item.blockRange },
         }),
       ),
     ),
@@ -121,10 +153,10 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       // merge the errors back in, all items here should have been successfully treated
       Rx.mergeWith(productErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
       // make sure the type is correct
-      Rx.map((item): ProductImportResult<DbBeefyProduct> => item),
+      Rx.map((item): ImportResult<DbBeefyProduct> => item),
     ),
 
-    updateProductImport$({ client, streamConfig }),
+    updateImportState$({ client, streamConfig, getImportStateKey: (item) => getImportStateKey(item.target.productId), formatOutput: (item) => item }),
 
     Rx.finalize(() => logger.info({ msg: "Finished importing historical data", data: { chain } })),
   );
@@ -145,7 +177,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     // and we cannot afford too long of a retry per product
     maxTotalRetryMs: 10_000,
   };
-  const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ProductImportQuery<DbProduct>>();
+  const { observable: productErrors$, next: emitErrors } = createObservableWithNext<ImportQuery<DbProduct>>();
 
   // remember the last imported block number for each chain so we can reduce the amount of data we fetch
   type ImportState = {
@@ -161,11 +193,11 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     Rx.filter((_: DbBeefyProduct) => true),
 
     // create an object we can safely add data to
-    Rx.map((product) => ({ product })),
+    Rx.map((product) => ({ target: product })),
 
     // only live boosts and vaults
-    Rx.filter(({ product }) =>
-      product.productData.type === "beefy:vault" ? product.productData.vault.eol === false : product.productData.boost.eol === false,
+    Rx.filter(({ target }) =>
+      target.productData.type === "beefy:vault" ? target.productData.vault.eol === false : target.productData.boost.eol === false,
     ),
 
     // find out the blocks we want to query
@@ -191,10 +223,10 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
         if (item.success) {
           logger.debug({
             msg: "Imported live data",
-            data: { productId: item.product.productData, blockRange: item.blockRange, success: item.success },
+            data: { productId: item.target.productData, blockRange: item.blockRange, success: item.success },
           });
         } else {
-          logger.error({ msg: "Failed to import live data", data: { productId: item.product.productData, blockRange: item.blockRange } });
+          logger.error({ msg: "Failed to import live data", data: { productId: item.target.productData, blockRange: item.blockRange } });
         }
       }),
       Rx.finalize(() => logger.info({ msg: "Finished importing live data", data: { chain } })),

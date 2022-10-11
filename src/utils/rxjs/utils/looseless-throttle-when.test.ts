@@ -9,6 +9,7 @@ describe("looselessThrottleWhen", () => {
         checkIntervalJitterMs: 0,
         checkIntervalMs: 0,
         shouldSend: () => 1,
+        logInfos: { msg: "test" },
       }),
       Rx.toArray(),
     );
@@ -22,6 +23,7 @@ describe("looselessThrottleWhen", () => {
         checkIntervalJitterMs: 0,
         checkIntervalMs: 50,
         shouldSend: () => 100,
+        logInfos: { msg: "test" },
       }),
       Rx.toArray(),
     );

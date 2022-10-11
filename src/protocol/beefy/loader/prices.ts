@@ -3,16 +3,15 @@ import { PoolClient } from "pg";
 import { fetchBeefyPrices } from "../connector/prices";
 import Decimal from "decimal.js";
 import { DbPriceFeed } from "../../common/loader/price-feed";
-import { findMissingPriceRangeInDb$, upsertPrices$ } from "../../common/loader/prices";
+import { findMissingPriceRangeInDb$, upsertPrice$ } from "../../common/loader/prices";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { rootLogger } from "../../../utils/logger";
 
-const logger = rootLogger.child({ module: "beefy", component: "import-prices" });
-
-export function importBeefyPrices$(options: { client: PoolClient }) {
+export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
+  const logger = rootLogger.child({ module: "beefy", component: "import-underlying-prices" });
   return Rx.pipe(
     Rx.pipe(
-      Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy prices", data: priceFeed })),
+      Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
 
       // only live price feeds
       Rx.filter((priceFeed) => priceFeed.priceFeedData.active),
@@ -63,12 +62,14 @@ export function importBeefyPrices$(options: { client: PoolClient }) {
       Rx.concatMap((productData) => Rx.from(productData.prices.map((price) => ({ ...productData, price })))),
     ),
 
-    upsertPrices$({
+    upsertPrice$({
       client: options.client,
       getPriceData: (priceData) => ({
         datetime: priceData.price.datetime,
+        blockNumber: Math.floor(priceData.price.datetime.getTime() / 1000),
         priceFeedId: priceData.priceFeed.priceFeedId,
         price: new Decimal(priceData.price.value),
+        priceData: {},
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),

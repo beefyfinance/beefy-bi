@@ -8,7 +8,7 @@ import { DbProduct, productList$ } from "../../common/loader/product";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { sleep } from "../../../utils/async";
 import { importBeefyProducts$ } from "../loader/products";
-import { importBeefyPrices$ } from "../loader/prices";
+import { importBeefyUnderlyingPrices$ } from "../loader/prices";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import yargs from "yargs";
@@ -128,7 +128,7 @@ async function importProducts(options: { filterChains: Chain[] }) {
 
 async function importPrices() {
   return withPgClient((client) => {
-    const pipeline$ = priceFeedList$(client, "beefy").pipe(importBeefyPrices$({ client }));
+    const pipeline$ = priceFeedList$(client, "beefy").pipe(importBeefyUnderlyingPrices$({ client }));
     logger.info({ msg: "starting prices import" });
     return consumeObservable(pipeline$);
   })();

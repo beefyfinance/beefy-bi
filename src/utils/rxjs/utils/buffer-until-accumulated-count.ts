@@ -72,7 +72,16 @@ export function bufferUntilAccumulatedCountReached<TObj>(options: {
     }, options.pollFrequencyMs + Math.random() * options.pollJitterMs);
 
     return () => {
-      logger.trace({ msg: "Releaser unsubscribed" });
+      logger.trace({
+        msg: "Releaser unsubscribed. " + options.logInfos.msg,
+        data: {
+          ...options.logInfos.data,
+          maxBufferSize: options.maxBufferSize,
+          maxBufferTimeMs: options.maxBufferTimeMs,
+          pollFrequencyMs: options.pollFrequencyMs,
+          pollJitterMs: options.pollJitterMs,
+        },
+      });
       clearInterval(poller);
     };
   });
@@ -87,7 +96,16 @@ export function bufferUntilAccumulatedCountReached<TObj>(options: {
 
     // register the finalization of the source obs
     Rx.finalize(() => {
-      logger.trace({ msg: "Source obs finalized" });
+      logger.trace({
+        msg: "Source obs finalized. " + options.logInfos.msg,
+        data: {
+          ...options.logInfos.data,
+          maxBufferSize: options.maxBufferSize,
+          maxBufferTimeMs: options.maxBufferTimeMs,
+          pollFrequencyMs: options.pollFrequencyMs,
+          pollJitterMs: options.pollJitterMs,
+        },
+      });
       sourceObsFinalized = true;
     }),
 

@@ -283,10 +283,22 @@ export async function db_migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS price_ts (
       datetime TIMESTAMPTZ NOT NULL,
+
       price_feed_id integer not null references price_feed(price_feed_id),
-      price evm_decimal_256 not null
+
+      -- we may want to specify a block number to resolve duplicates
+      -- if the prices do not comes from a chain, we put the timestamp in here
+      block_number integer not null,
+
+      price evm_decimal_256 not null,
+
+      -- some debug info to help us understand how we got this data
+      price_data jsonb not null -- chain, transaction hash, transaction fees, etc
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS price_ts_uniq ON price_ts(price_feed_id, datetime);
+
+    -- make sure we don't create a unique index on a null value because all nulls are considered different
+    CREATE UNIQUE INDEX IF NOT EXISTS price_ts_wi_chain_uniq ON price_ts(price_feed_id, block_number, datetime);
+
     SELECT create_hypertable(
       relation => 'price_ts',
       time_column_name => 'datetime', 
@@ -296,20 +308,10 @@ export async function db_migrate() {
   `);
 
   // a table to store which data we already imported and which range needs to be retried
-  // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
-  // it's split from the product to separate concerns but maybe it should not as it's a 1-1 relation
+  // we need this because if there is no data on some date range, maybe we already fetched it and there is no datas
   await db_query(`
-    CREATE TABLE IF NOT EXISTS product_import (
-      product_id integer not null references product(product_id) PRIMARY KEY,
-
-      import_data jsonb NOT NULL
-    );
-  `);
-
-  await db_query(`
-    CREATE TABLE IF NOT EXISTS price_feed_import (
-      price_feed_id integer not null references price_feed(price_feed_id) PRIMARY KEY,
-
+    CREATE TABLE IF NOT EXISTS import_state (
+      import_key character varying PRIMARY KEY,
       import_data jsonb NOT NULL
     );
   `);

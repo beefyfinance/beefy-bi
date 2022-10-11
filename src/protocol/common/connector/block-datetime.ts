@@ -1,20 +1,15 @@
 import * as Rx from "rxjs";
 import { ethers } from "ethers";
 import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
-import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { DbProduct } from "../loader/product";
 import { RpcConfig } from "../../../types/rpc-config";
 
-export function fetchBlockDatetime$<
-  TProduct extends DbProduct,
-  TObj extends ProductImportQuery<TProduct>,
-  TParams extends number,
-  TRes extends ProductImportQuery<TProduct>,
->(options: {
+export function fetchBlockDatetime$<TTarget, TObj extends ImportQuery<TTarget>, TParams extends number, TRes extends ImportQuery<TTarget>>(options: {
   streamConfig: BatchStreamConfig;
   rpcConfig: RpcConfig;
   getBlockNumber: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({

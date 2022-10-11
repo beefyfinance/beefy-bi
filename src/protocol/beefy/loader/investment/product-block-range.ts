@@ -7,7 +7,7 @@ import { normalizeAddress } from "../../../../utils/ethers";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { loadTransfers$, TransferWithRate } from "./load-transfers";
-import { ErrorEmitter, ProductImportQuery } from "../../../common/types/product-query";
+import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
 import { ProgrammerError } from "../../../../utils/programmer-error";
@@ -20,7 +20,7 @@ export function importProductBlockRange$(options: {
   client: PoolClient;
   rpcConfig: RpcConfig;
   chain: Chain;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<DbBeefyProduct>;
   streamConfig: BatchStreamConfig;
 }) {
   const boostTransfers$ = Rx.pipe(
@@ -35,7 +35,7 @@ export function importProductBlockRange$(options: {
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
-        const boost = item.product.productData.boost;
+        const boost = item.target.productData.boost;
         return {
           address: boost.staked_token_address,
           decimals: boost.staked_token_decimals,
@@ -52,10 +52,10 @@ export function importProductBlockRange$(options: {
       chain: options.chain,
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
-        const boost = item.product.productData.boost;
+        const boost = item.target.productData.boost;
         return {
           vaultAddress: boost.staked_token_address,
-          underlyingDecimals: item.product.productData.boost.vault_want_decimals,
+          underlyingDecimals: item.target.productData.boost.vault_want_decimals,
           vaultDecimals: boost.staked_token_decimals,
           blockNumbers: item.transfers.map((t) => t.blockNumber),
         };
@@ -65,7 +65,7 @@ export function importProductBlockRange$(options: {
     }),
 
     // add an ignore address so we can pipe this observable into the main pipeline again
-    Rx.map((item) => ({ ...item, ignoreAddresses: [item.product.productData.boost.contract_address] })),
+    Rx.map((item) => ({ ...item, ignoreAddresses: [item.target.productData.boost.contract_address] })),
   );
 
   const standardVaultTransfers$ = Rx.pipe(
@@ -84,7 +84,7 @@ export function importProductBlockRange$(options: {
       chain: options.chain,
       streamConfig: options.streamConfig,
       getQueryParams: (item) => {
-        const vault = item.product.productData.vault;
+        const vault = item.target.productData.vault;
         return {
           address: vault.contract_address,
           decimals: vault.token_decimals,
@@ -101,9 +101,9 @@ export function importProductBlockRange$(options: {
       streamConfig: options.streamConfig,
       getPPFSCallParams: (item) => {
         return {
-          vaultAddress: item.product.productData.vault.contract_address,
-          underlyingDecimals: item.product.productData.vault.want_decimals,
-          vaultDecimals: item.product.productData.vault.token_decimals,
+          vaultAddress: item.target.productData.vault.contract_address,
+          underlyingDecimals: item.target.productData.vault.want_decimals,
+          vaultDecimals: item.target.productData.vault.token_decimals,
           blockNumbers: item.transfers.map((t) => t.blockNumber),
         };
       },
@@ -122,7 +122,7 @@ export function importProductBlockRange$(options: {
       ...item,
       ignoreAddresses: [
         normalizeAddress("0x0000000000000000000000000000000000000000"),
-        normalizeAddress(item.product.productData.vault.contract_address),
+        normalizeAddress(item.target.productData.vault.contract_address),
       ],
     })),
 
@@ -133,7 +133,7 @@ export function importProductBlockRange$(options: {
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
-        const vault = item.product.productData.vault;
+        const vault = item.target.productData.vault;
         return {
           address: vault.want_address,
           decimals: vault.want_decimals,
@@ -161,11 +161,11 @@ export function importProductBlockRange$(options: {
 
   return Rx.pipe(
     // add typings to the input item
-    Rx.filter((_: ProductImportQuery<DbBeefyProduct>) => true),
+    Rx.filter((_: ImportQuery<DbBeefyProduct>) => true),
 
     // create groups of products to import
     Rx.groupBy((item) =>
-      item.product.productData.type !== "beefy:vault" ? "boost" : item.product.productData.vault.is_gov_vault ? "gov-vault" : "standard-vault",
+      item.target.productData.type !== "beefy:vault" ? "boost" : item.target.productData.vault.is_gov_vault ? "gov-vault" : "standard-vault",
     ),
     Rx.mergeMap((productType$) => {
       if (productType$.key === "boost") {
@@ -183,7 +183,7 @@ export function importProductBlockRange$(options: {
       if (item.transfers.length > 0) {
         logger.debug({
           msg: "Got transfers for product",
-          data: { productId: item.product.productId, blockRange: item.blockRange, transferCount: item.transfers.length },
+          data: { productId: item.target.productId, blockRange: item.blockRange, transferCount: item.transfers.length },
         });
 
         // add some verification about the transfers
@@ -192,7 +192,7 @@ export function importProductBlockRange$(options: {
             if (transfer.blockNumber < item.blockRange.from || transfer.blockNumber > item.blockRange.to) {
               logger.error({
                 msg: "Transfer out of requested block range",
-                data: { productId: item.product.productId, blockRange: item.blockRange, transferBlock: transfer.blockNumber, transfer },
+                data: { productId: item.target.productId, blockRange: item.blockRange, transferBlock: transfer.blockNumber, transfer },
               });
             }
           }
@@ -216,7 +216,7 @@ export function importProductBlockRange$(options: {
           (transfer, idx): TransferWithRate => ({
             transfer,
             ignoreAddresses: item.ignoreAddresses,
-            product: item.product,
+            target: item.target,
             sharesRate: item.ppfss[idx],
             blockRange: item.blockRange,
             latestBlockNumber: item.latestBlockNumber,
@@ -230,7 +230,7 @@ export function importProductBlockRange$(options: {
         Rx.tap((item) =>
           logger.trace({
             msg: "importing transfer",
-            data: { product: item.product.productId, blockRange: item.blockRange, transfer: item.transfer },
+            data: { product: item.target.productId, blockRange: item.blockRange, transfer: item.transfer },
           }),
         ),
 

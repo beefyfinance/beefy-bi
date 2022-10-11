@@ -5,7 +5,7 @@ import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { DbProduct } from "../loader/product";
-import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { RpcConfig } from "../../../types/rpc-config";
 
 interface GetBalanceCallParams {
@@ -16,15 +16,15 @@ interface GetBalanceCallParams {
 }
 
 export function fetchERC20TokenBalance$<
-  TProduct extends DbProduct,
-  TObj extends ProductImportQuery<TProduct>,
+  TTarget,
+  TObj extends ImportQuery<TTarget>,
   TParams extends GetBalanceCallParams,
-  TRes extends ProductImportQuery<TProduct>,
+  TRes extends ImportQuery<TTarget>,
 >(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, balance: Decimal) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {

@@ -7,8 +7,7 @@ import { Chain } from "../../../types/chain";
 import { flatten, groupBy, zipWith } from "lodash";
 import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
-import { DbProduct } from "../loader/product";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { RpcConfig } from "../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
@@ -39,15 +38,11 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers$<
-  TProduct extends DbProduct,
-  TObj extends ProductImportQuery<TProduct>,
-  TRes extends ProductImportQuery<TProduct>,
->(options: {
+export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget>, TRes extends ImportQuery<TTarget>>(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
@@ -77,19 +72,15 @@ export function fetchErc20Transfers$<
 
 // when hitting a staking contract we don't have a token in return
 // so the balance of the amount we send is our positive diff
-export function fetchERC20TransferToAStakingContract$<
-  TProduct extends DbProduct,
-  TObj extends ProductImportQuery<TProduct>,
-  TRes extends ProductImportQuery<TProduct>,
->(options: {
+export function fetchERC20TransferToAStakingContract$<TTarget, TObj extends ImportQuery<TTarget>, TRes extends ImportQuery<TTarget>>(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return fetchErc20Transfers$<TProduct, TObj, TRes>({
+  return fetchErc20Transfers$<TTarget, TObj, TRes>({
     ...options,
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);

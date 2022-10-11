@@ -1,6 +1,6 @@
 import { PoolClient } from "pg";
 import { Chain } from "../../../../types/chain";
-import { DbProduct } from "../../../common/loader/product";
+import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import * as Rx from "rxjs";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
@@ -10,13 +10,13 @@ import { upsertInvestment$ } from "../../../common/loader/investment";
 import Decimal from "decimal.js";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
-import { ErrorEmitter, ProductImportQuery } from "../../../common/types/product-query";
+import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { RpcConfig } from "../../../../types/rpc-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-transfer" });
 
-export type TransferWithRate = ProductImportQuery<DbProduct> & {
+export type TransferWithRate = ImportQuery<DbProduct> & {
   transfer: ERC20Transfer;
   ignoreAddresses: string[];
   sharesRate: Decimal;
@@ -27,7 +27,7 @@ export type TransferLoadStatus = { transferCount: number; success: true };
 export function loadTransfers$(options: {
   chain: Chain;
   client: PoolClient;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<DbBeefyProduct>;
   streamConfig: BatchStreamConfig;
   rpcConfig: RpcConfig;
 }) {
@@ -88,7 +88,7 @@ export function loadTransfers$(options: {
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.transfer.blockNumber,
-        productId: item.product.productId,
+        productId: item.target.productId,
         investorId: item.investorId,
         // balance is expressed in underlying amount to avoid
         // putting knowledge about this product behavior on the frontend
@@ -100,9 +100,9 @@ export function loadTransfers$(options: {
           trxHash: item.transfer.transactionHash,
           sharesRate: item.sharesRate.toString(),
           productType:
-            item.product.productData.type === "beefy:vault"
-              ? item.product.productData.type + (item.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.product.productData.type,
+            item.target.productData.type === "beefy:vault"
+              ? item.target.productData.type + (item.target.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.productData.type,
         },
       }),
       formatOutput: (transferData, investment) => ({ ...transferData, investment }),

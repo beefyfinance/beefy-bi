@@ -10,7 +10,7 @@ import { backOff } from "exponential-backoff";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 import { RpcConfig } from "../../../types/rpc-config";
 import { rootLogger } from "../../../utils/logger";
-import { DbProductImport } from "../loader/product-import";
+import { DbImportState } from "../loader/import-state";
 
 const logger = rootLogger.child({ module: "common", component: "latest-block-number" });
 
@@ -91,13 +91,14 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   );
 }
 
-export function addHistoricalBlockQuery$<TObj, TRes>(options: {
+export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbImportState>(options: {
   client: PoolClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   rpcConfig: RpcConfig;
   streamConfig: BatchStreamConfig;
-  getProductImport: (obj: TObj) => DbProductImport;
+  getImport: (obj: TObj) => TImport;
+  getFirstBlockNumber: (importState: TImport) => number;
   formatOutput: (obj: TObj, latestBlockNumber: number, historicalBlockQueries: Range<number>[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
@@ -112,7 +113,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
 
     // we can now create the historical block query
     Rx.map((item) => {
-      const productImport = options.getProductImport(item.obj);
+      const importState = options.getImport(item.obj);
       const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
 
       // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
@@ -120,14 +121,14 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       const waitForBlockPropagation = 5;
       // this is the whole range we have to cover
       let fullRange = {
-        from: productImport.importData.contractCreatedAtBlock,
+        from: options.getFirstBlockNumber(importState),
         to: item.latestBlockNumber - waitForBlockPropagation,
       };
 
       let ranges = [fullRange];
 
       // exclude the ranges we already covered
-      ranges = rangeArrayExclude(ranges, productImport.importData.ranges.coveredRanges);
+      ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges);
 
       // split in ranges no greater than the maximum allowed
       ranges = rangeSplitManyToMaxLength(ranges, maxBlocksPerQuery);
@@ -136,7 +137,7 @@ export function addHistoricalBlockQuery$<TObj, TRes>(options: {
       ranges = ranges.sort((a, b) => b.to - a.to);
 
       // then add the ranges we had error on at the end
-      const rangesToRetry = rangeSplitManyToMaxLength(productImport.importData.ranges.toRetry, maxBlocksPerQuery);
+      const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry, maxBlocksPerQuery);
       ranges = ranges.concat(rangesToRetry);
 
       // limit the amount of queries sent

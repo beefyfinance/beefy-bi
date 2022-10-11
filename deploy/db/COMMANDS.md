@@ -188,7 +188,7 @@ order by
 
 ```
 \c postgres
-
+drop database beefy_bck;
 create database beefy_bck with template beefy;
 -- if needed
 SELECT pg_terminate_backend(pid)
@@ -199,61 +199,57 @@ SELECT pg_terminate_backend(pid)
 
 \c beefy
 
--- migrate price feed table
-alter table price_feed add column from_asset_key character varying;
-alter table price_feed add column to_asset_key character varying;
-update price_feed set from_asset_key = case when external_id like '%-%' then feed_key else external_id end;
-update price_feed set to_asset_key = 'fiat:USD';
-alter table price_feed add column _feed_data jsonb;
-alter table price_feed alter column from_asset_key set not null;
-alter table price_feed alter column to_asset_key set not null;
-update price_feed set _feed_data = jsonb_build_object('active', price_feed_data->'is_active');
-alter table price_feed alter column _feed_data set not null;
-alter table price_feed drop column price_feed_data;
-alter table price_feed rename column _feed_data to price_feed_data;
-
-
+create table price_ts_old as table price_ts;
+drop table price_ts;
 
     CREATE TABLE IF NOT EXISTS price_ts (
       datetime TIMESTAMPTZ NOT NULL,
+
       price_feed_id integer not null references price_feed(price_feed_id),
-      price evm_decimal_256 not null
+
+      -- we may want to specify a block number to resolve duplicates
+      -- if the prices do not comes from a chain, we put the timestamp in here
+      block_number integer not null,
+
+      price evm_decimal_256 not null,
+
+      -- some debug info to help us understand how we got this data
+      price_data jsonb not null -- chain, transaction hash, transaction fees, etc
     );
 
-    insert into price_ts (datetime, price_feed_id, price) (
-      select
-        datetime,
-        price_feed_id,
-        usd_value
-      from asset_price_ts
+    -- make sure we don't create a unique index on a null value because all nulls are considered different
+    CREATE UNIQUE INDEX IF NOT EXISTS price_ts_uniq ON price_ts(price_feed_id, block_number, datetime);
+
+    SELECT create_hypertable(
+      relation => 'price_ts',
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '7 days',
+      if_not_exists => true
     );
-    drop table asset_price_ts;
+
+insert into price_ts (datetime, price_feed_id, block_number, price, price_data)
+  select datetime, price_feed_id, extract(epoch from datetime), price, '{}'::jsonb as price_data
+  from price_ts_old;
+drop table price_ts_old;
 
 
-    CREATE TABLE IF NOT EXISTS product_import (
-      product_id integer not null references product(product_id) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS import_state (
+  import_key character varying PRIMARY KEY,
+  import_data jsonb NOT NULL
+);
 
-      import_data jsonb NOT NULL
-    );
-    insert into product_import (product_id, import_data) (
-      select
-        product_id,
-        jsonb_build_object(
-            'contractCreatedAtBlock', import_data->'data'->'contractCreatedAtBlock',
-            'chainLatestBlockNumber', import_data->'data'->'chainLatestBlockNumber',
-            'ranges', jsonb_build_object(
-                'lastImportDate', import_data->'data'->'lastImportDate',
-                'coveredRanges', import_data->'data'->'coveredBlockRanges',
-                'toRetry', import_data->'data'->'blockRangesToRetry'
-            )
-        )
-      from import_status
-    );
-    drop table import_status;
+insert into import_state (import_key, import_data)
+  select 'product:investment:' || product_id as import_key,
+    jsonb_build_object(
+      'type', 'product:investment',
+      'productId', product_id,
+      'chain', (select chain from product where product.product_id = product_import.product_id),
+      'contractCreatedAtBlock', import_data->'contractCreatedAtBlock',
+      'chainLatestBlockNumber', import_data->'chainLatestBlockNumber',
+      'ranges', import_data->'ranges'
+    )
+  from product_import;
 
-DROP FUNCTION jsonb_import_ranges_size_sum(jsonb);
-DROP FUNCTION jsonb_import_range_size(jsonb);
-
--- WAIIIIIIT
-DROP DATABASE beefy_bck;
+drop table price_feed_import;
+drop table product_import;
 ```

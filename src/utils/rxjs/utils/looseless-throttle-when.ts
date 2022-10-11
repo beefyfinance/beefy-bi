@@ -7,6 +7,7 @@ export function looselessThrottleWhen<TObj>(options: {
   checkIntervalMs: number; // then every X ms
   checkIntervalJitterMs: number; // add a bit of jitter to the check interval
   shouldSend: (queue: TObj[]) => number; // how many items to send
+  logInfos: { msg: string; data?: object };
 }) {
   let objQueue: TObj[] = [];
   let sourceObsFinalized = false;
@@ -31,7 +32,10 @@ export function looselessThrottleWhen<TObj>(options: {
     }, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
 
     return () => {
-      logger.trace({ msg: "Releaser unsubscribed" });
+      logger.trace({
+        msg: "Releaser unsubscribed. " + options.logInfos.msg,
+        data: { ...options.logInfos.data, checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs },
+      });
       clearInterval(poller);
     };
   });
@@ -44,7 +48,10 @@ export function looselessThrottleWhen<TObj>(options: {
     }),
     // register the finalization of the source obs
     Rx.finalize(() => {
-      logger.trace({ msg: "Source obs finalized" });
+      logger.trace({
+        msg: "Source obs finalized. " + options.logInfos.msg,
+        data: { ...options.logInfos.data, checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs },
+      });
       sourceObsFinalized = true;
     }),
 

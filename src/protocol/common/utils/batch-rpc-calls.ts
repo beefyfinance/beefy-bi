@@ -2,7 +2,7 @@ import * as Rx from "rxjs";
 import { backOff } from "exponential-backoff";
 import { zipWith } from "lodash";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ErrorEmitter, ProductImportQuery } from "../types/product-query";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { rootLogger } from "../../../utils/logger";
 import { DbProduct } from "../loader/product";
 import { getRpcRetryConfig } from "./rpc-retry-config";
@@ -40,13 +40,7 @@ const chainLock = new AsyncLock({
   maxPending: 100_000,
 });
 
-export function batchRpcCalls$<
-  TProduct extends DbProduct,
-  TInputObj extends ProductImportQuery<TProduct>,
-  TQueryObj,
-  TResp,
-  TRes extends ProductImportQuery<TProduct>,
->(options: {
+export function batchRpcCalls$<TTarget, TInputObj extends ImportQuery<TTarget>, TQueryObj, TResp, TRes extends ImportQuery<TTarget>>(options: {
   getQuery: (obj: TInputObj) => TQueryObj;
   processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TResp[]>;
   // we are doing this much rpc calls per input object
@@ -59,7 +53,7 @@ export function batchRpcCalls$<
   getCallMultiplierForObj?: (obj: TInputObj) => number;
   // errors
   streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   logInfos: { msg: string; data?: Record<string, unknown> };
   // output
   formatOutput: (objs: TInputObj, results: TResp) => TRes;

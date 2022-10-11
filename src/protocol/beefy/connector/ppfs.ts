@@ -9,9 +9,7 @@ import { RpcConfig } from "../../../types/rpc-config";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
-import { DbProduct } from "../../common/loader/product";
-import { ErrorEmitter, ProductImportQuery } from "../../common/types/product-query";
-import { getRpcRetryConfig } from "../../common/utils/rpc-retry-config";
+import { ErrorEmitter, ImportQuery } from "../../common/types/import-query";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -23,15 +21,15 @@ interface BeefyPPFSCallParams {
 }
 
 export function fetchBeefyPPFS$<
-  TProduct extends DbProduct,
-  TObj extends ProductImportQuery<TProduct>,
+  TTarget,
+  TObj extends ImportQuery<TTarget>,
   TParams extends BeefyPPFSCallParams,
-  TRes extends ProductImportQuery<TProduct>,
+  TRes extends ImportQuery<TTarget>,
 >(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getPPFSCallParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter;
+  emitErrors: ErrorEmitter<TTarget>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
