@@ -20,7 +20,7 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
       Rx.map((priceFeed) => ({ priceFeed })),
 
       // remove duplicates
-      Rx.distinct(({ priceFeed }) => priceFeed.externalId),
+      Rx.distinct(({ priceFeed }) => priceFeed.priceFeedData.externalId),
     ),
 
     // find which data is missing
@@ -43,7 +43,7 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
         };
 
         logger.debug({ msg: "fetching prices", data: debugLogData });
-        const prices = await fetchBeefyPrices("15min", productData.priceFeed.externalId, {
+        const prices = await fetchBeefyPrices("15min", productData.priceFeed.priceFeedData.externalId, {
           startDate: productData.missingData.fromDate,
           endDate: productData.missingData.toDate,
         });

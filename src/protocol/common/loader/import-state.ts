@@ -7,9 +7,7 @@ import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from ".
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
-import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { fetchContractCreationBlock$ } from "../connector/contract-creation";
 import { rangeMerge } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";

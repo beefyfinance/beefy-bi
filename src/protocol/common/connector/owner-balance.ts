@@ -4,7 +4,6 @@ import { ethers } from "ethers";
 import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
 import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
-import { DbProduct } from "../loader/product";
 import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { RpcConfig } from "../../../types/rpc-config";
 

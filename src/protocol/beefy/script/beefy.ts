@@ -3,13 +3,12 @@ import { allChainIds, Chain } from "../../../types/chain";
 import { db_migrate, withPgClient } from "../../../utils/db";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
-import { loaderByChain$ } from "../../common/loader/loader-by-chain";
-import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { DbBeefyProduct, productList$ } from "../../common/loader/product";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { sleep } from "../../../utils/async";
 import { importBeefyProducts$ } from "../loader/products";
 import { importBeefyUnderlyingPrices$ } from "../loader/prices";
-import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
+import { importChainHistoricalData$ } from "../loader/investment/import-investments";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import yargs from "yargs";
 import { priceFeedList$ } from "../../common/loader/price-feed";
@@ -128,7 +127,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             case "products":
               return importProducts({ client, filterChains: chain === "all" ? allChainIds : [chain] });
             case "prices":
-              return importPrices({ client });
+              return importBeefyDataPrices({ client });
             default:
               throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
           }
@@ -142,8 +141,8 @@ async function importProducts(options: { client: PoolClient; filterChains: Chain
   return consumeObservable(pipeline$);
 }
 
-async function importPrices(options: { client: PoolClient }) {
-  const pipeline$ = priceFeedList$(options.client, "beefy").pipe(importBeefyUnderlyingPrices$({ client: options.client }));
+async function importBeefyDataPrices(options: { client: PoolClient }) {
+  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyUnderlyingPrices$({ client: options.client }));
   logger.info({ msg: "starting prices import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
@@ -160,9 +159,9 @@ function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterCont
         Rx.filter(
           (product) =>
             filterContractAddress === null ||
-            (product.productData.type === "beefy:vault"
-              ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
-              : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
+            (product.productData.type === "beefy:boost"
+              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
         ),
         importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
       ),
@@ -171,9 +170,9 @@ function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterCont
         Rx.filter(
           (product) =>
             filterContractAddress === null ||
-            (product.productData.type === "beefy:vault"
-              ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
-              : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
+            (product.productData.type === "beefy:boost"
+              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
         ),
         importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
       ),

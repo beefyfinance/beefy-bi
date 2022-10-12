@@ -72,7 +72,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
             getCallParams: (item) => ({
               chain: chain,
               contractAddress:
-                item.productData.type === "beefy:vault" ? item.productData.vault.contract_address : item.productData.boost.contract_address,
+                item.productData.type === "beefy:boost" ? item.productData.boost.contract_address : item.productData.vault.contract_address,
             }),
             formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
           }),
@@ -197,7 +197,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
 
     // only live boosts and vaults
     Rx.filter(({ target }) =>
-      target.productData.type === "beefy:vault" ? target.productData.vault.eol === false : target.productData.boost.eol === false,
+      target.productData.type === "beefy:boost" ? target.productData.boost.eol === false : target.productData.vault.eol === false,
     ),
 
     // find out the blocks we want to query

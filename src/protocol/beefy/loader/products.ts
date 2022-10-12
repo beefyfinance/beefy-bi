@@ -25,34 +25,57 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
 
     // add linked entities to the database
     Rx.pipe(
+      // we have 2 "prices" for each vault
+      // - balances are expressed in moo token
+      // - price 1 (ppfs) converts to underlying token
+      // - price 2 converts underlying to usd
       upsertPriceFeed$({
         client: options.client,
         getFeedData: (vaultData) => {
           const vaultId = normalizeVaultId(vaultData.vault.id);
           return {
-            // oracleIds are unique globally
-            feedKey: `beefy:vault:${vaultData.vault.want_price_feed_key}`,
-            // we are going to express the user balance in want amount
-            externalId: vaultData.vault.want_price_feed_key,
-            fromAssetKey: `${vaultData.vault.protocol}:${vaultData.chain}:${vaultData.vault.protocol_product}`,
-            toAssetKey: "fiat:USD", // to USD
-            priceFeedData: { active: !vaultData.vault.eol },
+            feedKey: `beefy:${vaultData.chain}:${vaultId}:ppfs`,
+            fromAssetKey: `beefy:${vaultData.chain}:${vaultId}`,
+            toAssetKey: `${vaultData.vault.protocol}:${vaultData.chain}:${vaultData.vault.protocol_product}`,
+            priceFeedData: { active: !vaultData.vault.eol, externalId: vaultId },
           };
         },
-        formatOutput: (vaultData, priceFeed) => ({ ...vaultData, priceFeed }),
+        formatOutput: (vaultData, priceFeed1) => ({ ...vaultData, priceFeed1 }),
+      }),
+
+      upsertPriceFeed$({
+        client: options.client,
+        getFeedData: (vaultData) => {
+          const vaultId = normalizeVaultId(vaultData.vault.id);
+          return {
+            // feed key tells us that this prices comes from beefy's data
+            // we may have another source of prices for the same asset
+            feedKey: `beefy-data:${vaultData.vault.protocol}:${vaultData.chain}:${vaultData.vault.protocol_product}`,
+
+            fromAssetKey: `${vaultData.vault.protocol}:${vaultData.chain}:${vaultData.vault.protocol_product}`,
+            toAssetKey: "fiat:USD", // to USD
+            priceFeedData: {
+              active: !vaultData.vault.eol,
+              externalId: vaultData.vault.want_price_feed_key, // the id that the data api knows
+            },
+          };
+        },
+        formatOutput: (vaultData, priceFeed2) => ({ ...vaultData, priceFeed2 }),
       }),
 
       upsertProduct$({
         client: options.client,
         getProductData: (vaultData) => {
           const vaultId = normalizeVaultId(vaultData.vault.id);
+          const isGov = vaultData.vault.is_gov_vault;
           return {
             // vault ids are unique by chain
             productKey: `beefy:vault:${vaultData.chain}:${vaultId}`,
-            priceFeedId: vaultData.priceFeed.priceFeedId,
+            priceFeedId1: vaultData.priceFeed1.priceFeedId,
+            priceFeedId2: vaultData.priceFeed2.priceFeedId,
             chain: vaultData.vault.chain,
             productData: {
-              type: "beefy:vault",
+              type: isGov ? "beefy:gov-vault" : "beefy:vault",
               vault: vaultData.vault,
             },
           };
@@ -104,7 +127,8 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
                 }
                 return {
                   boost,
-                  priceFeedId: chainData.chainVaults[vaultId].priceFeed.priceFeedId,
+                  priceFeedId1: chainData.chainVaults[vaultId].priceFeed1.priceFeedId,
+                  priceFeedId2: chainData.chainVaults[vaultId].priceFeed2.priceFeedId,
                 };
               });
               return boostsData;
@@ -117,7 +141,8 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
               getProductData: (boostData) => {
                 return {
                   productKey: `beefy:boost:${boostData.boost.chain}:${boostData.boost.id}`,
-                  priceFeedId: boostData.priceFeedId,
+                  priceFeedId1: boostData.priceFeedId1,
+                  priceFeedId2: boostData.priceFeedId2,
                   chain: boostData.boost.chain,
                   productData: {
                     type: "beefy:boost",

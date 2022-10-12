@@ -216,13 +216,15 @@ export async function db_migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS price_feed (
       price_feed_id serial PRIMARY KEY,
+
       -- unique price feed identifier
       feed_key varchar NOT NULL UNIQUE,
-      external_id varchar NOT NULL, -- the id used by the feed
+
       -- what this price represents, can be used to get an usd value or a token conversion rate
       from_asset_key character varying NOT NULL,
       to_asset_key character varying NOT NULL,
-      -- all relevant price feed data: eol, etc
+
+      -- all relevant price feed data: eol, external_id, etc
       price_feed_data jsonb NOT NULL
     );
   `);
@@ -236,9 +238,9 @@ export async function db_migrate() {
 
       chain chain_enum NOT NULL,
       
-      -- product price feed to get usd value
-      -- this should reflect the investement balance currency
-      price_feed_id integer not null references price_feed(price_feed_id),
+      -- the successive prices to apply to balance to get to usd
+      price_feed_1_id integer null references price_feed(price_feed_id),
+      price_feed_2_id integer null references price_feed(price_feed_id),
       
       -- all relevant product infos, addresses, type, etc
       product_data jsonb NOT NULL

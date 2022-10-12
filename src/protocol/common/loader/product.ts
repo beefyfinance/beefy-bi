@@ -14,22 +14,33 @@ interface DbBaseProduct {
   productId: number;
   productKey: string;
   chain: Chain;
-  priceFeedId: number;
 }
 
-export interface DbBeefyVaultProduct extends DbBaseProduct {
+export interface DbBeefyStdVaultProduct extends DbBaseProduct {
+  priceFeedId1: number; // ppfs
+  priceFeedId2: number; // underlying price
   productData: {
     type: "beefy:vault";
     vault: BeefyVault;
   };
 }
+export interface DbBeefyGovVaultProduct extends DbBaseProduct {
+  priceFeedId1: null; // no ppfs for gov vaults
+  priceFeedId2: number; // underlying price
+  productData: {
+    type: "beefy:gov-vault";
+    vault: BeefyVault;
+  };
+}
 export interface DbBeefyBoostProduct extends DbBaseProduct {
+  priceFeedId1: number; // ppfs of vault
+  priceFeedId2: number; // underlying price of vault
   productData: {
     type: "beefy:boost";
     boost: BeefyBoost;
   };
 }
-export type DbBeefyProduct = DbBeefyVaultProduct | DbBeefyBoostProduct;
+export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | DbBeefyBoostProduct;
 
 export type DbProduct = DbBeefyProduct;
 
@@ -51,11 +62,30 @@ export function upsertProduct$<TInput, TRes>(options: {
       const objAndData = objs.map((obj) => ({ obj, productData: options.getProductData(obj) }));
 
       const results = await db_query<DbProduct>(
-        `INSERT INTO product (product_key, price_feed_id, chain, product_data) VALUES %L
+        `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, chain, product_data) VALUES %L
               ON CONFLICT (product_key) 
-              DO UPDATE SET product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
-              RETURNING product_id as "productId", product_key as "productKey", price_feed_id as "priceFeedId", chain, product_data as "productData"`,
-        [objAndData.map(({ productData }) => [productData.productKey, productData.priceFeedId, productData.chain, productData.productData])],
+              DO UPDATE SET
+                chain = EXCLUDED.chain,
+                product_key = EXCLUDED.product_key,
+                price_feed_1_id = EXCLUDED.price_feed_1_id,
+                price_feed_2_id = EXCLUDED.price_feed_2_id,
+                product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
+              RETURNING 
+                product_id as "productId", 
+                product_key as "productKey", 
+                price_feed_1_id as "priceFeedId1", 
+                price_feed_2_id as "priceFeedId2", 
+                chain, 
+                product_data as "productData"`,
+        [
+          objAndData.map(({ productData }) => [
+            productData.productKey,
+            productData.priceFeedId1,
+            productData.priceFeedId2,
+            productData.chain,
+            productData.productData,
+          ]),
+        ],
         options.client,
       );
 
@@ -78,7 +108,8 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
         product_id as "productId",
         chain,
         product_key as "productKey",
-        price_feed_id as "priceFeedId",
+        price_feed_1_id as "priceFeedId1",
+        price_feed_2_id as "priceFeedId2",
         product_data as "productData"
       FROM product
       where product_key like %L || ':%'`,

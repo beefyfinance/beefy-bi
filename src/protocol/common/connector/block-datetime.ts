@@ -1,8 +1,6 @@
 import * as Rx from "rxjs";
-import { ethers } from "ethers";
 import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { DbProduct } from "../loader/product";
 import { RpcConfig } from "../../../types/rpc-config";
 
 export function fetchBlockDatetime$<TTarget, TObj extends ImportQuery<TTarget>, TParams extends number, TRes extends ImportQuery<TTarget>>(options: {
