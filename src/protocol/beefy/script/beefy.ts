@@ -68,9 +68,9 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
                 samplingPeriodMs["5min"],
               );
             }
-            /*
-          daemonize("prices", () => importPrices(), samplingPeriodMs["15min"]);
-          daemonize("products", () => importProducts({ filterChains }), samplingPeriodMs["1day"]);*/
+
+            daemonize("prices", () => importBeefyDataPrices({ client }), samplingPeriodMs["15min"]);
+            daemonize("products", () => importProducts({ client, filterChains }), samplingPeriodMs["1day"]);
           });
         })(),
     })
