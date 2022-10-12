@@ -26,53 +26,54 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         yargs.options({
           chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
         }),
-      handler: async (argv) => {
-        await db_migrate();
+      handler: async (argv) =>
+        withPgClient(async (client) => {
+          await db_migrate();
 
-        logger.info("Starting import daemon", { argv });
+          logger.info("Starting import daemon", { argv });
 
-        const chain = argv.chain as Chain | "all";
-        const filterChains = chain === "all" ? allChainIds : [chain];
-        const filterContractAddress = null;
-        const forceCurrentBlockNumber = null;
+          const chain = argv.chain as Chain | "all";
+          const filterChains = chain === "all" ? allChainIds : [chain];
+          const filterContractAddress = null;
+          const forceCurrentBlockNumber = null;
 
-        if (forceCurrentBlockNumber !== null && chain === "all") {
-          throw new ProgrammerError("Cannot force current block number without a chain filter");
-        }
+          if (forceCurrentBlockNumber !== null && chain === "all") {
+            throw new ProgrammerError("Cannot force current block number without a chain filter");
+          }
 
-        logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
+          logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
 
-        async function daemonize<TRes>(name: string, fn: () => Promise<TRes>, sleepMs: number) {
-          while (true) {
-            try {
-              logger.info({ msg: "starting daemon task", data: { name } });
-              await fn();
-              logger.info({ msg: "daemon task ended", data: { name } });
-            } catch (e) {
-              logger.error({ msg: "error in daemon task", data: { name, e } });
+          async function daemonize<TRes>(name: string, fn: () => Promise<TRes>, sleepMs: number) {
+            while (true) {
+              try {
+                logger.info({ msg: "starting daemon task", data: { name } });
+                await fn();
+                logger.info({ msg: "daemon task ended", data: { name } });
+              } catch (e) {
+                logger.error({ msg: "error in daemon task", data: { name, e } });
+              }
+              await sleep(sleepMs);
             }
-            await sleep(sleepMs);
-          }
-        }
-
-        return new Promise<any>(async () => {
-          for (const chain of filterChains) {
-            daemonize(
-              `investment-recent-${chain}`,
-              () => importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress }),
-              samplingPeriodMs["1min"],
-            );
-            daemonize(
-              `investment-historical-${chain}`,
-              () => importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress }),
-              samplingPeriodMs["5min"],
-            );
           }
 
+          return new Promise<any>(async () => {
+            for (const chain of filterChains) {
+              daemonize(
+                `investment-recent-${chain}`,
+                () => importInvestmentData({ client, forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress }),
+                samplingPeriodMs["1min"],
+              );
+              daemonize(
+                `investment-historical-${chain}`,
+                () => importInvestmentData({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress }),
+                samplingPeriodMs["5min"],
+              );
+            }
+            /*
           daemonize("prices", () => importPrices(), samplingPeriodMs["15min"]);
-          daemonize("products", () => importProducts({ filterChains }), samplingPeriodMs["1day"]);
-        });
-      },
+          daemonize("products", () => importProducts({ filterChains }), samplingPeriodMs["1day"]);*/
+          });
+        })(),
     })
     .command({
       command: "beefy:run",
@@ -89,61 +90,62 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             describe: "what to run, all if not specified",
           },
         }),
-      handler: (argv): Promise<any> => {
-        logger.info("Starting import script", { argv });
+      handler: (argv): Promise<any> =>
+        withPgClient((client) => {
+          logger.info("Starting import script", { argv });
 
-        const chain = argv.chain as Chain | "all";
-        const filterContractAddress = argv.contractAddress || null;
-        const forceCurrentBlockNumber = argv.currentBlockNumber || null;
+          const chain = argv.chain as Chain | "all";
+          const filterContractAddress = argv.contractAddress || null;
+          const forceCurrentBlockNumber = argv.currentBlockNumber || null;
 
-        if (forceCurrentBlockNumber !== null && chain === "all") {
-          throw new ProgrammerError("Cannot force current block number without a chain filter");
-        }
+          if (forceCurrentBlockNumber !== null && chain === "all") {
+            throw new ProgrammerError("Cannot force current block number without a chain filter");
+          }
 
-        logger.trace({ msg: "starting", data: { chain, filterContractAddress } });
+          logger.trace({ msg: "starting", data: { chain, filterContractAddress } });
 
-        switch (argv.importer) {
-          case "historical":
-            if (chain === "all") {
-              return Promise.all(
-                allChainIds.map((chain) => importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress })),
-              );
-            } else {
-              return importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });
-            }
-          case "recent":
-            if (chain === "all") {
-              return Promise.all(
-                allChainIds.map((chain) => importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress })),
-              );
-            } else {
-              return importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress });
-            }
-          case "products":
-            return importProducts({ filterChains: chain === "all" ? allChainIds : [chain] });
-          case "prices":
-            return importPrices();
-          default:
-            throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
-        }
-      },
+          switch (argv.importer) {
+            case "historical":
+              if (chain === "all") {
+                return Promise.all(
+                  allChainIds.map((chain) =>
+                    importInvestmentData({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress }),
+                  ),
+                );
+              } else {
+                return importInvestmentData({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });
+              }
+            case "recent":
+              if (chain === "all") {
+                return Promise.all(
+                  allChainIds.map((chain) =>
+                    importInvestmentData({ client, forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress }),
+                  ),
+                );
+              } else {
+                return importInvestmentData({ client, forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress });
+              }
+            case "products":
+              return importProducts({ client, filterChains: chain === "all" ? allChainIds : [chain] });
+            case "prices":
+              return importPrices({ client });
+            default:
+              throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
+          }
+        })(),
     });
 }
 
-async function importProducts(options: { filterChains: Chain[] }) {
-  return withPgClient((client) => {
-    const pipeline$ = Rx.from(options.filterChains).pipe(importBeefyProducts$({ client }));
-    logger.info({ msg: "starting product list import", data: options });
-    return consumeObservable(pipeline$);
-  })();
+async function importProducts(options: { client: PoolClient; filterChains: Chain[] }) {
+  const pipeline$ = Rx.from(options.filterChains).pipe(importBeefyProducts$({ client: options.client }));
+  logger.info({ msg: "starting product list import", data: { ...options, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
 }
 
-async function importPrices() {
-  return withPgClient((client) => {
-    const pipeline$ = priceFeedList$(client, "beefy").pipe(importBeefyUnderlyingPrices$({ client }));
-    logger.info({ msg: "starting prices import" });
-    return consumeObservable(pipeline$);
-  })();
+async function importPrices(options: { client: PoolClient }) {
+  const pipeline$ = priceFeedList$(options.client, "beefy").pipe(importBeefyUnderlyingPrices$({ client: options.client }));
+  logger.info({ msg: "starting prices import", data: { ...options, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
 }
 
 const investmentPipelineByChain = {} as Record<
@@ -181,16 +183,15 @@ function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterCont
 }
 
 async function importInvestmentData(options: {
+  client: PoolClient;
   strategy: "recent" | "historical";
   chain: Chain;
   filterContractAddress: string | null;
   forceCurrentBlockNumber: number | null;
 }) {
-  return withPgClient(async (client: PoolClient) => {
-    const chainPipeline = getChainInvestmentPipeline(client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
-    const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
-    const pipeline$ = productList$(client, "beefy").pipe(strategyImporter);
-    logger.info({ msg: "starting investment data import", data: options });
-    return consumeObservable(pipeline$);
-  })();
+  const chainPipeline = getChainInvestmentPipeline(options.client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
+  const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
+  const pipeline$ = productList$(options.client, "beefy").pipe(strategyImporter);
+  logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
 }
