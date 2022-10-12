@@ -4,7 +4,7 @@ import { db_migrate, withPgClient } from "../../../utils/db";
 import { PoolClient } from "pg";
 import { rootLogger } from "../../../utils/logger";
 import { loaderByChain$ } from "../../common/loader/loader-by-chain";
-import { DbProduct, productList$ } from "../../common/loader/product";
+import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { sleep } from "../../../utils/async";
 import { importBeefyProducts$ } from "../loader/products";
@@ -42,31 +42,35 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
         logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
 
+        async function daemonize<TRes>(name: string, fn: () => Promise<TRes>, sleepMs: number) {
+          while (true) {
+            try {
+              logger.info({ msg: "starting daemon task", data: { name } });
+              await fn();
+              logger.info({ msg: "daemon task ended", data: { name } });
+            } catch (e) {
+              logger.error({ msg: "error in daemon task", data: { name, e } });
+            }
+            await sleep(sleepMs);
+          }
+        }
+
         return new Promise<any>(async () => {
-          (async () => {
-            while (true) {
-              await importProducts({ filterChains });
-              await sleep(samplingPeriodMs["1day"]);
-            }
-          })();
-          (async () => {
-            while (true) {
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains, filterContractAddress });
-              await sleep(samplingPeriodMs["1min"]);
-            }
-          })();
-          (async () => {
-            while (true) {
-              await importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
-              await sleep(samplingPeriodMs["5min"]);
-            }
-          })();
-          (async () => {
-            while (true) {
-              await importPrices();
-              await sleep(samplingPeriodMs["15min"]);
-            }
-          })();
+          for (const chain of filterChains) {
+            daemonize(
+              `investment-recent-${chain}`,
+              () => importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress }),
+              samplingPeriodMs["1min"],
+            );
+            daemonize(
+              `investment-historical-${chain}`,
+              () => importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress }),
+              samplingPeriodMs["5min"],
+            );
+          }
+
+          daemonize("prices", () => importPrices(), samplingPeriodMs["15min"]);
+          daemonize("products", () => importProducts({ filterChains }), samplingPeriodMs["1day"]);
         });
       },
     })
@@ -89,7 +93,6 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         logger.info("Starting import script", { argv });
 
         const chain = argv.chain as Chain | "all";
-        const filterChains = chain === "all" ? allChainIds : [chain];
         const filterContractAddress = argv.contractAddress || null;
         const forceCurrentBlockNumber = argv.currentBlockNumber || null;
 
@@ -97,15 +100,27 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           throw new ProgrammerError("Cannot force current block number without a chain filter");
         }
 
-        logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
+        logger.trace({ msg: "starting", data: { chain, filterContractAddress } });
 
         switch (argv.importer) {
           case "historical":
-            return importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", filterChains, filterContractAddress });
+            if (chain === "all") {
+              return Promise.all(
+                allChainIds.map((chain) => importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress })),
+              );
+            } else {
+              return importInvestmentData({ forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });
+            }
           case "recent":
-            return importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", filterChains, filterContractAddress });
+            if (chain === "all") {
+              return Promise.all(
+                allChainIds.map((chain) => importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress })),
+              );
+            } else {
+              return importInvestmentData({ forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress });
+            }
           case "products":
-            return importProducts({ filterChains });
+            return importProducts({ filterChains: chain === "all" ? allChainIds : [chain] });
           case "prices":
             return importPrices();
           default:
@@ -117,10 +132,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
 async function importProducts(options: { filterChains: Chain[] }) {
   return withPgClient((client) => {
-    const pipeline$ = Rx.of(...allChainIds).pipe(
-      Rx.filter((chain) => options.filterChains.includes(chain)),
-      importBeefyProducts$({ client }),
-    );
+    const pipeline$ = Rx.from(options.filterChains).pipe(importBeefyProducts$({ client }));
     logger.info({ msg: "starting product list import", data: options });
     return consumeObservable(pipeline$);
   })();
@@ -134,32 +146,50 @@ async function importPrices() {
   })();
 }
 
-async function importInvestmentData(options: {
-  forceCurrentBlockNumber: number | null;
-  strategy: "recent" | "historical";
-  filterChains: Chain[];
-  filterContractAddress: string | null;
-}) {
-  const strategyImporter = options.strategy === "recent" ? importChainRecentData$ : importChainHistoricalData$;
-
-  return withPgClient(async (client: PoolClient) => {
-    const process = (chain: Chain) => (input$: Rx.Observable<DbProduct>) =>
-      input$.pipe(strategyImporter(client, chain, options.forceCurrentBlockNumber));
-
-    const pipeline$ = productList$(client, "beefy").pipe(
-      // apply command filters
-      Rx.filter((product) => options.filterChains.includes(product.chain)),
-      Rx.filter(
-        (product) =>
-          options.filterContractAddress === null ||
-          (product.productData.type === "beefy:vault"
-            ? product.productData.vault.contract_address.toLocaleLowerCase() === options.filterContractAddress.toLocaleLowerCase()
-            : product.productData.boost.contract_address.toLocaleLowerCase() === options.filterContractAddress.toLocaleLowerCase()),
+const investmentPipelineByChain = {} as Record<
+  Chain,
+  { historical: Rx.OperatorFunction<DbBeefyProduct, any>; recent: Rx.OperatorFunction<DbBeefyProduct, any> }
+>;
+function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterContractAddress: string | null, forceCurrentBlockNumber: number | null) {
+  if (!investmentPipelineByChain[chain]) {
+    investmentPipelineByChain[chain] = {
+      historical: Rx.pipe(
+        Rx.filter((product) => product.chain === chain),
+        Rx.filter(
+          (product) =>
+            filterContractAddress === null ||
+            (product.productData.type === "beefy:vault"
+              ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+              : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
+        ),
+        importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
       ),
+      recent: Rx.pipe(
+        Rx.filter((product) => product.chain === chain),
+        Rx.filter(
+          (product) =>
+            filterContractAddress === null ||
+            (product.productData.type === "beefy:vault"
+              ? product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+              : product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
+        ),
+        importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
+      ),
+    };
+  }
+  return investmentPipelineByChain[chain];
+}
 
-      // load  historical data
-      loaderByChain$(process),
-    );
+async function importInvestmentData(options: {
+  strategy: "recent" | "historical";
+  chain: Chain;
+  filterContractAddress: string | null;
+  forceCurrentBlockNumber: number | null;
+}) {
+  return withPgClient(async (client: PoolClient) => {
+    const chainPipeline = getChainInvestmentPipeline(client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
+    const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
+    const pipeline$ = productList$(client, "beefy").pipe(strategyImporter);
     logger.info({ msg: "starting investment data import", data: options });
     return consumeObservable(pipeline$);
   })();
