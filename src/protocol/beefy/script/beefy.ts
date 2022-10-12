@@ -8,7 +8,7 @@ import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable"
 import { sleep } from "../../../utils/async";
 import { importBeefyProducts$ } from "../loader/products";
 import { importBeefyUnderlyingPrices$ } from "../loader/prices";
-import { importChainHistoricalData$ } from "../loader/investment/import-investments";
+import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import yargs from "yargs";
 import { priceFeedList$ } from "../../common/loader/price-feed";
@@ -174,7 +174,7 @@ function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterCont
               ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
               : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
         ),
-        importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
+        importChainRecentData$(client, chain, forceCurrentBlockNumber),
       ),
     };
   }
