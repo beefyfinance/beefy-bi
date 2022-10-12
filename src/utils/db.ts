@@ -4,6 +4,7 @@ import * as pgcs from "pg-connection-string";
 import { TIMESCALEDB_URL } from "./config";
 import { allChainIds } from "../types/chain";
 import { rootLogger } from "./logger";
+import { withTimeout } from "./async";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -25,7 +26,6 @@ beefy=# select
 
 (1 row)
  */
-
 let pool: Pool | null = null;
 export async function getPgPool(freshClient = false) {
   if (pool === null) {
@@ -42,10 +42,11 @@ export async function getPgPool(freshClient = false) {
 // inject pg client as first argument
 export function withPgClient<TArgs extends any[], TRes>(
   fn: (client: PoolClient, ...args: TArgs) => Promise<TRes>,
+  connectTimeoutMs = 10_000,
 ): (...args: TArgs) => Promise<TRes> {
   return async (...args: TArgs) => {
     const pgPool = await getPgPool();
-    const client = await pgPool.connect();
+    const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs);
     let res: TRes;
     try {
       res = await fn(client, ...args);
@@ -56,9 +57,9 @@ export function withPgClient<TArgs extends any[], TRes>(
   };
 }
 
-export async function db_transaction<TRes>(fn: (client: PoolClient) => Promise<TRes>) {
+export async function db_transaction<TRes>(fn: (client: PoolClient) => Promise<TRes>, connectTimeoutMs = 10_000) {
   const pgPool = await getPgPool(true);
-  const client = await pgPool.connect();
+  const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs);
   try {
     await client.query("BEGIN");
     const res = await fn(client);
