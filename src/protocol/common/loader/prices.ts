@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy, keyBy } from "lodash";
+import { groupBy, keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
@@ -58,7 +58,7 @@ export function upsertPrice$<TInput, TRes>(options: {
                 price_data = jsonb_merge(price_ts.price_data, EXCLUDED.price_data)
           `,
         [
-          objAndData.map(({ price }) => [
+          uniqBy(objAndData, ({ price }) => `${price.priceFeedId}-${price.blockNumber}`).map(({ price }) => [
             price.datetime.toISOString(),
             price.blockNumber,
             price.priceFeedId,

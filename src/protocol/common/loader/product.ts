@@ -25,7 +25,7 @@ export interface DbBeefyStdVaultProduct extends DbBaseProduct {
   };
 }
 export interface DbBeefyGovVaultProduct extends DbBaseProduct {
-  priceFeedId1: null; // no ppfs for gov vaults
+  priceFeedId1: number; // no ppfs for gov vaults, but we added one for consistency
   priceFeedId2: number; // underlying price
   productData: {
     type: "beefy:gov-vault";

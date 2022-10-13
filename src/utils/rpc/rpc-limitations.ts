@@ -185,8 +185,10 @@ const findings = (() => {
           if (rpcUrl.includes(internalTimeoutRpc)) {
             if (rpcTimeout <= 10_000) {
               newLimit = Math.min(30, oldLimit);
+              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
             } else if (rpcTimeout <= 5_000) {
               newLimit = Math.min(10, oldLimit);
+              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
             }
           }
         }
@@ -194,19 +196,22 @@ const findings = (() => {
         // disable batching if required
         for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
           const isBatchingDisabled = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
-          if (isBatchingDisabled) {
+          if (isBatchingDisabled && rpcUrl.includes(disableBatchingRpc)) {
             newLimit = null;
+            logger.trace({ msg: "Disabling batching for RPC", data: { chain, rpcUrl, method, oldLimit, newLimit } });
           }
         }
 
         // apply safety margin
         if (newLimit !== null && newLimit !== maxBatchSize) {
           newLimit = Math.floor(newLimit * safetyMargin);
+          logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
 
         // disable batching if it's only 1
         if (newLimit !== null && newLimit <= 1) {
           newLimit = null;
+          logger.trace({ msg: "Limit is too low, disabling batching", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
 
         if (newLimit !== oldLimit) {

@@ -13,6 +13,7 @@ import { rootLogger } from "../../../../utils/logger";
 import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { RpcConfig } from "../../../../types/rpc-config";
+import { upsertPrice$ } from "../../../common/loader/prices";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-transfer" });
 
@@ -83,6 +84,28 @@ export function loadTransfers$(options: {
       formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
     }),
 
+    // insert ppfs as a price
+    upsertPrice$({
+      client: options.client,
+      getPriceData: (item) => ({
+        priceFeedId: item.target.priceFeedId1,
+        blockNumber: item.transfer.blockNumber,
+        price: item.sharesRate,
+        datetime: item.blockDatetime,
+        priceData: {
+          chain: options.chain,
+          trxHash: item.transfer.transactionHash,
+          sharesRate: item.sharesRate.toString(),
+          productType:
+            item.target.productData.type === "beefy:vault"
+              ? item.target.productData.type + (item.target.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.productData.type,
+        },
+      }),
+      formatOutput: (transferData, priceRow) => ({ ...transferData, priceRow }),
+    }),
+
+    // insert the investment data
     upsertInvestment$({
       client: options.client,
       getInvestmentData: (item) => ({
