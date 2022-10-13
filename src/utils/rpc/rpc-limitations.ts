@@ -48,6 +48,12 @@ const findings = (() => {
         eth_getBlockByNumber: null,
         eth_blockNumber: null,
       },
+      "https://celo-mainnet--rpc.datahub.figment.io": {
+        eth_getLogs: 26,
+        eth_call: 192,
+        eth_getBlockByNumber: null,
+        eth_blockNumber: 500,
+      },
     },
     cronos: {
       "https://evm-cronos.crypto.org": {
