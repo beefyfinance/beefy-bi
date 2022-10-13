@@ -199,5 +199,6 @@ SELECT pg_terminate_backend(pid)
 
 \c beefy
 
+update investment_balance_ts set balance = (investment_data->>'balance')::evm_decimal_256;
 
 ```
