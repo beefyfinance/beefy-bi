@@ -199,26 +199,5 @@ SELECT pg_terminate_backend(pid)
 
 \c beefy
 
--- new product table layout
-alter table product add column price_feed_1_id integer references price_feed(price_feed_id);
-alter table product add column price_feed_2_id integer references price_feed(price_feed_id);
-update product set price_feed_2_id = price_feed_id;
-alter table product drop column price_feed_id;
-alter table product rename column product_data to _product_data;
-alter table product add column product_data jsonb not null default '{}'::jsonb;
-update product set product_data = _product_data::jsonb;
-alter table product drop column _product_data;
-alter table price_feed drop column external_id;
-
-update product
-  set product_data = jsonb_set(product_data, '{type}', '"beefy:vault-gov"')
-  where product_data->>'type' = 'beefy:vault' and product_data->'vault'->>'is_gov_vault' = 'true';
-
--- =>>>>> import products to create new price feeds
-node -r ts-node/register ./src/script/run.ts beefy:run -c all -i products
-
-delete from price_feed
-  where price_feed_id not in (select price_feed_1_id from product union all select price_feed_2_id from product);
-
 
 ```

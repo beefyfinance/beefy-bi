@@ -165,10 +165,10 @@ export function updateImportState$<
     newImportState.importData.ranges = newRanges;
 
     // update the latest block number we know about
-    if (importState.importData.type === "product:investment" && newImportState.importData.type === "product:investment") {
+    if (isProductInvestmentImportState(importState)) {
       importState.importData.chainLatestBlockNumber = Math.max(
         max(items.map((item) => item.latestBlockNumber)) || 0,
-        newImportState.importData.chainLatestBlockNumber || 0 /* in case it's not set yet */,
+        importState.importData.chainLatestBlockNumber || 0,
       );
     }
 
