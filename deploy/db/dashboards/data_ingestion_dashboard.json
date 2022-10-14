@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1665756998941,
+  "iteration": 1665757771062,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -33,7 +33,7 @@
               "color": { "mode": "thresholds" },
               "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
               "unit": "none"
             },
             "overrides": []
@@ -66,7 +66,13 @@
               "color": { "mode": "thresholds" },
               "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
+              }
             },
             "overrides": []
           },
@@ -581,7 +587,7 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
         },
         "overrides": [
           { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
@@ -619,7 +625,7 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
         },
         "overrides": [
           { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
@@ -680,6 +686,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 33,
+  "version": 34,
   "weekStart": ""
 }
