@@ -211,6 +211,25 @@ export async function db_migrate() {
       LANGUAGE SQL
       IMMUTABLE
       RETURNS NULL ON NULL INPUT;
+
+      
+      CREATE OR REPLACE FUNCTION jsonb_date_range_size(jsonb) RETURNS interval 
+      AS $$
+        select ($1->>'to')::timestamptz - ($1->>'from')::timestamptz + interval '1 ms'
+      $$
+      LANGUAGE SQL
+      IMMUTABLE
+      RETURNS NULL ON NULL INPUT;
+
+
+      CREATE OR REPLACE FUNCTION jsonb_date_ranges_size_sum(jsonb) RETURNS interval
+      AS $$
+        select coalesce(sum(jsonb_date_range_size(size)), '0 ms'::interval)
+        from (select * from jsonb_array_elements($1)) as range_size(size)
+      $$
+      LANGUAGE SQL
+      IMMUTABLE
+      RETURNS NULL ON NULL INPUT;
   `);
 
   // token price registry to avoid manipulating and indexing strings on the other tables
