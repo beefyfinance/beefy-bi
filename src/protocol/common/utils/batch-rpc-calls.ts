@@ -1,18 +1,17 @@
-import * as Rx from "rxjs";
-import { backOff } from "exponential-backoff";
-import { zipWith } from "lodash";
-import { ProgrammerError } from "../../../utils/programmer-error";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { rootLogger } from "../../../utils/logger";
-import { DbProduct } from "../loader/product";
-import { getRpcRetryConfig } from "./rpc-retry-config";
-import { RpcCallMethod, RpcConfig } from "../../../types/rpc-config";
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
-import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
+import { backOff } from "exponential-backoff";
+import { zipWith } from "lodash";
+import * as Rx from "rxjs";
+import { RpcCallMethod, RpcConfig } from "../../../types/rpc-config";
+import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
+import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { bufferUntilAccumulatedCountReached } from "../../../utils/rxjs/utils/buffer-until-accumulated-count";
-import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
+import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
+import { getRpcRetryConfig } from "./rpc-retry-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 

@@ -52,7 +52,6 @@ export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvide
 // until this is fixed: https://github.com/ethers-io/ethers.js/issues/2749#issuecomment-1268638214
 export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRpcBatchProvider) {
   logger.trace({ msg: "Patching ethers batch provider" });
-  const _send = provider.send;
 
   function fixedBatchSend(this: typeof provider, method: string, params: Array<any>): Promise<any> {
     const request = {
@@ -148,4 +147,24 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
   }
 
   provider.send = fixedBatchSend.bind(provider);
+}
+
+/**
+ * Harmony RPC returns nonsense when the call id is not 1.
+ * Ex:
+ *   {"jsonrpc":"2.0","method":"hmyv2_getTransactionsHistory","params":[{"address":"0x6ab6d61428fde76768d7b45d8bfeec19c6ef91a8","pageIndex":0,"pageSize":1,"fullTx":true,"txType":"ALL","order":"ASC"}],"id":1}
+ *    -> OK
+ *   {"jsonrpc":"2.0","method":"hmyv2_getTransactionsHistory","params":[{"address":"0x6ab6d61428fde76768d7b45d8bfeec19c6ef91a8","pageIndex":0,"pageSize":1,"fullTx":true,"txType":"ALL","order":"ASC"}],"id":42}
+ *    -> empty list
+ */
+export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.JsonRpcProvider) {
+  logger.trace({ msg: "Patching Harmony linear provider" });
+
+  // override the id property so it's always 1
+  Object.defineProperty(provider, "_nextId", {
+    get: () => 1,
+    set: () => {},
+    enumerable: false,
+    configurable: false,
+  });
 }

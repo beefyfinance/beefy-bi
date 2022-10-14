@@ -1,4 +1,1 @@
-{
-  "printWidth": 150,
-  "trailingComma": "all"
-}
+{ "printWidth": 150, "trailingComma": "all", "organizeImportsSkipDestructiveCodeActions": true }

@@ -1,18 +1,18 @@
+import Decimal from "decimal.js";
+import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { PoolClient } from "pg";
-import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
-import Decimal from "decimal.js";
+import { RpcConfig } from "../../../../types/rpc-config";
 import { normalizeAddress } from "../../../../utils/ethers";
+import { rootLogger } from "../../../../utils/logger";
+import { ProgrammerError } from "../../../../utils/programmer-error";
+import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
 import { DbBeefyProduct } from "../../../common/loader/product";
-import { fetchBeefyPPFS$ } from "../../connector/ppfs";
-import { loadTransfers$, TransferWithRate } from "./load-transfers";
 import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
-import { ProgrammerError } from "../../../../utils/programmer-error";
-import { RpcConfig } from "../../../../types/rpc-config";
-import { rootLogger } from "../../../../utils/logger";
+import { loadTransfers$, TransferWithRate } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
@@ -183,16 +183,16 @@ export function importProductBlockRange$(options: {
       if (item.transfers.length > 0) {
         logger.debug({
           msg: "Got transfers for product",
-          data: { productId: item.target.productId, blockRange: item.blockRange, transferCount: item.transfers.length },
+          data: { productId: item.target.productId, blockRange: item.range, transferCount: item.transfers.length },
         });
 
         // add some verification about the transfers
         if (process.env.NODE_ENV === "development") {
           for (const transfer of item.transfers) {
-            if (transfer.blockNumber < item.blockRange.from || transfer.blockNumber > item.blockRange.to) {
+            if (transfer.blockNumber < item.range.from || transfer.blockNumber > item.range.to) {
               logger.error({
                 msg: "Transfer out of requested block range",
-                data: { productId: item.target.productId, blockRange: item.blockRange, transferBlock: transfer.blockNumber, transfer },
+                data: { productId: item.target.productId, blockRange: item.range, transferBlock: transfer.blockNumber, transfer },
               });
             }
           }
@@ -218,8 +218,8 @@ export function importProductBlockRange$(options: {
             ignoreAddresses: item.ignoreAddresses,
             target: item.target,
             sharesRate: item.ppfss[idx],
-            blockRange: item.blockRange,
-            latestBlockNumber: item.latestBlockNumber,
+            range: item.range,
+            latest: item.latest,
           }),
         ),
       );
@@ -230,7 +230,7 @@ export function importProductBlockRange$(options: {
         Rx.tap((item) =>
           logger.trace({
             msg: "importing transfer",
-            data: { product: item.target.productId, blockRange: item.blockRange, transfer: item.transfer },
+            data: { product: item.target.productId, blockRange: item.range, transfer: item.transfer },
           }),
         ),
 

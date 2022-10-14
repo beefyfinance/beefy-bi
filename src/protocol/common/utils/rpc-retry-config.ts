@@ -1,7 +1,7 @@
 import { IBackOffOptions } from "exponential-backoff";
-import { isErrorRetryable } from "../../../utils/retryable-error";
 import { rootLogger } from "../../../utils/logger";
-import { ProgrammerError, isProgrammerError } from "../../../utils/programmer-error";
+import { ProgrammerError } from "../../../utils/programmer-error";
+import { isErrorRetryable } from "../../../utils/retryable-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });
 

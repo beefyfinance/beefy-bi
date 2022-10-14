@@ -46,7 +46,6 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
       upsertPriceFeed$({
         client: options.client,
         getFeedData: (vaultData) => {
-          const vaultId = normalizeVaultId(vaultData.vault.id);
           return {
             // feed key tells us that this prices comes from beefy's data
             // we may have another source of prices for the same asset

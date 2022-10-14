@@ -1,23 +1,22 @@
+import { backOff } from "exponential-backoff";
+import NodeCache from "node-cache";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { samplingPeriodMs } from "../../../types/sampling";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
-import NodeCache from "node-cache";
-import { Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
-import { backOff } from "exponential-backoff";
-import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 import { RpcConfig } from "../../../types/rpc-config";
+import { samplingPeriodMs } from "../../../types/sampling";
+import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS, CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { DbImportState } from "../loader/import-state";
+import { Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
+import { DbBlockNumberRangeImportState, DbDateRangeImportState } from "../loader/import-state";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 
 const logger = rootLogger.child({ module: "common", component: "latest-block-number" });
 
 const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
 
 function latestBlockNumber$<TObj, TRes>(options: {
-  getChain: (obj: TObj) => Chain;
   rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   streamConfig: BatchStreamConfig;
@@ -28,7 +27,7 @@ function latestBlockNumber$<TObj, TRes>(options: {
     if (options.forceCurrentBlockNumber !== null) {
       return options.formatOutput(obj, options.forceCurrentBlockNumber);
     }
-    const chain = options.getChain(obj);
+    const chain = options.rpcConfig.chain;
     const cacheKey = chain;
     let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
     if (latestBlockNumber === undefined) {
@@ -45,7 +44,6 @@ function latestBlockNumber$<TObj, TRes>(options: {
  * used to get last data for the given chain
  */
 export function addLatestBlockQuery$<TObj, TRes>(options: {
-  chain: Chain;
   rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
@@ -57,7 +55,6 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 
     // go get the latest block number for this chain
     latestBlockNumber$({
-      getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       rpcConfig: options.rpcConfig,
       streamConfig: options.streamConfig,
@@ -67,11 +64,11 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
     // compute the block range we want to query
     Rx.mergeMap((objGroup) => {
       // fetch the last hour of data
-      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
+      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.rpcConfig.chain];
       const period = samplingPeriodMs["1hour"];
-      const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[options.chain]);
+      const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[options.rpcConfig.chain]);
 
-      const lastImportedBlockNumber = options.getLastImportedBlock(options.chain);
+      const lastImportedBlockNumber = options.getLastImportedBlock(options.rpcConfig.chain);
       const diffBetweenLastImported = lastImportedBlockNumber ? objGroup.latestBlockNumber - (lastImportedBlockNumber + 1) : Infinity;
 
       const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
@@ -91,9 +88,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
   );
 }
 
-export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbImportState>(options: {
-  client: PoolClient;
-  chain: Chain;
+export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumberRangeImportState>(options: {
   forceCurrentBlockNumber: number | null;
   rpcConfig: RpcConfig;
   streamConfig: BatchStreamConfig;
@@ -104,7 +99,6 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbImportSta
   return Rx.pipe(
     // go get the latest block number for this chain
     latestBlockNumber$({
-      getChain: () => options.chain,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       streamConfig: options.streamConfig,
       rpcConfig: options.rpcConfig,
@@ -114,7 +108,7 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbImportSta
     // we can now create the historical block query
     Rx.map((item) => {
       const importState = options.getImport(item.obj);
-      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
+      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.rpcConfig.chain];
 
       // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
       // where the RPC don't know about the block number he just gave us
@@ -146,6 +140,49 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbImportSta
       }
 
       return options.formatOutput(item.obj, item.latestBlockNumber, ranges);
+    }),
+  );
+}
+
+export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeImportState>(options: {
+  getImport: (obj: TObj) => TImport;
+  getFirstDate: (importState: TImport) => Date;
+  formatOutput: (obj: TObj, latestDate: Date, historicalDateQueries: Range<Date>[]) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    // we can now create the historical block query
+    Rx.map((item) => {
+      const importState = options.getImport(item);
+      const maxMsPerQuery = BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS;
+      const latestDate = new Date();
+
+      // this is the whole range we have to cover
+      let fullRange = {
+        from: options.getFirstDate(importState),
+        to: latestDate,
+      };
+
+      let ranges = [fullRange];
+
+      // exclude the ranges we already covered
+      ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges);
+
+      // split in ranges no greater than the maximum allowed
+      ranges = rangeSplitManyToMaxLength(ranges, maxMsPerQuery);
+
+      // order by newset first since it's more important and more likely to be available via RPC calls
+      ranges = ranges.sort((a, b) => b.to.getTime() - a.to.getTime());
+
+      // then add the ranges we had error on at the end
+      const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry, maxMsPerQuery);
+      ranges = ranges.concat(rangesToRetry);
+
+      // limit the amount of queries sent
+      if (ranges.length > 300) {
+        ranges = ranges.slice(0, 300);
+      }
+
+      return options.formatOutput(item, latestDate, ranges);
     }),
   );
 }

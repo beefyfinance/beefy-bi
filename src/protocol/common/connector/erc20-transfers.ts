@@ -1,14 +1,14 @@
+import { Decimal } from "decimal.js";
+import { ethers } from "ethers";
+import { flatten, groupBy, zipWith } from "lodash";
 import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
-import { ethers } from "ethers";
-import { rootLogger } from "../../../utils/logger";
-import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { flatten, groupBy, zipWith } from "lodash";
-import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { RpcConfig } from "../../../types/rpc-config";
+import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { RpcConfig } from "../../../types/rpc-config";
+import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -61,8 +61,8 @@ export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget>,
       const params = options.getQueryParams(obj);
       return {
         ...params,
-        fromBlock: obj.blockRange.from,
-        toBlock: obj.blockRange.to,
+        fromBlock: obj.range.from,
+        toBlock: obj.range.to,
       };
     },
     processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(provider, options.chain, contractCalls),

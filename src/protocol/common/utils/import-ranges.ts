@@ -31,7 +31,7 @@ export function updateImportRanges<T extends SupportedRangeTypes>(
   return importRanges;
 }
 
-export function hydrateNumberImportRangesFromDb(importRanges: ImportRanges<number>) {
+export function hydrateNumberImportRangesFromDb<TRange extends SupportedRangeTypes>(importRanges: ImportRanges<TRange>) {
   importRanges.lastImportDate = new Date(importRanges.lastImportDate);
 }
 

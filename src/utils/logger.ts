@@ -5,7 +5,7 @@ export const rootLogger = pino(
   {
     level: LOG_LEVEL,
     formatters: {
-      bindings(bindings) {
+      bindings() {
         //return { pid: bindings.pid, hostname: bindings.hostname };
         return {};
       },

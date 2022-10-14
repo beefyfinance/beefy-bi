@@ -1,17 +1,16 @@
-import { cloneDeep, keyBy, max } from "lodash";
+import { cloneDeep, keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { RpcConfig } from "../../../types/rpc-config";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { rangeMerge } from "../../../utils/range";
+import { rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
+import { ImportResult, isBlockRangeResult, isDateRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
-import { ImportResult } from "../types/import-query";
+import { hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
 
@@ -25,6 +24,7 @@ export interface DbProductInvestmentImportState extends DbBaseImportState {
     productId: number;
     chain: Chain;
     contractCreatedAtBlock: number;
+    contractCreationDate: Date;
     chainLatestBlockNumber: number;
     ranges: ImportRanges<number>;
   };
@@ -33,17 +33,22 @@ export interface DbOraclePriceImportState extends DbBaseImportState {
   importData: {
     type: "oracle:price";
     priceFeedId: number;
-    ranges: ImportRanges<number>;
+    firstDate: Date;
+    ranges: ImportRanges<Date>;
   };
 }
 export interface DbProductShareRateImportState extends DbBaseImportState {
   importData: {
     type: "product:share-rate";
     priceFeedId: number;
+    chainLatestBlockNumber: number;
     ranges: ImportRanges<number>;
   };
 }
-export type DbImportState = DbProductInvestmentImportState | DbOraclePriceImportState | DbProductShareRateImportState;
+
+export type DbBlockNumberRangeImportState = DbProductInvestmentImportState | DbProductShareRateImportState;
+export type DbDateRangeImportState = DbOraclePriceImportState;
+export type DbImportState = DbBlockNumberRangeImportState | DbDateRangeImportState;
 
 export function isProductInvestmentImportState(o: DbImportState): o is DbProductInvestmentImportState {
   return o.importData.type === "product:investment";
@@ -144,8 +149,9 @@ export function fetchImportState$<TObj, TRes>(options: {
 
 export function updateImportState$<
   TTarget,
-  TObj extends ImportResult<TTarget>,
-  TRes extends ImportResult<TTarget>,
+  TRange extends SupportedRangeTypes,
+  TObj extends ImportResult<TTarget, TRange>,
+  TRes extends ImportResult<TTarget, TRange>,
   TImport extends DbImportState,
 >(options: {
   client: PoolClient;
@@ -154,22 +160,38 @@ export function updateImportState$<
   formatOutput: (obj: TObj, importState: TImport) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   function mergeImportState(items: TObj[], importState: TImport) {
+    if (
+      (isProductInvestmentImportState(importState) && !isBlockRangeResult(items[0])) ||
+      (isOraclePriceImportState(importState) && !isDateRangeResult(items[0])) ||
+      (isProductShareRateImportState(importState) && !isBlockRangeResult(items[0]))
+    ) {
+      throw new ProgrammerError({
+        msg: "Import state is for product investment but item is not",
+        data: { importState, item: items[0] },
+      });
+    }
+
     const newImportState = cloneDeep(importState);
 
     // update the import rages
-    const coveredRanges = items.map((item) => item.blockRange);
-    const successRanges = rangeMerge(items.filter((item) => item.success).map((item) => item.blockRange));
-    const errorRanges = rangeMerge(items.filter((item) => !item.success).map((item) => item.blockRange));
+    const coveredRanges = items.map((item) => item.range);
+    const successRanges = rangeMerge(items.filter((item) => item.success).map((item) => item.range));
+    const errorRanges = rangeMerge(items.filter((item) => !item.success).map((item) => item.range));
     const lastImportDate = new Date();
-    const newRanges = updateImportRanges(importState.importData.ranges, { coveredRanges, successRanges, errorRanges, lastImportDate });
-    newImportState.importData.ranges = newRanges;
+    const newRanges = updateImportRanges<TRange>(importState.importData.ranges as ImportRanges<TRange>, {
+      coveredRanges,
+      successRanges,
+      errorRanges,
+      lastImportDate,
+    });
+    (newImportState.importData.ranges as ImportRanges<TRange>) = newRanges;
 
     // update the latest block number we know about
-    if (isProductInvestmentImportState(importState)) {
-      importState.importData.chainLatestBlockNumber = Math.max(
-        max(items.map((item) => item.latestBlockNumber)) || 0,
-        importState.importData.chainLatestBlockNumber || 0,
-      );
+    if (isProductInvestmentImportState(importState) || isProductShareRateImportState(importState)) {
+      importState.importData.chainLatestBlockNumber =
+        rangeValueMax(
+          (items as ImportResult<TTarget, number>[]).map((item) => item.latest).concat([importState.importData.chainLatestBlockNumber]),
+        ) || 0;
     }
 
     logger.debug({
@@ -234,7 +256,7 @@ export function updateImportState$<
     // logging
     Rx.tap((item) => {
       if (!item.success) {
-        logger.trace({ msg: "Failed to import historical data", data: { blockRange: item.blockRange } });
+        logger.trace({ msg: "Failed to import historical data", data: { blockRange: item.range } });
       }
     }),
   );
@@ -242,8 +264,6 @@ export function updateImportState$<
 
 export function addMissingImportState$<TObj, TRes>(options: {
   client: PoolClient;
-  rpcConfig: RpcConfig;
-  chain: Chain;
   getImportStateKey: (obj: TObj) => string;
   addDefaultImportData$: <TTRes>(
     formatOutput: (obj: TObj, defaultImportData: DbImportState["importData"]) => TTRes,
@@ -301,5 +321,5 @@ export function addMissingImportState$<TObj, TRes>(options: {
 
 function hydrateImportStateRangesFromDb(importState: DbImportState) {
   // hydrate dates properly
-  hydrateNumberImportRangesFromDb(importState.importData.ranges);
+  hydrateNumberImportRangesFromDb<SupportedRangeTypes>(importState.importData.ranges);
 }

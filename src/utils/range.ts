@@ -46,19 +46,30 @@ function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): Range
   }
 }
 
+export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {
+  if (values.length <= 0) {
+    return undefined;
+  }
+  const strat = strategy || getRangeStrategy({ from: values[0], to: values[0] });
+
+  return values.reduce(strat.max, values[0]);
+}
+
 export function rangeArrayExclude<T extends SupportedRangeTypes>(ranges: Range<T>[], exclude: Range<T>[], strategy?: RangeStrategy<T>) {
-  return ranges.flatMap((range) => rangeExcludeMany(range, exclude));
+  const strat = strategy || (ranges.length > 0 ? getRangeStrategy(ranges[0]) : undefined);
+  return ranges.flatMap((range) => rangeExcludeMany(range, exclude, strat));
 }
 
 export function rangeExcludeMany<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
+  const strat = strategy || getRangeStrategy(range);
   let ranges = [range];
   for (const ex of exclude) {
     for (let i = 0; i < ranges.length; i++) {
       const range = ranges[i];
-      const exclusionRes = rangeExclude(range, ex);
+      const exclusionRes = rangeExclude(range, ex, strat);
 
       // nothing was excluded so we keep the range
-      if (exclusionRes.length === 1 && rangeEqual(exclusionRes[0], range)) {
+      if (exclusionRes.length === 1 && rangeEqual(exclusionRes[0], range, strat)) {
         continue;
       }
       // the range was fully excluded so we remove it
