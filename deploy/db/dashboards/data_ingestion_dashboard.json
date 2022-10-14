@@ -208,7 +208,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 11, "w": 12, "x": 0, "y": 13 },
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 13 },
       "id": 26,
       "options": {
         "colorMode": "value",
@@ -236,7 +236,83 @@
       "title": "Total deposit/withdraws",
       "type": "stat"
     },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }, "id": 14, "panels": [], "title": "Metrics By chain", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 13 },
+      "id": 29,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in (\n  select price_feed_1_id\n  from product\n  where chain in ($chain)\n)\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Total PPFS price points",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 5, "x": 12, "y": 13 },
+      "id": 28,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in (\n  select price_feed_2_id\n  from product\n  where chain in ($chain)\n)\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Total underlying price points",
+      "type": "stat"
+    },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 }, "id": 14, "panels": [], "title": "Metrics By chain", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -271,7 +347,7 @@
           }
         ]
       },
-      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 25 },
+      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 19 },
       "id": 8,
       "options": {
         "barRadius": 0,
@@ -329,7 +405,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 25 },
+      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 19 },
       "id": 10,
       "options": {
         "barRadius": 0,
@@ -360,7 +436,7 @@
       "title": "Investment logs by chain",
       "type": "barchart"
     },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }, "id": 16, "panels": [], "title": "Metrics by product", "type": "row" },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 }, "id": 16, "panels": [], "title": "Metrics by product", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -388,7 +464,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 41 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 35 },
       "id": 20,
       "options": { "legend": { "calcs": [], "displayMode": "hidden", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
       "targets": [
@@ -421,7 +497,7 @@
           { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
         ]
       },
-      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 55 },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 49 },
       "id": 6,
       "options": {
         "footer": { "fields": "", "reducer": ["sum"], "show": false },
@@ -476,6 +552,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 30,
+  "version": 31,
   "weekStart": ""
 }
