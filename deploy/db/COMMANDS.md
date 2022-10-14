@@ -175,7 +175,7 @@ from
   investment_balance_ts b
   join product p on b.product_id = p.product_id
   join investor i on b.investor_id = i.investor_id
-  left join asset_price_ts usd on usd.price_feed_id = p.price_feed_id
+  left join price_ts usd on usd.price_feed_id = p.price_feed_id
   and b.datetime between usd.datetime - '15min' :: interval
   and usd.datetime
 where
