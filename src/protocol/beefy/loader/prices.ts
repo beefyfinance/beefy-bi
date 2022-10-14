@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { keyBy } from "lodash";
+import { keyBy, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
@@ -89,33 +89,42 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
     // fix ts types
     Rx.filter((item): item is { target: DbPriceFeed; importState: DbOraclePriceImportState } => !!item),
 
-    // generate the queries
-    addHistoricalDateQuery$({
-      getImport: (item) => item.importState,
-      getFirstDate: (importState) => importState.importData.firstDate,
-      formatOutput: (item, latestDate, queries) => ({ ...item, latest: latestDate, queries }),
-    }),
-
-    // convert to stream of price queries
-    Rx.concatMap((item) =>
-      item.queries.map((range): ImportQuery<DbPriceFeed, Date> => {
-        const { queries, ...rest } = item;
-        return { ...rest, range, latest: item.latest };
-      }),
+    // process first the prices we imported the least
+    Rx.pipe(
+      Rx.toArray(),
+      Rx.map((items) => sortBy(items, (item) => item.importState.importData.ranges.lastImportDate)),
+      Rx.concatAll(),
     ),
 
-    // some backpressure mechanism
     Rx.pipe(
-      memoryBackpressure$({
-        logInfos: { msg: "import-price-data" },
-        sendBurstsOf: streamConfig.maxInputTake,
+      // generate the queries
+      addHistoricalDateQuery$({
+        getImport: (item) => item.importState,
+        getFirstDate: (importState) => importState.importData.firstDate,
+        formatOutput: (item, latestDate, queries) => ({ ...item, latest: latestDate, queries }),
       }),
 
-      Rx.tap((item) =>
-        logger.info({
-          msg: "processing price query",
-          data: { feedKey: item.target.feedKey, range: item.range },
+      // convert to stream of price queries
+      Rx.concatMap((item) =>
+        item.queries.map((range): ImportQuery<DbPriceFeed, Date> => {
+          const { queries, ...rest } = item;
+          return { ...rest, range, latest: item.latest };
         }),
+      ),
+
+      // some backpressure mechanism
+      Rx.pipe(
+        memoryBackpressure$({
+          logInfos: { msg: "import-price-data" },
+          sendBurstsOf: streamConfig.maxInputTake,
+        }),
+
+        Rx.tap((item) =>
+          logger.info({
+            msg: "processing price query",
+            data: { feedKey: item.target.feedKey, range: item.range },
+          }),
+        ),
       ),
     ),
 

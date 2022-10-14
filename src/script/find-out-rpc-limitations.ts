@@ -1,16 +1,16 @@
 import { ethers } from "ethers";
-import { allChainIds, Chain } from "../types/chain";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_URLS } from "../utils/config";
-import { getChainWNativeTokenAddress } from "../utils/addressbook";
-import { runMain } from "../utils/process";
-import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
-import { rootLogger } from "../utils/logger";
-import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../utils/ethers";
-import { RpcCallMethod } from "../types/rpc-config";
 import yargs from "yargs";
+import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
+import { allChainIds, Chain } from "../types/chain";
+import { RpcCallMethod } from "../types/rpc-config";
+import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { sleep } from "../utils/async";
-import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_URLS } from "../utils/config";
+import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider } from "../utils/ethers";
+import { rootLogger } from "../utils/logger";
+import { runMain } from "../utils/process";
 import { ProgrammerError } from "../utils/programmer-error";
+import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
@@ -66,7 +66,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
 
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
-  const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: 30_000 };
+  const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: 5_000 /* should respond fairly fast */ };
   const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions);
   monkeyPatchEthersBatchProvider(batchProvider);
 

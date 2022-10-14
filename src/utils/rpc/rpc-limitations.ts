@@ -103,6 +103,14 @@ const findings = (() => {
         eth_blockNumber: 500,
       },
     },
+    kava: {
+      "https://evm.kava.io": {
+        eth_getLogs: 36,
+        eth_call: 64,
+        eth_getBlockByNumber: 64,
+        eth_blockNumber: 500,
+      },
+    },
     metis: {
       "https://andromeda.metis.io": {
         eth_getLogs: 36,

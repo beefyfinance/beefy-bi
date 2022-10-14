@@ -52,6 +52,9 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
 }
 
 async function getContractCreationInfos(contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
+  const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald", "kava"]);
+  const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
+
   if (blockScoutChainsTimeout.has(chain)) {
     logger.trace({
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
@@ -68,10 +71,6 @@ async function getContractCreationInfos(contractAddress: string, chain: Chain): 
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]);
   }
 }
-
-const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald"]);
-const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
-
 async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string) {
   const params = {
     module: "account",
