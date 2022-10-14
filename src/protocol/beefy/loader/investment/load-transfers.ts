@@ -14,7 +14,7 @@ import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 
-export type TransferWithRate = ImportQuery<DbProduct> & {
+export type TransferWithRate = ImportQuery<DbProduct, number> & {
   transfer: ERC20Transfer;
   ignoreAddresses: string[];
   sharesRate: Decimal;
@@ -25,7 +25,7 @@ export type TransferLoadStatus = { transferCount: number; success: true };
 export function loadTransfers$(options: {
   chain: Chain;
   client: PoolClient;
-  emitErrors: ErrorEmitter<DbBeefyProduct>;
+  emitErrors: ErrorEmitter<DbBeefyProduct, number>;
   streamConfig: BatchStreamConfig;
   rpcConfig: RpcConfig;
 }) {
@@ -84,6 +84,7 @@ export function loadTransfers$(options: {
     // insert ppfs as a price
     upsertPrice$({
       client: options.client,
+      streamConfig: options.streamConfig,
       getPriceData: (item) => ({
         priceFeedId: item.target.priceFeedId1,
         blockNumber: item.transfer.blockNumber,

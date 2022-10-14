@@ -28,7 +28,11 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };
-  const { observable: productErrors$, next: emitErrors, complete: completeProductErrors$ } = createObservableWithNext<ImportQuery<DbProduct>>();
+  const {
+    observable: productErrors$,
+    next: emitErrors,
+    complete: completeProductErrors$,
+  } = createObservableWithNext<ImportQuery<DbProduct, number>>();
 
   const getImportStateKey = (productId: number) => `product:investment:${productId}`;
 
@@ -38,6 +42,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
     addMissingImportState$({
       client,
+      streamConfig,
       getImportStateKey: (item) => getImportStateKey(item.productId),
       addDefaultImportData$: (formatOutput) =>
         Rx.pipe(
@@ -152,7 +157,11 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     // and we cannot afford too long of a retry per product
     maxTotalRetryMs: 10_000,
   };
-  const { observable: productErrors$, complete: completeProductErrors$, next: emitErrors } = createObservableWithNext<ImportQuery<DbProduct>>();
+  const {
+    observable: productErrors$,
+    complete: completeProductErrors$,
+    next: emitErrors,
+  } = createObservableWithNext<ImportQuery<DbProduct, number>>();
 
   // remember the last imported block number for each chain so we can reduce the amount of data we fetch
   type ImportState = {

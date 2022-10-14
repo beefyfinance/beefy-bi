@@ -1,11 +1,11 @@
+import { Decimal } from "decimal.js";
+import { ethers } from "ethers";
 import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
-import { ethers } from "ethers";
-import { Decimal } from "decimal.js";
 import { Chain } from "../../../types/chain";
-import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { RpcConfig } from "../../../types/rpc-config";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
+import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 
 interface GetBalanceCallParams {
   contractAddress: string;
@@ -16,14 +16,14 @@ interface GetBalanceCallParams {
 
 export function fetchERC20TokenBalance$<
   TTarget,
-  TObj extends ImportQuery<TTarget>,
+  TObj extends ImportQuery<TTarget, number>,
   TParams extends GetBalanceCallParams,
-  TRes extends ImportQuery<TTarget>,
+  TRes extends ImportQuery<TTarget, number>,
 >(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, balance: Decimal) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {

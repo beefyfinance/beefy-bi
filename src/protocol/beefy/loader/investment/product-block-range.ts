@@ -20,7 +20,7 @@ export function importProductBlockRange$(options: {
   client: PoolClient;
   rpcConfig: RpcConfig;
   chain: Chain;
-  emitErrors: ErrorEmitter<DbBeefyProduct>;
+  emitErrors: ErrorEmitter<DbBeefyProduct, number>;
   streamConfig: BatchStreamConfig;
 }) {
   const boostTransfers$ = Rx.pipe(
@@ -161,7 +161,7 @@ export function importProductBlockRange$(options: {
 
   return Rx.pipe(
     // add typings to the input item
-    Rx.filter((_: ImportQuery<DbBeefyProduct>) => true),
+    Rx.filter((_: ImportQuery<DbBeefyProduct, number>) => true),
 
     // create groups of products to import
     Rx.groupBy((item) =>

@@ -5,6 +5,7 @@ import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "prices" });
 
@@ -19,6 +20,7 @@ export interface DbPrice {
 // upsert the address of all objects and return the id in the specified field
 export function upsertPrice$<TInput, TRes>(options: {
   client: PoolClient;
+  streamConfig: BatchStreamConfig;
   getPriceData: (obj: TInput) => DbPrice;
   formatOutput: (obj: TInput, price: DbPrice) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
@@ -69,51 +71,8 @@ export function upsertPrice$<TInput, TRes>(options: {
         options.client,
       );
       return objAndData.map(({ obj, price: investment }) => options.formatOutput(obj, investment));
-    }),
+    }, options.streamConfig.workConcurrency),
 
     Rx.concatMap((investments) => investments), // flatten
-  );
-}
-
-export function findMissingPriceRangeInDb$<TObj, TRes>(options: {
-  client: PoolClient;
-  getFeedId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, missingData: { fromDate: Date; toDate: Date }) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
-
-    // find out which data is missing
-    Rx.mergeMap(async (objs) => {
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const results = await db_query<{ priceFeedId: number; lastInsertedDatetime: Date }>(
-        `SELECT 
-            price_feed_id as "priceFeedId",
-            last(datetime, datetime) as "lastInsertedDatetime"
-          FROM price_ts 
-          WHERE price_feed_id IN (%L)
-          GROUP BY price_feed_id`,
-        [objs.map((o) => options.getFeedId(o))],
-        options.client,
-      );
-      const resultsMap = keyBy(results, "priceFeedId");
-
-      // if we have data already, we want to only fetch new data
-      // otherwise, we aim for the last 24h of data
-      let fromDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24);
-      let toDate = new Date();
-      return objs.map((o) => {
-        if (resultsMap[options.getFeedId(o)]?.lastInsertedDatetime) {
-          fromDate = resultsMap[options.getFeedId(o)].lastInsertedDatetime;
-        }
-        return options.formatOutput(o, { fromDate, toDate });
-      });
-    }),
-
-    // ok, flatten all price feed queries
-    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }

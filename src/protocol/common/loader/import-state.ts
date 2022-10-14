@@ -10,7 +10,7 @@ import { rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/r
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-change";
 import { ImportResult, isBlockRangeResult, isDateRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
-import { hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
+import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
 
@@ -62,6 +62,7 @@ export function isProductShareRateImportState(o: DbImportState): o is DbProductS
 
 export function upsertImportState$<TInput, TRes>(options: {
   client: PoolClient;
+  streamConfig: BatchStreamConfig;
   getImportStateData: (obj: TInput) => DbImportState;
   formatOutput: (obj: TInput, importState: DbImportState) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
@@ -96,17 +97,18 @@ export function upsertImportState$<TInput, TRes>(options: {
         hydrateImportStateRangesFromDb(importState);
         return options.formatOutput(obj.obj, importState);
       });
-    }),
+    }, options.streamConfig.workConcurrency),
 
     // flatten objects
     Rx.concatMap((objs) => Rx.from(objs)),
   );
 }
 
-export function fetchImportState$<TObj, TRes>(options: {
+export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(options: {
   client: PoolClient;
+  streamConfig: BatchStreamConfig;
   getImportStateKey: (obj: TObj) => string;
-  formatOutput: (obj: TObj, importState: DbImportState | null) => TRes;
+  formatOutput: (obj: TObj, importState: TImport | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
@@ -120,7 +122,7 @@ export function fetchImportState$<TObj, TRes>(options: {
 
       const objAndData = objs.map((obj) => ({ obj, importKey: options.getImportStateKey(obj) }));
 
-      const results = await db_query<DbImportState>(
+      const results = await db_query<TImport>(
         `SELECT 
             import_key as "importKey",
             import_data as "importData"
@@ -140,7 +142,7 @@ export function fetchImportState$<TObj, TRes>(options: {
 
         return options.formatOutput(obj.obj, importState);
       });
-    }),
+    }, options.streamConfig.workConcurrency),
 
     // flatten objects
     Rx.concatMap((objs) => Rx.from(objs)),
@@ -251,7 +253,7 @@ export function updateImportState$<
     }, options.streamConfig.workConcurrency),
 
     // flatten the items
-    Rx.mergeAll(),
+    Rx.concatAll(),
 
     // logging
     Rx.tap((item) => {
@@ -262,13 +264,12 @@ export function updateImportState$<
   );
 }
 
-export function addMissingImportState$<TObj, TRes>(options: {
+export function addMissingImportState$<TObj, TRes, TImport extends DbImportState>(options: {
   client: PoolClient;
+  streamConfig: BatchStreamConfig;
   getImportStateKey: (obj: TObj) => string;
-  addDefaultImportData$: <TTRes>(
-    formatOutput: (obj: TObj, defaultImportData: DbImportState["importData"]) => TTRes,
-  ) => Rx.OperatorFunction<TObj, TTRes>;
-  formatOutput: (obj: TObj, importState: DbImportState) => TRes;
+  addDefaultImportData$: <TTRes>(formatOutput: (obj: TObj, defaultImportData: TImport["importData"]) => TTRes) => Rx.OperatorFunction<TObj, TTRes>;
+  formatOutput: (obj: TObj, importState: TImport) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const addDefaultImportState$ = Rx.pipe(
     // flatten the input items
@@ -280,11 +281,12 @@ export function addMissingImportState$<TObj, TRes>(options: {
     // create the import state in the database
     upsertImportState$({
       client: options.client,
+      streamConfig: options.streamConfig,
       getImportStateData: (item) =>
         ({
           importKey: options.getImportStateKey(item.obj),
           importData: item.defaultImportData,
-        } as DbImportState),
+        } as TImport),
       formatOutput: (item, importState) => ({ obj: item.obj, importState }),
     }),
   );
@@ -293,6 +295,7 @@ export function addMissingImportState$<TObj, TRes>(options: {
     // find the current import state for these objects (if already created)
     fetchImportState$({
       client: options.client,
+      streamConfig: options.streamConfig,
       getImportStateKey: options.getImportStateKey,
       formatOutput: (obj, importState) => ({ obj, importState }),
     }),
@@ -302,7 +305,7 @@ export function addMissingImportState$<TObj, TRes>(options: {
     Rx.map((importStateGrps$) => {
       // passthrough if we already have a import state
       if (importStateGrps$.key === "has-import-state") {
-        return importStateGrps$ as Rx.Observable<{ obj: TObj; importState: DbImportState }>;
+        return importStateGrps$ as Rx.Observable<{ obj: TObj; importState: TImport | null }>;
       }
 
       // then for those whe can't find an import state
@@ -313,13 +316,24 @@ export function addMissingImportState$<TObj, TRes>(options: {
       );
     }),
     // now all objects have a import state (and a contract creation block)
-    Rx.mergeAll(),
+    Rx.concatAll(),
+
+    // fix ts typings
+    Rx.filter((item): item is { obj: TObj; importState: TImport } => true),
 
     Rx.map((item) => options.formatOutput(item.obj, item.importState)),
   );
 }
 
 function hydrateImportStateRangesFromDb(importState: DbImportState) {
+  const type = importState.importData.type;
   // hydrate dates properly
-  hydrateNumberImportRangesFromDb<SupportedRangeTypes>(importState.importData.ranges);
+  if (type === "product:investment" || type === "product:share-rate") {
+    hydrateNumberImportRangesFromDb(importState.importData.ranges);
+  } else if (type === "oracle:price") {
+    importState.importData.firstDate = new Date(importState.importData.firstDate);
+    hydrateDateImportRangesFromDb(importState.importData.ranges);
+  } else {
+    throw new ProgrammerError(`Unknown import state type ${type}`);
+  }
 }

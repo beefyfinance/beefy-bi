@@ -39,7 +39,13 @@ const chainLock = new AsyncLock({
   maxPending: 100_000,
 });
 
-export function batchRpcCalls$<TTarget, TInputObj extends ImportQuery<TTarget>, TQueryObj, TResp, TRes extends ImportQuery<TTarget>>(options: {
+export function batchRpcCalls$<
+  TTarget,
+  TInputObj extends ImportQuery<TTarget, number>,
+  TQueryObj,
+  TResp,
+  TRes extends ImportQuery<TTarget, number>,
+>(options: {
   getQuery: (obj: TInputObj) => TQueryObj;
   processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TResp[]>;
   // we are doing this much rpc calls per input object
@@ -52,7 +58,7 @@ export function batchRpcCalls$<TTarget, TInputObj extends ImportQuery<TTarget>, 
   getCallMultiplierForObj?: (obj: TInputObj) => number;
   // errors
   streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   logInfos: { msg: string; data?: Record<string, unknown> };
   // output
   formatOutput: (objs: TInputObj, results: TResp) => TRes;

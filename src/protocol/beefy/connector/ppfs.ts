@@ -1,15 +1,15 @@
-import { Chain } from "../../../types/chain";
-import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import { ethers } from "ethers";
 import axios from "axios";
-import { sortBy } from "lodash";
-import { rootLogger } from "../../../utils/logger";
-import * as Rx from "rxjs";
-import { RpcConfig } from "../../../types/rpc-config";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { BatchStreamConfig, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import Decimal from "decimal.js";
+import { ethers } from "ethers";
+import { sortBy } from "lodash";
+import * as Rx from "rxjs";
+import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
+import { Chain } from "../../../types/chain";
+import { RpcConfig } from "../../../types/rpc-config";
+import { rootLogger } from "../../../utils/logger";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { ErrorEmitter, ImportQuery } from "../../common/types/import-query";
+import { batchRpcCalls$, BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -22,14 +22,14 @@ interface BeefyPPFSCallParams {
 
 export function fetchBeefyPPFS$<
   TTarget,
-  TObj extends ImportQuery<TTarget>,
+  TObj extends ImportQuery<TTarget, number>,
   TParams extends BeefyPPFSCallParams,
-  TRes extends ImportQuery<TTarget>,
+  TRes extends ImportQuery<TTarget, number>,
 >(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getPPFSCallParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, ppfss: Decimal[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {

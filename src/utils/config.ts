@@ -131,7 +131,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
 };
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 10_000;
 
-export const BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS = 1000 * 60 * 60 * 24 * 7; // 1 week
+export const BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS = 1000 * 60 * 60 * 24 * 7 * 4 * 3; // 3 * 4 week (~3 months)
 
 export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   arbitrum: 3000,

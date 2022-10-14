@@ -1,10 +1,10 @@
-import { Pool, PoolConfig, PoolClient } from "pg";
-import pgf from "pg-format";
+import { Pool, PoolClient, PoolConfig } from "pg";
 import * as pgcs from "pg-connection-string";
-import { TIMESCALEDB_URL } from "./config";
+import pgf from "pg-format";
 import { allChainIds } from "../types/chain";
-import { rootLogger } from "./logger";
 import { withTimeout } from "./async";
+import { TIMESCALEDB_URL } from "./config";
+import { rootLogger } from "./logger";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -70,6 +70,7 @@ export async function db_transaction<TRes>(fn: (client: PoolClient) => Promise<T
     throw error;
   } finally {
     client.release();
+    pgPool.end();
   }
 }
 

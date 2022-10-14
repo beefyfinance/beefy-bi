@@ -38,11 +38,11 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget>, TRes extends ImportQuery<TTarget>>(options: {
+export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget, number>, TRes extends ImportQuery<TTarget, number>>(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
@@ -72,11 +72,15 @@ export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget>,
 
 // when hitting a staking contract we don't have a token in return
 // so the balance of the amount we send is our positive diff
-export function fetchERC20TransferToAStakingContract$<TTarget, TObj extends ImportQuery<TTarget>, TRes extends ImportQuery<TTarget>>(options: {
+export function fetchERC20TransferToAStakingContract$<
+  TTarget,
+  TObj extends ImportQuery<TTarget, number>,
+  TRes extends ImportQuery<TTarget, number>,
+>(options: {
   rpcConfig: RpcConfig;
   chain: Chain;
   getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {

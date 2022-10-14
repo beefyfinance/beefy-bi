@@ -11,12 +11,12 @@ export function isBeefyBoost(o: DbBeefyProduct): o is DbBeefyBoostProduct {
   return o.productData.type === "beefy:boost";
 }
 
-export function isBeefyGovVaultProductImportQuery(o: ImportQuery<DbBeefyProduct>): o is ImportQuery<DbBeefyStdVaultProduct> {
+export function isBeefyGovVaultProductImportQuery(o: ImportQuery<DbBeefyProduct, number>): o is ImportQuery<DbBeefyStdVaultProduct, number> {
   return isBeefyGovVault(o.target);
 }
-export function isBeefyStandardVaultProductImportQuery(o: ImportQuery<DbBeefyProduct>): o is ImportQuery<DbBeefyStdVaultProduct> {
+export function isBeefyStandardVaultProductImportQuery(o: ImportQuery<DbBeefyProduct, number>): o is ImportQuery<DbBeefyStdVaultProduct, number> {
   return isBeefyStandardVault(o.target);
 }
-export function isBeefyBoostProductImportQuery(o: ImportQuery<DbBeefyProduct>): o is ImportQuery<DbBeefyBoostProduct> {
+export function isBeefyBoostProductImportQuery(o: ImportQuery<DbBeefyProduct, number>): o is ImportQuery<DbBeefyBoostProduct, number> {
   return isBeefyBoost(o.target);
 }

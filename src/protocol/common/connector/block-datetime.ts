@@ -1,13 +1,18 @@
 import * as Rx from "rxjs";
-import { BatchStreamConfig, batchRpcCalls$ } from "../utils/batch-rpc-calls";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { RpcConfig } from "../../../types/rpc-config";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
+import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
 
-export function fetchBlockDatetime$<TTarget, TObj extends ImportQuery<TTarget>, TParams extends number, TRes extends ImportQuery<TTarget>>(options: {
+export function fetchBlockDatetime$<
+  TTarget,
+  TObj extends ImportQuery<TTarget, number>,
+  TParams extends number,
+  TRes extends ImportQuery<TTarget, number>,
+>(options: {
   streamConfig: BatchStreamConfig;
   rpcConfig: RpcConfig;
   getBlockNumber: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget>;
+  emitErrors: ErrorEmitter<TTarget, number>;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return batchRpcCalls$({
