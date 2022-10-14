@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1665755079973,
+  "iteration": 1665756998941,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -208,7 +208,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 13 },
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 13 },
       "id": 26,
       "options": {
         "colorMode": "value",
@@ -246,7 +246,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 13 },
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 13 },
       "id": 29,
       "options": {
         "colorMode": "value",
@@ -272,6 +272,51 @@
         }
       ],
       "title": "Total PPFS price points",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 13 },
+      "id": 32,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id\nwhere chain in ($chain)\nand i.import_key is null",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Products without a data import object",
       "type": "stat"
     },
     {
@@ -310,6 +355,51 @@
         }
       ],
       "title": "Total underlying price points",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 13 },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'priceFeedId')::integer = p.price_feed_2_id\nwhere chain in ($chain)\nand i.import_key is null",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Products without a price import object",
       "type": "stat"
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 }, "id": 14, "panels": [], "title": "Metrics By chain", "type": "row" },
@@ -491,7 +581,7 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
         },
         "overrides": [
           { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
@@ -520,6 +610,44 @@
         }
       ],
       "title": "Product import stats",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "has_import_status" }, "properties": [{ "id": "color", "value": { "mode": "palette-classic" } }] }
+        ]
+      },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 60 },
+      "id": 30,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "has_import_status" }]
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with\nprocuct_date_stats as (\n  select \n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval as total_interval_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges') as interval_covered,\n    (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer\n  where p.chain in ($chain)\n)\nselect * from procuct_date_stats",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Price import stats",
       "type": "table"
     }
   ],
@@ -552,6 +680,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 31,
+  "version": 33,
   "weekStart": ""
 }
