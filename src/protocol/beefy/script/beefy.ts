@@ -11,7 +11,7 @@ import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable"
 import { priceFeedList$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, productList$ } from "../../common/loader/product";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
-import { importBeefyUnderlyingPrices$ } from "../loader/prices";
+import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-prices";
 import { importBeefyProducts$ } from "../loader/products";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
@@ -69,7 +69,9 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               );
             }
 
-            daemonize("prices", () => importBeefyDataPrices({ client }), samplingPeriodMs["15min"]);
+            daemonize("recent-prices", () => importBeefyDataRecentPrices({ client }), samplingPeriodMs["5min"]);
+            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["15min"]);
+
             daemonize("products", () => importProducts({ client, filterChains }), samplingPeriodMs["1day"]);
           });
         })(),
@@ -83,7 +85,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
           currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
           importer: {
-            choices: ["historical", "recent", "products", "prices"],
+            choices: ["historical", "recent", "products", "recent-prices", "historical-prices"],
             demand: true,
             alias: "i",
             describe: "what to run, all if not specified",
@@ -126,8 +128,10 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               }
             case "products":
               return importProducts({ client, filterChains: chain === "all" ? allChainIds : [chain] });
-            case "prices":
-              return importBeefyDataPrices({ client });
+            case "recent-prices":
+              return importBeefyDataRecentPrices({ client });
+            case "historical-prices":
+              return importBeefyDataRecentPrices({ client });
             default:
               throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
           }
@@ -141,9 +145,15 @@ async function importProducts(options: { client: PoolClient; filterChains: Chain
   return consumeObservable(pipeline$);
 }
 
-async function importBeefyDataPrices(options: { client: PoolClient }) {
-  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyUnderlyingPrices$({ client: options.client }));
-  logger.info({ msg: "starting prices import", data: { ...options, client: "<redacted>" } });
+async function importBeefyDataRecentPrices(options: { client: PoolClient }) {
+  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyRecentUnderlyingPrices$({ client: options.client }));
+  logger.info({ msg: "starting recent prices import", data: { ...options, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
+}
+
+async function importBeefyDataHistoricalPrices(options: { client: PoolClient }) {
+  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyHistoricalUnderlyingPrices$({ client: options.client }));
+  logger.info({ msg: "starting historical prices import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
 

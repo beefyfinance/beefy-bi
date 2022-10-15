@@ -1,6 +1,5 @@
 import { backOff } from "exponential-backoff";
 import NodeCache from "node-cache";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
@@ -183,6 +182,29 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
       }
 
       return options.formatOutput(item, latestDate, ranges);
+    }),
+  );
+}
+
+/**
+ * Generate a query based on the block
+ * used to get last data for the given chain
+ */
+export function addLatestDateQuery$<TObj, TRes>(options: {
+  getLastImportedDate: () => Date | null;
+  formatOutput: (obj: TObj, latestDate: Date, recentDateQuery: Range<Date>) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    Rx.map((item) => {
+      const latestDate = new Date();
+      const maxMsPerQuery = BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS;
+      const lastImportedDate = options.getLastImportedDate() || new Date(0);
+      const fromMs = Math.max(lastImportedDate.getTime(), latestDate.getTime() - maxMsPerQuery);
+      const recentDateQuery = {
+        from: new Date(fromMs),
+        to: latestDate,
+      };
+      return options.formatOutput(item, latestDate, recentDateQuery);
     }),
   );
 }

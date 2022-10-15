@@ -142,6 +142,15 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
   );
 }
 
+// remember the last imported block number for each chain so we can reduce the amount of data we fetch
+type RecentImportState = {
+  [key in Chain]: { lastImportedBlockNumber: number | null };
+};
+const recentImportState: RecentImportState = allChainIds.reduce(
+  (agg, chain) => Object.assign(agg, { [chain]: { lastImportedBlockNumber: null } }),
+  {} as RecentImportState,
+);
+
 export function importChainRecentData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   const logger = rootLogger.child({ module: "beefy", component: "import-live-data" });
 
@@ -157,20 +166,6 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     // and we cannot afford too long of a retry per product
     maxTotalRetryMs: 10_000,
   };
-  const {
-    observable: productErrors$,
-    complete: completeProductErrors$,
-    next: emitErrors,
-  } = createObservableWithNext<ImportQuery<DbProduct, number>>();
-
-  // remember the last imported block number for each chain so we can reduce the amount of data we fetch
-  type ImportState = {
-    [key in Chain]: { lastImportedBlockNumber: number | null };
-  };
-  const importState: ImportState = allChainIds.reduce(
-    (agg, chain) => Object.assign(agg, { [chain]: { lastImportedBlockNumber: null } }),
-    {} as ImportState,
-  );
 
   return Rx.pipe(
     // add typings to the input item
@@ -189,24 +184,19 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
       rpcConfig,
       forceCurrentBlockNumber,
       streamConfig: streamConfig,
-      getLastImportedBlock: () => importState[chain].lastImportedBlockNumber ?? null,
+      getLastImportedBlock: () => recentImportState[chain].lastImportedBlockNumber ?? null,
       formatOutput: (item, latest, range) => ({ ...item, range, latest }),
     }),
 
     // process the queries
-    importProductBlockRange$({ client, chain, streamConfig, rpcConfig, emitErrors }),
-
-    // merge the errors back in, all items here should have been successfully treated
-
-    Rx.pipe(
-      Rx.map((item) => ({ ...item, success: true })),
-      // make sure we close the errors observable when we are done
-      Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
-      // merge the errors back in, all items here should have been successfully treated
-      Rx.mergeWith(productErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
-      // make sure the type is correct
-      Rx.map((item): ImportResult<DbBeefyProduct, number> => item),
-    ),
+    importProductBlockRange$({
+      client,
+      chain,
+      streamConfig,
+      rpcConfig,
+      // ignore errors
+      emitErrors: () => {},
+    }),
 
     // logging
     Rx.tap((item) => {
@@ -215,6 +205,9 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
           msg: "Imported live data",
           data: { productId: item.target.productData, blockRange: item.range, success: item.success },
         });
+
+        // update the local state
+        recentImportState[chain].lastImportedBlockNumber = Math.max(recentImportState[chain].lastImportedBlockNumber || 0, item.range.to);
       } else {
         logger.error({ msg: "Failed to import live data", data: { productId: item.target.productData, blockRange: item.range } });
       }

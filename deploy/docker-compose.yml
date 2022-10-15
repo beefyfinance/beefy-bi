@@ -20,6 +20,13 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml up -d --force-recreate
 # docker logs -f deploy-importer-1
 
+# BACKUP
+# cd ~/beefy/snapshots
+# docker stop deploy-importer-1 deploy-grafana-1 deploy-redis-1
+# docker run --rm -it --network container:deploy-timescaledb-1 -w /data -v $PWD:/data beefy-data-importer /bin/sh
+# apk add postgresql-client
+# pg_dump -h timescaledb -p 5432 -U beefy -Fc -v -f beefy.`date +'%Y-%m-%d.%H-%M-%S'`.pg_dump.bak beefy
+
 volumes:
   git_work_directory:
     external: true

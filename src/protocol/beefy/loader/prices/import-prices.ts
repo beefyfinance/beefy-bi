@@ -1,24 +1,23 @@
 import Decimal from "decimal.js";
-import { keyBy, sortBy } from "lodash";
+import { sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
-import { db_query } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
-import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
-import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
-import { addHistoricalDateQuery$ } from "../../common/connector/import-queries";
-import { addMissingImportState$, DbOraclePriceImportState, updateImportState$ } from "../../common/loader/import-state";
-import { DbPriceFeed } from "../../common/loader/price-feed";
-import { upsertPrice$ } from "../../common/loader/prices";
-import { ImportQuery, ImportResult } from "../../common/types/import-query";
-import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
-import { memoryBackpressure$ } from "../../common/utils/memory-backpressure";
-import { fetchBeefyPrices } from "../connector/prices";
+import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS } from "../../../../utils/config";
+import { rootLogger } from "../../../../utils/logger";
+import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
+import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
+import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
+import { addMissingImportState$, DbOraclePriceImportState, updateImportState$ } from "../../../common/loader/import-state";
+import { DbPriceFeed } from "../../../common/loader/price-feed";
+import { upsertPrice$ } from "../../../common/loader/prices";
+import { ImportQuery, ImportResult } from "../../../common/types/import-query";
+import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
+import { fetchBeefyDataPrices$, fetchBeefyPrices } from "../../connector/prices";
+import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
-export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
-  const logger = rootLogger.child({ module: "beefy", component: "import-underlying-prices" });
+export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
+  const logger = rootLogger.child({ module: "beefy", component: "import-historical-underlying-prices" });
 
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
@@ -40,9 +39,6 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
   return Rx.pipe(
     Rx.pipe(
       Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
-
-      // only live price feeds
-      Rx.filter((priceFeed) => priceFeed.priceFeedData.active),
 
       // map to an object where we can add attributes to safely
       Rx.map((priceFeed) => ({ target: priceFeed })),
@@ -128,36 +124,17 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
       ),
     ),
 
-    Rx.pipe(
-      // be nice with beefy api plz
-      rateLimit$(300),
-
-      // now we fetch
-      Rx.concatMap(async (item) => {
-        const debugLogData = {
-          priceFeedKey: item.target.feedKey,
-          priceFeed: item.target.priceFeedId,
-          range: item.range,
-        };
-
-        logger.debug({ msg: "fetching prices", data: debugLogData });
-        try {
-          const prices = await fetchBeefyPrices("15min", item.target.priceFeedData.externalId, {
-            startDate: item.range.from,
-            endDate: item.range.to,
-          });
-          logger.debug({ msg: "got prices", data: { ...debugLogData, priceCount: prices.length } });
-
-          return Rx.of({ ...item, prices });
-        } catch (error) {
-          logger.error({ msg: "error fetching prices", data: { ...debugLogData, error } });
-          logger.error(error);
-          emitErrors(item);
-          return Rx.EMPTY;
-        }
+    fetchBeefyDataPrices$({
+      emitErrors,
+      streamConfig,
+      getPriceParams: (item) => ({
+        oracleId: item.target.priceFeedData.externalId,
+        samplingPeriod: "15min",
       }),
-      Rx.concatAll(),
+      formatOutput: (item, prices) => ({ ...item, prices }),
+    }),
 
+    Rx.pipe(
       Rx.catchError((err) => {
         logger.error({ msg: "error fetching prices", err });
         logger.error(err);
@@ -204,48 +181,83 @@ export function importBeefyUnderlyingPrices$(options: { client: PoolClient }) {
   );
 }
 
-function fetchProductContractCreationInfos<TObj, TRes>(options: {
-  client: PoolClient;
-  getPriceFeedId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, contractCreationInfos: { contractCreatedAtBlock: number; contractCreationDate: Date } | null) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+// remember the last imported block number for each chain so we can reduce the amount of data we fetch
+let lastImportDate: Date | null = null;
+
+export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient }) {
+  const logger = rootLogger.child({ module: "beefy", component: "import-recent-underlying-prices" });
+
+  const streamConfig: BatchStreamConfig = {
+    // since we are doing live data on a small amount of queries (one per vault)
+    // we can afford some amount of concurrency
+    workConcurrency: 10,
+    // But we can not afford to wait before processing the next batch
+    maxInputWaitMs: 5_000,
+    maxInputTake: 500,
+    // and we cannot afford too long of a retry per product
+    maxTotalRetryMs: 10_000,
+  };
+
   return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
+    Rx.pipe(
+      Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
 
-    // upsert data and map to input objects
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
+      // only live price feeds
+      Rx.filter((priceFeed) => priceFeed.priceFeedData.active),
 
-      const objAndData = objs.map((obj) => ({ obj, priceFeedId: options.getPriceFeedId(obj) }));
+      // map to an object where we can add attributes to safely
+      Rx.map((priceFeed) => ({ target: priceFeed })),
 
-      type TRes = { priceFeedId: number; contractCreatedAtBlock: number; contractCreationDate: Date };
-      const results = await db_query<TRes>(
-        `SELECT 
-            p.price_feed_2_id as "priceFeedId",
-            (import_data->'contractCreatedAtBlock')::integer as "contractCreatedAtBlock",
-            (import_data->>'contractCreationDate')::timestamptz as "contractCreationDate"
-        FROM import_state i
-          JOIN product p on p.product_id = (i.import_data->'productId')::integer
-        WHERE price_feed_2_id IN (%L)`,
-        [objAndData.map((obj) => obj.priceFeedId)],
-        options.client,
-      );
+      // remove duplicates
+      Rx.distinct(({ target }) => target.priceFeedData.externalId),
+    ),
 
-      // ensure results are in the same order as the params
-      const idMap = keyBy(
-        results.map((res) => {
-          res.contractCreationDate = new Date(res.contractCreationDate);
-          return res;
-        }),
-        "priceFeedId",
-      );
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.priceFeedId] ?? null));
+    // generate the query
+    addLatestDateQuery$({
+      getLastImportedDate: () => lastImportDate,
+      formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
     }),
 
-    // flatten objects
-    Rx.concatMap((objs) => Rx.from(objs)),
+    Rx.pipe(
+      fetchBeefyDataPrices$({
+        emitErrors: () => {}, // ignore errors
+        streamConfig,
+        getPriceParams: (item) => ({
+          oracleId: item.target.priceFeedData.externalId,
+          samplingPeriod: "15min",
+        }),
+        formatOutput: (item, prices) => ({ ...item, prices }),
+      }),
+
+      Rx.catchError((err) => {
+        logger.error({ msg: "error fetching prices", err });
+        logger.error(err);
+        return Rx.EMPTY;
+      }),
+
+      // flatten the array of prices
+      Rx.concatMap((item) => Rx.from(item.prices.map((price) => ({ ...item, price })))),
+    ),
+
+    upsertPrice$({
+      client: options.client,
+      streamConfig: streamConfig,
+      getPriceData: (item) => ({
+        datetime: item.price.datetime,
+        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
+        priceFeedId: item.target.priceFeedId,
+        price: new Decimal(item.price.value),
+        priceData: {},
+      }),
+      formatOutput: (priceData, price) => ({ ...priceData, price }),
+    }),
+
+    // logging
+    Rx.tap((item) => {
+      // update the local state
+      if (lastImportDate === null || item.range.to > lastImportDate) {
+        lastImportDate = item.range.to;
+      }
+    }),
   );
 }
