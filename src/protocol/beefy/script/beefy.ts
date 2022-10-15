@@ -1,18 +1,18 @@
-import * as Rx from "rxjs";
-import { allChainIds, Chain } from "../../../types/chain";
-import { db_migrate, withPgClient } from "../../../utils/db";
 import { PoolClient } from "pg";
-import { rootLogger } from "../../../utils/logger";
-import { DbBeefyProduct, productList$ } from "../../common/loader/product";
-import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { sleep } from "../../../utils/async";
-import { importBeefyProducts$ } from "../loader/products";
-import { importBeefyUnderlyingPrices$ } from "../loader/prices";
-import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
-import { ProgrammerError } from "../../../utils/programmer-error";
+import * as Rx from "rxjs";
 import yargs from "yargs";
-import { priceFeedList$ } from "../../common/loader/price-feed";
+import { allChainIds, Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
+import { sleep } from "../../../utils/async";
+import { db_migrate, withPgClient } from "../../../utils/db";
+import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
+import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
+import { priceFeedList$ } from "../../common/loader/price-feed";
+import { DbBeefyProduct, productList$ } from "../../common/loader/product";
+import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
+import { importBeefyUnderlyingPrices$ } from "../loader/prices";
+import { importBeefyProducts$ } from "../loader/products";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 

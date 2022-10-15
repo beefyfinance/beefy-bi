@@ -189,10 +189,10 @@ export function updateImportState$<
     (newImportState.importData.ranges as ImportRanges<TRange>) = newRanges;
 
     // update the latest block number we know about
-    if (isProductInvestmentImportState(importState) || isProductShareRateImportState(importState)) {
-      importState.importData.chainLatestBlockNumber =
+    if (isProductInvestmentImportState(newImportState) || isProductShareRateImportState(newImportState)) {
+      newImportState.importData.chainLatestBlockNumber =
         rangeValueMax(
-          (items as ImportResult<TTarget, number>[]).map((item) => item.latest).concat([importState.importData.chainLatestBlockNumber]),
+          (items as ImportResult<TTarget, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
         ) || 0;
     }
 
