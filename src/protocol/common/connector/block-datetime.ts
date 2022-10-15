@@ -26,8 +26,10 @@ export function fetchBlockDatetime$<
     },
     getQuery: options.getBlockNumber,
     processBatch: async (provider, params: TParams[]) => {
+      console.dir(params, { depth: null });
       const promises = params.map((blockNumber) => provider.getBlock(blockNumber));
-      return Promise.all(promises).then((blocks) => blocks.map((block) => new Date(block.timestamp * 1000)));
+      const blocks = await Promise.all(promises);
+      return blocks.map((block) => new Date(block.timestamp * 1000));
     },
     formatOutput: options.formatOutput,
     emitErrors: options.emitErrors,

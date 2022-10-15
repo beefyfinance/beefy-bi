@@ -13,7 +13,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
-import { fetchBeefyDataPrices$, fetchBeefyPrices } from "../../connector/prices";
+import { fetchBeefyDataPrices$ } from "../../connector/prices";
 import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {

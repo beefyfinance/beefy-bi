@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { sleep } from "../../async";
-import { bufferUntilKeyChanged } from "./buffer-until-key-change";
+import { bufferUntilKeyChanged } from "./buffer-until-key-changed";
 import { consumeObservable } from "./consume-observable";
 
 describe("bufferUntilKeyChanged", () => {
@@ -102,10 +102,10 @@ describe("bufferUntilKeyChanged", () => {
         await sleep(10);
         subscriber.next(1);
         subscriber.next(1);
-        await sleep(100);
+        await sleep(120);
         subscriber.next(1);
         subscriber.next(1);
-        await sleep(100);
+        await sleep(120);
         subscriber.next(1);
         subscriber.next(5);
         subscriber.complete();
@@ -115,7 +115,7 @@ describe("bufferUntilKeyChanged", () => {
         getKey: (x) => `${x}`,
         maxBufferSize: 100,
         maxBufferTimeMs: 100,
-        pollFrequencyMs: 1,
+        pollFrequencyMs: 5,
         pollJitterMs: 0,
         logInfos: { msg: "test" },
       }),

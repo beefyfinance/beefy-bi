@@ -32,6 +32,12 @@ export function looselessThrottleWhen<TObj>(options: {
     }, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
 
     return () => {
+      if (objQueue.length > 0) {
+        logger.error({
+          msg: "looselessThrottleWhen: queue not empty on unsubscribe. " + options.logInfos.msg,
+          data: { ...options.logInfos.data, objQueue },
+        });
+      }
       logger.trace({
         msg: "Releaser unsubscribed. " + options.logInfos.msg,
         data: { ...options.logInfos.data, checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs },

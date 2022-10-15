@@ -8,7 +8,7 @@ import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { bufferUntilAccumulatedCountReached } from "../../../utils/rxjs/utils/buffer-until-accumulated-count";
+import { bufferUntilCountReached } from "../../../utils/rxjs/utils/buffer-until-count-reached";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { getRpcRetryConfig } from "./rpc-retry-config";
@@ -99,7 +99,7 @@ export function batchRpcCalls$<
 
   return Rx.pipe(
     // take a batch of items
-    bufferUntilAccumulatedCountReached<TInputObj>({
+    bufferUntilCountReached<TInputObj>({
       maxBufferSize: maxInputObjsPerBatch,
       maxBufferTimeMs: options.streamConfig.maxInputWaitMs,
       pollFrequencyMs: 150,

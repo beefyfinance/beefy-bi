@@ -131,7 +131,17 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       // make sure we close the errors observable when we are done
       Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
       // merge the errors back in, all items here should have been successfully treated
-      Rx.mergeWith(productErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
+      Rx.mergeWith(
+        productErrors$.pipe(
+          Rx.map((item) => ({ ...item, success: false })),
+          Rx.tap((item) =>
+            logger.error({
+              msg: "processing error",
+              data: { chain: item.target.chain, productId: item.target.productId, product_key: item.target.productKey, range: item.range },
+            }),
+          ),
+        ),
+      ),
       // make sure the type is correct
       Rx.map((item): ImportResult<DbBeefyProduct, number> => item),
     ),
