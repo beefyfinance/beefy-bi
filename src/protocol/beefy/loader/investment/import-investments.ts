@@ -1,4 +1,4 @@
-import { sortBy } from "lodash";
+import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../../types/chain";
@@ -127,21 +127,11 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
     // handle the results
     Rx.pipe(
-      Rx.map((item) => ({ ...item, success: true })),
+      Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
       // make sure we close the errors observable when we are done
-      Rx.finalize(() => setTimeout(completeProductErrors$, 1000)),
+      Rx.finalize(() => setTimeout(completeProductErrors$)),
       // merge the errors back in, all items here should have been successfully treated
-      Rx.mergeWith(
-        productErrors$.pipe(
-          Rx.map((item) => ({ ...item, success: false })),
-          Rx.tap((item) =>
-            logger.error({
-              msg: "processing error",
-              data: { chain: item.target.chain, productId: item.target.productId, product_key: item.target.productKey, range: item.range },
-            }),
-          ),
-        ),
-      ),
+      Rx.mergeWith(productErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
       // make sure the type is correct
       Rx.map((item): ImportResult<DbBeefyProduct, number> => item),
     ),

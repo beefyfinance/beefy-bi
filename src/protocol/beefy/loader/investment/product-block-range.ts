@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { get } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
@@ -6,9 +7,10 @@ import { RpcConfig } from "../../../../types/rpc-config";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
+import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
+import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
 import { DbBeefyProduct } from "../../../common/loader/product";
-import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
+import { ErrorEmitter, ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
@@ -151,14 +153,6 @@ export function importProductBlockRange$(options: {
     })),
   );
 
-  const importTransfers$ = loadTransfers$({
-    chain: options.chain,
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
-    rpcConfig: options.rpcConfig,
-  });
-
   return Rx.pipe(
     // add typings to the input item
     Rx.filter((_: ImportQuery<DbBeefyProduct, number>) => true),
@@ -213,16 +207,24 @@ export function importProductBlockRange$(options: {
     Rx.mergeMap((items) => {
       const itemsTransfers = items.map((item) =>
         item.transfers.map(
-          (transfer, idx): TransferWithRate => ({
-            transfer,
-            ignoreAddresses: item.ignoreAddresses,
-            target: item.target,
-            sharesRate: item.ppfss[idx],
+          (transfer, idx): ImportQuery<TransferWithRate, number> => ({
+            target: {
+              transfer,
+              product: item.target,
+              sharesRate: item.ppfss[idx],
+              ignoreAddresses: item.ignoreAddresses,
+            },
             range: item.range,
             latest: item.latest,
           }),
         ),
       );
+
+      const {
+        observable: transferErrors$,
+        next: emitTransferErrors,
+        complete: completeTransferErrors$,
+      } = createObservableWithNext<ImportQuery<TransferWithRate, number>>();
 
       return Rx.of(itemsTransfers.flat()).pipe(
         Rx.mergeAll(),
@@ -230,16 +232,44 @@ export function importProductBlockRange$(options: {
         Rx.tap((item) =>
           logger.trace({
             msg: "importing transfer",
-            data: { product: item.target.productId, blockRange: item.range, transfer: item.transfer },
+            data: { product: item.target.product.productId, blockRange: item.range, transfer: item.target },
           }),
         ),
 
         // enhance transfer and insert in database
-        importTransfers$,
+        loadTransfers$({
+          chain: options.chain,
+          client: options.client,
+          streamConfig: options.streamConfig,
+          emitErrors: emitTransferErrors,
+          rpcConfig: options.rpcConfig,
+        }),
+
+        // merge errors
+        Rx.pipe(
+          Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
+          // make sure we close the errors observable when we are done
+          Rx.finalize(() => setTimeout(completeTransferErrors$)),
+          // merge the errors back in, all items here should have been successfully treated
+          Rx.mergeWith(transferErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
+          // make sure the type is correct
+          Rx.map((item): ImportResult<TransferWithRate, number> => item),
+        ),
 
         // return to product representation
-        Rx.count(),
-        Rx.map(() => items.map((item) => ({ ...item, success: true }))),
+        Rx.toArray(),
+        Rx.map((transfers) => {
+          return items.map((item) => {
+            // get all transfers for this product
+            const itemTransferResults = transfers.filter((t) => t.target.product.productId === item.target.productId);
+            // only a success if ALL transfer imports were successful
+            const success = itemTransferResults.every((t) => t.success);
+            return {
+              ...item,
+              success,
+            };
+          });
+        }),
       );
     }, options.streamConfig.workConcurrency),
 

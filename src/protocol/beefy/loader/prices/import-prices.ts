@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { sortBy } from "lodash";
+import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS } from "../../../../utils/config";
@@ -162,7 +162,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
     Rx.pipe(
       // handle the results
       Rx.pipe(
-        Rx.map((item) => ({ ...item, success: true })),
+        Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
         // make sure we close the errors observable when we are done
         Rx.finalize(() => setTimeout(completePriceFeedErrors$, 1000)),
         // merge the errors back in, all items here should have been successfully treated

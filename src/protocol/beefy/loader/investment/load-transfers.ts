@@ -10,12 +10,13 @@ import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
-import { DbBeefyProduct, DbProduct } from "../../../common/loader/product";
+import { DbProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 
-export type TransferWithRate = ImportQuery<DbProduct, number> & {
+export type TransferWithRate = {
   transfer: ERC20Transfer;
+  product: DbProduct;
   ignoreAddresses: string[];
   sharesRate: Decimal;
 };
@@ -25,14 +26,14 @@ export type TransferLoadStatus = { transferCount: number; success: true };
 export function loadTransfers$(options: {
   chain: Chain;
   client: PoolClient;
-  emitErrors: ErrorEmitter<DbBeefyProduct, number>;
+  emitErrors: ErrorEmitter<TransferWithRate, number>;
   streamConfig: BatchStreamConfig;
   rpcConfig: RpcConfig;
 }) {
   return Rx.pipe(
     // remove ignored addresses
-    Rx.filter((item: TransferWithRate) => {
-      const shouldIgnore = item.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(item.transfer.ownerAddress));
+    Rx.filter((item: ImportQuery<TransferWithRate, number>) => {
+      const shouldIgnore = item.target.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(item.target.transfer.ownerAddress));
       if (shouldIgnore) {
         //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
       }
@@ -48,10 +49,10 @@ export function loadTransfers$(options: {
       chain: options.chain,
       rpcConfig: options.rpcConfig,
       getQueryParams: (item) => ({
-        blockNumber: item.transfer.blockNumber,
-        decimals: item.transfer.tokenDecimals,
-        contractAddress: item.transfer.tokenAddress,
-        ownerAddress: item.transfer.ownerAddress,
+        blockNumber: item.target.transfer.blockNumber,
+        decimals: item.target.transfer.tokenDecimals,
+        contractAddress: item.target.transfer.tokenAddress,
+        ownerAddress: item.target.transfer.ownerAddress,
       }),
       emitErrors: options.emitErrors,
       streamConfig: options.streamConfig,
@@ -61,7 +62,7 @@ export function loadTransfers$(options: {
     // we also need the date of each block
     fetchBlockDatetime$({
       rpcConfig: options.rpcConfig,
-      getBlockNumber: (t) => t.transfer.blockNumber,
+      getBlockNumber: (t) => t.target.transfer.blockNumber,
       emitErrors: options.emitErrors,
       streamConfig: options.streamConfig,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
@@ -77,7 +78,7 @@ export function loadTransfers$(options: {
       streamConfig: options.streamConfig,
       emitErrors: options.emitErrors,
       getInvestorData: (item) => ({
-        address: item.transfer.ownerAddress,
+        address: item.target.transfer.ownerAddress,
         investorData: {},
       }),
       formatOutput: (transferData, investorId) => ({ ...transferData, investorId }),
@@ -89,18 +90,18 @@ export function loadTransfers$(options: {
       streamConfig: options.streamConfig,
       emitErrors: options.emitErrors,
       getPriceData: (item) => ({
-        priceFeedId: item.target.priceFeedId1,
-        blockNumber: item.transfer.blockNumber,
-        price: item.sharesRate,
+        priceFeedId: item.target.product.priceFeedId1,
+        blockNumber: item.target.transfer.blockNumber,
+        price: item.target.sharesRate,
         datetime: item.blockDatetime,
         priceData: {
           chain: options.chain,
-          trxHash: item.transfer.transactionHash,
-          sharesRate: item.sharesRate.toString(),
+          trxHash: item.target.transfer.transactionHash,
+          sharesRate: item.target.sharesRate.toString(),
           productType:
-            item.target.productData.type === "beefy:vault"
-              ? item.target.productData.type + (item.target.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.target.productData.type,
+            item.target.product.productData.type === "beefy:vault"
+              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.product.productData.type,
         },
       }),
       formatOutput: (transferData, priceRow) => ({ ...transferData, priceRow }),
@@ -113,21 +114,21 @@ export function loadTransfers$(options: {
       emitErrors: options.emitErrors,
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
-        blockNumber: item.transfer.blockNumber,
-        productId: item.target.productId,
+        blockNumber: item.target.transfer.blockNumber,
+        productId: item.target.product.productId,
         investorId: item.investorId,
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
         investmentData: {
           chain: options.chain,
           balance: item.vaultSharesBalance.toString(),
-          balanceDiff: item.transfer.amountTransfered.toString(),
-          trxHash: item.transfer.transactionHash,
-          sharesRate: item.sharesRate.toString(),
+          balanceDiff: item.target.transfer.amountTransfered.toString(),
+          trxHash: item.target.transfer.transactionHash,
+          sharesRate: item.target.sharesRate.toString(),
           productType:
-            item.target.productData.type === "beefy:vault"
-              ? item.target.productData.type + (item.target.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.target.productData.type,
+            item.target.product.productData.type === "beefy:vault"
+              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.product.productData.type,
         },
       }),
       formatOutput: (transferData, investment) => ({ ...transferData, investment }),
