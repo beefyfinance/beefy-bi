@@ -1,7 +1,7 @@
 import * as Rx from "rxjs";
 import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { looselessThrottleWhen } from "../../../utils/rxjs/utils/looseless-throttle-when";
+import { throttleWhen } from "../../../utils/rxjs/utils/throttle-when";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "memory-backpressure" });
 
@@ -10,19 +10,20 @@ const logger = rootLogger.child({ module: "rxjs-utils", component: "memory-backp
  */
 export function memoryBackpressure$<TObj>(options: { logInfos: { msg: string; data?: object }; sendBurstsOf: number }) {
   return Rx.pipe(
-    looselessThrottleWhen<TObj>({
+    throttleWhen<TObj>({
       checkIntervalJitterMs: 200,
       checkIntervalMs: BACKPRESSURE_CHECK_INTERVAL_MS,
       logInfos: options.logInfos,
+      sendBurstsOf: options.sendBurstsOf,
       shouldSend: () => {
         const memoryMb = getProcessMemoryMb();
 
         if (memoryMb < BACKPRESSURE_MEMORY_THRESHOLD_MB) {
           logger.trace({ msg: "Sending in buffered item. " + options.logInfos.msg, data: { ...options.logInfos.data, ...options } });
-          return options.sendBurstsOf;
+          return true;
         }
         logger.trace({ msg: "Buffering until below machine thresholds. " + options.logInfos.msg, data: { ...options.logInfos.data, ...options } });
-        return 0;
+        return false;
       },
     }),
   );
