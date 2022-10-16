@@ -1,10 +1,8 @@
 import axios from "axios";
 import * as Rx from "rxjs";
-import { RpcConfig } from "../../../types/rpc-config";
 import { SamplingPeriod } from "../../../types/sampling";
 import { BEEFY_DATA_URL } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { ErrorEmitter, ImportQuery } from "../../common/types/import-query";
 import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";

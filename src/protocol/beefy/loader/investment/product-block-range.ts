@@ -8,13 +8,12 @@ import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
-import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
+import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
-import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
-import { loadTransfers$, TransferWithRate } from "./load-transfers";
+import { loadTransfers$, TransferToLoad } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
@@ -48,24 +47,6 @@ export function importProductBlockRange$(options: {
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
 
-    // then we need the vault ppfs to interpret the balance
-    fetchBeefyPPFS$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
-      getPPFSCallParams: (item) => {
-        const boost = item.target.productData.boost;
-        return {
-          vaultAddress: boost.staked_token_address,
-          underlyingDecimals: item.target.productData.boost.vault_want_decimals,
-          vaultDecimals: boost.staked_token_decimals,
-          blockNumbers: item.transfers.map((t) => t.blockNumber),
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
-    }),
-
     // add an ignore address so we can pipe this observable into the main pipeline again
     Rx.map((item) => ({ ...item, ignoreAddresses: [item.target.productData.boost.contract_address] })),
   );
@@ -94,23 +75,6 @@ export function importProductBlockRange$(options: {
       },
       emitErrors: options.emitErrors,
       formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-
-    // fetch the ppfs
-    fetchBeefyPPFS$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
-      getPPFSCallParams: (item) => {
-        return {
-          vaultAddress: item.target.productData.vault.contract_address,
-          underlyingDecimals: item.target.productData.vault.want_decimals,
-          vaultDecimals: item.target.productData.vault.token_decimals,
-          blockNumbers: item.transfers.map((t) => t.blockNumber),
-        };
-      },
-      emitErrors: options.emitErrors,
-      formatOutput: (item, ppfss) => ({ ...item, ppfss }),
     }),
   );
 
@@ -145,12 +109,6 @@ export function importProductBlockRange$(options: {
       emitErrors: options.emitErrors,
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
-
-    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
-    Rx.map((item) => ({
-      ...item,
-      ppfss: item.transfers.map(() => new Decimal(1)),
-    })),
   );
 
   return Rx.pipe(
@@ -207,11 +165,10 @@ export function importProductBlockRange$(options: {
     Rx.mergeMap((items) => {
       const itemsTransfers = items.map((item) =>
         item.transfers.map(
-          (transfer, idx): ImportQuery<TransferWithRate, number> => ({
+          (transfer): ImportQuery<TransferToLoad<DbBeefyProduct>, number> => ({
             target: {
               transfer,
               product: item.target,
-              sharesRate: item.ppfss[idx],
               ignoreAddresses: item.ignoreAddresses,
             },
             range: item.range,
@@ -224,7 +181,7 @@ export function importProductBlockRange$(options: {
         observable: transferErrors$,
         next: emitTransferErrors,
         complete: completeTransferErrors$,
-      } = createObservableWithNext<ImportQuery<TransferWithRate, number>>();
+      } = createObservableWithNext<ImportQuery<TransferToLoad<DbBeefyProduct>, number>>();
 
       return Rx.of(itemsTransfers.flat()).pipe(
         Rx.mergeAll(),
@@ -253,7 +210,7 @@ export function importProductBlockRange$(options: {
           // merge the errors back in, all items here should have been successfully treated
           Rx.mergeWith(transferErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
           // make sure the type is correct
-          Rx.map((item): ImportResult<TransferWithRate, number> => item),
+          Rx.map((item): ImportResult<TransferToLoad<DbBeefyProduct>, number> => item),
         ),
 
         // return to product representation

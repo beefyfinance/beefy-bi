@@ -45,7 +45,7 @@ const findings = (() => {
     },
     avax: {
       "https://rpc.ankr.com/avalanche": {
-        eth_getLogs: 10,
+        eth_getLogs: null,
         eth_call: 500,
         eth_getBlockByNumber: 500,
         eth_blockNumber: null,
