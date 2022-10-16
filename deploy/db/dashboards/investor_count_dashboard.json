@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 30,
-  "iteration": 1665765300208,
+  "iteration": 1665843366209,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -54,8 +54,71 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
       "id": 2,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with \ninvestment_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    investor_id,\n    locf(last(balance::numeric, datetime)) as balance\n  FROM\n    investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in ($_product_ids)\n  GROUP BY\n    1, 2\n),\ninvestment_ts as (\n  select * from investment_gf_ts where balance is not null and balance > 0\n)\nselect \n  $__time(datetime),\n  count(distinct investor_id) as investor_count\nfrom investment_ts\nGROUP by 1\n",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor count",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 4,
+      "panels": [],
+      "repeat": "_product_ids",
+      "repeatDirection": "h",
+      "title": "$_product_ids",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 15 },
+      "id": 5,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
       "targets": [
         {
@@ -81,7 +144,7 @@
   "templating": {
     "list": [
       {
-        "current": { "selected": true, "text": ["kava"], "value": ["kava"] },
+        "current": { "selected": true, "text": ["polygon"], "value": ["polygon"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain from product",
         "hide": 0,
@@ -100,17 +163,17 @@
         "auto": false,
         "auto_count": 30,
         "auto_min": "10s",
-        "current": { "selected": false, "text": "1h", "value": "1h" },
+        "current": { "selected": true, "text": "1d", "value": "1d" },
         "hide": 0,
         "name": "interval",
         "options": [
           { "selected": false, "text": "1m", "value": "1m" },
           { "selected": false, "text": "10m", "value": "10m" },
           { "selected": false, "text": "30m", "value": "30m" },
-          { "selected": true, "text": "1h", "value": "1h" },
+          { "selected": false, "text": "1h", "value": "1h" },
           { "selected": false, "text": "6h", "value": "6h" },
           { "selected": false, "text": "12h", "value": "12h" },
-          { "selected": false, "text": "1d", "value": "1d" },
+          { "selected": true, "text": "1d", "value": "1d" },
           { "selected": false, "text": "7d", "value": "7d" },
           { "selected": false, "text": "14d", "value": "14d" },
           { "selected": false, "text": "30d", "value": "30d" }
@@ -136,14 +199,29 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "definition": "select product_key from product where product_id in ($_product_ids)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_product_keys",
+        "options": [],
+        "query": "select product_key from product where product_id in ($_product_ids)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
-  "time": { "from": "now-6h", "to": "now" },
+  "time": { "from": "now-6M", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Investor count",
   "uid": "woSq52S4z",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }

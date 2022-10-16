@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 26,
-  "iteration": 1665687867793,
+  "iteration": 1665687867799,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -371,6 +371,6 @@
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 6,
+  "version": 7,
   "weekStart": ""
 }
