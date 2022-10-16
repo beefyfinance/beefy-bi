@@ -35,6 +35,13 @@ export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
 
+export const RPC_EXPONENTIAL_RETRY_ATTEMPTS = process.env.RPC_EXPONENTIAL_RETRY_ATTEMPTS
+  ? parseInt(process.env.RPC_EXPONENTIAL_RETRY_ATTEMPTS, 10)
+  : 5;
+export const RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS = process.env.RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS
+  ? parseInt(process.env.RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS, 10)
+  : 60_000;
+
 export const RPC_URLS: { [chain in Chain]: string[] } = {
   arbitrum: process.env.ARBITRUM_RPC
     ? [process.env.ARBITRUM_RPC]

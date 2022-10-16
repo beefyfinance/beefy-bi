@@ -2,10 +2,12 @@ import Decimal from "decimal.js";
 import { groupBy, keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { SupportedRangeTypes } from "../../../utils/range";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "prices" });
 
@@ -18,27 +20,29 @@ export interface DbPrice {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertPrice$<TInput, TRes>(options: {
+export function upsertPrice$<
+  TTarget,
+  TRange extends SupportedRangeTypes,
+  TParams extends DbPrice,
+  TInput extends ImportQuery<TTarget, TRange>,
+  TRes extends ImportQuery<TTarget, TRange>,
+>(options: {
   client: PoolClient;
   streamConfig: BatchStreamConfig;
-  getPriceData: (obj: TInput) => DbPrice;
+  emitErrors: ErrorEmitter<TTarget, TRange>;
+  getPriceData: (obj: TInput) => TParams;
   formatOutput: (obj: TInput, price: DbPrice) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
-
-    // insert to the price table
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const objAndData = objs.map((obj) => ({ obj, price: options.getPriceData(obj) }));
-
+  return dbBatchCall$({
+    client: options.client,
+    streamConfig: options.streamConfig,
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getData: options.getPriceData,
+    processBatch: async (objAndData) => {
       // add duplicate detection in dev only
       if (process.env.NODE_ENV === "development") {
-        const duplicates = Object.entries(groupBy(objAndData, ({ price }) => `${price.priceFeedId}-${price.blockNumber}`)).filter(
+        const duplicates = Object.entries(groupBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`)).filter(
           ([_, v]) => v.length > 1,
         );
         if (duplicates.length > 0) {
@@ -60,19 +64,17 @@ export function upsertPrice$<TInput, TRes>(options: {
                 price_data = jsonb_merge(price_ts.price_data, EXCLUDED.price_data)
           `,
         [
-          uniqBy(objAndData, ({ price }) => `${price.priceFeedId}-${price.blockNumber}`).map(({ price }) => [
-            price.datetime.toISOString(),
-            price.blockNumber,
-            price.priceFeedId,
-            price.price.toString(),
-            price.priceData,
+          uniqBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data }) => [
+            data.datetime.toISOString(),
+            data.blockNumber,
+            data.priceFeedId,
+            data.price.toString(),
+            data.priceData,
           ]),
         ],
         options.client,
       );
-      return objAndData.map(({ obj, price: investment }) => options.formatOutput(obj, investment));
-    }, options.streamConfig.workConcurrency),
-
-    Rx.concatMap((investments) => investments), // flatten
-  );
+      return objAndData.map(({ obj, data: investment }) => investment);
+    },
+  });
 }

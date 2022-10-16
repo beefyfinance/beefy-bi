@@ -74,6 +74,8 @@ export function loadTransfers$(options: {
     // insert the investor data
     upsertInvestor$({
       client: options.client,
+      streamConfig: options.streamConfig,
+      emitErrors: options.emitErrors,
       getInvestorData: (item) => ({
         address: item.transfer.ownerAddress,
         investorData: {},
@@ -85,6 +87,7 @@ export function loadTransfers$(options: {
     upsertPrice$({
       client: options.client,
       streamConfig: options.streamConfig,
+      emitErrors: options.emitErrors,
       getPriceData: (item) => ({
         priceFeedId: item.target.priceFeedId1,
         blockNumber: item.transfer.blockNumber,
@@ -106,6 +109,8 @@ export function loadTransfers$(options: {
     // insert the investment data
     upsertInvestment$({
       client: options.client,
+      streamConfig: options.streamConfig,
+      emitErrors: options.emitErrors,
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.transfer.blockNumber,

@@ -1,12 +1,13 @@
+import { ethers } from "ethers";
 import { backOff } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
-import { getRedisClient, getRedlock } from "./shared-lock";
 import { rootLogger } from "../../utils/logger";
-import { RpcLimitations } from "../rpc/rpc-limitations";
-import { ethers } from "ethers";
-import { removeSecretsFromRpcUrl } from "../rpc/remove-secrets-from-rpc-url";
+import { RPC_EXPONENTIAL_RETRY_ATTEMPTS, RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS } from "../config";
 import { isErrorRetryable } from "../retryable-error";
+import { removeSecretsFromRpcUrl } from "../rpc/remove-secrets-from-rpc-url";
+import { RpcLimitations } from "../rpc/rpc-limitations";
+import { getRedisClient, getRedlock } from "./shared-lock";
 
 const logger = rootLogger.child({ module: "shared-resources", component: "rpc-lock" });
 
@@ -77,8 +78,8 @@ export async function callLockProtectedRpc<TRes>(
     {
       delayFirstAttempt: false,
       jitter: "full",
-      maxDelay: 5 * 60 * 1000,
-      numOfAttempts: 10,
+      maxDelay: RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS,
+      numOfAttempts: RPC_EXPONENTIAL_RETRY_ATTEMPTS,
       retry: (error, attemptNumber) => {
         const message = {
           msg: "RPC error, retrying",

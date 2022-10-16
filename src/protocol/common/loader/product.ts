@@ -1,12 +1,16 @@
 import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { db_query } from "../../../utils/db";
 import { Chain } from "../../../types/chain";
-import { rootLogger } from "../../../utils/logger";
-import { BeefyVault } from "../../beefy/connector/vault-list";
-import { BeefyBoost } from "../../beefy/connector/boost-list";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { db_query } from "../../../utils/db";
+import { rootLogger } from "../../../utils/logger";
+import { SupportedRangeTypes } from "../../../utils/range";
+import { BeefyBoost } from "../../beefy/connector/boost-list";
+import { BeefyVault } from "../../beefy/connector/vault-list";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "product" });
 
@@ -44,23 +48,26 @@ export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | D
 
 export type DbProduct = DbBeefyProduct;
 
-export function upsertProduct$<TInput, TRes>(options: {
+export function upsertProduct$<
+  TTarget,
+  TRange extends SupportedRangeTypes,
+  TParams extends Omit<DbProduct, "productId">,
+  TObj extends ImportQuery<TTarget, TRange>,
+  TRes extends ImportQuery<TTarget, TRange>,
+>(options: {
   client: PoolClient;
-  getProductData: (obj: TInput) => Omit<DbProduct, "productId">;
-  formatOutput: (obj: TInput, feed: DbProduct) => TRes;
-}): Rx.OperatorFunction<TInput, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
-
-    // upsert data and map to input objects
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const objAndData = objs.map((obj) => ({ obj, productData: options.getProductData(obj) }));
-
+  streamConfig: BatchStreamConfig;
+  emitErrors: ErrorEmitter<TTarget, TRange>;
+  getProductData: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, investment: DbProduct) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    client: options.client,
+    streamConfig: options.streamConfig,
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getData: options.getProductData,
+    processBatch: async (objAndData) => {
       const results = await db_query<DbProduct>(
         `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, chain, product_data) VALUES %L
               ON CONFLICT (product_key) 
@@ -77,27 +84,22 @@ export function upsertProduct$<TInput, TRes>(options: {
                 price_feed_2_id as "priceFeedId2", 
                 chain, 
                 product_data as "productData"`,
-        [
-          objAndData.map(({ productData }) => [
-            productData.productKey,
-            productData.priceFeedId1,
-            productData.priceFeedId2,
-            productData.chain,
-            productData.productData,
-          ]),
-        ],
+        [objAndData.map(({ data }) => [data.productKey, data.priceFeedId1, data.priceFeedId2, data.chain, data.productData])],
         options.client,
       );
 
       // ensure results are in the same order as the params
       const idMap = keyBy(results, "productKey");
 
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.productData.productKey]));
-    }),
-
-    // flatten objects
-    Rx.concatMap((objs) => Rx.from(objs)),
-  );
+      return objAndData.map((obj) => {
+        const product = idMap[obj.data.productKey];
+        if (!product) {
+          throw new Error("Could not find product after upsert");
+        }
+        return product;
+      });
+    },
+  });
 }
 
 export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey): Rx.Observable<DbProduct> {

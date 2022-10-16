@@ -7,21 +7,39 @@ import { ProgrammerError } from "../programmer-error";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
+// virtually lower some numbers to account for internal rpc timeout settings
+const internalTimeoutMs = {
+  "rpc.ankr.com": 10_000,
+  "andromeda.metis.io": 5_000,
+  "moonriver.api.onfinality.io": 10_000,
+  "rpc.api.moonriver.moonbeam.network": 10_000,
+};
+
+// some rpc are just too bad to be used with batching
+const disableBatchingFor = {
+  "moonriver.api.onfinality.io": true,
+  "rpc.api.moonriver.moonbeam.network": true,
+};
+
+// make sure we don't hit limitations exactly
+const safetyMargin = 0.8;
+const maxBatchSize = 500;
+
 const findings = (() => {
   const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: { [method in RpcCallMethod]: number | null } } } = {
     arbitrum: {
       "https://rpc.ankr.com/arbitrum": {
         eth_getLogs: 4,
         eth_call: 4,
-        eth_getBlockByNumber: null,
+        eth_getBlockByNumber: 8,
         eth_blockNumber: null,
       },
     },
     aurora: {
       "https://mainnet.aurora.dev": {
-        eth_getLogs: 500,
-        eth_call: 1,
-        eth_getBlockByNumber: 1,
+        eth_getLogs: null,
+        eth_call: 500,
+        eth_getBlockByNumber: 64,
         eth_blockNumber: 500,
       },
     },
@@ -30,14 +48,14 @@ const findings = (() => {
         eth_getLogs: 10,
         eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 2,
+        eth_blockNumber: null,
       },
     },
     bsc: {
       "https://rpc.ankr.com/bsc": {
-        eth_getLogs: 4,
-        eth_call: 16,
-        eth_getBlockByNumber: 32,
+        eth_getLogs: 2,
+        eth_call: 500,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: null,
       },
     },
@@ -74,22 +92,22 @@ const findings = (() => {
     fantom: {
       "https://rpc.ankr.com/fantom": {
         eth_getLogs: 8,
-        eth_call: 128,
-        eth_getBlockByNumber: 500,
-        eth_blockNumber: 500,
+        eth_call: 8,
+        eth_getBlockByNumber: 64,
+        eth_blockNumber: 4,
       },
     },
     fuse: {
       "https://explorer-node.fuse.io": {
-        eth_getLogs: 4,
-        eth_call: 64,
+        eth_getLogs: null,
+        eth_call: 1,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 500,
+        eth_blockNumber: null,
       },
     },
     harmony: {
       "https://rpc.ankr.com/harmony": {
-        eth_getLogs: 500,
+        eth_getLogs: 232,
         eth_call: 500,
         eth_getBlockByNumber: 500,
         eth_blockNumber: null,
@@ -97,87 +115,69 @@ const findings = (() => {
     },
     heco: {
       "https://http-mainnet.hecochain.com": {
-        eth_getLogs: 32,
-        eth_call: null,
+        eth_getLogs: 8,
+        eth_call: 1,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     kava: {
       "https://evm.kava.io": {
-        eth_getLogs: 36,
-        eth_call: 64,
-        eth_getBlockByNumber: 64,
-        eth_blockNumber: 500,
+        eth_getLogs: 2,
+        eth_call: 8,
+        eth_getBlockByNumber: 16,
+        eth_blockNumber: 256,
       },
     },
     metis: {
       "https://andromeda.metis.io": {
-        eth_getLogs: 36,
-        eth_call: 500,
+        eth_getLogs: 2,
+        eth_call: 256,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        eth_getLogs: 2,
-        eth_call: null,
-        eth_getBlockByNumber: 1,
+        eth_getLogs: 1,
+        eth_call: 128,
+        eth_getBlockByNumber: 2,
         eth_blockNumber: null,
       },
     },
     moonriver: {
       "https://rpc.api.moonriver.moonbeam.network": {
-        eth_getLogs: 80,
-        eth_call: 500,
+        eth_getLogs: 16,
+        eth_call: 128,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
       },
     },
     optimism: {
       "https://rpc.ankr.com/optimism": {
-        eth_getLogs: 144,
-        eth_call: 500,
+        eth_getLogs: 32,
+        eth_call: 128,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 1,
+        eth_blockNumber: 500,
       },
     },
     polygon: {
       "https://rpc.ankr.com/polygon": {
-        eth_getLogs: 16,
-        eth_call: 8,
+        eth_getLogs: 12,
+        eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 2,
+        eth_blockNumber: null,
       },
     },
     syscoin: {
       "https://rpc.ankr.com/syscoin": {
-        eth_getLogs: 64,
+        eth_getLogs: 60,
         eth_call: 1,
-        eth_getBlockByNumber: null,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: null,
       },
     },
   };
-
-  // virtually lower some numbers to account for internal rpc timeout settings
-  const internalTimeoutMs = {
-    "rpc.ankr.com": 10_000,
-    "andromeda.metis.io": 5_000,
-    "moonriver.api.onfinality.io": 10_000,
-    "rpc.api.moonriver.moonbeam.network": 10_000,
-  };
-
-  // some rpc are just too bad to be used with batching
-  const disableBatchingFor = {
-    "moonriver.api.onfinality.io": true,
-    "rpc.api.moonriver.moonbeam.network": true,
-  };
-
-  // make sure we don't hit limitations exactly
-  const safetyMargin = 0.8;
-  const maxBatchSize = 500;
 
   for (const chain of allChainIds) {
     for (const rpcUrl of Object.keys(rawLimitations[chain])) {

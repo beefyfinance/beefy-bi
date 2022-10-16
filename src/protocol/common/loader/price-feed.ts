@@ -1,10 +1,13 @@
 import { keyBy, uniqBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { SupportedRangeTypes } from "../../../utils/range";
+import { ErrorEmitter, ImportQuery } from "../types/import-query";
+import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
@@ -19,23 +22,26 @@ export interface DbPriceFeed {
   };
 }
 
-export function upsertPriceFeed$<TInput, TRes>(options: {
+export function upsertPriceFeed$<
+  TTarget,
+  TRange extends SupportedRangeTypes,
+  TParams extends Omit<DbPriceFeed, "priceFeedId">,
+  TInput extends ImportQuery<TTarget, TRange>,
+  TRes extends ImportQuery<TTarget, TRange>,
+>(options: {
   client: PoolClient;
-  getFeedData: (obj: TInput) => Omit<DbPriceFeed, "priceFeedId">;
+  streamConfig: BatchStreamConfig;
+  emitErrors: ErrorEmitter<TTarget, TRange>;
+  getFeedData: (obj: TInput) => TParams;
   formatOutput: (obj: TInput, feed: DbPriceFeed) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
-
-    // upsert data and map to input objects
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const objAndData = objs.map((obj) => ({ obj, feedData: options.getFeedData(obj) }));
-
+  return dbBatchCall$({
+    client: options.client,
+    streamConfig: options.streamConfig,
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getData: options.getFeedData,
+    processBatch: async (objAndData) => {
       const results = await db_query<DbPriceFeed>(
         `INSERT INTO price_feed (feed_key, from_asset_key, to_asset_key, price_feed_data) VALUES %L
               ON CONFLICT (feed_key) 
@@ -51,11 +57,11 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
                 to_asset_key as "toAssetKey",
                 price_feed_data as "priceFeedData"`,
         [
-          uniqBy(objAndData, (obj) => obj.feedData.feedKey).map((obj) => [
-            obj.feedData.feedKey,
-            obj.feedData.fromAssetKey,
-            obj.feedData.toAssetKey,
-            obj.feedData.priceFeedData,
+          uniqBy(objAndData, (obj) => obj.data.feedKey).map((obj) => [
+            obj.data.feedKey,
+            obj.data.fromAssetKey,
+            obj.data.toAssetKey,
+            obj.data.priceFeedData,
           ]),
         ],
         options.client,
@@ -63,17 +69,14 @@ export function upsertPriceFeed$<TInput, TRes>(options: {
 
       const idMap = keyBy(results, "feedKey");
       return objAndData.map((obj) => {
-        const feed = idMap[obj.feedData.feedKey];
+        const feed = idMap[obj.data.feedKey];
         if (!feed) {
           throw new ProgrammerError({ msg: "Upserted price feed not found", data: obj });
         }
-        return options.formatOutput(obj.obj, feed);
+        return feed;
       });
-    }),
-
-    // flatten objects
-    Rx.concatMap((objs) => Rx.from(objs)),
-  );
+    },
+  });
 }
 
 export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefix: TKey): Rx.Observable<DbPriceFeed> {
@@ -97,45 +100,5 @@ export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefi
     Rx.tap((priceFeeds) => logger.debug({ msg: "emitting price feed list", data: { count: priceFeeds.length } })),
 
     Rx.concatMap((priceFeeds) => Rx.from(priceFeeds)), // flatten
-  );
-}
-
-export function fetchDbPriceFeed$<TObj, TRes>(options: {
-  client: PoolClient;
-  getPriceFeedId: (obj: TObj) => number;
-  formatOutput: (obj: TObj, feed: DbPriceFeed | null) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
-
-    // upsert data and map to input objects
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const objAndData = objs.map((obj) => ({ obj, priceFeedId: options.getPriceFeedId(obj) }));
-
-      const results = await db_query<DbPriceFeed>(
-        `SELECT 
-          price_feed_id as "priceFeedId",
-          feed_key as "feedKey",
-          from_asset_key as "fromAssetKey",
-          to_asset_key as "toAssetKey",
-          priceFeedData as "priceFeedData"
-        FROM price_feed 
-        WHERE price_feed_id IN (%L)`,
-        [objAndData.map((obj) => obj.priceFeedId)],
-        options.client,
-      );
-
-      // ensure results are in the same order as the params
-      const idMap = keyBy(results, "priceFeedId");
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.priceFeedId] ?? null));
-    }),
-
-    // flatten objects
-    Rx.concatMap((objs) => Rx.from(objs)),
   );
 }

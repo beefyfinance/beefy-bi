@@ -147,6 +147,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
 
     upsertPrice$({
       client: options.client,
+      emitErrors,
       streamConfig: streamConfig,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
@@ -241,6 +242,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
 
     upsertPrice$({
       client: options.client,
+      emitErrors: () => {}, // ignore errors
       streamConfig: streamConfig,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
