@@ -1,9 +1,9 @@
+import { groupBy, keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { keyBy$ } from "../../../utils/rxjs/utils/key-by";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
 import { ErrorEmitter } from "../../common/types/import-query";
@@ -118,71 +118,60 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
     // now fetch boosts
     Rx.pipe(
       // work by chain
-      Rx.groupBy((vaultData) => vaultData.target.chain),
-
-      Rx.mergeMap(
-        (vaultsByChain$) =>
-          vaultsByChain$.pipe(
-            // index by vault id so we can quickly ingest boosts
-            keyBy$((vaultData) => normalizeVaultId(vaultData.target.id)),
-            Rx.map((chainVaults) => ({
-              chainVaults,
-              vaultByVaultId: Object.entries(chainVaults).reduce(
-                (acc, [vaultId, vaultData]) => Object.assign(acc, { [vaultId]: vaultData.target }),
-                {} as Record<string, BeefyVault>,
-              ),
-              chain: vaultsByChain$.key,
-            })),
-
-            // fetch the boosts from git
-            Rx.mergeMap(async (chainData) => {
-              const chainBoosts =
-                (await consumeObservable(beefyBoostsFromGitHistory$(chainData.chain, chainData.vaultByVaultId).pipe(Rx.toArray()))) || [];
-
-              // create an object where we can add attributes to safely
-              const boostsData = chainBoosts.map((boost) => {
-                const vaultId = normalizeVaultId(boost.vault_id);
-                if (!chainData.chainVaults[vaultId]) {
-                  logger.trace({
-                    msg: "vault found with id",
-                    data: { vaultId, chainVaults: chainData.chainVaults },
-                  });
-                  throw new Error(`no price feed id for vault id ${vaultId}`);
-                }
-                return {
-                  target: boost,
-                  priceFeedId1: chainData.chainVaults[vaultId].priceFeed1.priceFeedId,
-                  priceFeedId2: chainData.chainVaults[vaultId].priceFeed2.priceFeedId,
-                  latest: 0,
-                  range: { from: 0, to: 0 },
-                };
-              });
-              return boostsData;
-            }, 1 /* concurrency */),
-            Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
-
-            // insert the boost as a new product
-            upsertProduct$({
-              client: options.client,
-              streamConfig,
-              emitErrors: emitBoostErrors,
-              getProductData: (boostData) => {
-                return {
-                  productKey: `beefy:boost:${boostData.target.chain}:${boostData.target.id}`,
-                  priceFeedId1: boostData.priceFeedId1,
-                  priceFeedId2: boostData.priceFeedId2,
-                  chain: boostData.target.chain,
-                  productData: {
-                    type: "beefy:boost",
-                    boost: boostData.target,
-                  },
-                };
-              },
-              formatOutput: (boostData, product) => ({ ...boostData, product }),
-            }),
-          ),
-        1 /* concurrency */,
+      Rx.pipe(
+        Rx.toArray(),
+        Rx.map((vaults) =>
+          Object.entries(groupBy(vaults, (vault) => vault.target.chain)).map(([chain, items]) => ({ chain: chain as Chain, items })),
+        ),
+        Rx.concatAll(),
       ),
+
+      // fetch the boosts from git
+      Rx.concatMap(async ({ items, chain }) => {
+        const chainVaults = items.map((item) => item.target);
+        const boostObs = beefyBoostsFromGitHistory$(chain, chainVaults).pipe(Rx.toArray());
+        const chainBoosts = (await consumeObservable(boostObs)) ?? [];
+        const itemsByVaultId = keyBy(items, (item) => normalizeVaultId(item.target.id));
+
+        // create an object where we can add attributes to safely
+        const boostsData = chainBoosts.map((boost) => {
+          const vaultId = normalizeVaultId(boost.vault_id);
+          if (!itemsByVaultId[vaultId]) {
+            logger.error({ msg: "vault not found with id", data: { vaultId, boostId: boost.id } });
+            logger.debug({ msg: "available vaults", data: { chainVaultIds: Object.keys(itemsByVaultId) } });
+            throw new Error(`no price feed id for vault id ${vaultId}`);
+          }
+          return {
+            target: boost,
+            priceFeedId1: itemsByVaultId[vaultId].priceFeed1.priceFeedId,
+            priceFeedId2: itemsByVaultId[vaultId].priceFeed2.priceFeedId,
+            latest: 0,
+            range: { from: 0, to: 0 },
+          };
+        });
+        return boostsData;
+      }),
+      Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
+
+      // insert the boost as a new product
+      upsertProduct$({
+        client: options.client,
+        streamConfig,
+        emitErrors: emitBoostErrors,
+        getProductData: (boostData) => {
+          return {
+            productKey: `beefy:boost:${boostData.target.chain}:${boostData.target.id}`,
+            priceFeedId1: boostData.priceFeedId1,
+            priceFeedId2: boostData.priceFeedId2,
+            chain: boostData.target.chain,
+            productData: {
+              type: "beefy:boost",
+              boost: boostData.target,
+            },
+          };
+        },
+        formatOutput: (boostData, product) => ({ ...boostData, product }),
+      }),
 
       Rx.tap({
         error: (err) => logger.error({ msg: "error importing chain", data: { err } }),

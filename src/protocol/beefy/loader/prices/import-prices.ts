@@ -2,7 +2,6 @@ import Decimal from "decimal.js";
 import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS } from "../../../../utils/config";
 import { rootLogger } from "../../../../utils/logger";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";

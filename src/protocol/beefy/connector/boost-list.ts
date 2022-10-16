@@ -1,12 +1,13 @@
-import { Chain } from "../../../types/chain";
+import { keyBy } from "lodash";
 import * as path from "path";
+import * as Rx from "rxjs";
+import { Chain } from "../../../types/chain";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import * as Rx from "rxjs";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
-import { BeefyVault } from "./vault-list";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
+import { BeefyVault } from "./vault-list";
 
 const logger = rootLogger.child({ module: "beefy", component: "boost-list" });
 
@@ -48,7 +49,7 @@ export interface BeefyBoost {
   reward_token_price_feed_key: string;
 }
 
-export function beefyBoostsFromGitHistory$(chain: Chain, allChaiVaults: Record<string, BeefyVault>): Rx.Observable<BeefyBoost> {
+export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVault[]): Rx.Observable<BeefyBoost> {
   logger.debug({ msg: "Fetching boost list from beefy-v2 repo git history", data: { chain } });
 
   const fileContentStreamV2 = gitStreamFileVersions({
@@ -72,6 +73,8 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChaiVaults: Record<s
     }),
   );
 
+  const vaultMap = keyBy(allChainVaults, (vault) => normalizeVaultId(vault.id));
+
   return v2$.pipe(
     // only keep the latest version of each boost
     Rx.distinct(({ boost }) => boost.id), // remove duplicates
@@ -86,9 +89,9 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChaiVaults: Record<s
 
     // just emit the boost
     Rx.concatMap(({ boost }) => {
-      const vault = allChaiVaults[normalizeVaultId(boost.poolId)];
+      const vault = vaultMap[normalizeVaultId(boost.poolId)];
       if (!vault) {
-        logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: boost.poolId } });
+        logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: normalizeVaultId(boost.poolId) } });
         return Rx.EMPTY;
       }
       return Rx.of(rawBoostToBeefyBoost(chain, boost, vault));

@@ -1,5 +1,4 @@
 import * as Rx from "rxjs";
-import { rootLogger } from "../../logger";
 import { createObservableWithNext } from "./create-observable-with-next";
 
 export function bufferUntilCountReached<TObj>(options: {
