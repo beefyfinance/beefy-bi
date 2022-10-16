@@ -1,6 +1,6 @@
 import * as Rx from "rxjs";
 import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB } from "../../../utils/config";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { throttleWhen } from "../../../utils/rxjs/utils/throttle-when";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "memory-backpressure" });
@@ -19,10 +19,12 @@ export function memoryBackpressure$<TObj>(options: { logInfos: { msg: string; da
         const memoryMb = getProcessMemoryMb();
 
         if (memoryMb < BACKPRESSURE_MEMORY_THRESHOLD_MB) {
-          logger.trace({ msg: "Sending in buffered item. " + options.logInfos.msg, data: { ...options.logInfos.data, ...options } });
+          logger.trace(mergeLogsInfos({ msg: "Sending in buffered item", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
           return true;
         }
-        logger.trace({ msg: "Buffering until below machine thresholds. " + options.logInfos.msg, data: { ...options.logInfos.data, ...options } });
+        logger.trace(
+          mergeLogsInfos({ msg: "Buffering until below machine thresholds", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos),
+        );
         return false;
       },
     }),

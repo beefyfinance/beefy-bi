@@ -4,7 +4,12 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS, CHAIN_RPC_MAX_QUERY_BLOCKS, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
+import {
+  BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
+  CHAIN_RPC_MAX_QUERY_BLOCKS,
+  MAX_RANGES_PER_PRODUCT_TO_GENERATE,
+  MS_PER_BLOCK_ESTIMATE,
+} from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState } from "../loader/import-state";
@@ -134,8 +139,8 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
       ranges = ranges.concat(rangesToRetry);
 
       // limit the amount of queries sent
-      if (ranges.length > 300) {
-        ranges = ranges.slice(0, 300);
+      if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
+        ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
       }
 
       return options.formatOutput(item.obj, item.latestBlockNumber, ranges);
@@ -177,8 +182,8 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
       ranges = ranges.concat(rangesToRetry);
 
       // limit the amount of queries sent
-      if (ranges.length > 300) {
-        ranges = ranges.slice(0, 300);
+      if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
+        ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
       }
 
       return options.formatOutput(item, latestDate, ranges);

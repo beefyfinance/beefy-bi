@@ -1,5 +1,8 @@
 import * as Rx from "rxjs";
+import { mergeLogsInfos, rootLogger } from "../../logger";
 import { createObservableWithNext } from "./create-observable-with-next";
+
+const logger = rootLogger.child({ module: "rpc-utils", component: "throttle-when" });
 
 export function throttleWhen<TObj>(options: {
   checkIntervalMs: number; // then every X ms
@@ -14,8 +17,11 @@ export function throttleWhen<TObj>(options: {
   const poller = setInterval(() => {
     const shouldSend = options.shouldSend();
     if (!shouldSend) {
+      logger.debug(mergeLogsInfos({ msg: "not sending" }, options.logInfos));
       return;
     }
+    logger.debug(mergeLogsInfos({ msg: "sending a burst", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
+
     for (let n = 0; n < options.sendBurstsOf; n++) {
       const idx = n + firstIdx;
       if (idx >= obss.length) {
@@ -25,6 +31,7 @@ export function throttleWhen<TObj>(options: {
       if (obs === null) {
         throw new Error("should not happen");
       }
+      logger.debug(mergeLogsInfos({ msg: "sending item", data: { idx, of: obss.length, sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
       obs.next(1);
       obs.complete();
       obss[idx] = null;
