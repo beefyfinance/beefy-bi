@@ -2,6 +2,7 @@ import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../../types/chain";
+import { samplingPeriodMs } from "../../../../types/sampling";
 import { rootLogger } from "../../../../utils/logger";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -13,6 +14,7 @@ import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
 import { createRpcConfig } from "../../../common/utils/rpc-config";
+import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
 
 export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
@@ -80,10 +82,19 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       formatOutput: (product, importState) => ({ target: product, importState }),
     }),
 
-    // process first the products we imported the least
+    // process first the live products we imported the least
     Rx.pipe(
       Rx.toArray(),
-      Rx.map((items) => sortBy(items, (item) => item.importState.importData.ranges.lastImportDate)),
+      Rx.map((items) =>
+        sortBy(
+          items,
+          (item) =>
+            item.importState.importData.ranges.lastImportDate.getTime() +
+            ((isBeefyBoost(item.target) ? item.target.productData.boost.eol : item.target.productData.vault.eol)
+              ? samplingPeriodMs["1day"] * 100
+              : 0),
+        ),
+      ),
       Rx.concatAll(),
     ),
 

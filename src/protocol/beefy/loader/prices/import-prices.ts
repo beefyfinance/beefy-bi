@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { samplingPeriodMs } from "../../../../types/sampling";
 import { rootLogger } from "../../../../utils/logger";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -84,10 +85,16 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
     // fix ts types
     Rx.filter((item): item is { target: DbPriceFeed; importState: DbOraclePriceImportState } => !!item),
 
-    // process first the prices we imported the least
+    // process first the live prices we imported the least
     Rx.pipe(
       Rx.toArray(),
-      Rx.map((items) => sortBy(items, (item) => item.importState.importData.ranges.lastImportDate)),
+      Rx.map((items) =>
+        sortBy(
+          items,
+          (item) =>
+            item.importState.importData.ranges.lastImportDate.getTime() + (item.target.priceFeedData.active ? 0 : samplingPeriodMs["1day"] * 100),
+        ),
+      ),
       Rx.concatAll(),
     ),
 

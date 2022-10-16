@@ -94,7 +94,7 @@ export function loadTransfers$(options: {
       } else if (isBeefyGovVault(item.target.product)) {
         return Rx.of(item).pipe(govVaultPipeline$);
       } else {
-        throw new ProgrammerError(`Unhandled product type ${item.target.product.productData.type}`);
+        throw new ProgrammerError(`Unhandled product type`);
       }
     }),
 
