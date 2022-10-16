@@ -16,9 +16,9 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
-# docker compose -f deploy/docker-compose.yml stop importer
-# docker compose -f deploy/docker-compose.yml up importer -d --force-recreate
-# docker logs -f deploy-importer-1
+# docker compose -f deploy/docker-compose.yml stop importer-recent importer-historical importer-products
+# docker compose -f deploy/docker-compose.yml up importer-recent importer-historical importer-products -d --force-recreate
+# docker compose -f deploy/docker-compose.yml logs -f importer-recent importer-historical importer-products
 
 # BACKUP
 # cd ~/beefy/snapshots
