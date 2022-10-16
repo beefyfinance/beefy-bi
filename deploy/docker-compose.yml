@@ -101,7 +101,7 @@ services:
     networks:
       - backend
 
-  importer:
+  importer-products:
     image: beefy-data-importer
     restart: always
     env_file: ../.env
@@ -110,7 +110,43 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:daemon"
+      WORK_CMD: "./dist/src/script/run.js beefy:daemon:products"
+    volumes:
+      - git_work_directory:/git_work
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
+
+  importer-historical:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_CMD: "./dist/src/script/run.js beefy:daemon:historical"
+    volumes:
+      - git_work_directory:/git_work
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
+
+  importer-recent:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_CMD: "./dist/src/script/run.js beefy:daemon:recent"
     volumes:
       - git_work_directory:/git_work
     networks:

@@ -19,8 +19,8 @@ const logger = rootLogger.child({ module: "beefy", component: "import-script" })
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
   return yargs
     .command({
-      command: "beefy:daemon",
-      describe: "Start the beefy importer daemon",
+      command: "beefy:daemon:historical",
+      describe: "Start the beefy importer daemon for historical data",
       builder: (yargs) =>
         yargs.options({
           chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
@@ -29,49 +29,64 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         withPgClient(async (client) => {
           await db_migrate();
 
-          logger.info("Starting import daemon", { argv });
+          const chain = argv.chain as Chain | "all";
+          const filterChains = chain === "all" ? allChainIds : [chain];
+
+          return new Promise<any>(async () => {
+            for (const chain of filterChains) {
+              daemonize(
+                `investment-historical-${chain}`,
+                () => importInvestmentData({ client, strategy: "historical", chain, filterContractAddress: null, forceCurrentBlockNumber: null }),
+                samplingPeriodMs["5min"],
+              );
+            }
+
+            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["15min"]);
+          });
+        })(),
+    })
+    .command({
+      command: "beefy:daemon:recent",
+      describe: "Start the beefy importer daemon for recent data",
+      builder: (yargs) =>
+        yargs.options({
+          chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+        }),
+      handler: async (argv) =>
+        withPgClient(async (client) => {
+          await db_migrate();
 
           const chain = argv.chain as Chain | "all";
           const filterChains = chain === "all" ? allChainIds : [chain];
-          const filterContractAddress = null;
-          const forceCurrentBlockNumber = null;
-
-          if (forceCurrentBlockNumber !== null && chain === "all") {
-            throw new ProgrammerError("Cannot force current block number without a chain filter");
-          }
-
-          logger.trace({ msg: "starting", data: { filterChains, filterContractAddress } });
-
-          async function daemonize<TRes>(name: string, fn: () => Promise<TRes>, sleepMs: number) {
-            while (true) {
-              try {
-                logger.info({ msg: "starting daemon task", data: { name } });
-                await fn();
-                logger.info({ msg: "daemon task ended", data: { name } });
-              } catch (e) {
-                logger.error({ msg: "error in daemon task", data: { name, e } });
-              }
-              await sleep(sleepMs);
-            }
-          }
 
           return new Promise<any>(async () => {
             for (const chain of filterChains) {
               daemonize(
                 `investment-recent-${chain}`,
-                () => importInvestmentData({ client, forceCurrentBlockNumber, strategy: "recent", chain, filterContractAddress }),
-                samplingPeriodMs["1min"],
-              );
-              daemonize(
-                `investment-historical-${chain}`,
-                () => importInvestmentData({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress }),
-                samplingPeriodMs["5min"],
+                () => importInvestmentData({ client, strategy: "recent", chain, filterContractAddress: null, forceCurrentBlockNumber: null }),
+                samplingPeriodMs["15min"],
               );
             }
 
-            daemonize("recent-prices", () => importBeefyDataRecentPrices({ client }), samplingPeriodMs["5min"]);
-            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["15min"]);
+            daemonize("recent-prices", () => importBeefyDataRecentPrices({ client }), samplingPeriodMs["15min"]);
+          });
+        })(),
+    })
+    .command({
+      command: "beefy:daemon:products",
+      describe: "Import products at regular intervals",
+      builder: (yargs) =>
+        yargs.options({
+          chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+        }),
+      handler: async (argv) =>
+        withPgClient(async (client) => {
+          await db_migrate();
 
+          const chain = argv.chain as Chain | "all";
+          const filterChains = chain === "all" ? allChainIds : [chain];
+
+          return new Promise<any>(async () => {
             daemonize("products", () => importProducts({ client, filterChains }), samplingPeriodMs["1day"]);
           });
         })(),
@@ -137,6 +152,19 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           }
         })(),
     });
+}
+
+async function daemonize<TRes>(name: string, fn: () => Promise<TRes>, sleepMs: number) {
+  while (true) {
+    try {
+      logger.info({ msg: "starting daemon task", data: { name } });
+      await fn();
+      logger.info({ msg: "daemon task ended", data: { name } });
+    } catch (e) {
+      logger.error({ msg: "error in daemon task", data: { name, e } });
+    }
+    await sleep(sleepMs);
+  }
 }
 
 async function importProducts(options: { client: PoolClient; filterChains: Chain[] }) {
