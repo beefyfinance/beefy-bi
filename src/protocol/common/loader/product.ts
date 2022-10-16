@@ -102,7 +102,7 @@ export function upsertProduct$<
   });
 }
 
-export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey): Rx.Observable<DbProduct> {
+export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey, chain: Chain): Rx.Observable<DbProduct> {
   logger.debug({ msg: "Fetching vaults from db" });
   return Rx.of(
     db_query<DbProduct>(
@@ -114,8 +114,9 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
         price_feed_2_id as "priceFeedId2",
         product_data as "productData"
       FROM product
-      where product_key like %L || ':%'`,
-      [keyPrefix],
+      where product_key like %L || ':%'
+        and chain = %L`,
+      [keyPrefix, chain],
       client,
     ),
   ).pipe(

@@ -200,7 +200,7 @@ async function importInvestmentData(options: {
 }) {
   const chainPipeline = getChainInvestmentPipeline(options.client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
   const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
-  const pipeline$ = productList$(options.client, "beefy").pipe(strategyImporter);
+  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(strategyImporter);
   logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
