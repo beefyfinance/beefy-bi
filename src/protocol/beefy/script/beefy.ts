@@ -37,11 +37,11 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               daemonize(
                 `investment-historical-${chain}`,
                 () => importInvestmentData({ client, strategy: "historical", chain, filterContractAddress: null, forceCurrentBlockNumber: null }),
-                samplingPeriodMs["5min"],
+                samplingPeriodMs["15s"],
               );
             }
 
-            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["15min"]);
+            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["5min"]);
           });
         })(),
     })
