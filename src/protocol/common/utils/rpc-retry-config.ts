@@ -1,5 +1,5 @@
 import { IBackOffOptions } from "exponential-backoff";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isErrorRetryable } from "../../../utils/retryable-error";
 
@@ -22,16 +22,26 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
   numOfAttempts--;
 
   if (numOfAttempts < 1) {
-    throw new ProgrammerError({
-      msg: "Invalid retry configuration",
-      data: { totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
-    });
+    throw new ProgrammerError(
+      mergeLogsInfos(
+        {
+          msg: "Invalid retry configuration",
+          data: { totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
+        },
+        options.logInfos,
+      ),
+    );
   }
 
-  logger.trace({
-    msg: `RPC retry config: ${options.logInfos.msg}`,
-    data: { ...options.logInfos.data, totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
-  });
+  logger.trace(
+    mergeLogsInfos(
+      {
+        msg: "RPC retry config",
+        data: { totalAttempt: numOfAttempts, startingDelay, timeMultiple, maxTotalRetryMs: options.maxTotalRetryMs },
+      },
+      options.logInfos,
+    ),
+  );
 
   return {
     delayFirstAttempt: false,
@@ -44,7 +54,7 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
     retry: (error, attemptNumber) => {
       const isRetryable = isErrorRetryable(error);
       if (isRetryable) {
-        const logMsg = { msg: `RPC Error caught, will retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } };
+        const logMsg = mergeLogsInfos({ msg: "RPC Error caught, will retry", data: { error } }, options.logInfos);
         if (attemptNumber < 3) logger.trace(logMsg);
         else if (attemptNumber < 5) logger.debug(logMsg);
         else if (attemptNumber < 9) logger.info(logMsg);
@@ -55,7 +65,7 @@ export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: 
         }
         //console.log(error);
       } else {
-        logger.debug({ msg: `Unretryable RPC Error caught, will not retry: ${options.logInfos.msg}`, data: { ...options.logInfos.data, error } });
+        logger.debug(mergeLogsInfos({ msg: "Unretryable RPC Error caught, will not retry", data: { error } }, options.logInfos));
         logger.error(error);
       }
       return isRetryable;

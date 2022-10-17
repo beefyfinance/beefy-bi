@@ -170,7 +170,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
       Rx.pipe(
         Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
         // make sure we close the errors observable when we are done
-        Rx.finalize(() => setTimeout(completePriceFeedErrors$, 1000)),
+        Rx.finalize(() => setTimeout(completePriceFeedErrors$)),
         // merge the errors back in, all items here should have been successfully treated
         Rx.mergeWith(priceFeedErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
         // make sure the type is correct

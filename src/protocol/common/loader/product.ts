@@ -2,7 +2,6 @@ import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { SupportedRangeTypes } from "../../../utils/range";
@@ -95,6 +94,54 @@ export function upsertProduct$<
         const product = idMap[obj.data.productKey];
         if (!product) {
           throw new Error("Could not find product after upsert");
+        }
+        return product;
+      });
+    },
+  });
+}
+
+export function fetchProduct$<
+  TTarget,
+  TRange extends SupportedRangeTypes,
+  TParams extends number,
+  TObj extends ImportQuery<TTarget, TRange>,
+  TRes extends ImportQuery<TTarget, TRange>,
+>(options: {
+  client: PoolClient;
+  streamConfig: BatchStreamConfig;
+  emitErrors: ErrorEmitter<TTarget, TRange>;
+  getProductId: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, product: DbProduct) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    client: options.client,
+    streamConfig: options.streamConfig,
+    emitErrors: options.emitErrors,
+    formatOutput: options.formatOutput,
+    getData: options.getProductId,
+    processBatch: async (objAndData) => {
+      const results = await db_query<DbProduct>(
+        `SELECT
+            product_id as "productId", 
+            product_key as "productKey", 
+            price_feed_1_id as "priceFeedId1", 
+            price_feed_2_id as "priceFeedId2", 
+            chain, 
+            product_data as "productData"
+        FROM product 
+        WHERE product_id IN %L`,
+        [objAndData.map(({ data }) => data)],
+        options.client,
+      );
+
+      // ensure results are in the same order as the params
+      const idMap = keyBy(results, "productId");
+
+      return objAndData.map((obj) => {
+        const product = idMap[obj.data];
+        if (!product) {
+          throw new Error("Could not find product");
         }
         return product;
       });

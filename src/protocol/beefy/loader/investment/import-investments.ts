@@ -14,7 +14,7 @@ import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
 import { createRpcConfig } from "../../../common/utils/rpc-config";
-import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
+import { isBeefyBoost } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
 
 export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {

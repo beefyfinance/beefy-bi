@@ -8,10 +8,11 @@ import { db_migrate, withPgClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { priceFeedList$ } from "../../common/loader/price-feed";
+import { DbPriceFeed, priceFeedList$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, productList$ } from "../../common/loader/product";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
-import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-prices";
+import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
+import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
 import { importBeefyProducts$ } from "../loader/products";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
@@ -100,7 +101,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
           currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
           importer: {
-            choices: ["historical", "recent", "products", "recent-prices", "historical-prices"],
+            choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate"],
             demand: true,
             alias: "i",
             describe: "what to run, all if not specified",
@@ -147,6 +148,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               return importBeefyDataRecentPrices({ client });
             case "historical-prices":
               return importBeefyDataRecentPrices({ client });
+            /*case "historical-share-rate":
+              return importBeefyDataShareRate({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });*/
             default:
               throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
           }
@@ -232,3 +235,42 @@ async function importInvestmentData(options: {
   logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
+/*
+const shareRatePipelineByChain = {} as Record<
+  Chain,
+  { historical: Rx.OperatorFunction<DbPriceFeed, any> //recent: Rx.OperatorFunction<DbPriceFeed, any>
+ }
+>;
+function getChainShareRatePipeline(client: PoolClient, chain: Chain, filterContractAddress: string | null, forceCurrentBlockNumber: number | null) {
+  if (!shareRatePipelineByChain[chain]) {
+    shareRatePipelineByChain[chain] = {
+      historical: Rx.pipe(
+        Rx.filter((product) => product.chain === chain),
+        Rx.filter(
+          (product) =>
+            filterContractAddress === null ||
+            (product.productData.type === "beefy:boost"
+              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
+              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
+        ),
+        importBeefyHistoricalShareRatePrices$(client, chain, forceCurrentBlockNumber),
+      ),
+    };
+  }
+  return investmentPipelineByChain[chain];
+}
+
+async function importBeefyDataShareRate(options: {
+  client: PoolClient;
+  strategy: "recent" | "historical";
+  chain: Chain;
+  filterContractAddress: string | null;
+  forceCurrentBlockNumber: number | null;
+}) {
+  const chainPipeline = getChainShareRatePipeline(options.client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
+  const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
+  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(strategyImporter);
+  logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
+}
+*/

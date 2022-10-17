@@ -2,7 +2,6 @@ import Decimal from "decimal.js";
 import { groupBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { SupportedRangeTypes } from "../../../utils/range";

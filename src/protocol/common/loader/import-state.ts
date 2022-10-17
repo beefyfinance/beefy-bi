@@ -41,6 +41,10 @@ export interface DbProductShareRateImportState extends DbBaseImportState {
   importData: {
     type: "product:share-rate";
     priceFeedId: number;
+    productId: number;
+    chain: Chain;
+    contractCreatedAtBlock: number;
+    contractCreationDate: Date;
     chainLatestBlockNumber: number;
     ranges: ImportRanges<number>;
   };
