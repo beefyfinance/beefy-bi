@@ -6,7 +6,7 @@ import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from ".
 import { db_query, db_query_one, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-changed";
 import { ImportResult, isBlockRangeResult, isDateRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
@@ -153,23 +153,20 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
   );
 }
 
-export function updateImportState$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TObj extends ImportResult<TTarget, TRange>,
-  TRes extends ImportResult<TTarget, TRange>,
-  TImport extends DbImportState,
->(options: {
+export function updateImportState$<TObj, TRes, TImport extends DbImportState, TRange extends SupportedRangeTypes>(options: {
   client: PoolClient;
   streamConfig: BatchStreamConfig;
+  getRange: (obj: TObj) => Range<TRange>;
+  isSuccess: (obj: TObj) => boolean;
   getImportStateKey: (obj: TObj) => string;
   formatOutput: (obj: TObj, importState: TImport) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   function mergeImportState(items: TObj[], importState: TImport) {
+    const range = options.getRange(items[0]);
     if (
-      (isProductInvestmentImportState(importState) && !isBlockRangeResult(items[0])) ||
-      (isOraclePriceImportState(importState) && !isDateRangeResult(items[0])) ||
-      (isProductShareRateImportState(importState) && !isBlockRangeResult(items[0]))
+      (isProductInvestmentImportState(importState) && !isNumberRange(range)) ||
+      (isOraclePriceImportState(importState) && !isDateRange(range)) ||
+      (isProductShareRateImportState(importState) && !isNumberRange(range))
     ) {
       throw new ProgrammerError({
         msg: "Import state is for product investment but item is not",
@@ -180,11 +177,11 @@ export function updateImportState$<
     const newImportState = cloneDeep(importState);
 
     // update the import rages
-    const coveredRanges = items.map((item) => item.range);
-    const successRanges = rangeMerge(items.filter((item) => item.success).map((item) => item.range));
-    const errorRanges = rangeMerge(items.filter((item) => !item.success).map((item) => item.range));
+    const coveredRanges = items.map((item) => options.getRange(item));
+    const successRanges = rangeMerge(items.filter((item) => options.isSuccess(item)).map((item) => options.getRange(item)));
+    const errorRanges = rangeMerge(items.filter((item) => !options.isSuccess(item)).map((item) => options.getRange(item)));
     const lastImportDate = new Date();
-    const newRanges = updateImportRanges<TRange>(importState.importData.ranges as ImportRanges<TRange>, {
+    const newRanges = updateImportRanges<TRange>(newImportState.importData.ranges, {
       coveredRanges,
       successRanges,
       errorRanges,

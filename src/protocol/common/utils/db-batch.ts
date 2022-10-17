@@ -1,25 +1,13 @@
-import { keyBy, uniqBy, zipWith } from "lodash";
-import { PoolClient } from "pg";
+import { zipWith } from "lodash";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { SupportedRangeTypes } from "../../../utils/range";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "./batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "db-batch" });
 
-export function dbBatchCall$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TObj extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
-  TQueryRes,
-  TQueryData,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
+export function dbBatchCall$<TObj, TRes, TQueryData, TQueryRes>(options: {
+  ctx: ImportCtx<TObj>;
   getData: (obj: TObj) => TQueryData;
   processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<TQueryRes[]>;
   formatOutput: (obj: TObj, res: TQueryRes) => TRes;
@@ -45,11 +33,11 @@ export function dbBatchCall$<
         logger.error({ msg: "Error inserting batch", data: { objsLen: objs.length, err } });
         logger.error(err);
         for (const obj of objs) {
-          options.emitErrors(obj);
+          options.ctx.emitErrors(obj);
         }
         return [];
       }
-    }, options.streamConfig.workConcurrency),
+    }, options.ctx.streamConfig.workConcurrency),
 
     // flatten objects
     Rx.concatMap((objs) => Rx.from(objs)),

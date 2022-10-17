@@ -4,11 +4,9 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { SupportedRangeTypes } from "../../../utils/range";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
 import { BeefyVault } from "../../beefy/connector/vault-list";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "product" });
@@ -47,23 +45,13 @@ export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | D
 
 export type DbProduct = DbBeefyProduct;
 
-export function upsertProduct$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends Omit<DbProduct, "productId">,
-  TObj extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
+export function upsertProduct$<TObj, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
+  ctx: ImportCtx<TObj>;
   getProductData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbProduct) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getProductData,
     processBatch: async (objAndData) => {
@@ -84,7 +72,7 @@ export function upsertProduct$<
                 chain, 
                 product_data as "productData"`,
         [objAndData.map(({ data }) => [data.productKey, data.priceFeedId1, data.priceFeedId2, data.chain, data.productData])],
-        options.client,
+        options.ctx.client,
       );
 
       // ensure results are in the same order as the params
@@ -101,23 +89,13 @@ export function upsertProduct$<
   });
 }
 
-export function fetchProduct$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends number,
-  TObj extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
+export function fetchProduct$<TObj, TRes, TParams extends number>(options: {
+  ctx: ImportCtx<TObj>;
   getProductId: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, product: DbProduct) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getProductId,
     processBatch: async (objAndData) => {
@@ -132,7 +110,7 @@ export function fetchProduct$<
         FROM product 
         WHERE product_id IN %L`,
         [objAndData.map(({ data }) => data)],
-        options.client,
+        options.ctx.client,
       );
 
       // ensure results are in the same order as the params

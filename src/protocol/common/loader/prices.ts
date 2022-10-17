@@ -1,12 +1,9 @@
 import Decimal from "decimal.js";
-import { groupBy, keyBy, uniqBy } from "lodash";
-import { PoolClient } from "pg";
+import { groupBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { SupportedRangeTypes } from "../../../utils/range";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "prices" });
@@ -20,23 +17,13 @@ export interface DbPrice {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertPrice$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends DbPrice,
-  TInput extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
-  getPriceData: (obj: TInput) => TParams;
-  formatOutput: (obj: TInput, price: DbPrice) => TRes;
-}): Rx.OperatorFunction<TInput, TRes> {
+export function upsertPrice$<TObj, TRes, TParams extends DbPrice>(options: {
+  ctx: ImportCtx<TObj>;
+  getPriceData: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, price: DbPrice) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getPriceData,
     processBatch: async (objAndData) => {
@@ -72,7 +59,7 @@ export function upsertPrice$<
             data.priceData,
           ]),
         ],
-        options.client,
+        options.ctx.client,
       );
       return objAndData.map(({ obj, data: investment }) => investment);
     },

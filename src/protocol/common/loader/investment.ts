@@ -1,12 +1,9 @@
 import Decimal from "decimal.js";
 import { groupBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { SupportedRangeTypes } from "../../../utils/range";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "common", component: "investment" });
@@ -20,23 +17,13 @@ export interface DbInvestment {
   investmentData: object;
 }
 
-export function upsertInvestment$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends DbInvestment,
-  TObj extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
+export function upsertInvestment$<TObj, TRes, TParams extends DbInvestment>(options: {
+  ctx: ImportCtx<TObj>;
   getInvestmentData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbInvestment) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getInvestmentData,
     processBatch: async (objAndData) => {
@@ -74,7 +61,7 @@ export function upsertInvestment$<
             data.investmentData,
           ]),
         ],
-        options.client,
+        options.ctx.client,
       );
       return objAndData.map(({ data }) => data);
     },

@@ -1,4 +1,4 @@
-import { clone, cloneDeep, isDate } from "lodash";
+import { clone, cloneDeep, isDate, isNumber } from "lodash";
 import { ProgrammerError } from "./programmer-error";
 
 export type SupportedRangeTypes = number | Date;
@@ -34,6 +34,15 @@ const rangeStrategies = {
     add: (a: Date, b: number) => new Date(a.getTime() + b),
   } as RangeStrategy<Date>,
 };
+
+// some type guards
+
+export function isDateRange(range: Range<any>): range is Range<Date> {
+  return isDate(range.from);
+}
+export function isNumberRange(range: Range<any>): range is Range<number> {
+  return isNumber(range.from);
+}
 
 function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): RangeStrategy<T> {
   const val = range.from;

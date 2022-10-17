@@ -1,11 +1,8 @@
 import { keyBy, uniqBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { SupportedRangeTypes } from "../../../utils/range";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 interface DbInvestor {
@@ -14,23 +11,13 @@ interface DbInvestor {
   investorData: {};
 }
 
-export function upsertInvestor$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends Omit<DbInvestor, "investorId">,
-  TObj extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
+export function upsertInvestor$<TObj, TRes, TParams extends Omit<DbInvestor, "investorId">>(options: {
+  ctx: ImportCtx<TObj>;
   getInvestorData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investorId: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getInvestorData,
     processBatch: async (objAndData) => {
@@ -44,7 +31,7 @@ export function upsertInvestor$<
             obj.data.investorData,
           ]),
         ],
-        options.client,
+        options.ctx.client,
       );
 
       // return results in the same order

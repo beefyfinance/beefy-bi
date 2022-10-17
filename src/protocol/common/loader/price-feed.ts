@@ -4,9 +4,7 @@ import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { SupportedRangeTypes } from "../../../utils/range";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
@@ -22,23 +20,13 @@ export interface DbPriceFeed {
   };
 }
 
-export function upsertPriceFeed$<
-  TTarget,
-  TRange extends SupportedRangeTypes,
-  TParams extends Omit<DbPriceFeed, "priceFeedId">,
-  TInput extends ImportQuery<TTarget, TRange>,
-  TRes extends ImportQuery<TTarget, TRange>,
->(options: {
-  client: PoolClient;
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, TRange>;
-  getFeedData: (obj: TInput) => TParams;
-  formatOutput: (obj: TInput, feed: DbPriceFeed) => TRes;
-}): Rx.OperatorFunction<TInput, TRes> {
+export function upsertPriceFeed$<TObj, TRes, TParams extends Omit<DbPriceFeed, "priceFeedId">>(options: {
+  ctx: ImportCtx<TObj>;
+  getFeedData: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
-    client: options.client,
-    streamConfig: options.streamConfig,
-    emitErrors: options.emitErrors,
+    ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getFeedData,
     processBatch: async (objAndData) => {
@@ -64,7 +52,7 @@ export function upsertPriceFeed$<
             obj.data.priceFeedData,
           ]),
         ],
-        options.client,
+        options.ctx.client,
       );
 
       const idMap = keyBy(results, "feedKey");
