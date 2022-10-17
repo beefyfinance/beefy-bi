@@ -13,7 +13,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
-import { fetchBeefyDataPrices$ } from "../../connector/prices";
+import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
@@ -35,6 +35,24 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
   } = createObservableWithNext<ImportQuery<DbPriceFeed, Date>>();
 
   const getImportStateKey = (priceFeedId: number) => `price:feed:${priceFeedId}`;
+
+  const insertPricePipeline$ = Rx.pipe(
+    Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
+
+    upsertPrice$({
+      client: options.client,
+      emitErrors,
+      streamConfig: streamConfig,
+      getPriceData: (item) => ({
+        datetime: item.price.datetime,
+        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
+        priceFeedId: item.target.priceFeedId,
+        price: new Decimal(item.price.value),
+        priceData: {},
+      }),
+      formatOutput: (priceData, price) => ({ ...priceData, price }),
+    }),
+  );
 
   return Rx.pipe(
     Rx.pipe(
@@ -140,29 +158,18 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
       formatOutput: (item, prices) => ({ ...item, prices }),
     }),
 
-    Rx.pipe(
-      Rx.catchError((err) => {
-        logger.error({ msg: "error fetching prices", err });
-        logger.error(err);
-        return Rx.EMPTY;
-      }),
+    // insert prices, passthrough if there is no price so we mark the range as done
+    Rx.mergeMap((item) => {
+      if (item.prices.length <= 0) {
+        return Rx.of(item);
+      }
 
-      // flatten the array of prices
-      Rx.concatMap((item) => Rx.from(item.prices.map((price) => ({ ...item, price })))),
-    ),
-
-    upsertPrice$({
-      client: options.client,
-      emitErrors,
-      streamConfig: streamConfig,
-      getPriceData: (item) => ({
-        datetime: item.price.datetime,
-        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
-        priceFeedId: item.target.priceFeedId,
-        price: new Decimal(item.price.value),
-        priceData: {},
-      }),
-      formatOutput: (priceData, price) => ({ ...priceData, price }),
+      return Rx.from(item.prices).pipe(
+        Rx.map((price) => ({ ...item, price })),
+        insertPricePipeline$,
+        Rx.count(),
+        Rx.map(() => item),
+      );
     }),
 
     Rx.pipe(
@@ -205,6 +212,24 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     maxTotalRetryMs: 10_000,
   };
 
+  const insertPricePipeline$ = Rx.pipe(
+    Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
+
+    upsertPrice$({
+      client: options.client,
+      emitErrors: () => {}, // ignore errors
+      streamConfig: streamConfig,
+      getPriceData: (item) => ({
+        datetime: item.price.datetime,
+        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
+        priceFeedId: item.target.priceFeedId,
+        price: new Decimal(item.price.value),
+        priceData: {},
+      }),
+      formatOutput: (priceData, price) => ({ ...priceData, price }),
+    }),
+  );
+
   return Rx.pipe(
     Rx.pipe(
       Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
@@ -225,39 +250,28 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
       formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
     }),
 
-    Rx.pipe(
-      fetchBeefyDataPrices$({
-        emitErrors: () => {}, // ignore errors
-        streamConfig,
-        getPriceParams: (item) => ({
-          oracleId: item.target.priceFeedData.externalId,
-          samplingPeriod: "15min",
-        }),
-        formatOutput: (item, prices) => ({ ...item, prices }),
-      }),
-
-      Rx.catchError((err) => {
-        logger.error({ msg: "error fetching prices", err });
-        logger.error(err);
-        return Rx.EMPTY;
-      }),
-
-      // flatten the array of prices
-      Rx.concatMap((item) => Rx.from(item.prices.map((price) => ({ ...item, price })))),
-    ),
-
-    upsertPrice$({
-      client: options.client,
+    fetchBeefyDataPrices$({
       emitErrors: () => {}, // ignore errors
-      streamConfig: streamConfig,
-      getPriceData: (item) => ({
-        datetime: item.price.datetime,
-        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
-        priceFeedId: item.target.priceFeedId,
-        price: new Decimal(item.price.value),
-        priceData: {},
+      streamConfig,
+      getPriceParams: (item) => ({
+        oracleId: item.target.priceFeedData.externalId,
+        samplingPeriod: "15min",
       }),
-      formatOutput: (priceData, price) => ({ ...priceData, price }),
+      formatOutput: (item, prices) => ({ ...item, prices }),
+    }),
+
+    // insert prices, passthrough if there is no price so we mark the range as done
+    Rx.mergeMap((item) => {
+      if (item.prices.length <= 0) {
+        return Rx.of(item);
+      }
+
+      return Rx.from(item.prices).pipe(
+        Rx.map((price) => ({ ...item, price })),
+        insertPricePipeline$,
+        Rx.count(),
+        Rx.map(() => item),
+      );
     }),
 
     // logging

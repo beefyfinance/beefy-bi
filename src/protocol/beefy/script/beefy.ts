@@ -147,7 +147,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             case "recent-prices":
               return importBeefyDataRecentPrices({ client });
             case "historical-prices":
-              return importBeefyDataRecentPrices({ client });
+              return importBeefyDataHistoricalPrices({ client });
             /*case "historical-share-rate":
               return importBeefyDataShareRate({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });*/
             default:
