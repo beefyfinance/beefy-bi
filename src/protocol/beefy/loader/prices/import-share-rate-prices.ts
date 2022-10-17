@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
 import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
@@ -21,6 +20,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { createHistoricalImportPipeline } from "../../../common/utils/historical-pipeline";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
 import { createRpcConfig } from "../../../common/utils/rpc-config";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
@@ -63,38 +63,35 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
       client: options.client,
       streamConfig,
       getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
-      addDefaultImportData$: (formatOutput) =>
-        Rx.pipe(
-          // initialize the import state
+      createDefaultImportState$: Rx.pipe(
+        // initialize the import state
 
-          // find the first date we are interested in this price
-          // so we need the first creation date of each product
-          fetchProductContractCreationInfos({
-            client: options.client,
-            getPriceFeedId: (item) => item.target.priceFeedId,
-            formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
-          }),
+        // find the first date we are interested in this price
+        // so we need the first creation date of each product
+        fetchProductContractCreationInfos({
+          client: options.client,
+          getPriceFeedId: (item) => item.target.priceFeedId,
+          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+        }),
 
-          // drop those without a creation info
-          excludeNullFields$("contractCreationInfo"),
+        // drop those without a creation info
+        excludeNullFields$("contractCreationInfo"),
 
-          Rx.map((item) =>
-            formatOutput(item, {
-              type: "product:share-rate",
-              priceFeedId: item.target.priceFeedId,
-              chain: item.contractCreationInfo.chain,
-              productId: item.contractCreationInfo.productId,
-              chainLatestBlockNumber: 0,
-              contractCreatedAtBlock: item.contractCreationInfo.contractCreatedAtBlock,
-              contractCreationDate: item.contractCreationInfo.contractCreationDate,
-              ranges: {
-                lastImportDate: new Date(),
-                coveredRanges: [],
-                toRetry: [],
-              },
-            }),
-          ),
-        ),
+        Rx.map((item) => ({
+          type: "product:share-rate",
+          priceFeedId: item.target.priceFeedId,
+          chain: item.contractCreationInfo.chain,
+          productId: item.contractCreationInfo.productId,
+          chainLatestBlockNumber: 0,
+          contractCreatedAtBlock: item.contractCreationInfo.contractCreatedAtBlock,
+          contractCreationDate: item.contractCreationInfo.contractCreationDate,
+          ranges: {
+            lastImportDate: new Date(),
+            coveredRanges: [],
+            toRetry: [],
+          },
+        })),
+      ),
       formatOutput: (item, importState) => ({ ...item, importState }),
     }),
 

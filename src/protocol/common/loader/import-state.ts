@@ -268,19 +268,24 @@ export function updateImportState$<
   );
 }
 
-export function addMissingImportState$<TObj, TRes, TImport extends DbImportState>(options: {
+export function addMissingImportState$<TInput, TRes, TImport extends DbImportState>(options: {
   client: PoolClient;
   streamConfig: BatchStreamConfig;
-  getImportStateKey: (obj: TObj) => string;
-  addDefaultImportData$: <TTRes>(formatOutput: (obj: TObj, defaultImportData: TImport["importData"]) => TTRes) => Rx.OperatorFunction<TObj, TTRes>;
-  formatOutput: (obj: TObj, importState: TImport) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+  getImportStateKey: (obj: TInput) => string;
+  createDefaultImportState$: Rx.OperatorFunction<TInput, TImport["importData"]>;
+  formatOutput: (obj: TInput, importState: TImport) => TRes;
+}): Rx.OperatorFunction<TInput, TRes> {
   const addDefaultImportState$ = Rx.pipe(
     // flatten the input items
-    Rx.map(({ obj }: { obj: TObj }) => obj),
+    Rx.map(({ obj }: { obj: TInput }) => obj),
 
     // get the import state from the user
-    options.addDefaultImportData$((obj, defaultImportData) => ({ obj, defaultImportData })),
+    Rx.concatMap((item) =>
+      Rx.of(item).pipe(
+        options.createDefaultImportState$,
+        Rx.map((defaultImportData) => ({ obj: item, defaultImportData })),
+      ),
+    ),
 
     // create the import state in the database
     upsertImportState$({
@@ -309,7 +314,7 @@ export function addMissingImportState$<TObj, TRes, TImport extends DbImportState
     Rx.map((importStateGrps$) => {
       // passthrough if we already have a import state
       if (importStateGrps$.key === "has-import-state") {
-        return importStateGrps$ as Rx.Observable<{ obj: TObj; importState: TImport | null }>;
+        return importStateGrps$ as Rx.Observable<{ obj: TInput; importState: TImport | null }>;
       }
 
       // then for those whe can't find an import state
@@ -323,7 +328,7 @@ export function addMissingImportState$<TObj, TRes, TImport extends DbImportState
     Rx.concatAll(),
 
     // fix ts typings
-    Rx.filter((item): item is { obj: TObj; importState: TImport } => true),
+    Rx.filter((item): item is { obj: TInput; importState: TImport } => true),
 
     Rx.map((item) => options.formatOutput(item.obj, item.importState)),
   );

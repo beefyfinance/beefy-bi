@@ -1,5 +1,5 @@
 import * as Rx from "rxjs";
-import { mergeLogsInfos, rootLogger } from "../../logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "../../logger";
 import { createObservableWithNext } from "./create-observable-with-next";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "throttle-when" });
@@ -9,7 +9,7 @@ export function throttleWhen<TObj>(options: {
   checkIntervalJitterMs: number; // add a bit of jitter to the check interval
   sendBurstsOf: number; // how many items to send
   shouldSend: () => boolean; // should we send now?
-  logInfos: { msg: string; data?: object };
+  logInfos: LogInfos;
 }): Rx.OperatorFunction<TObj, TObj> {
   const obss: (ReturnType<typeof createObservableWithNext> | null)[] = [];
   let firstIdx = 0;

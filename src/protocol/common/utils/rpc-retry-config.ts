@@ -1,11 +1,11 @@
 import { IBackOffOptions } from "exponential-backoff";
-import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isErrorRetryable } from "../../../utils/retryable-error";
 
 const logger = rootLogger.child({ module: "rpc", component: "retry" });
 
-export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: { msg: string; data?: object } }): Partial<IBackOffOptions> {
+export function getRpcRetryConfig(options: { maxTotalRetryMs: number; logInfos: LogInfos }): Partial<IBackOffOptions> {
   const startingDelay = 100;
   const timeMultiple = 5;
 

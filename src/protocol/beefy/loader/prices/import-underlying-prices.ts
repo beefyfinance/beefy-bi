@@ -69,34 +69,31 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
       client: options.client,
       streamConfig,
       getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
-      addDefaultImportData$: (formatOutput) =>
-        Rx.pipe(
-          // initialize the import state
+      createDefaultImportState$: Rx.pipe(
+        // initialize the import state
 
-          // find the first date we are interested in this price
-          // so we need the first creation date of each product
-          fetchProductContractCreationInfos({
-            client: options.client,
-            getPriceFeedId: (item) => item.target.priceFeedId,
-            formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
-          }),
+        // find the first date we are interested in this price
+        // so we need the first creation date of each product
+        fetchProductContractCreationInfos({
+          client: options.client,
+          getPriceFeedId: (item) => item.target.priceFeedId,
+          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+        }),
 
-          // drop those without a creation info
-          excludeNullFields$("contractCreationInfo"),
+        // drop those without a creation info
+        excludeNullFields$("contractCreationInfo"),
 
-          Rx.map((item) =>
-            formatOutput(item, {
-              type: "oracle:price",
-              priceFeedId: item.target.priceFeedId,
-              firstDate: item.contractCreationInfo.contractCreationDate,
-              ranges: {
-                lastImportDate: new Date(),
-                coveredRanges: [],
-                toRetry: [],
-              },
-            }),
-          ),
-        ),
+        Rx.map((item) => ({
+          type: "oracle:price",
+          priceFeedId: item.target.priceFeedId,
+          firstDate: item.contractCreationInfo.contractCreationDate,
+          ranges: {
+            lastImportDate: new Date(),
+            coveredRanges: [],
+            toRetry: [],
+          },
+        })),
+      ),
       formatOutput: (item, importState) => ({ ...item, importState }),
     }),
 
