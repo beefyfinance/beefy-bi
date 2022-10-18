@@ -9,6 +9,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { fetchPriceFeed$, priceFeedList$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { defaultHistoricalStreamConfig } from "../../common/utils/historical-recent-pipeline";
@@ -17,6 +18,7 @@ import { importChainHistoricalData$, importChainRecentData$ } from "../loader/in
 import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
 import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
 import { importBeefyProducts$ } from "../loader/products";
+import { isBeefyBoost, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
@@ -266,11 +268,17 @@ function importBeefyDataShareRate(options: {
 
   const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(
     productFilter$,
+    // remove products that don't have a ppfs to fetch
+    Rx.filter((product) => isBeefyStandardVault(product) || isBeefyBoost(product)),
     // now fetch the price feed we need
     fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
     // drop those without a price feed yet
     excludeNullFields$("priceFeed"),
     Rx.map(({ priceFeed }) => priceFeed),
+    // remove duplicates
+    Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+
+    rateLimit$(1000),
 
     // now fetch associated price feeds
     importBeefyHistoricalShareRatePrices$({ client: options.client, chain: options.chain, forceCurrentBlockNumber: options.forceCurrentBlockNumber }),

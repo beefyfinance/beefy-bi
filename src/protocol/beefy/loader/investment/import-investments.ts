@@ -66,7 +66,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     client,
     chain,
     cacheKey: "beefy:product:investment:recent",
-    logInfos: { msg: "Importing historical beefy investments", data: { chain } },
+    logInfos: { msg: "Importing recent beefy investments", data: { chain } },
     isLiveItem: (target) => (isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
     generateQueries$: (ctx, lastImported) =>
       addLatestBlockQuery$({

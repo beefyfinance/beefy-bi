@@ -21,7 +21,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
     client: options.client,
     chain: "bsc", // unused
-    logInfos: { msg: "Importing historical share rate prices" },
+    logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
     getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx) =>
@@ -139,7 +139,7 @@ function processShareRateQuery$<
         blockNumber: item.range.from,
         priceFeedId: item.target.priceFeedId,
         price: item.ppfs,
-        priceData: {},
+        priceData: { from: "ppfs-snapshots" },
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),

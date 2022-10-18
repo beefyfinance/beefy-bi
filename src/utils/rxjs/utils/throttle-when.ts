@@ -20,7 +20,10 @@ export function throttleWhen<TObj>(options: {
       logger.debug(mergeLogsInfos({ msg: "not sending" }, options.logInfos));
       return;
     }
-    logger.debug(mergeLogsInfos({ msg: "sending a burst", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
+
+    if (firstIdx < obss.length) {
+      logger.debug(mergeLogsInfos({ msg: "sending a burst", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
+    }
 
     for (let n = 0; n < options.sendBurstsOf; n++) {
       const idx = n + firstIdx;
@@ -53,11 +56,14 @@ export function throttleWhen<TObj>(options: {
     }),
 
     Rx.finalize(() => {
-      clearInterval(poller);
-      const openObss = obss.filter((obs) => obs !== null);
-      if (openObss.length > 0) {
-        throw new Error("should not happen");
-      }
+      setTimeout(() => {
+        clearInterval(poller);
+        const openObss = obss.filter((obs) => obs !== null);
+        if (openObss.length > 0) {
+          logger.error({ msg: "throttleWhen: finalize: openObss", data: { openObssLength: openObss.length } });
+          throw new Error("should not happen");
+        }
+      });
     }),
   );
 }

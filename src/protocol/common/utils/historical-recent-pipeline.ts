@@ -100,7 +100,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     // some backpressure mechanism
     Rx.pipe(
       memoryBackpressure$({
-        logInfos: { msg: "import-price-data" },
+        logInfos: options.logInfos,
         sendBurstsOf: streamConfig.maxInputTake,
       }),
       Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { range: item.range } }, options.logInfos))),

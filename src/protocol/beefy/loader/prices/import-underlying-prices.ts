@@ -66,7 +66,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     client: options.client,
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
-    logInfos: { msg: "Importing historical beefy investments" },
+    logInfos: { msg: "Importing beefy recent underlying prices" },
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx, lastImported) =>
       addLatestDateQuery$({
