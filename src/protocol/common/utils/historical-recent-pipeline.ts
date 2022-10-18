@@ -29,7 +29,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       latest: TRange;
     }[]
   >;
-  processImportQuery$: (ctx: ImportCtx<ImportQuery<TInput, TRange>>) => Rx.MonoTypeOperatorFunction<ImportQuery<TInput, TRange>>;
+  processImportQuery$: (
+    ctx: ImportCtx<ImportQuery<TInput, TRange>>,
+  ) => Rx.OperatorFunction<ImportQuery<TInput, TRange> & { importState: TImport }, ImportResult<TInput, TRange>>;
 }) {
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
