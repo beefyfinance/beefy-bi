@@ -139,13 +139,15 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     }),
 
     // work by batches of 300 block range
-    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
+    Rx.pipe(
+      Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
 
-    Rx.tap((items) =>
-      logger.debug({
-        msg: "Importing a batch of transfers",
-        data: { count: items.length, transferLen: items.map((i) => i.transfers.length).reduce((a, b) => a + b, 0) },
-      }),
+      Rx.tap((items) =>
+        logger.debug({
+          msg: "Importing a batch of transfers",
+          data: { count: items.length, transferLen: items.map((i) => i.transfers.length).reduce((a, b) => a + b, 0) },
+        }),
+      ),
     ),
 
     Rx.mergeMap((items) => {
@@ -215,7 +217,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
       );
     }, options.ctx.streamConfig.workConcurrency),
 
-    Rx.tap((items) =>
+    Rx.tap((items: ImportQuery<DbBeefyProduct, number>[]) =>
       logger.debug({
         msg: "Done importing a transfer batch",
         data: { count: items.length },
@@ -223,5 +225,8 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     ),
 
     Rx.mergeAll(), // flatten items
+
+    // mark the success status
+    Rx.map((item): ImportResult<DbBeefyProduct, number> => ({ ...item, success: get(item, "success", true) })),
   );
 }
