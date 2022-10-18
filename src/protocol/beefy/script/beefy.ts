@@ -277,9 +277,6 @@ function importBeefyDataShareRate(options: {
     Rx.map(({ priceFeed }) => priceFeed),
     // remove duplicates
     Rx.distinct((priceFeed) => priceFeed.priceFeedId),
-
-    rateLimit$(1000),
-
     // now fetch associated price feeds
     importBeefyHistoricalShareRatePrices$({ client: options.client, chain: options.chain, forceCurrentBlockNumber: options.forceCurrentBlockNumber }),
   );
