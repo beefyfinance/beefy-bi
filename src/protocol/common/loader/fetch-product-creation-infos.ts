@@ -1,11 +1,11 @@
 import { keyBy } from "lodash";
 import * as Rx from "rxjs";
-import { Chain } from "../../../../types/chain";
-import { db_query } from "../../../../utils/db";
-import { ImportCtx } from "../../../common/types/import-context";
-import { dbBatchCall$ } from "../../../common/utils/db-batch";
+import { Chain } from "../../../types/chain";
+import { db_query } from "../../../utils/db";
+import { ImportCtx } from "../types/import-context";
+import { dbBatchCall$ } from "../utils/db-batch";
 
-export function fetchProductContractCreationInfos<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
   ctx: TCtx;
   getPriceFeedId: (obj: TObj) => number;
   formatOutput: (

@@ -3,6 +3,7 @@ import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
+import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
@@ -10,7 +11,6 @@ import { ImportCtx } from "../../../common/types/import-context";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
-import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
   return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
@@ -31,7 +31,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
 
         // find the first date we are interested in this price
         // so we need the first creation date of each product
-        fetchProductContractCreationInfos({
+        fetchPriceFeedContractCreationInfos({
           ctx: {
             ...ctx,
             emitErrors: (item) => {

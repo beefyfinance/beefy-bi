@@ -6,6 +6,7 @@ import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { addHistoricalBlockQuery$ } from "../../../common/connector/import-queries";
+import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbProductShareRateImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
@@ -15,7 +16,6 @@ import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
-import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
 export function importBeefyHistoricalShareRatePrices$(options: { client: PoolClient; chain: Chain; forceCurrentBlockNumber: number | null }) {
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
@@ -39,7 +39,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
 
         // find the first date we are interested in this price
         // so we need the first creation date of each product
-        fetchProductContractCreationInfos({
+        fetchPriceFeedContractCreationInfos({
           ctx: {
             ...ctx,
             emitErrors: (item) => {
