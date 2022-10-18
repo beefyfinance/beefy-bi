@@ -86,7 +86,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   if (!canUseBatchProvider) {
     // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
     if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.ctx.rpcConfig.chain] === "no-limit") {
-      const newMax = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake * 0.1));
+      const newMax = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake / 10));
       logger.trace(
         mergeLogsInfos(
           { msg: "updating maxInputObjsPerBatch since RPC is in no-limit mode", data: { old: maxInputObjsPerBatch, new: newMax } },

@@ -63,7 +63,7 @@ export function isProductShareRateImportState(o: DbImportState): o is DbProductS
   return o.importData.type === "product:share-rate";
 }
 
-export function upsertImportState$<TInput, TRes>(options: {
+function upsertImportState$<TInput, TRes>(options: {
   client: PoolClient;
   streamConfig: BatchStreamConfig;
   getImportStateData: (obj: TInput) => DbImportState;
@@ -235,7 +235,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
           if (!dbImportState) {
             throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
           }
-          return { importKey, importData: mergeImportState(sameKeyInputItems, dbImportState) };
+          return mergeImportState(sameKeyInputItems, dbImportState);
         });
 
         logger.trace({ msg: "updateImportState$ (merged)", data: newImportStates });
@@ -256,7 +256,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
         if (!importState) {
           throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
         }
-        return options.formatOutput(item, importState.importData);
+        return options.formatOutput(item, importState);
       });
     }, options.streamConfig.workConcurrency),
 
