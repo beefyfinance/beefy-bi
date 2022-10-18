@@ -1,4 +1,5 @@
 export type SamplingPeriod = "15s" | "30s" | "1min" | "5min" | "15min" | "1hour" | "4hour" | "1day";
+export const allSamplingPeriods: SamplingPeriod[] = ["15s", "30s", "1min", "5min", "15min", "1hour", "4hour", "1day"];
 export const samplingPeriodMs: { [period in SamplingPeriod]: number } = {
   "15s": 15 * 1000,
   "30s": 30 * 1000,
