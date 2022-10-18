@@ -195,7 +195,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     Rx.tap((item) => {
       if (item.success) {
         const cachedValue = recentImportCache[options.cacheKey];
-        if (cachedValue !== undefined) {
+        if (cachedValue === undefined) {
           recentImportCache[options.cacheKey] = item.range.to;
         } else {
           recentImportCache[options.cacheKey] = rangeValueMax([cachedValue, item.range.to]) as TRange;
