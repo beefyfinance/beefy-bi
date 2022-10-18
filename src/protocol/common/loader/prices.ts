@@ -17,11 +17,11 @@ export interface DbPrice {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertPrice$<TObj, TRes, TParams extends DbPrice>(options: {
-  ctx: ImportCtx<TObj>;
+export function upsertPrice$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends DbPrice>(options: {
+  ctx: TCtx;
   getPriceData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, price: DbPrice) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,

@@ -17,11 +17,11 @@ export interface DbInvestment {
   investmentData: object;
 }
 
-export function upsertInvestment$<TObj, TRes, TParams extends DbInvestment>(options: {
-  ctx: ImportCtx<TObj>;
+export function upsertInvestment$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends DbInvestment>(options: {
+  ctx: TCtx;
   getInvestmentData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbInvestment) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,

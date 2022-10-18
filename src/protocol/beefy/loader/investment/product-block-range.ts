@@ -1,38 +1,25 @@
-import Decimal from "decimal.js";
 import { get } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { Chain } from "../../../../types/chain";
-import { RpcConfig } from "../../../../types/rpc-config";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
-import { DbBeefyProduct } from "../../../common/loader/product";
-import { ErrorEmitter, ImportQuery, ImportResult } from "../../../common/types/import-query";
-import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
+import { ImportCtx } from "../../../common/types/import-context";
+import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
 import { loadTransfers$, TransferToLoad } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
-export function importProductBlockRange$(options: {
-  client: PoolClient;
-  rpcConfig: RpcConfig;
-  chain: Chain;
-  emitErrors: ErrorEmitter<DbBeefyProduct, number>;
-  streamConfig: BatchStreamConfig;
-}) {
+export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct, number>, TCtx extends ImportCtx<TObj>>(options: { ctx: TCtx }) {
   const boostTransfers$ = Rx.pipe(
-    // set the right product type
     Rx.filter(isBeefyBoostProductImportQuery),
 
     // fetch latest transfers from and to the boost contract
     fetchERC20TransferToAStakingContract$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
+      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyBoostProduct, number>>,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -41,9 +28,10 @@ export function importProductBlockRange$(options: {
           address: boost.staked_token_address,
           decimals: boost.staked_token_decimals,
           trackAddress: boost.contract_address,
+          fromBlock: item.range.from,
+          toBlock: item.range.to,
         };
       },
-      emitErrors: options.emitErrors,
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
 
@@ -63,17 +51,16 @@ export function importProductBlockRange$(options: {
 
     // fetch the vault transfers
     fetchErc20Transfers$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
+      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyStdVaultProduct, number>>,
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {
           address: vault.contract_address,
           decimals: vault.token_decimals,
+          fromBlock: item.range.from,
+          toBlock: item.range.to,
         };
       },
-      emitErrors: options.emitErrors,
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
   );
@@ -93,9 +80,7 @@ export function importProductBlockRange$(options: {
     })),
 
     fetchERC20TransferToAStakingContract$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
+      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyGovVaultProduct, number>>,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -104,9 +89,10 @@ export function importProductBlockRange$(options: {
           address: vault.want_address,
           decimals: vault.want_decimals,
           trackAddress: vault.contract_address,
+          fromBlock: item.range.from,
+          toBlock: item.range.to,
         };
       },
-      emitErrors: options.emitErrors,
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
   );
@@ -153,7 +139,7 @@ export function importProductBlockRange$(options: {
     }),
 
     // work by batches of 300 block range
-    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, 300),
+    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
 
     Rx.tap((items) =>
       logger.debug({
@@ -183,6 +169,11 @@ export function importProductBlockRange$(options: {
         complete: completeTransferErrors$,
       } = createObservableWithNext<ImportQuery<TransferToLoad<DbBeefyProduct>, number>>();
 
+      const transfersCtx = {
+        ...options.ctx,
+        emitErrors: emitTransferErrors,
+      };
+
       return Rx.of(itemsTransfers.flat()).pipe(
         Rx.mergeAll(),
 
@@ -194,13 +185,7 @@ export function importProductBlockRange$(options: {
         ),
 
         // enhance transfer and insert in database
-        loadTransfers$({
-          chain: options.chain,
-          client: options.client,
-          streamConfig: options.streamConfig,
-          emitErrors: emitTransferErrors,
-          rpcConfig: options.rpcConfig,
-        }),
+        loadTransfers$({ ctx: transfersCtx }),
 
         // merge errors
         Rx.pipe(
@@ -228,7 +213,7 @@ export function importProductBlockRange$(options: {
           });
         }),
       );
-    }, options.streamConfig.workConcurrency),
+    }, options.ctx.streamConfig.workConcurrency),
 
     Rx.tap((items) =>
       logger.debug({

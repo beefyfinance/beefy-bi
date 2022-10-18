@@ -98,6 +98,8 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       updateImportState$({
         client: options.client,
         streamConfig,
+        getRange: (item) => item.range,
+        isSuccess: (item) => item.success,
         getImportStateKey: (item) => options.getImportStateKey(item.target),
         formatOutput: (item) => item,
       }),

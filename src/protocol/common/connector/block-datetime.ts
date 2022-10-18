@@ -1,23 +1,14 @@
 import * as Rx from "rxjs";
-import { RpcConfig } from "../../../types/rpc-config";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
+import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
-export function fetchBlockDatetime$<
-  TTarget,
-  TObj extends ImportQuery<TTarget, number>,
-  TParams extends number,
-  TRes extends ImportQuery<TTarget, number>,
->(options: {
-  streamConfig: BatchStreamConfig;
-  rpcConfig: RpcConfig;
+export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends number>(options: {
+  ctx: TCtx;
   getBlockNumber: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget, number>;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return batchRpcCalls$({
-    rpcConfig: options.rpcConfig,
-    streamConfig: options.streamConfig,
+    ctx: options.ctx,
     rpcCallsPerInputObj: {
       eth_call: 0,
       eth_blockNumber: 0,
@@ -31,7 +22,6 @@ export function fetchBlockDatetime$<
       return blocks.map((block) => new Date(block.timestamp * 1000));
     },
     formatOutput: options.formatOutput,
-    emitErrors: options.emitErrors,
     logInfos: { msg: "Fetching block datetime", data: {} },
   });
 }

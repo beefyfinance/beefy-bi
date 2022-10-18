@@ -8,7 +8,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { bufferUntilKeyChanged } from "../../../utils/rxjs/utils/buffer-until-key-changed";
-import { ImportResult, isBlockRangeResult, isDateRangeResult } from "../types/import-query";
+import { ImportResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 
@@ -181,7 +181,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
     const successRanges = rangeMerge(items.filter((item) => options.isSuccess(item)).map((item) => options.getRange(item)));
     const errorRanges = rangeMerge(items.filter((item) => !options.isSuccess(item)).map((item) => options.getRange(item)));
     const lastImportDate = new Date();
-    const newRanges = updateImportRanges<TRange>(newImportState.importData.ranges, {
+    const newRanges = updateImportRanges<TRange>(newImportState.importData.ranges as ImportRanges<TRange>, {
       coveredRanges,
       successRanges,
       errorRanges,
@@ -193,7 +193,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
     if (isProductInvestmentImportState(newImportState) || isProductShareRateImportState(newImportState)) {
       newImportState.importData.chainLatestBlockNumber =
         rangeValueMax(
-          (items as ImportResult<TTarget, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
+          (items as ImportResult<TObj, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
         ) || 0;
     }
 
@@ -255,13 +255,6 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 
     // flatten the items
     Rx.concatAll(),
-
-    // logging
-    Rx.tap((item) => {
-      if (!item.success) {
-        logger.trace({ msg: "Failed to import historical data", data: { blockRange: item.range } });
-      }
-    }),
   );
 }
 

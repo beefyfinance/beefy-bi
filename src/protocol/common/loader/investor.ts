@@ -11,11 +11,11 @@ interface DbInvestor {
   investorData: {};
 }
 
-export function upsertInvestor$<TObj, TRes, TParams extends Omit<DbInvestor, "investorId">>(options: {
-  ctx: ImportCtx<TObj>;
+export function upsertInvestor$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbInvestor, "investorId">>(options: {
+  ctx: TCtx;
   getInvestorData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investorId: number) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,

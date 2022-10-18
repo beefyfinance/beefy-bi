@@ -6,8 +6,8 @@ import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
-import { ErrorEmitter } from "../../common/types/import-query";
 import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
+import { createRpcConfig } from "../../common/utils/rpc-config";
 import { BeefyBoost, beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
@@ -24,13 +24,21 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };
+  const vaultImportCtx = {
+    client: options.client,
+    emitErrors: <TObj extends { vault: BeefyVault }>(item: TObj) => {
+      logger.error({ msg: "Error importing beefy vault product", data: { vaultId: item.vault.id } });
+    },
+    streamConfig,
+    rpcConfig: createRpcConfig("bsc"), // we don't use it here
+  }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
-  const emitVaultErrors: ErrorEmitter<BeefyVault, number> = (item) => {
-    logger.error({ msg: "Error importing beefy vault product", data: { vaultId: item.target.id } });
-  };
-  const emitBoostErrors: ErrorEmitter<BeefyBoost, number> = (item) => {
-    logger.error({ msg: "Error importing beefy boost product", data: { boostId: item.target.id } });
-  };
+  const boostImportCtx = {
+    ...vaultImportCtx,
+    emitErrors: <TObj extends { boost: BeefyBoost }>(item: TObj) => {
+      logger.error({ msg: "Error importing beefy boost product", data: { vaultId: item.boost.id } });
+    },
+  }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
   return Rx.pipe(
     // fetch vaults from git file history
@@ -38,7 +46,7 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
       logger.info({ msg: "importing beefy products", data: { chain } });
       return beefyVaultsFromGitHistory$(chain).pipe(
         // create an object where we cn add attributes to safely
-        Rx.map((vault) => ({ target: vault, latest: 0, range: { from: 0, to: 0 } })),
+        Rx.map((vault) => ({ vault })),
       );
     }),
 
@@ -49,62 +57,56 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
       // - price 1 (ppfs) converts to underlying token
       // - price 2 converts underlying to usd
       upsertPriceFeed$({
-        client: options.client,
-        streamConfig,
-        emitErrors: emitVaultErrors,
-        getFeedData: (vaultData) => {
-          const vaultId = normalizeVaultId(vaultData.target.id);
+        ctx: vaultImportCtx,
+        getFeedData: (item) => {
+          const vaultId = normalizeVaultId(item.vault.id);
           return {
-            feedKey: `beefy:${vaultData.target.chain}:${vaultId}:ppfs`,
-            fromAssetKey: `beefy:${vaultData.target.chain}:${vaultId}`,
-            toAssetKey: `${vaultData.target.protocol}:${vaultData.target.chain}:${vaultData.target.protocol_product}`,
-            priceFeedData: { active: !vaultData.target.eol, externalId: vaultId },
+            feedKey: `beefy:${item.vault.chain}:${vaultId}:ppfs`,
+            fromAssetKey: `beefy:${item.vault.chain}:${vaultId}`,
+            toAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
+            priceFeedData: { active: !item.vault.eol, externalId: vaultId },
           };
         },
-        formatOutput: (vaultData, priceFeed1) => ({ ...vaultData, priceFeed1 }),
+        formatOutput: (item, priceFeed1) => ({ ...item, priceFeed1 }),
       }),
 
       upsertPriceFeed$({
-        client: options.client,
-        streamConfig,
-        emitErrors: emitVaultErrors,
-        getFeedData: (vaultData) => {
+        ctx: vaultImportCtx,
+        getFeedData: (item) => {
           return {
             // feed key tells us that this prices comes from beefy's data
             // we may have another source of prices for the same asset
-            feedKey: `beefy-data:${vaultData.target.protocol}:${vaultData.target.chain}:${vaultData.target.protocol_product}`,
+            feedKey: `beefy-data:${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
 
-            fromAssetKey: `${vaultData.target.protocol}:${vaultData.target.chain}:${vaultData.target.protocol_product}`,
+            fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
             toAssetKey: "fiat:USD", // to USD
             priceFeedData: {
-              active: !vaultData.target.eol,
-              externalId: vaultData.target.want_price_feed_key, // the id that the data api knows
+              active: !item.vault.eol,
+              externalId: item.vault.want_price_feed_key, // the id that the data api knows
             },
           };
         },
-        formatOutput: (vaultData, priceFeed2) => ({ ...vaultData, priceFeed2 }),
+        formatOutput: (item, priceFeed2) => ({ ...item, priceFeed2 }),
       }),
 
       upsertProduct$({
-        client: options.client,
-        streamConfig,
-        emitErrors: emitVaultErrors,
-        getProductData: (vaultData) => {
-          const vaultId = normalizeVaultId(vaultData.target.id);
-          const isGov = vaultData.target.is_gov_vault;
+        ctx: vaultImportCtx,
+        getProductData: (item) => {
+          const vaultId = normalizeVaultId(item.vault.id);
+          const isGov = item.vault.is_gov_vault;
           return {
             // vault ids are unique by chain
-            productKey: `beefy:vault:${vaultData.target.chain}:${vaultId}`,
-            priceFeedId1: vaultData.priceFeed1.priceFeedId,
-            priceFeedId2: vaultData.priceFeed2.priceFeedId,
-            chain: vaultData.target.chain,
+            productKey: `beefy:vault:${item.vault.chain}:${vaultId}`,
+            priceFeedId1: item.priceFeed1.priceFeedId,
+            priceFeedId2: item.priceFeed2.priceFeedId,
+            chain: item.vault.chain,
             productData: {
               type: isGov ? "beefy:gov-vault" : "beefy:vault",
-              vault: vaultData.target,
+              vault: item.vault,
             },
           };
         },
-        formatOutput: (vaultData, product) => ({ ...vaultData, product }),
+        formatOutput: (item, product) => ({ ...item, product }),
       }),
 
       Rx.tap({
@@ -120,18 +122,16 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
       // work by chain
       Rx.pipe(
         Rx.toArray(),
-        Rx.map((vaults) =>
-          Object.entries(groupBy(vaults, (vault) => vault.target.chain)).map(([chain, items]) => ({ chain: chain as Chain, items })),
-        ),
+        Rx.map((vaults) => Object.entries(groupBy(vaults, (vault) => vault.vault.chain)).map(([chain, items]) => ({ chain: chain as Chain, items }))),
         Rx.concatAll(),
       ),
 
       // fetch the boosts from git
       Rx.concatMap(async ({ items, chain }) => {
-        const chainVaults = items.map((item) => item.target);
+        const chainVaults = items.map((item) => item.vault);
         const boostObs = beefyBoostsFromGitHistory$(chain, chainVaults).pipe(Rx.toArray());
         const chainBoosts = (await consumeObservable(boostObs)) ?? [];
-        const itemsByVaultId = keyBy(items, (item) => normalizeVaultId(item.target.id));
+        const itemsByVaultId = keyBy(items, (item) => normalizeVaultId(item.vault.id));
 
         // create an object where we can add attributes to safely
         const boostsData = chainBoosts.map((boost) => {
@@ -142,35 +142,31 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
             throw new Error(`no price feed id for vault id ${vaultId}`);
           }
           return {
-            target: boost,
+            boost,
             priceFeedId1: itemsByVaultId[vaultId].priceFeed1.priceFeedId,
             priceFeedId2: itemsByVaultId[vaultId].priceFeed2.priceFeedId,
-            latest: 0,
-            range: { from: 0, to: 0 },
           };
         });
         return boostsData;
       }),
-      Rx.concatMap((boostsData) => Rx.from(boostsData)), // flatten
+      Rx.concatMap((item) => Rx.from(item)), // flatten
 
       // insert the boost as a new product
       upsertProduct$({
-        client: options.client,
-        streamConfig,
-        emitErrors: emitBoostErrors,
-        getProductData: (boostData) => {
+        ctx: boostImportCtx,
+        getProductData: (item) => {
           return {
-            productKey: `beefy:boost:${boostData.target.chain}:${boostData.target.id}`,
-            priceFeedId1: boostData.priceFeedId1,
-            priceFeedId2: boostData.priceFeedId2,
-            chain: boostData.target.chain,
+            productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,
+            priceFeedId1: item.priceFeedId1,
+            priceFeedId2: item.priceFeedId2,
+            chain: item.boost.chain,
             productData: {
               type: "beefy:boost",
-              boost: boostData.target,
+              boost: item.boost,
             },
           };
         },
-        formatOutput: (boostData, product) => ({ ...boostData, product }),
+        formatOutput: (item, product) => ({ ...item, product }),
       }),
 
       Rx.tap({

@@ -10,6 +10,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { bufferUntilCountReached } from "../../../utils/rxjs/utils/buffer-until-count-reached";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
+import { ImportCtx } from "../types/import-context";
 import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { getRpcRetryConfig } from "./rpc-retry-config";
 
@@ -39,38 +40,28 @@ const chainLock = new AsyncLock({
   maxPending: 100_000,
 });
 
-export function batchRpcCalls$<
-  TTarget,
-  TInputObj extends ImportQuery<TTarget, number>,
-  TQueryObj,
-  TResp,
-  TRes extends ImportQuery<TTarget, number>,
->(options: {
-  getQuery: (obj: TInputObj) => TQueryObj;
-  processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TResp[]>;
+export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
+  ctx: ImportCtx<TObj>;
+  getQuery: (obj: TObj) => TQueryObj;
+  processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TQueryResp[]>;
   // we are doing this much rpc calls per input object
   // this is used to calculate the input batch to send to the client
   // and to know if we can inject the batch provider or if we should use the regular provider
-  rpcConfig: RpcConfig;
   rpcCallsPerInputObj: {
     [method in RpcCallMethod]: number;
   };
-  getCallMultiplierForObj?: (obj: TInputObj) => number;
-  // errors
-  streamConfig: BatchStreamConfig;
-  emitErrors: ErrorEmitter<TTarget, number>;
+  getCallMultiplierForObj?: (obj: TObj) => number;
   logInfos: { msg: string; data?: Record<string, unknown> };
-  // output
-  formatOutput: (objs: TInputObj, results: TResp) => TRes;
+  formatOutput: (objs: TObj, results: TQueryResp) => TRes;
 }) {
-  const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.streamConfig.maxTotalRetryMs });
+  const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs });
 
   // get the rpc provider maximum batch size
-  const methodLimitations = options.rpcConfig.limitations;
+  const methodLimitations = options.ctx.rpcConfig.limitations;
 
   // find out the max number of objects to process in a batch
   let canUseBatchProvider = true;
-  let maxInputObjsPerBatch = options.streamConfig.maxInputTake;
+  let maxInputObjsPerBatch = options.ctx.streamConfig.maxInputTake;
   for (const [method, count] of Object.entries(options.rpcCallsPerInputObj)) {
     // we don't use this method so we don't care
     if (count <= 0) {
@@ -86,8 +77,8 @@ export function batchRpcCalls$<
 
   if (!canUseBatchProvider) {
     // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
-    if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.rpcConfig.chain] === "no-limit") {
-      maxInputObjsPerBatch = Math.max(1, Math.floor(options.streamConfig.maxInputTake / 0.1));
+    if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.ctx.rpcConfig.chain] === "no-limit") {
+      maxInputObjsPerBatch = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake / 0.1));
     } else {
       maxInputObjsPerBatch = 1;
     }
@@ -98,9 +89,9 @@ export function batchRpcCalls$<
 
   return Rx.pipe(
     // take a batch of items
-    bufferUntilCountReached<TInputObj>({
+    bufferUntilCountReached<TObj>({
       maxBufferSize: maxInputObjsPerBatch,
-      maxBufferTimeMs: options.streamConfig.maxInputWaitMs,
+      maxBufferTimeMs: options.ctx.streamConfig.maxInputWaitMs,
       pollFrequencyMs: 150,
       pollJitterMs: 50,
       logInfos: options.logInfos,
@@ -108,15 +99,15 @@ export function batchRpcCalls$<
     }),
 
     // for each batch, fetch the transfers
-    Rx.mergeMap(async (objs: TInputObj[]) => {
+    Rx.mergeMap(async (objs: TObj[]) => {
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
       const contractCalls = objs.map((obj) => options.getQuery(obj));
 
-      const provider = canUseBatchProvider ? options.rpcConfig.batchProvider : options.rpcConfig.linearProvider;
+      const provider = canUseBatchProvider ? options.ctx.rpcConfig.batchProvider : options.ctx.rpcConfig.linearProvider;
 
       const work = async () => {
-        logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.rpcConfig.chain } }, options.logInfos));
+        logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
 
         try {
           const res = await options.processBatch(provider, contractCalls);
@@ -125,7 +116,7 @@ export function batchRpcCalls$<
           if (error instanceof ArchiveNodeNeededError) {
             throw error;
           } else if (isErrorDueToMissingDataFromNode(error)) {
-            throw new ArchiveNodeNeededError(options.rpcConfig.chain, error);
+            throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
           }
           throw error;
         }
@@ -136,10 +127,10 @@ export function batchRpcCalls$<
         const responses = await backOff(() => {
           // acquire a lock for this chain so in case we do use batch provider, we are guaranteed
           // the we are only batching the current request size and not more
-          logger.trace(mergeLogsInfos({ msg: "Acquiring provider lock for chain", data: { chain: options.rpcConfig.chain } }, options.logInfos));
+          logger.trace(mergeLogsInfos({ msg: "Acquiring provider lock for chain", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
 
-          return callLockProtectedRpc(options.rpcConfig.chain, provider, options.rpcConfig.limitations, () =>
-            chainLock.acquire(options.rpcConfig.chain, work),
+          return callLockProtectedRpc(options.ctx.rpcConfig.chain, provider, options.ctx.rpcConfig.limitations, () =>
+            chainLock.acquire(options.ctx.rpcConfig.chain, work),
           );
         }, retryConfig);
 
@@ -155,11 +146,11 @@ export function batchRpcCalls$<
         logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { err } }, options.logInfos));
         logger.error(err);
         for (const obj of objs) {
-          options.emitErrors(obj);
+          options.ctx.emitErrors(obj);
         }
         return Rx.EMPTY;
       }
-    }, options.streamConfig.workConcurrency),
+    }, options.ctx.streamConfig.workConcurrency),
 
     Rx.tap(
       (objs) =>

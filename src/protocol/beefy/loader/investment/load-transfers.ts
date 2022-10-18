@@ -1,8 +1,5 @@
 import Decimal from "decimal.js";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { Chain } from "../../../../types/chain";
-import { RpcConfig } from "../../../../types/rpc-config";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
@@ -12,8 +9,8 @@ import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct, DbProduct } from "../../../common/loader/product";
-import { ErrorEmitter, ImportQuery } from "../../../common/types/import-query";
-import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
+import { ImportCtx } from "../../../common/types/import-context";
+import { ImportQuery } from "../../../common/types/import-query";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
 
@@ -25,13 +22,7 @@ export type TransferToLoad<TProduct extends DbBeefyProduct> = {
 
 export type TransferLoadStatus = { transferCount: number; success: true };
 
-export function loadTransfers$(options: {
-  chain: Chain;
-  client: PoolClient;
-  emitErrors: ErrorEmitter<TransferToLoad<DbBeefyProduct>, number>;
-  streamConfig: BatchStreamConfig;
-  rpcConfig: RpcConfig;
-}) {
+export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToLoad<DbBeefyProduct>, number>> }) {
   const govVaultPipeline$ = Rx.pipe(
     // fix typings
     Rx.filter((item): item is ImportQuery<TransferToLoad<DbBeefyGovVaultProduct>, number> => true),
@@ -44,9 +35,7 @@ export function loadTransfers$(options: {
     Rx.filter((item): item is ImportQuery<TransferToLoad<DbBeefyBoostProduct | DbBeefyStdVaultProduct>, number> => true),
     // fetch the ppfs
     fetchBeefyPPFS$({
-      rpcConfig: options.rpcConfig,
-      chain: options.chain,
-      streamConfig: options.streamConfig,
+      ctx: options.ctx as unknown as ImportCtx<ImportQuery<TransferToLoad<DbBeefyBoostProduct | DbBeefyStdVaultProduct>, number>>, // ugly AF
       getPPFSCallParams: (item) => {
         if (isBeefyBoost(item.target.product)) {
           const boostData = item.target.product.productData.boost;
@@ -66,7 +55,6 @@ export function loadTransfers$(options: {
           };
         }
       },
-      emitErrors: options.emitErrors,
       formatOutput: (item, ppfs) => ({ ...item, ppfs }),
     }),
   );
@@ -86,7 +74,7 @@ export function loadTransfers$(options: {
     // ==============================
 
     // fetch the ppfs
-    Rx.mergeMap((item) => {
+    Rx.mergeMap((item): Rx.Observable<ImportQuery<TransferToLoad<DbBeefyProduct>, number> & { ppfs: Decimal }> => {
       if (isBeefyBoost(item.target.product)) {
         return Rx.of(item).pipe(stdVaultOrBoostPipeline$);
       } else if (isBeefyStandardVault(item.target.product)) {
@@ -100,25 +88,20 @@ export function loadTransfers$(options: {
 
     // we need the balance of each owner
     fetchERC20TokenBalance$({
-      chain: options.chain,
-      rpcConfig: options.rpcConfig,
+      ctx: options.ctx,
       getQueryParams: (item) => ({
         blockNumber: item.target.transfer.blockNumber,
         decimals: item.target.transfer.tokenDecimals,
         contractAddress: item.target.transfer.tokenAddress,
         ownerAddress: item.target.transfer.ownerAddress,
       }),
-      emitErrors: options.emitErrors,
-      streamConfig: options.streamConfig,
       formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
     }),
 
     // we also need the date of each block
     fetchBlockDatetime$({
-      rpcConfig: options.rpcConfig,
+      ctx: options.ctx,
       getBlockNumber: (t) => t.target.transfer.blockNumber,
-      emitErrors: options.emitErrors,
-      streamConfig: options.streamConfig,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
 
@@ -128,9 +111,7 @@ export function loadTransfers$(options: {
 
     // insert the investor data
     upsertInvestor$({
-      client: options.client,
-      streamConfig: options.streamConfig,
-      emitErrors: options.emitErrors,
+      ctx: options.ctx,
       getInvestorData: (item) => ({
         address: item.target.transfer.ownerAddress,
         investorData: {},
@@ -140,16 +121,14 @@ export function loadTransfers$(options: {
 
     // insert ppfs as a price
     upsertPrice$({
-      client: options.client,
-      streamConfig: options.streamConfig,
-      emitErrors: options.emitErrors,
+      ctx: options.ctx,
       getPriceData: (item) => ({
         priceFeedId: item.target.product.priceFeedId1,
         blockNumber: item.target.transfer.blockNumber,
         price: item.ppfs,
         datetime: item.blockDatetime,
         priceData: {
-          chain: options.chain,
+          chain: options.ctx.rpcConfig.chain,
           trxHash: item.target.transfer.transactionHash,
           sharesRate: item.ppfs.toString(),
           productType:
@@ -163,9 +142,7 @@ export function loadTransfers$(options: {
 
     // insert the investment data
     upsertInvestment$({
-      client: options.client,
-      streamConfig: options.streamConfig,
-      emitErrors: options.emitErrors,
+      ctx: options.ctx,
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.target.transfer.blockNumber,
@@ -174,7 +151,7 @@ export function loadTransfers$(options: {
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
         investmentData: {
-          chain: options.chain,
+          chain: options.ctx.rpcConfig.chain,
           balance: item.vaultSharesBalance.toString(),
           balanceDiff: item.target.transfer.amountTransfered.toString(),
           trxHash: item.target.transfer.transactionHash,

@@ -36,6 +36,8 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     complete: completeProductErrors$,
   } = createObservableWithNext<ImportQuery<DbProduct, number>>();
 
+  const ctx = { client, emitErrors, streamConfig, rpcConfig: createRpcConfig(chain) }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
+
   const getImportStateKey = (productId: number) => `product:investment:${productId}`;
 
   return Rx.pipe(
@@ -43,8 +45,8 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     Rx.filter((_: DbBeefyProduct) => true),
 
     addMissingImportState$({
-      client,
-      streamConfig,
+      client: ctx.client,
+      streamConfig: ctx.streamConfig,
       getImportStateKey: (item) => getImportStateKey(item.productId),
       createDefaultImportState$: Rx.pipe(
         // initialize the import state
@@ -98,9 +100,9 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     Rx.pipe(
       // generate the block ranges to import
       addHistoricalBlockQuery$({
-        rpcConfig,
+        rpcConfig: ctx.rpcConfig,
+        streamConfig: ctx.streamConfig,
         forceCurrentBlockNumber,
-        streamConfig,
         getImport: (item) => item.importState as DbProductInvestmentImportState,
         getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
         formatOutput: (item, latestBlockNumber, blockQueries) => ({ ...item, blockQueries, latest: latestBlockNumber }),
@@ -131,7 +133,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     ),
 
     // process the queries
-    importProductBlockRange$({ client, chain, streamConfig, rpcConfig, emitErrors: emitErrors }),
+    importProductBlockRange$({ ctx }),
 
     // handle the results
     Rx.pipe(
@@ -144,7 +146,14 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
       Rx.map((item): ImportResult<DbBeefyProduct, number> => item),
     ),
 
-    updateImportState$({ client, streamConfig, getImportStateKey: (item) => getImportStateKey(item.target.productId), formatOutput: (item) => item }),
+    updateImportState$({
+      client,
+      streamConfig,
+      getRange: (item) => item.range,
+      isSuccess: (item) => item.success,
+      getImportStateKey: (item) => getImportStateKey(item.target.productId),
+      formatOutput: (item) => item,
+    }),
 
     Rx.finalize(() => logger.info({ msg: "Finished importing historical data", data: { chain } })),
   );
@@ -175,6 +184,8 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     maxTotalRetryMs: 10_000,
   };
 
+  const ctx = { client, streamConfig, rpcConfig, emitErrors: () => {} }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
+
   return Rx.pipe(
     // add typings to the input item
     Rx.filter((_: DbBeefyProduct) => true),
@@ -197,14 +208,7 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     }),
 
     // process the queries
-    importProductBlockRange$({
-      client,
-      chain,
-      streamConfig,
-      rpcConfig,
-      // ignore errors
-      emitErrors: () => {},
-    }),
+    importProductBlockRange$({ ctx }),
 
     // logging
     Rx.tap((item) => {

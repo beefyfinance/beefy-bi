@@ -45,11 +45,11 @@ export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | D
 
 export type DbProduct = DbBeefyProduct;
 
-export function upsertProduct$<TObj, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
-  ctx: ImportCtx<TObj>;
+export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
+  ctx: TCtx;
   getProductData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbProduct) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,
@@ -89,11 +89,11 @@ export function upsertProduct$<TObj, TRes, TParams extends Omit<DbProduct, "prod
   });
 }
 
-export function fetchProduct$<TObj, TRes, TParams extends number>(options: {
-  ctx: ImportCtx<TObj>;
+export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends number>(options: {
+  ctx: TCtx;
   getProductId: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, product: DbProduct) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,

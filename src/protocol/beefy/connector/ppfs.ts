@@ -5,11 +5,10 @@ import { zipWith } from "lodash";
 import * as Rx from "rxjs";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { Chain } from "../../../types/chain";
-import { RpcConfig } from "../../../types/rpc-config";
 import { rootLogger } from "../../../utils/logger";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { ErrorEmitter, ImportQuery } from "../../common/types/import-query";
-import { batchRpcCalls$, BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
+import { ImportCtx } from "../../common/types/import-context";
+import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -20,33 +19,23 @@ interface BeefyPPFSCallParams {
   blockNumber: number;
 }
 
-export function fetchBeefyPPFS$<
-  TTarget,
-  TObj extends ImportQuery<TTarget, number>,
-  TParams extends BeefyPPFSCallParams,
-  TRes extends ImportQuery<TTarget, number>,
->(options: {
-  rpcConfig: RpcConfig;
-  chain: Chain;
+export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends BeefyPPFSCallParams>(options: {
+  ctx: TCtx;
   getPPFSCallParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget, number>;
-  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, ppfs: Decimal) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.chain } };
+}) {
+  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.ctx.rpcConfig.chain } };
   return batchRpcCalls$({
+    ctx: options.ctx,
     logInfos,
-    rpcConfig: options.rpcConfig,
     rpcCallsPerInputObj: {
       eth_call: 1,
       eth_blockNumber: 0,
       eth_getBlockByNumber: 0,
       eth_getLogs: 0,
     },
-    emitErrors: options.emitErrors,
-    streamConfig: options.streamConfig,
     getQuery: options.getPPFSCallParams,
-    processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.chain, params),
+    processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.ctx.rpcConfig.chain, params),
     formatOutput: options.formatOutput,
   });
 }

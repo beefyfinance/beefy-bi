@@ -20,11 +20,11 @@ export interface DbPriceFeed {
   };
 }
 
-export function upsertPriceFeed$<TObj, TRes, TParams extends Omit<DbPriceFeed, "priceFeedId">>(options: {
-  ctx: ImportCtx<TObj>;
+export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbPriceFeed, "priceFeedId">>(options: {
+  ctx: TCtx;
   getFeedData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return dbBatchCall$({
     ctx: options.ctx,
     formatOutput: options.formatOutput,

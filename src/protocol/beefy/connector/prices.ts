@@ -3,9 +3,9 @@ import * as Rx from "rxjs";
 import { SamplingPeriod } from "../../../types/sampling";
 import { BEEFY_DATA_URL } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
+import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
-import { ErrorEmitter, ImportQuery } from "../../common/types/import-query";
-import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
+import { ImportCtx } from "../../common/types/import-context";
 
 export interface PriceSnapshot {
   oracleId: string;
@@ -17,17 +17,12 @@ const logger = rootLogger.child({ module: "beefy", component: "prices" });
 interface BeefyPriceCallParams {
   oracleId: string;
   samplingPeriod: SamplingPeriod;
+  range: Range<Date>;
 }
 
-export function fetchBeefyDataPrices$<
-  TTarget,
-  TObj extends ImportQuery<TTarget, Date>,
-  TParams extends BeefyPriceCallParams,
-  TRes extends ImportQuery<TTarget, Date>,
->(options: {
+export function fetchBeefyDataPrices$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends BeefyPriceCallParams>(options: {
+  ctx: TCtx;
   getPriceParams: (obj: TObj) => TParams;
-  emitErrors: ErrorEmitter<TTarget, Date>;
-  streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, prices: PriceSnapshot[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
@@ -37,23 +32,20 @@ export function fetchBeefyDataPrices$<
     // now we fetch
     Rx.concatMap(async (item) => {
       const params = options.getPriceParams(item);
-      const debugLogData = {
-        oracleId: params.oracleId,
-        range: item.range,
-      };
-      logger.debug({ msg: "fetching prices", data: debugLogData });
+
+      logger.debug({ msg: "fetching prices", data: params });
       try {
         const prices = await fetchBeefyPrices(params.samplingPeriod, params.oracleId, {
-          startDate: item.range.from,
-          endDate: item.range.to,
+          startDate: params.range.from,
+          endDate: params.range.to,
         });
-        logger.debug({ msg: "got prices", data: { ...debugLogData, priceCount: prices.length } });
+        logger.debug({ msg: "got prices", data: { ...params, priceCount: prices.length } });
 
         return Rx.of(options.formatOutput(item, prices));
       } catch (error) {
-        logger.error({ msg: "error fetching prices", data: { ...debugLogData, error } });
+        logger.error({ msg: "error fetching prices", data: { ...params, error } });
         logger.error(error);
-        options.emitErrors(item);
+        options.ctx.emitErrors(item);
         return Rx.EMPTY;
       }
     }),

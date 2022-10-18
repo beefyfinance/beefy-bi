@@ -13,6 +13,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
+import { createRpcConfig } from "../../../common/utils/rpc-config";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
@@ -34,15 +35,15 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
     next: emitErrors,
   } = createObservableWithNext<ImportQuery<DbPriceFeed, Date>>();
 
+  const ctx = { client: options.client, rpcConfig: createRpcConfig("bsc"), streamConfig, emitErrors };
+
   const getImportStateKey = (priceFeedId: number) => `price:feed:${priceFeedId}`;
 
   const insertPricePipeline$ = Rx.pipe(
     Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
 
     upsertPrice$({
-      client: options.client,
-      emitErrors,
-      streamConfig: streamConfig,
+      ctx,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
         blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
@@ -66,8 +67,8 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
     ),
 
     addMissingImportState$({
-      client: options.client,
-      streamConfig,
+      client: ctx.client,
+      streamConfig: ctx.streamConfig,
       getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
       createDefaultImportState$: Rx.pipe(
         // initialize the import state
@@ -146,11 +147,11 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
     ),
 
     fetchBeefyDataPrices$({
-      emitErrors,
-      streamConfig,
+      ctx,
       getPriceParams: (item) => ({
         oracleId: item.target.priceFeedData.externalId,
         samplingPeriod: "15min",
+        range: item.range,
       }),
       formatOutput: (item, prices) => ({ ...item, prices }),
     }),
@@ -185,6 +186,8 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
       updateImportState$({
         client: options.client,
         streamConfig,
+        getRange: (item) => item.range,
+        isSuccess: (item) => item.success,
         getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
         formatOutput: (item) => item,
       }),
@@ -208,14 +211,13 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     // and we cannot afford too long of a retry per product
     maxTotalRetryMs: 10_000,
   };
+  const ctx = { client: options.client, streamConfig, rpcConfig: createRpcConfig("bsc"), emitErrors: () => {} }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
   const insertPricePipeline$ = Rx.pipe(
     Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
 
     upsertPrice$({
-      client: options.client,
-      emitErrors: () => {}, // ignore errors
-      streamConfig: streamConfig,
+      ctx,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
         blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
@@ -248,11 +250,11 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     }),
 
     fetchBeefyDataPrices$({
-      emitErrors: () => {}, // ignore errors
-      streamConfig,
+      ctx,
       getPriceParams: (item) => ({
         oracleId: item.target.priceFeedData.externalId,
         samplingPeriod: "15min",
+        range: item.range,
       }),
       formatOutput: (item, prices) => ({ ...item, prices }),
     }),

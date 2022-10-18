@@ -6,8 +6,8 @@ import { ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "db-batch" });
 
-export function dbBatchCall$<TObj, TRes, TQueryData, TQueryRes>(options: {
-  ctx: ImportCtx<TObj>;
+export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryData, TQueryRes>(options: {
+  ctx: TCtx;
   getData: (obj: TObj) => TQueryData;
   processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<TQueryRes[]>;
   formatOutput: (obj: TObj, res: TQueryRes) => TRes;

@@ -20,7 +20,6 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
-import { createHistoricalImportPipeline } from "../../../common/utils/historical-pipeline";
 import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
 import { createRpcConfig } from "../../../common/utils/rpc-config";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
@@ -45,6 +44,8 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
     complete: completePriceFeedErrors$,
     next: emitErrors,
   } = createObservableWithNext<ImportQuery<DbPriceFeed, number>>();
+
+  const ctx = { client: options.client, rpcConfig, streamConfig, emitErrors };
 
   const getImportStateKey = (priceFeedId: number) => `price:feed:${priceFeedId}`;
 
@@ -117,9 +118,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
 
       // add the product infos
       fetchProduct$({
-        streamConfig,
-        client: options.client,
-        emitErrors: emitErrors,
+        ctx,
         getProductId: (item) => item.importState.importData.productId,
         formatOutput: (item, product) => ({ ...item, product }),
       }),
@@ -160,10 +159,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
 
     Rx.pipe(
       fetchBeefyPPFS$({
-        chain: options.chain,
-        emitErrors,
-        streamConfig,
-        rpcConfig,
+        ctx,
         getPPFSCallParams: (item) => {
           if (isBeefyBoost(item.product)) {
             throw new ProgrammerError("beefy boost do not have ppfs");
@@ -184,17 +180,13 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
 
       // add block datetime
       fetchBlockDatetime$({
-        emitErrors,
-        rpcConfig,
-        streamConfig,
+        ctx,
         getBlockNumber: (item) => item.range.from,
         formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
       }),
 
       upsertPrice$({
-        client: options.client,
-        emitErrors,
-        streamConfig: streamConfig,
+        ctx,
         getPriceData: (item) => ({
           datetime: item.blockDatetime,
           blockNumber: item.range.from,
@@ -222,6 +214,8 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
       updateImportState$({
         client: options.client,
         streamConfig,
+        getRange: (item) => item.range,
+        isSuccess: (item) => item.success,
         getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
         formatOutput: (item) => item,
       }),

@@ -4,11 +4,10 @@ import { flatten, groupBy, zipWith } from "lodash";
 import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
-import { RpcConfig } from "../../../types/rpc-config";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
-import { batchRpcCalls$, BatchStreamConfig } from "../utils/batch-rpc-calls";
+import { ImportCtx } from "../types/import-context";
+import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -38,54 +37,37 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers$<TTarget, TObj extends ImportQuery<TTarget, number>, TRes extends ImportQuery<TTarget, number>>(options: {
-  rpcConfig: RpcConfig;
-  chain: Chain;
-  getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter<TTarget, number>;
-  streamConfig: BatchStreamConfig;
+export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+  ctx: TCtx;
+  getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
+}) {
   return batchRpcCalls$({
-    streamConfig: options.streamConfig,
+    ctx: options.ctx,
     rpcCallsPerInputObj: {
       eth_call: 0,
       eth_blockNumber: 0,
       eth_getBlockByNumber: 0,
       eth_getLogs: 2,
     },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.chain } },
-    emitErrors: options.emitErrors,
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.rpcConfig.chain } },
+    getQuery: options.getQueryParams,
+    processBatch: (provider, contractCalls: GetTransferCallParams[]) =>
+      fetchERC20TransferEvents(provider, options.ctx.rpcConfig.chain, contractCalls),
     formatOutput: options.formatOutput,
-    getQuery: (obj): GetTransferCallParams => {
-      const params = options.getQueryParams(obj);
-      return {
-        ...params,
-        fromBlock: obj.range.from,
-        toBlock: obj.range.to,
-      };
-    },
-    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(provider, options.chain, contractCalls),
-    rpcConfig: options.rpcConfig,
   });
 }
 
 // when hitting a staking contract we don't have a token in return
 // so the balance of the amount we send is our positive diff
-export function fetchERC20TransferToAStakingContract$<
-  TTarget,
-  TObj extends ImportQuery<TTarget, number>,
-  TRes extends ImportQuery<TTarget, number>,
->(options: {
-  rpcConfig: RpcConfig;
-  chain: Chain;
-  getQueryParams: (obj: TObj) => Omit<GetTransferCallParams, "fromBlock" | "toBlock">;
-  emitErrors: ErrorEmitter<TTarget, number>;
-  streamConfig: BatchStreamConfig;
+export function fetchERC20TransferToAStakingContract$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+  ctx: TCtx;
+  getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  return fetchErc20Transfers$<TTarget, TObj, TRes>({
-    ...options,
+}) {
+  return fetchErc20Transfers$({
+    ctx: options.ctx,
+    getQueryParams: options.getQueryParams,
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);
       const contractAddress = params.trackAddress;
