@@ -108,7 +108,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
             chain, 
             product_data as "productData"
         FROM product 
-        WHERE product_id IN %L`,
+        WHERE product_id IN (%L)`,
         [objAndData.map(({ data }) => data)],
         options.ctx.client,
       );

@@ -133,7 +133,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
         formatOutput: (item) => item,
       }),
 
-      Rx.finalize(() => logger.info(mergeLogsInfos({ msg: "Historical data import end" }, options.logInfos))),
+      Rx.tap({
+        complete: () => logger.info(mergeLogsInfos({ msg: "Historical data import end" }, options.logInfos)),
+      }),
     ),
   );
 }
@@ -202,6 +204,9 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
         }
       }
     }),
-    Rx.finalize(() => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos))),
+
+    Rx.tap({
+      complete: () => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos)),
+    }),
   );
 }
