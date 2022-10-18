@@ -36,12 +36,18 @@ const rangeStrategies = {
 };
 
 // some type guards
-
 export function isDateRange(range: Range<any>): range is Range<Date> {
   return isDate(range.from);
 }
 export function isNumberRange(range: Range<any>): range is Range<number> {
   return isNumber(range.from);
+}
+
+function checkRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>) {
+  const strat = strategy || getRangeStrategy(range);
+  if (strat.compare(range.from, range.to) > 0) {
+    throw new ProgrammerError("Range is invalid: from > to");
+  }
 }
 
 function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): RangeStrategy<T> {
@@ -71,6 +77,8 @@ export function rangeArrayExclude<T extends SupportedRangeTypes>(ranges: Range<T
 
 export function rangeExcludeMany<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   const strat = strategy || getRangeStrategy(range);
+  checkRange(range, strat);
+
   let ranges = [range];
   for (const ex of exclude) {
     for (let i = 0; i < ranges.length; i++) {
@@ -97,11 +105,16 @@ export function rangeExcludeMany<T extends SupportedRangeTypes>(range: Range<T>,
 
 export function rangeEqual<T extends SupportedRangeTypes>(a: Range<T>, b: Range<T>, strategy?: RangeStrategy<T>) {
   const strat = strategy || getRangeStrategy(a);
+  checkRange(a, strat);
+  checkRange(b, strat);
   return strat.compare(a.from, b.from) === 0 && strat.compare(a.to, b.to) === 0;
 }
 
 export function rangeExclude<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>, strategy?: RangeStrategy<T>): Range<T>[] {
   const strat = strategy || getRangeStrategy(range);
+  checkRange(range, strat);
+  checkRange(exclude, strat);
+
   // ranges are exclusives
   if (range.to < exclude.from) {
     return [clone(range)];
@@ -146,6 +159,8 @@ export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], st
 
   let currentMergedRange: Range<T> | null = null;
   for (const range of sortedRanges) {
+    checkRange(range, strat);
+
     if (!currentMergedRange) {
       currentMergedRange = clone(range);
       continue;
@@ -176,6 +191,8 @@ export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], st
 
 export function rangeSlitToMaxLength<T extends SupportedRangeTypes>(range: Range<T>, maxLength: number, strategy?: RangeStrategy<T>): Range<T>[] {
   const strat = strategy || getRangeStrategy(range);
+  checkRange(range, strat);
+
   const ranges: Range<T>[] = [];
   let currentRange: Range<T> = clone(range);
 
