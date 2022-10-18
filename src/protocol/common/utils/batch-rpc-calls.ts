@@ -70,22 +70,38 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
     const maxCount = methodLimitations[method as RpcCallMethod];
     if (maxCount === null) {
       canUseBatchProvider = false;
+      logger.trace(mergeLogsInfos({ msg: "disabling batch provider since limitation is null", data: { method } }, options.logInfos));
       break;
     }
-    maxInputObjsPerBatch = Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count));
+    const newMax = Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count));
+    logger.trace(
+      mergeLogsInfos(
+        { msg: "updating maxInputObjsPerBatch with provided count per item", data: { old: maxInputObjsPerBatch, new: newMax } },
+        options.logInfos,
+      ),
+    );
+    maxInputObjsPerBatch = newMax;
   }
 
   if (!canUseBatchProvider) {
     // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
     if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.ctx.rpcConfig.chain] === "no-limit") {
-      maxInputObjsPerBatch = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake / 0.1));
+      const newMax = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake * 0.1));
+      logger.trace(
+        mergeLogsInfos(
+          { msg: "updating maxInputObjsPerBatch since RPC is in no-limit mode", data: { old: maxInputObjsPerBatch, new: newMax } },
+          options.logInfos,
+        ),
+      );
+      maxInputObjsPerBatch = newMax;
     } else {
+      logger.trace(
+        mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
+      );
       maxInputObjsPerBatch = 1;
     }
   }
-  logger.trace(
-    mergeLogsInfos({ msg: "batchRpcCalls$ config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos),
-  );
+  logger.debug(mergeLogsInfos({ msg: "config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos));
 
   return Rx.pipe(
     // take a batch of items
