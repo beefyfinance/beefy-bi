@@ -76,7 +76,12 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
         // find the first date we are interested in this price
         // so we need the first creation date of each product
         fetchProductContractCreationInfos({
-          client: options.client,
+          ctx: {
+            ...ctx,
+            emitErrors: (item) => {
+              throw new Error("Error while fetching product creation infos for price feed" + item.target.priceFeedId);
+            },
+          },
           getPriceFeedId: (item) => item.target.priceFeedId,
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),

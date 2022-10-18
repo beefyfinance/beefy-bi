@@ -1,30 +1,23 @@
 import { keyBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../../utils/config";
 import { db_query } from "../../../../utils/db";
+import { ImportCtx } from "../../../common/types/import-context";
+import { dbBatchCall$ } from "../../../common/utils/db-batch";
 
-export function fetchProductContractCreationInfos<TObj, TRes>(options: {
-  client: PoolClient;
+export function fetchProductContractCreationInfos<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+  ctx: TCtx;
   getPriceFeedId: (obj: TObj) => number;
   formatOutput: (
     obj: TObj,
     contractCreationInfos: { chain: Chain; productId: number; contractCreatedAtBlock: number; contractCreationDate: Date } | null,
   ) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
-
-    // upsert data and map to input objects
-    Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
-      const objAndData = objs.map((obj) => ({ obj, priceFeedId: options.getPriceFeedId(obj) }));
-
+  return dbBatchCall$({
+    ctx: options.ctx,
+    getData: options.getPriceFeedId,
+    formatOutput: options.formatOutput,
+    processBatch: async (objAndData) => {
       type TRes = { priceFeedId: number; productId: number; chain: Chain; contractCreatedAtBlock: number; contractCreationDate: Date };
       const results = await db_query<TRes>(
         `SELECT 
@@ -36,8 +29,8 @@ export function fetchProductContractCreationInfos<TObj, TRes>(options: {
           FROM import_state i
             JOIN product p on p.product_id = (i.import_data->'productId')::integer
           WHERE price_feed_2_id IN (%L)`,
-        [objAndData.map((obj) => obj.priceFeedId)],
-        options.client,
+        [objAndData.map((obj) => obj.data)],
+        options.ctx.client,
       );
 
       // ensure results are in the same order as the params
@@ -48,10 +41,7 @@ export function fetchProductContractCreationInfos<TObj, TRes>(options: {
         }),
         "priceFeedId",
       );
-      return objAndData.map((obj) => options.formatOutput(obj.obj, idMap[obj.priceFeedId] ?? null));
-    }),
-
-    // flatten objects
-    Rx.concatMap((objs) => Rx.from(objs)),
-  );
+      return objAndData.map((obj) => idMap[obj.data] ?? null);
+    },
+  });
 }
