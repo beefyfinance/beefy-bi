@@ -67,6 +67,36 @@ export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPara
   });
 }
 
+export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+  ctx: TCtx;
+  getPriceFeedId: (obj: TObj) => number;
+  formatOutput: (obj: TObj, priceFeed: DbPriceFeed | null) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    ctx: options.ctx,
+    getData: options.getPriceFeedId,
+    formatOutput: options.formatOutput,
+    processBatch: async (objAndData) => {
+      const results = await db_query<DbPriceFeed>(
+        `SELECT 
+            price_feed_id as "priceFeedId", 
+            feed_key as "feedKey",
+            from_asset_key as "fromAssetKey",
+            to_asset_key as "toAssetKey",
+            price_feed_data as "priceFeedData"
+          FROM price_feed
+          WHERE price_feed_id IN (%L)`,
+        [objAndData.map((obj) => obj.data)],
+        options.ctx.client,
+      );
+
+      // ensure results are in the same order as the params
+      const idMap = keyBy(results, "priceFeedId");
+      return objAndData.map((obj) => idMap[obj.data] ?? null);
+    },
+  });
+}
+
 export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefix: TKey): Rx.Observable<DbPriceFeed> {
   logger.debug({ msg: "Fetching price feed from db", data: { keyPrefix } });
   return Rx.of(

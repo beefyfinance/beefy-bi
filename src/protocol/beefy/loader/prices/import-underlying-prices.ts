@@ -38,6 +38,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
               throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
             },
           },
+          which: "price-feed-2", // we work on the second applied price
           getPriceFeedId: (item) => item.priceFeedId,
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
@@ -60,9 +61,9 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
   });
 }
 
-export function importBeefyRecentUnderlyingPrices$(client: PoolClient) {
+export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient }) {
   return createRecentImportPipeline<DbPriceFeed, Date>({
-    client,
+    client: options.client,
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing historical beefy investments" },

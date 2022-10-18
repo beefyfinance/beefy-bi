@@ -15,6 +15,26 @@ import { createRpcConfig } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "common", component: "historical-import" });
 
+export const defaultHistoricalStreamConfig: BatchStreamConfig = {
+  // since we are doing many historical queries at once, we cannot afford to do many at once
+  workConcurrency: 1,
+  // But we can afford to wait a bit longer before processing the next batch to be more efficient
+  maxInputWaitMs: 30 * 1000,
+  maxInputTake: 500,
+  // and we can affort longer retries
+  maxTotalRetryMs: 30_000,
+};
+export const defaultRecentStreamConfig: BatchStreamConfig = {
+  // since we are doing live data on a small amount of queries (one per vault)
+  // we can afford some amount of concurrency
+  workConcurrency: 10,
+  // But we can not afford to wait before processing the next batch
+  maxInputWaitMs: 5_000,
+  maxInputTake: 500,
+  // and we cannot afford too long of a retry per product
+  maxTotalRetryMs: 10_000,
+};
+
 export function createHistoricalImportPipeline<TInput, TRange extends SupportedRangeTypes, TImport extends DbImportState>(options: {
   client: PoolClient;
   chain: Chain;
@@ -33,15 +53,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     ctx: ImportCtx<ImportQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportQuery<TInput, TRange> & { importState: TImport }, ImportResult<TInput, TRange>>;
 }) {
-  const streamConfig: BatchStreamConfig = {
-    // since we are doing many historical queries at once, we cannot afford to do many at once
-    workConcurrency: 1,
-    // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxInputWaitMs: 30 * 1000,
-    maxInputTake: 500,
-    // and we can affort longer retries
-    maxTotalRetryMs: 30_000,
-  };
+  const streamConfig = defaultHistoricalStreamConfig;
   const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportQuery<TInput, TRange>>();
 
   const ctx: ImportCtx<ImportQuery<TInput, TRange>> = {
@@ -147,16 +159,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     ctx: ImportCtx<ImportQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportQuery<TInput, TRange>, ImportResult<TInput, TRange>>;
 }) {
-  const streamConfig: BatchStreamConfig = {
-    // since we are doing live data on a small amount of queries (one per vault)
-    // we can afford some amount of concurrency
-    workConcurrency: 10,
-    // But we can not afford to wait before processing the next batch
-    maxInputWaitMs: 5_000,
-    maxInputTake: 500,
-    // and we cannot afford too long of a retry per product
-    maxTotalRetryMs: 10_000,
-  };
+  const streamConfig = defaultRecentStreamConfig;
 
   const ctx: ImportCtx<ImportQuery<TInput, TRange>> = {
     client: options.client,
@@ -189,7 +192,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     processImportQuery$,
 
     // update the last processed cache
-    Rx.map((item) => {
+    Rx.tap((item) => {
       if (item.success) {
         const cachedValue = recentImportCache[options.cacheKey];
         if (cachedValue !== undefined) {

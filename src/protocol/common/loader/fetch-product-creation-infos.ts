@@ -8,6 +8,7 @@ import { dbBatchCall$ } from "../utils/db-batch";
 export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
   ctx: TCtx;
   getPriceFeedId: (obj: TObj) => number;
+  which: "price-feed-1" | "price-feed-2";
   formatOutput: (
     obj: TObj,
     contractCreationInfos: { chain: Chain; productId: number; contractCreatedAtBlock: number; contractCreationDate: Date } | null,
@@ -19,16 +20,17 @@ export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx
     formatOutput: options.formatOutput,
     processBatch: async (objAndData) => {
       type TRes = { priceFeedId: number; productId: number; chain: Chain; contractCreatedAtBlock: number; contractCreationDate: Date };
+      const fieldName = options.which === "price-feed-1" ? "price_feed_1_id" : "price_feed_2_id";
       const results = await db_query<TRes>(
         `SELECT 
-              p.price_feed_2_id as "priceFeedId",
+              p.${fieldName} as "priceFeedId",
               p.product_id as "productId",
               p.chain as "chain",
               (import_data->'contractCreatedAtBlock')::integer as "contractCreatedAtBlock",
               (import_data->>'contractCreationDate')::timestamptz as "contractCreationDate"
           FROM import_state i
             JOIN product p on p.product_id = (i.import_data->'productId')::integer
-          WHERE price_feed_2_id IN (%L)`,
+          WHERE ${fieldName} IN (%L)`,
         [objAndData.map((obj) => obj.data)],
         options.ctx.client,
       );

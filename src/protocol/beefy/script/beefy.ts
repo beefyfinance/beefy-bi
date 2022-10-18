@@ -8,8 +8,11 @@ import { db_migrate, withPgClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { DbPriceFeed, priceFeedList$ } from "../../common/loader/price-feed";
-import { DbBeefyProduct, productList$ } from "../../common/loader/product";
+import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { fetchPriceFeed$, priceFeedList$ } from "../../common/loader/price-feed";
+import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { defaultHistoricalStreamConfig } from "../../common/utils/historical-recent-pipeline";
+import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
 import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
@@ -42,7 +45,15 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               );
             }
 
-            daemonize("historical-prices", () => importBeefyDataHistoricalPrices({ client }), samplingPeriodMs["5min"]);
+            daemonize("historical-prices", () => importBeefyDataPrices({ client, which: "historical" }), samplingPeriodMs["5min"]);
+
+            for (const chain of filterChains) {
+              daemonize(
+                `share-rate-historical-${chain}`,
+                () => importBeefyDataShareRate({ client, chain, filterContractAddress: null, forceCurrentBlockNumber: null }),
+                samplingPeriodMs["15min"],
+              );
+            }
           });
         })(),
     })
@@ -69,7 +80,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               );
             }
 
-            daemonize("recent-prices", () => importBeefyDataRecentPrices({ client }), samplingPeriodMs["15min"]);
+            daemonize("recent-prices", () => importBeefyDataPrices({ client, which: "recent" }), samplingPeriodMs["15min"]);
           });
         })(),
     })
@@ -145,11 +156,17 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             case "products":
               return importProducts({ client, filterChains: chain === "all" ? allChainIds : [chain] });
             case "recent-prices":
-              return importBeefyDataRecentPrices({ client });
+              return importBeefyDataPrices({ client, which: "recent" });
             case "historical-prices":
-              return importBeefyDataHistoricalPrices({ client });
-            /*case "historical-share-rate":
-              return importBeefyDataShareRate({ client, forceCurrentBlockNumber, strategy: "historical", chain, filterContractAddress });*/
+              return importBeefyDataPrices({ client, which: "historical" });
+            case "historical-share-rate":
+              if (chain === "all") {
+                return Promise.all(
+                  allChainIds.map((chain) => importBeefyDataShareRate({ client, forceCurrentBlockNumber, chain, filterContractAddress })),
+                );
+              } else {
+                return importBeefyDataShareRate({ client, forceCurrentBlockNumber, chain, filterContractAddress });
+              }
             default:
               throw new ProgrammerError(`Unknown importer: ${argv.importer}`);
           }
@@ -176,15 +193,13 @@ async function importProducts(options: { client: PoolClient; filterChains: Chain
   return consumeObservable(pipeline$);
 }
 
-async function importBeefyDataRecentPrices(options: { client: PoolClient }) {
-  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyRecentUnderlyingPrices$({ client: options.client }));
-  logger.info({ msg: "starting recent prices import", data: { ...options, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
-}
-
-async function importBeefyDataHistoricalPrices(options: { client: PoolClient }) {
-  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(importBeefyHistoricalUnderlyingPrices$({ client: options.client }));
-  logger.info({ msg: "starting historical prices import", data: { ...options, client: "<redacted>" } });
+async function importBeefyDataPrices(options: { client: PoolClient; which: "recent" | "historical" }) {
+  const pipeline$ = priceFeedList$(options.client, "beefy-data").pipe(
+    options.which === "recent"
+      ? importBeefyRecentUnderlyingPrices$({ client: options.client })
+      : importBeefyHistoricalUnderlyingPrices$({ client: options.client }),
+  );
+  logger.info({ msg: "starting prices import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
 
@@ -192,31 +207,11 @@ const investmentPipelineByChain = {} as Record<
   Chain,
   { historical: Rx.OperatorFunction<DbBeefyProduct, any>; recent: Rx.OperatorFunction<DbBeefyProduct, any> }
 >;
-function getChainInvestmentPipeline(client: PoolClient, chain: Chain, filterContractAddress: string | null, forceCurrentBlockNumber: number | null) {
+function getChainInvestmentPipeline(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   if (!investmentPipelineByChain[chain]) {
     investmentPipelineByChain[chain] = {
-      historical: Rx.pipe(
-        Rx.filter((product) => product.chain === chain),
-        Rx.filter(
-          (product) =>
-            filterContractAddress === null ||
-            (product.productData.type === "beefy:boost"
-              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
-              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
-        ),
-        importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
-      ),
-      recent: Rx.pipe(
-        Rx.filter((product) => product.chain === chain),
-        Rx.filter(
-          (product) =>
-            filterContractAddress === null ||
-            (product.productData.type === "beefy:boost"
-              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
-              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
-        ),
-        importChainRecentData$(client, chain, forceCurrentBlockNumber),
-      ),
+      historical: importChainHistoricalData$(client, chain, forceCurrentBlockNumber),
+      recent: importChainRecentData$(client, chain, forceCurrentBlockNumber),
     };
   }
   return investmentPipelineByChain[chain];
@@ -229,48 +224,58 @@ async function importInvestmentData(options: {
   filterContractAddress: string | null;
   forceCurrentBlockNumber: number | null;
 }) {
-  const chainPipeline = getChainInvestmentPipeline(options.client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
-  const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
-  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(strategyImporter);
+  const { recent, historical } = getChainInvestmentPipeline(options.client, options.chain, options.forceCurrentBlockNumber);
+  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(
+    Rx.filter((product) => product.chain === options.chain),
+    Rx.filter((product) => {
+      const contractAddress =
+        product.productData.type === "beefy:boost" ? product.productData.boost.contract_address : product.productData.vault.contract_address;
+      return options.filterContractAddress === null || contractAddress.toLocaleLowerCase() === options.filterContractAddress.toLocaleLowerCase();
+    }),
+    options.strategy === "recent" ? recent : historical,
+  );
   logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
-/*
-const shareRatePipelineByChain = {} as Record<
-  Chain,
-  { historical: Rx.OperatorFunction<DbPriceFeed, any> //recent: Rx.OperatorFunction<DbPriceFeed, any>
- }
->;
-function getChainShareRatePipeline(client: PoolClient, chain: Chain, filterContractAddress: string | null, forceCurrentBlockNumber: number | null) {
-  if (!shareRatePipelineByChain[chain]) {
-    shareRatePipelineByChain[chain] = {
-      historical: Rx.pipe(
-        Rx.filter((product) => product.chain === chain),
-        Rx.filter(
-          (product) =>
-            filterContractAddress === null ||
-            (product.productData.type === "beefy:boost"
-              ? product.productData.boost.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()
-              : product.productData.vault.contract_address.toLocaleLowerCase() === filterContractAddress.toLocaleLowerCase()),
-        ),
-        importBeefyHistoricalShareRatePrices$(client, chain, forceCurrentBlockNumber),
-      ),
-    };
-  }
-  return investmentPipelineByChain[chain];
-}
 
-async function importBeefyDataShareRate(options: {
+function importBeefyDataShareRate(options: {
   client: PoolClient;
-  strategy: "recent" | "historical";
   chain: Chain;
   filterContractAddress: string | null;
   forceCurrentBlockNumber: number | null;
 }) {
-  const chainPipeline = getChainShareRatePipeline(options.client, options.chain, options.filterContractAddress, options.forceCurrentBlockNumber);
-  const strategyImporter = options.strategy === "recent" ? chainPipeline.recent : chainPipeline.historical;
-  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(strategyImporter);
-  logger.info({ msg: "starting investment data import", data: { ...options, client: "<redacted>" } });
+  const productFilter$ = Rx.pipe(
+    Rx.filter((product: DbProduct) => product.chain === options.chain),
+    Rx.filter((product) => {
+      const contractAddress =
+        product.productData.type === "beefy:boost" ? product.productData.boost.contract_address : product.productData.vault.contract_address;
+      return options.filterContractAddress === null || contractAddress.toLocaleLowerCase() === options.filterContractAddress.toLocaleLowerCase();
+    }),
+  );
+
+  const rpcConfig = createRpcConfig(options.chain);
+  const streamConfig = defaultHistoricalStreamConfig;
+  const ctx = {
+    client: options.client,
+    emitErrors: (item: DbProduct) => {
+      throw new Error(`Error fetching price feed for product ${item.productId}`);
+    },
+    rpcConfig,
+    streamConfig,
+  };
+
+  const pipeline$ = productList$(options.client, "beefy", options.chain).pipe(
+    productFilter$,
+    // now fetch the price feed we need
+    fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+    // drop those without a price feed yet
+    excludeNullFields$("priceFeed"),
+    Rx.map(({ priceFeed }) => priceFeed),
+
+    // now fetch associated price feeds
+    importBeefyHistoricalShareRatePrices$({ client: options.client, chain: options.chain, forceCurrentBlockNumber: options.forceCurrentBlockNumber }),
+  );
+
+  logger.info({ msg: "starting share rate data import", data: { ...options, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
-*/
