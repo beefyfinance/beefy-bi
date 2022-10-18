@@ -1,76 +1,32 @@
 import Decimal from "decimal.js";
-import { get, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { samplingPeriodMs } from "../../../../types/sampling";
-import { rootLogger } from "../../../../utils/logger";
-import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
-import { addMissingImportState$, DbOraclePriceImportState, updateImportState$ } from "../../../common/loader/import-state";
+import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
+import { ImportCtx } from "../../../common/types/import-context";
 import { ImportQuery, ImportResult } from "../../../common/types/import-query";
-import { BatchStreamConfig } from "../../../common/utils/batch-rpc-calls";
-import { memoryBackpressure$ } from "../../../common/utils/memory-backpressure";
-import { createRpcConfig } from "../../../common/utils/rpc-config";
+import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 import { fetchProductContractCreationInfos } from "./fetch-product-creation-infos";
 
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
-  const logger = rootLogger.child({ module: "beefy", component: "import-historical-underlying-prices" });
-
-  const streamConfig: BatchStreamConfig = {
-    // since we are doing many historical queries at once, we cannot afford to do many at once
-    workConcurrency: 1,
-    // But we can afford to wait a bit longer before processing the next batch to be more efficient
-    maxInputWaitMs: 30 * 1000,
-    maxInputTake: 500,
-    // and we can affort longer retries
-    maxTotalRetryMs: 30_000,
-  };
-  const {
-    observable: priceFeedErrors$,
-    complete: completePriceFeedErrors$,
-    next: emitErrors,
-  } = createObservableWithNext<ImportQuery<DbPriceFeed, Date>>();
-
-  const ctx = { client: options.client, rpcConfig: createRpcConfig("bsc"), streamConfig, emitErrors };
-
-  const getImportStateKey = (priceFeedId: number) => `price:feed:${priceFeedId}`;
-
-  const insertPricePipeline$ = Rx.pipe(
-    Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
-
-    upsertPrice$({
-      ctx,
-      getPriceData: (item) => ({
-        datetime: item.price.datetime,
-        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
-        priceFeedId: item.target.priceFeedId,
-        price: new Decimal(item.price.value),
-        priceData: {},
+  return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
+    client: options.client,
+    chain: "bsc", // unused
+    logInfos: { msg: "Importing historical underlying prices" },
+    getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
+    isLiveItem: (target) => target.priceFeedData.active,
+    generateQueries$: (ctx) =>
+      addHistoricalDateQuery$({
+        getImport: (item) => item.importState,
+        getFirstDate: (importState) => importState.importData.firstDate,
+        formatOutput: (item, latestDate, queries) => queries.map((range) => ({ ...item, latest: latestDate, range })),
       }),
-      formatOutput: (priceData, price) => ({ ...priceData, price }),
-    }),
-  );
-
-  return Rx.pipe(
-    Rx.pipe(
-      Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
-
-      // map to an object where we can add attributes to safely
-      Rx.map((priceFeed) => ({ target: priceFeed })),
-
-      // remove duplicates
-      Rx.distinct(({ target }) => target.priceFeedData.externalId),
-    ),
-
-    addMissingImportState$({
-      client: ctx.client,
-      streamConfig: ctx.streamConfig,
-      getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
-      createDefaultImportState$: Rx.pipe(
+    createDefaultImportState$: (ctx) =>
+      Rx.pipe(
         // initialize the import state
 
         // find the first date we are interested in this price
@@ -79,10 +35,10 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
           ctx: {
             ...ctx,
             emitErrors: (item) => {
-              throw new Error("Error while fetching product creation infos for price feed" + item.target.priceFeedId);
+              throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
             },
           },
-          getPriceFeedId: (item) => item.target.priceFeedId,
+          getPriceFeedId: (item) => item.priceFeedId,
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
 
@@ -91,7 +47,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
 
         Rx.map((item) => ({
           type: "oracle:price",
-          priceFeedId: item.target.priceFeedId,
+          priceFeedId: item.priceFeedId,
           firstDate: item.contractCreationInfo.contractCreationDate,
           ranges: {
             lastImportDate: new Date(),
@@ -100,129 +56,34 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
           },
         })),
       ),
-      formatOutput: (item, importState) => ({ ...item, importState }),
-    }),
-
-    // fix ts types
-    Rx.filter((item): item is { target: DbPriceFeed; importState: DbOraclePriceImportState } => !!item),
-
-    // process first the live prices we imported the least
-    Rx.pipe(
-      Rx.toArray(),
-      Rx.map((items) =>
-        sortBy(
-          items,
-          (item) =>
-            item.importState.importData.ranges.lastImportDate.getTime() + (item.target.priceFeedData.active ? 0 : samplingPeriodMs["1day"] * 100),
-        ),
-      ),
-      Rx.concatAll(),
-    ),
-
-    Rx.pipe(
-      // generate the queries
-      addHistoricalDateQuery$({
-        getImport: (item) => item.importState,
-        getFirstDate: (importState) => importState.importData.firstDate,
-        formatOutput: (item, latestDate, queries) => ({ ...item, latest: latestDate, queries }),
-      }),
-
-      // convert to stream of price queries
-      Rx.concatMap((item) =>
-        item.queries.map((range): ImportQuery<DbPriceFeed, Date> => {
-          const { queries, ...rest } = item;
-          return { ...rest, range, latest: item.latest };
-        }),
-      ),
-
-      // some backpressure mechanism
-      Rx.pipe(
-        memoryBackpressure$({
-          logInfos: { msg: "import-price-data" },
-          sendBurstsOf: streamConfig.maxInputTake,
-        }),
-
-        Rx.tap((item) =>
-          logger.info({
-            msg: "processing price query",
-            data: { feedKey: item.target.feedKey, range: item.range },
-          }),
-        ),
-      ),
-    ),
-
-    fetchBeefyDataPrices$({
-      ctx,
-      getPriceParams: (item) => ({
-        oracleId: item.target.priceFeedData.externalId,
-        samplingPeriod: "15min",
-        range: item.range,
-      }),
-      formatOutput: (item, prices) => ({ ...item, prices }),
-    }),
-
-    // insert prices, passthrough if there is no price so we mark the range as done
-    Rx.mergeMap((item) => {
-      if (item.prices.length <= 0) {
-        return Rx.of(item);
-      }
-
-      return Rx.from(item.prices).pipe(
-        Rx.map((price) => ({ ...item, price })),
-        insertPricePipeline$,
-        Rx.count(),
-        Rx.map(() => item),
-      );
-    }),
-
-    Rx.pipe(
-      // handle the results
-      Rx.pipe(
-        Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
-        // make sure we close the errors observable when we are done
-        Rx.finalize(() => setTimeout(completePriceFeedErrors$)),
-        // merge the errors back in, all items here should have been successfully treated
-        Rx.mergeWith(priceFeedErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
-        // make sure the type is correct
-        Rx.map((item): ImportResult<DbPriceFeed, Date> => item),
-      ),
-
-      // update the import state
-      updateImportState$({
-        client: options.client,
-        streamConfig,
-        getRange: (item) => item.range,
-        isSuccess: (item) => item.success,
-        getImportStateKey: (item) => getImportStateKey(item.target.priceFeedId),
-        formatOutput: (item) => item,
-      }),
-    ),
-  );
+    processImportQuery$: (ctx) => insertPricePipeline$({ ctx }),
+  });
 }
 
-// remember the last imported block number for each chain so we can reduce the amount of data we fetch
-let lastImportDate: Date | null = null;
+export function importBeefyRecentUnderlyingPrices$(client: PoolClient) {
+  return createRecentImportPipeline<DbPriceFeed, Date>({
+    client,
+    chain: "bsc", // unused
+    cacheKey: "beefy:underlying:prices:recent",
+    logInfos: { msg: "Importing historical beefy investments" },
+    isLiveItem: (target) => target.priceFeedData.active,
+    generateQueries$: (ctx, lastImported) =>
+      addLatestDateQuery$({
+        getLastImportedDate: () => lastImported,
+        formatOutput: (item, latestDate, query) => [{ ...item, latest: latestDate, range: query }],
+      }),
+    processImportQuery$: (ctx) => insertPricePipeline$({ ctx }),
+  });
+}
 
-export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient }) {
-  const logger = rootLogger.child({ module: "beefy", component: "import-recent-underlying-prices" });
-
-  const streamConfig: BatchStreamConfig = {
-    // since we are doing live data on a small amount of queries (one per vault)
-    // we can afford some amount of concurrency
-    workConcurrency: 10,
-    // But we can not afford to wait before processing the next batch
-    maxInputWaitMs: 5_000,
-    maxInputTake: 500,
-    // and we cannot afford too long of a retry per product
-    maxTotalRetryMs: 10_000,
-  };
-  const ctx = { client: options.client, streamConfig, rpcConfig: createRpcConfig("bsc"), emitErrors: () => {} }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
-
-  const insertPricePipeline$ = Rx.pipe(
+function insertPricePipeline$<TObj extends ImportQuery<DbPriceFeed, Date>, TCtx extends ImportCtx<TObj>>(options: {
+  ctx: TCtx;
+}): Rx.OperatorFunction<TObj, ImportResult<DbPriceFeed, Date>> {
+  const insertPrices$ = Rx.pipe(
     Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
 
     upsertPrice$({
-      ctx,
+      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot }>,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
         blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
@@ -235,27 +96,8 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
   );
 
   return Rx.pipe(
-    Rx.pipe(
-      Rx.tap((priceFeed: DbPriceFeed) => logger.debug({ msg: "fetching beefy underlying prices", data: priceFeed })),
-
-      // only live price feeds
-      Rx.filter((priceFeed) => priceFeed.priceFeedData.active),
-
-      // map to an object where we can add attributes to safely
-      Rx.map((priceFeed) => ({ target: priceFeed })),
-
-      // remove duplicates
-      Rx.distinct(({ target }) => target.priceFeedData.externalId),
-    ),
-
-    // generate the query
-    addLatestDateQuery$({
-      getLastImportedDate: () => lastImportDate,
-      formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
-    }),
-
     fetchBeefyDataPrices$({
-      ctx,
+      ctx: options.ctx,
       getPriceParams: (item) => ({
         oracleId: item.target.priceFeedData.externalId,
         samplingPeriod: "15min",
@@ -267,23 +109,15 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     // insert prices, passthrough if there is no price so we mark the range as done
     Rx.mergeMap((item) => {
       if (item.prices.length <= 0) {
-        return Rx.of(item);
+        return Rx.of({ ...item, success: true });
       }
 
       return Rx.from(item.prices).pipe(
         Rx.map((price) => ({ ...item, price })),
-        insertPricePipeline$,
+        insertPrices$,
         Rx.count(),
-        Rx.map(() => item),
+        Rx.map((finalCount) => ({ ...item, success: item.prices.length === finalCount })),
       );
-    }),
-
-    // logging
-    Rx.tap((item) => {
-      // update the local state
-      if (lastImportDate === null || item.range.to > lastImportDate) {
-        lastImportDate = item.range.to;
-      }
     }),
   );
 }

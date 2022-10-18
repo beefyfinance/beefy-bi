@@ -131,8 +131,11 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   logInfos: LogInfos;
   cacheKey: string;
   isLiveItem: (input: TInput) => boolean;
-  generateQueries$: (ctx: ImportCtx<ImportQuery<TInput, TRange>>) => Rx.OperatorFunction<
-    { target: TInput; lastProcessed: TRange | null },
+  generateQueries$: (
+    ctx: ImportCtx<ImportQuery<TInput, TRange>>,
+    lastImported: TRange | null,
+  ) => Rx.OperatorFunction<
+    { target: TInput },
     {
       range: Range<TRange>;
       latest: TRange;
@@ -161,7 +164,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   };
 
   const processImportQuery$ = options.processImportQuery$(ctx);
-  const generateQueries$ = options.generateQueries$(ctx);
+  const generateQueries$ = options.generateQueries$(ctx, (recentImportCache[options.cacheKey] ?? null) as TRange | null);
 
   // maintain the latest processed range value for each chain so we don't reprocess the same data again and again
 
@@ -170,7 +173,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     Rx.filter((item: TInput) => options.isLiveItem(item)),
 
     // make is a query
-    Rx.map((target) => ({ target, lastProcessed: (recentImportCache[options.cacheKey] ?? null) as TRange | null })),
+    Rx.map((target) => ({ target })),
 
     // create the import queries
     Rx.concatMap((item) =>

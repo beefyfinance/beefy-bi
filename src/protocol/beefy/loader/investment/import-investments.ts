@@ -1,6 +1,6 @@
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { allChainIds, Chain } from "../../../../types/chain";
+import { Chain } from "../../../../types/chain";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/import-queries";
@@ -15,7 +15,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
     client,
     chain,
     logInfos: { msg: "Importing historical beefy investments", data: { chain } },
-    getImportStateKey: (product: DbBeefyProduct) => `product:investment:${product.productId}`,
+    getImportStateKey: (product) => `product:investment:${product.productId}`,
     isLiveItem: (target) => (isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
     generateQueries$: (ctx) =>
       addHistoricalBlockQuery$({
@@ -61,28 +61,19 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
   });
 }
 
-// remember the last imported block number for each chain so we can reduce the amount of data we fetch
-type RecentImportState = {
-  [key in Chain]: { lastImportedBlockNumber: number | null };
-};
-const recentImportState: RecentImportState = allChainIds.reduce(
-  (agg, chain) => Object.assign(agg, { [chain]: { lastImportedBlockNumber: null } }),
-  {} as RecentImportState,
-);
-
 export function importChainRecentData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   return createRecentImportPipeline<DbBeefyProduct, number>({
     client,
     chain,
-    cacheKey: "product:investment:recent",
+    cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing historical beefy investments", data: { chain } },
     isLiveItem: (target) => (isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
-    generateQueries$: (ctx) =>
+    generateQueries$: (ctx, lastImported) =>
       addLatestBlockQuery$({
         rpcConfig: ctx.rpcConfig,
         forceCurrentBlockNumber,
         streamConfig: ctx.streamConfig,
-        getLastImportedBlock: () => null,
+        getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => [{ ...item, range, latest }],
       }),
     processImportQuery$: (ctx) => importProductBlockRange$({ ctx }),
