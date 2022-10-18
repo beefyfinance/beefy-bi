@@ -40,7 +40,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
       }),
     handler: (argv): Promise<any> =>
       withPgClient(async (client) => {
-        await db_migrate();
+        //await db_migrate();
 
         logger.info("Starting import script", { argv });
 
