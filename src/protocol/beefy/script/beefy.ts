@@ -27,8 +27,7 @@ interface CmdParams {
   filterChains: Chain[];
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
-  sleepAfterImport: SamplingPeriod | null;
-  repeat: boolean;
+  repeatEvery: SamplingPeriod | null;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -46,8 +45,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           alias: "t",
           describe: "what to run",
         },
-        sleepAfterImport: { choices: allSamplingPeriods, demand: false, alias: "s", describe: "sleep after import" },
-        repeat: { type: "boolean", demand: false, alias: "r", default: false, describe: "repeat import when ended" },
+        repeatEvery: { choices: allSamplingPeriods, demand: false, alias: "r", describe: "repeat the task from time to time" },
       }),
     handler: (argv): Promise<any> =>
       withPgClient(async (client) => {
@@ -61,41 +59,54 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           filterChains: argv.chain === "all" ? allChainIds : [argv.chain as Chain],
           filterContractAddress: argv.contractAddress || null,
           forceCurrentBlockNumber: argv.currentBlockNumber || null,
-          sleepAfterImport: argv.sleepAfterImport || null,
-          repeat: argv.repeat || false,
+          repeatEvery: argv.repeatEvery || null,
         };
         if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
           throw new ProgrammerError("Cannot force current block number without a chain filter");
         }
 
-        return runCmd(cmdParams).then(() => {
-          logger.info("Import script finished");
-          const sleepAfterImport = argv.sleepAfterImport as SamplingPeriod | undefined;
-          if (sleepAfterImport) {
-            logger.info({ msg: "Sleeping after import", data: { sleepAfterImport } });
-            return sleep(samplingPeriodMs[sleepAfterImport]);
-          }
-        });
+        const tasks = getTasksToRun(cmdParams);
+
+        return Promise.all(
+          tasks.map(async (task) => {
+            do {
+              const start = Date.now();
+              await task();
+              const now = Date.now();
+
+              logger.info("Import script finished");
+
+              if (cmdParams.repeatEvery !== null) {
+                const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.repeatEvery];
+                if (shouldSleepABit) {
+                  const sleepTime = samplingPeriodMs[cmdParams.repeatEvery] - (now - start);
+                  logger.info({ msg: "Sleeping after import", data: { sleepTime } });
+                  await sleep(sleepTime);
+                }
+              }
+            } while (cmdParams.repeatEvery !== null);
+          }),
+        );
       })(),
   });
 }
 
-async function runCmd(cmdParams: CmdParams) {
+function getTasksToRun(cmdParams: CmdParams) {
   logger.trace({ msg: "starting", data: { ...cmdParams, client: "<redacted>" } });
 
   switch (cmdParams.task) {
     case "historical":
-      return Promise.all(cmdParams.filterChains.map((chain) => importInvestmentData(chain, cmdParams)));
+      return cmdParams.filterChains.map((chain) => () => importInvestmentData(chain, cmdParams));
     case "recent":
-      return Promise.all(cmdParams.filterChains.map((chain) => importInvestmentData(chain, cmdParams)));
+      return cmdParams.filterChains.map((chain) => () => importInvestmentData(chain, cmdParams));
     case "products":
-      return importProducts(cmdParams);
+      return [() => importProducts(cmdParams)];
     case "recent-prices":
-      return importBeefyDataPrices(cmdParams);
+      return [() => importBeefyDataPrices(cmdParams)];
     case "historical-prices":
-      return importBeefyDataPrices(cmdParams);
+      return [() => importBeefyDataPrices(cmdParams)];
     case "historical-share-rate":
-      return Promise.all(cmdParams.filterChains.map((chain) => importBeefyDataShareRate(chain, cmdParams)));
+      return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
     default:
       throw new ProgrammerError(`Unknown importer: ${cmdParams.task}`);
   }
