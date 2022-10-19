@@ -137,23 +137,23 @@ services:
       - redis
       - timescaledb
 
-  #  importer-investment-recent:
-  #    image: beefy-data-importer
-  #    restart: always
-  #    env_file: ../.env
-  #    environment:
-  #      REDIS_URL: redis://redis:6379
-  #      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
-  #      DATA_DIRECTORY: /data
-  #      GIT_WORK_DIRECTORY: /git_work
-  #      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent -s 15min"
-  #    volumes:
-  #      - git_work_directory:/git_work
-  #    networks:
-  #      - backend
-  #    depends_on:
-  #      - redis
-  #      - timescaledb
+  importer-investment-recent:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent -s 15min"
+    volumes:
+      - git_work_directory:/git_work
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
 
   importer-prices-historical:
     image: beefy-data-importer
@@ -173,25 +173,7 @@ services:
       - redis
       - timescaledb
 
-  #  importer-prices-recent:
-  #    image: beefy-data-importer
-  #    restart: always
-  #    env_file: ../.env
-  #    environment:
-  #      REDIS_URL: redis://redis:6379
-  #      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
-  #      DATA_DIRECTORY: /data
-  #      GIT_WORK_DIRECTORY: /git_work
-  #      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent-prices -s 15min"
-  #    volumes:
-  #      - git_work_directory:/git_work
-  #    networks:
-  #      - backend
-  #    depends_on:
-  #      - redis
-  #      - timescaledb
-
-  importer-share-rates-historical:
+  importer-prices-recent:
     image: beefy-data-importer
     restart: always
     env_file: ../.env
@@ -200,7 +182,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i historical-share-rate -s 1hour" # focus on historical transfers for now
+      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent-prices -s 15min"
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -208,3 +190,21 @@ services:
     depends_on:
       - redis
       - timescaledb
+
+  #importer-share-rates-historical:
+  #  image: beefy-data-importer
+  #  restart: always
+  #  env_file: ../.env
+  #  environment:
+  #    REDIS_URL: redis://redis:6379
+  #    TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+  #    DATA_DIRECTORY: /data
+  #    GIT_WORK_DIRECTORY: /git_work
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -i historical-share-rate -s 1hour" # focus on historical transfers for now
+  #  volumes:
+  #    - git_work_directory:/git_work
+  #  networks:
+  #    - backend
+  #  depends_on:
+  #    - redis
+  #    - timescaledb
