@@ -71,14 +71,10 @@ function upsertImportState$<TInput, TRes>(options: {
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
     Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
+    Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
       const objAndData = objs.map((obj) => ({ obj, importStateData: options.getImportStateData(obj) }));
 
       const results = await db_query<DbImportState>(
@@ -115,14 +111,10 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
+    Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
-
       const objAndData = objs.map((obj) => ({ obj, importKey: options.getImportStateKey(obj) }));
 
       const results = await db_query<TImport>(

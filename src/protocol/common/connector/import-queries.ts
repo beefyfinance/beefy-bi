@@ -56,6 +56,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
+    Rx.filter((items) => items.length > 0),
 
     // go get the latest block number for this chain
     latestBlockNumber$({

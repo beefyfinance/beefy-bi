@@ -14,13 +14,10 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
+    Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects
     Rx.mergeMap(async (objs) => {
-      // short circuit if there's nothing to do
-      if (objs.length === 0) {
-        return [];
-      }
       try {
         const objAndData = objs.map((obj) => ({ obj, data: options.getData(obj) }));
 

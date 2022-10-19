@@ -141,6 +141,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     // work by batches of 300 block range
     Rx.pipe(
       Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
+      Rx.filter((items) => items.length > 0),
 
       Rx.tap((items) =>
         logger.debug({
@@ -203,6 +204,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
         // return to product representation
         Rx.toArray(),
         Rx.map((transfers) => {
+          logger.trace({ msg: "imported transfers", data: { itemCount: items.length, transferCount: transfers.length } });
           return items.map((item) => {
             // get all transfers for this product
             const itemTransferResults = transfers.filter((t) => t.target.product.productId === item.target.productId);
@@ -216,13 +218,6 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
         }),
       );
     }, options.ctx.streamConfig.workConcurrency),
-
-    Rx.tap((items: ImportQuery<DbBeefyProduct, number>[]) =>
-      logger.debug({
-        msg: "Done importing a transfer batch",
-        data: { count: items.length },
-      }),
-    ),
 
     Rx.mergeAll(), // flatten items
 

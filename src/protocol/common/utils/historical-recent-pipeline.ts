@@ -6,7 +6,8 @@ import { samplingPeriodMs } from "../../../types/sampling";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
-import { addMissingImportState$, DbImportState, updateImportState$ } from "../loader/import-state";
+import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { ImportQuery, ImportResult } from "../types/import-query";
 import { BatchStreamConfig } from "./batch-rpc-calls";
@@ -146,6 +147,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   chain: Chain;
   logInfos: LogInfos;
   cacheKey: string;
+  getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   generateQueries$: (
     ctx: ImportCtx<ImportQuery<TInput, TRange>>,
@@ -178,7 +180,6 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   return Rx.pipe(
     // only process live items
     Rx.filter((item: TInput) => options.isLiveItem(item)),
-
     // make is a query
     Rx.map((target) => ({ target })),
 
@@ -195,6 +196,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
 
     // update the last processed cache
     Rx.tap((item) => {
+      logger.trace(mergeLogsInfos({ msg: "updating recent import cache", data: { range: item.range } }, options.logInfos));
       if (item.success) {
         const cachedValue = recentImportCache[options.cacheKey];
         if (cachedValue === undefined) {
@@ -204,6 +206,27 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
         }
       }
     }),
+
+    Rx.tap((item) => logger.trace(mergeLogsInfos({ msg: "processed recent import", data: { range: item.range } }, options.logInfos))),
+
+    // update the import state for those who have one
+    Rx.pipe(
+      fetchImportState$({
+        client: ctx.client,
+        getImportStateKey: (item) => options.getImportStateKey(item.target),
+        streamConfig: ctx.streamConfig,
+        formatOutput: (item, importState) => ({ ...item, importState }),
+      }),
+      excludeNullFields$("importState"),
+      updateImportState$({
+        client: ctx.client,
+        streamConfig: ctx.streamConfig,
+        getImportStateKey: (item) => options.getImportStateKey(item.target),
+        getRange: (item) => item.range,
+        isSuccess: (item) => item.success,
+        formatOutput: (item) => item,
+      }),
+    ),
 
     Rx.tap({
       complete: () => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos)),

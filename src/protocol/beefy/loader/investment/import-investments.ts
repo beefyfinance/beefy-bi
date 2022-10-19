@@ -10,13 +10,15 @@ import { createHistoricalImportPipeline, createRecentImportPipeline } from "../.
 import { isBeefyBoost } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
 
+const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
+
 export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
     client,
     chain,
     logInfos: { msg: "Importing historical beefy investments", data: { chain } },
-    getImportStateKey: (product) => `product:investment:${product.productId}`,
-    isLiveItem: (target) => (isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
+    getImportStateKey,
+    isLiveItem: (target) => !(isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
     generateQueries$: (ctx) =>
       addHistoricalBlockQuery$({
         rpcConfig: ctx.rpcConfig,
@@ -67,7 +69,8 @@ export function importChainRecentData$(client: PoolClient, chain: Chain, forceCu
     chain,
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain } },
-    isLiveItem: (target) => (isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
+    getImportStateKey,
+    isLiveItem: (target) => !(isBeefyBoost(target) ? target.productData.boost.eol : target.productData.vault.eol),
     generateQueries$: (ctx, lastImported) =>
       addLatestBlockQuery$({
         rpcConfig: ctx.rpcConfig,

@@ -12,12 +12,14 @@ import { ImportQuery, ImportResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 
+const getImportStateKey = (priceFeed: DbPriceFeed) => `price:feed:${priceFeed.priceFeedId}`;
+
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
   return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
     client: options.client,
     chain: "bsc", // unused
     logInfos: { msg: "Importing historical underlying prices" },
-    getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
+    getImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx) =>
       addHistoricalDateQuery$({
@@ -67,6 +69,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },
+    getImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx, lastImported) =>
       addLatestDateQuery$({
