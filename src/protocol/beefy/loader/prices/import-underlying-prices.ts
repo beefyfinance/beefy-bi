@@ -84,7 +84,8 @@ function insertPricePipeline$<TObj extends ImportQuery<DbPriceFeed, Date>, TCtx 
   ctx: TCtx;
 }): Rx.OperatorFunction<TObj, ImportResult<DbPriceFeed, Date>> {
   const insertPrices$ = Rx.pipe(
-    Rx.filter((item): item is ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot } => true),
+    // fix typings
+    Rx.tap((_: ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot }) => {}),
 
     upsertPrice$({
       ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot }>,
