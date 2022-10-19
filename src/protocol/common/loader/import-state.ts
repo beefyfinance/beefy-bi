@@ -298,23 +298,18 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
       formatOutput: (obj, importState) => ({ obj, importState }),
     }),
 
-    // extract those without an import state
-    Rx.groupBy((item) => (item.importState !== null ? "has-import-state" : "missing-import-state")),
-    Rx.map((importStateGrps$) => {
-      // passthrough if we already have a import state
-      if (importStateGrps$.key === "has-import-state") {
-        return importStateGrps$ as Rx.Observable<{ obj: TInput; importState: TImport | null }>;
+    Rx.concatMap((item) => {
+      if (item.importState !== null) {
+        return Rx.of(item).pipe(
+          Rx.tap((item) => logger.trace({ msg: "import state present", data: { importKey: options.getImportStateKey(item.obj) } })),
+        );
+      } else {
+        return Rx.of(item).pipe(
+          Rx.tap((item) => logger.debug({ msg: "Missing import state", data: { importKey: options.getImportStateKey(item.obj) } })),
+          addDefaultImportState$,
+        );
       }
-
-      // then for those whe can't find an import state
-      return importStateGrps$.pipe(
-        Rx.tap((item) => logger.debug({ msg: "Missing import state", data: item })),
-
-        addDefaultImportState$,
-      );
     }),
-    // now all objects have a import state (and a contract creation block)
-    Rx.concatAll(),
 
     // fix ts typings
     Rx.filter((item): item is { obj: TInput; importState: TImport } => true),

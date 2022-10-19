@@ -20,6 +20,9 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent -d --force-recreate
 # docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent
 
+# RUN a command
+# docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
+
 # BACKUP
 # cd ~/beefy/snapshots
 # docker stop deploy-importer-1 deploy-grafana-1 deploy-redis-1
