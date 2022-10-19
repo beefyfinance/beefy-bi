@@ -113,7 +113,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i products -s 1day"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t products -r 1day"
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -131,7 +131,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i historical -s 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -r 15sec"
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -149,7 +149,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent -s 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -r 15min"
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -167,7 +167,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i historical-prices -s 1hour" # focus on historical transfers for now
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-prices -r 1hour" # focus on historical transfers for now
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -185,7 +185,7 @@ services:
       TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
       DATA_DIRECTORY: /data
       GIT_WORK_DIRECTORY: /git_work
-      WORK_CMD: "./dist/src/script/run.js beefy:run -i recent-prices -s 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -r 15min"
     volumes:
       - git_work_directory:/git_work
     networks:
@@ -203,7 +203,7 @@ services:
   #    TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
   #    DATA_DIRECTORY: /data
   #    GIT_WORK_DIRECTORY: /git_work
-  #    WORK_CMD: "./dist/src/script/run.js beefy:run -i historical-share-rate -s 1hour" # focus on historical transfers for now
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -r 1hour" # focus on historical transfers for now
   #  volumes:
   #    - git_work_directory:/git_work
   #  networks:
