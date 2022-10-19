@@ -16,9 +16,9 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
-# docker compose -f deploy/docker-compose.yml stop importer-products importer-investment-historical importer-prices-historical importer-share-rates-historical
-# docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-prices-historical importer-share-rates-historical -d --force-recreate
-# docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-prices-historical importer-share-rates-historical
+# docker compose -f deploy/docker-compose.yml stop importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent
+# docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent -d --force-recreate
+# docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent
 
 # BACKUP
 # cd ~/beefy/snapshots
