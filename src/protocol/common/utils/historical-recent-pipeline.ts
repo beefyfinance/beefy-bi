@@ -104,7 +104,11 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
         logInfos: options.logInfos,
         sendBurstsOf: streamConfig.maxInputTake,
       }),
-      Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { range: item.range } }, options.logInfos))),
+      Rx.tap((item) =>
+        logger.info(
+          mergeLogsInfos({ msg: "processing query", data: { range: item.range, importStateKey: item.importState.importKey } }, options.logInfos),
+        ),
+      ),
     ),
 
     // run the import
