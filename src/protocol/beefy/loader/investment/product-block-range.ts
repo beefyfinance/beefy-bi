@@ -100,22 +100,12 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
   return Rx.pipe(
     // add typings to the input item
     Rx.filter((_: ImportQuery<DbBeefyProduct, number>) => true),
-
-    // create groups of products to import
-    Rx.groupBy((item) =>
-      item.target.productData.type !== "beefy:vault" ? "boost" : item.target.productData.vault.is_gov_vault ? "gov-vault" : "standard-vault",
-    ),
-    Rx.mergeMap((productType$) => {
-      if (productType$.key === "boost") {
-        return productType$.pipe(boostTransfers$);
-      } else if (productType$.key === "standard-vault") {
-        return productType$.pipe(standardVaultTransfers$);
-      } else if (productType$.key === "gov-vault") {
-        return productType$.pipe(govVaultTransfers$);
-      } else {
-        throw new ProgrammerError(`Unhandled product type: ${productType$.key}`);
-      }
+    Rx.filter((item) => {
+      return item.target.productData.type === "beefy:gov-vault";
     }),
+
+    // dispatch to all the sub pipelines
+    Rx.connect((items$) => Rx.merge(items$.pipe(boostTransfers$), items$.pipe(standardVaultTransfers$), items$.pipe(govVaultTransfers$))),
 
     Rx.tap((item) => {
       if (item.transfers.length > 0) {
