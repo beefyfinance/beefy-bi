@@ -38,16 +38,10 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   }, 1 /* concurrency */);
 
   return Rx.pipe(
-    Rx.groupBy((obj) => options.getCallParams(obj).chain),
-    Rx.map((chainObjs$) =>
-      chainObjs$.pipe(
-        // make sure we don't hit the rate limit of the exploreres
-        rateLimit$(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS),
+    // make sure we don't hit the rate limit of the exploreres
+    rateLimit$(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS),
 
-        getCreationBlock$,
-      ),
-    ),
-    Rx.mergeAll(),
+    getCreationBlock$,
   );
 }
 
