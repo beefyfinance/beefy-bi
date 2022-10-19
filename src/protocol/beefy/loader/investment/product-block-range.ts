@@ -100,9 +100,6 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
   return Rx.pipe(
     // add typings to the input item
     Rx.filter((_: ImportQuery<DbBeefyProduct, number>) => true),
-    Rx.filter((item) => {
-      return item.target.productData.type === "beefy:gov-vault";
-    }),
 
     // dispatch to all the sub pipelines
     Rx.connect((items$) => Rx.merge(items$.pipe(boostTransfers$), items$.pipe(standardVaultTransfers$), items$.pipe(govVaultTransfers$))),
