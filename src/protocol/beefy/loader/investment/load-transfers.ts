@@ -95,39 +95,12 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToL
       formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
     }),
 
-    Rx.tap((item) =>
-      logger.trace({
-        msg: "BEFORE fetchBlockDatetime$",
-        data: {
-          range: item.range,
-          latest: item.latest,
-          transactionHash: item.target.transfer.transactionHash,
-          ownerAddress: item.target.transfer.ownerAddress,
-          transferBlockNumber: item.target.transfer.blockNumber,
-        },
-      }),
-    ),
-
     // we also need the date of each block
     fetchBlockDatetime$({
       ctx: options.ctx,
       getBlockNumber: (t) => t.target.transfer.blockNumber,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
-
-    Rx.tap((item) =>
-      logger.trace({
-        msg: "AFTER fetchBlockDatetime$",
-        data: {
-          range: item.range,
-          latest: item.latest,
-          transactionHash: item.target.transfer.transactionHash,
-          ownerAddress: item.target.transfer.ownerAddress,
-          transferBlockNumber: item.target.transfer.blockNumber,
-          blockDatetime: item.blockDatetime.toISOString(),
-        },
-      }),
-    ),
 
     // ==============================
     // now we are ready for the insertion
