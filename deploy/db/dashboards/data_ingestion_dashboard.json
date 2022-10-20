@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1666177639356,
+  "iteration": 1666294003062,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -125,7 +125,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT\n  product_data->>'type' as product_type,\n  count(*)\nFROM\n  product\ngroup by 1\n",
+              "rawSql": "SELECT\n  product_data->>'type' as product_type,\n  count(*)\nFROM\n  product\nwhere product_id in ($_product_ids)\ngroup by 1\n",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -160,7 +160,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT\n  chain,\n  count(*)\nFROM\n  product\ngroup by 1\n",
+              "rawSql": "SELECT\n  chain,\n  count(*)\nFROM\n  product\nwhere product_id in ($_product_ids)\ngroup by 1\n",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -205,7 +205,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT\n  coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n  count(*)\nFROM\n  product\ngroup by 1\n",
+              "rawSql": "SELECT\n  coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n  count(*)\nFROM\n  product\nwhere product_id in ($_product_ids)\ngroup by 1\n",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -213,41 +213,6 @@
             }
           ],
           "title": "Products EOL",
-          "type": "piechart"
-        },
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "fieldConfig": {
-            "defaults": {
-              "color": { "mode": "palette-classic" },
-              "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
-              "mappings": []
-            },
-            "overrides": []
-          },
-          "gridPos": { "h": 9, "w": 4, "x": 12, "y": 2 },
-          "id": 44,
-          "options": {
-            "legend": { "displayMode": "list", "placement": "bottom" },
-            "pieType": "pie",
-            "reduceOptions": { "calcs": ["uniqueValues"], "fields": "", "limit": 39, "values": true },
-            "tooltip": { "mode": "single", "sort": "none" }
-          },
-          "targets": [
-            {
-              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-              "format": "table",
-              "group": [],
-              "metricColumn": "none",
-              "rawQuery": true,
-              "rawSql": "SELECT\n  chain,\n  count(*)\nFROM\n  product\nwhere coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\ngroup by 1\n",
-              "refId": "A",
-              "select": [[{ "params": ["value"], "type": "column" }]],
-              "timeColumn": "time",
-              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-            }
-          ],
-          "title": "Live product Chain",
           "type": "piechart"
         }
       ],
@@ -303,7 +268,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -362,7 +327,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom procuct_block_stats\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom procuct_block_stats\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -396,7 +361,7 @@
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 5, "x": 12, "y": 3 },
+      "gridPos": { "h": 9, "w": 4, "x": 12, "y": 3 },
       "id": 9,
       "options": {
         "displayLabels": ["percent", "name"],
@@ -413,7 +378,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -440,7 +405,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 3, "x": 17, "y": 3 },
+      "gridPos": { "h": 4, "w": 3, "x": 16, "y": 3 },
       "id": 32,
       "options": {
         "colorMode": "value",
@@ -458,7 +423,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id and i.import_data->>'type' = 'product:investment'\nwhere chain in ($chain)\nand i.import_key is null",
+          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id and i.import_data->>'type' = 'product:investment'\nwhere product_id in ($_product_ids)\nand i.import_key is null",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -493,7 +458,7 @@
           }
         ]
       },
-      "gridPos": { "h": 5, "w": 3, "x": 17, "y": 7 },
+      "gridPos": { "h": 5, "w": 3, "x": 16, "y": 7 },
       "id": 50,
       "options": {
         "displayLabels": ["percent", "name"],
@@ -510,7 +475,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom procuct_block_stats\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom procuct_block_stats\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -576,7 +541,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\ngroup by 1\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\ngroup by 1\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -621,7 +586,7 @@
         ]
       },
       "gridPos": { "h": 15, "w": 12, "x": 12, "y": 12 },
-      "id": 45,
+      "id": 51,
       "options": {
         "barRadius": 0,
         "barWidth": 0.8,
@@ -642,14 +607,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n    and coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\ngroup by 1\norder by 1",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom procuct_block_stats\ngroup by 1\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Block coverage status of live products",
+      "title": "Block coverage Success rate",
       "type": "barchart"
     },
     {
@@ -689,7 +654,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  coalesce((import_data->'ranges'->>'lastImportDate')::timestamp with time zone, now() - '4 weeks'::interval) as time,\n  p.product_key,\n  1 as metric\nFROM\n  import_state i\n  join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\nwhere i.import_data->>'type' = 'product:investment'\norder by 1",
+          "rawSql": "SELECT\n  coalesce((import_data->'ranges'->>'lastImportDate')::timestamp with time zone, now() - '4 weeks'::interval) as time,\n  p.product_key,\n  1 as metric\nFROM\n  product p \n  join import_state i\n    on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\nwhere \n  p.product_id in ($_product_ids)\n  and i.import_data->>'type' = 'product:investment'\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -732,7 +697,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.chain in ($chain)\n)\nselect * from procuct_block_stats",
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect * from procuct_block_stats",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -763,11 +728,17 @@
                 "scaleDistribution": { "type": "linear" }
               },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
+              }
             },
             "overrides": []
           },
-          "gridPos": { "h": 15, "w": 12, "x": 0, "y": 40 },
+          "gridPos": { "h": 15, "w": 12, "x": 0, "y": 4 },
           "id": 10,
           "options": {
             "barRadius": 0,
@@ -788,7 +759,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\ngroup by 1 \norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\ngroup by 1 \norder by 1;",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -801,10 +772,14 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 4, "x": 12, "y": 40 },
+          "gridPos": { "h": 5, "w": 4, "x": 12, "y": 4 },
           "id": 26,
           "options": {
             "colorMode": "value",
@@ -822,7 +797,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\norder by 1;",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -855,11 +830,17 @@
                 "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
+              }
             },
             "overrides": []
           },
-          "gridPos": { "h": 21, "w": 24, "x": 0, "y": 55 },
+          "gridPos": { "h": 21, "w": 24, "x": 0, "y": 19 },
           "id": 48,
           "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
           "targets": [
@@ -891,10 +872,14 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 4, "x": 0, "y": 41 },
+          "gridPos": { "h": 5, "w": 4, "x": 0, "y": 5 },
           "id": 29,
           "options": {
             "colorMode": "value",
@@ -912,7 +897,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in (\n  select price_feed_1_id\n  from product\n  where chain in ($chain)\n)\norder by 1;",
+              "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in ($_price_feed_2_ids)\norder by 1;",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -955,7 +940,7 @@
               }
             ]
           },
-          "gridPos": { "h": 10, "w": 4, "x": 0, "y": 45 },
+          "gridPos": { "h": 10, "w": 4, "x": 0, "y": 11 },
           "id": 27,
           "options": {
             "displayLabels": ["percent", "name"],
@@ -992,7 +977,7 @@
             },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 45 },
+          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 11 },
           "id": 28,
           "options": {
             "colorMode": "value",
@@ -1010,7 +995,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in (\n  select price_feed_2_id\n  from product\n  where chain in ($chain)\n)\norder by 1;",
+              "rawSql": "select \n  count(*) as metric \nfrom price_ts c \nwhere price_feed_id in ($_price_feed_2_ids)\norder by 1;",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -1037,7 +1022,7 @@
             },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 50 },
+          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 16 },
           "id": 31,
           "options": {
             "colorMode": "value",
@@ -1055,7 +1040,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'priceFeedId')::integer = p.price_feed_2_id\nwhere chain in ($chain)\nand i.import_key is null",
+              "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'priceFeedId')::integer = p.price_feed_2_id\nwhere product_id in ($_product_ids)\nand i.import_key is null",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -1081,7 +1066,7 @@
               }
             ]
           },
-          "gridPos": { "h": 11, "w": 24, "x": 0, "y": 55 },
+          "gridPos": { "h": 11, "w": 24, "x": 0, "y": 21 },
           "id": 30,
           "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [] },
           "pluginVersion": "9.0.2",
@@ -1092,7 +1077,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with\nprocuct_date_stats as (\n  select \n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval as total_interval_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges') as interval_covered,\n    (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer and import_data->>'type' = 'oracle:price'\n  where p.chain in ($chain)\n)\nselect * from procuct_date_stats",
+              "rawSql": "with\nprocuct_date_stats as (\n  select \n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval as total_interval_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges') as interval_covered,\n    (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer and import_data->>'type' = 'oracle:price'\n  where p.product_id in ($_product_ids)\n)\nselect * from procuct_date_stats",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -1128,6 +1113,66 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": "no", "value": "no" },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "include_eol",
+        "options": [
+          { "selected": true, "text": "no", "value": "no" },
+          { "selected": false, "text": "yes", "value": "yes" }
+        ],
+        "query": "no,yes",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n    END",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_product_ids",
+        "options": [],
+        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n    END",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "definition": "select price_feed_1_id\nfrom product\nwhere product_id in ($_product_ids)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_price_feed_1_ids",
+        "options": [],
+        "query": "select price_feed_1_id\nfrom product\nwhere product_id in ($_product_ids)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "definition": "select price_feed_2_id\nfrom product\nwhere product_id in ($_product_ids)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_price_feed_2_ids",
+        "options": [],
+        "query": "select price_feed_2_id\nfrom product\nwhere product_id in ($_product_ids)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
@@ -1136,6 +1181,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 52,
+  "version": 54,
   "weekStart": ""
 }
