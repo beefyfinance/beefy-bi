@@ -129,7 +129,7 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToL
             item.target.product.productData.type === "beefy:vault"
               ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
               : item.target.product.productData.type,
-          query: { range: item.range, latest: item.latest },
+          query: { range: item.range, latest: item.latest, date: new Date().toISOString() },
         },
       }),
       formatOutput: (transferData, priceRow) => ({ ...transferData, priceRow }),
@@ -155,7 +155,7 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToL
             item.target.product.productData.type === "beefy:vault"
               ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
               : item.target.product.productData.type,
-          query: { range: item.range, latest: item.latest },
+          query: { range: item.range, latest: item.latest, date: new Date().toISOString() },
         },
       }),
       formatOutput: (transferData, investment) => ({ ...transferData, investment }),
