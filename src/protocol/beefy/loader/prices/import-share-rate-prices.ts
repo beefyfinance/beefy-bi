@@ -72,27 +72,6 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
     processImportQuery$: (ctx) => processShareRateQuery$({ ctx }),
   });
 }
-/*
-
-export function importBeefyRecentShareRatePrices$(options: { client: PoolClient; forceCurrentBlockNumber: number | null }) {
-  return createRecentImportPipeline<DbPriceFeed, number>({
-    client: options.client,
-    chain: "bsc", // unused
-    cacheKey: "beefy:share-rate:prices:recent",
-    logInfos: { msg: "Importing historical beefy share rates" },
-    isLiveItem: (target) => target.priceFeedData.active,
-    generateQueries$: (ctx, lastImported) =>
-      addLatestBlockQuery$({
-        rpcConfig: ctx.rpcConfig,
-        forceCurrentBlockNumber: options.forceCurrentBlockNumber,
-        streamConfig: ctx.streamConfig,
-        getLastImportedBlock: () => lastImported,
-        formatOutput: (item, latest, range) => [{ ...item, range, latest }],
-      }),
-    processImportQuery$: (ctx) => processShareRateQuery$({ ctx }),
-  });
-}
-*/
 
 function processShareRateQuery$<
   TObj extends ImportQuery<DbPriceFeed, number> & { importState: DbProductShareRateImportState },

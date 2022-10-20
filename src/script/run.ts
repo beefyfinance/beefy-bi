@@ -1,12 +1,14 @@
 import yargs from "yargs";
 import { addBeefyCommands } from "../protocol/beefy/script/beefy";
+import { addDuplicateFixCmd } from "../protocol/common/script/duplicate-fix";
 import { db_migrate } from "../utils/db";
 import { runMain } from "../utils/process";
 
 async function main() {
-  const baseCmd = yargs.usage("$0 <cmd> [args]");
+  let cmd = yargs.usage("$0 <cmd> [args]");
 
-  let cmd = addBeefyCommands(baseCmd);
+  cmd = addBeefyCommands(cmd);
+  cmd = addDuplicateFixCmd(cmd);
 
   // add a migrate command
   cmd = yargs.command({

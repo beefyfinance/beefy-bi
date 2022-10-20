@@ -4,7 +4,7 @@ import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
 import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { db_migrate, withPgClient } from "../../../utils/db";
+import { withPgClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
