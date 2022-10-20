@@ -98,9 +98,9 @@ async function fetchERC20TransferEvents(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: GetTransferCallParams[],
-): Promise<ERC20Transfer[][]> {
+): Promise<Map<GetTransferCallParams, ERC20Transfer[]>> {
   if (contractCalls.length === 0) {
-    return [];
+    return new Map();
   }
 
   logger.debug({
@@ -164,62 +164,64 @@ async function fetchERC20TransferEvents(
     });
   }
 
-  return zipWith(contractCalls, eventsRes, (contractCall, events) => {
-    // we have "from-to" transfers, we need to split them into "from" and "to" transfers
-    const allTransfers = flatten(
-      events.map((event): ERC20Transfer[] => [
-        {
-          chain: chain,
-          tokenAddress: contractCall.address,
-          tokenDecimals: contractCall.decimals,
-          ownerAddress: event.from,
-          blockNumber: event.blockNumber,
-          transactionHash: event.transactionHash,
-          amountTransfered: event.value.negated(),
-          logIndex: event.logIndex,
-        },
-        {
-          chain: chain,
-          tokenAddress: contractCall.address,
-          tokenDecimals: contractCall.decimals,
-          ownerAddress: event.to,
-          blockNumber: event.blockNumber,
-          transactionHash: event.transactionHash,
-          amountTransfered: event.value,
-          logIndex: event.logIndex,
-        },
-      ]),
-    );
+  return new Map(
+    zipWith(contractCalls, eventsRes, (contractCall, events) => {
+      // we have "from-to" transfers, we need to split them into "from" and "to" transfers
+      const allTransfers = flatten(
+        events.map((event): ERC20Transfer[] => [
+          {
+            chain: chain,
+            tokenAddress: contractCall.address,
+            tokenDecimals: contractCall.decimals,
+            ownerAddress: event.from,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            amountTransfered: event.value.negated(),
+            logIndex: event.logIndex,
+          },
+          {
+            chain: chain,
+            tokenAddress: contractCall.address,
+            tokenDecimals: contractCall.decimals,
+            ownerAddress: event.to,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            amountTransfered: event.value,
+            logIndex: event.logIndex,
+          },
+        ]),
+      );
 
-    // there could be incoming and outgoing transfers in the same block for the same user
-    // we want to merge those into a single transfer
-    const transfersByOwnerAndBlock = Object.values(
-      groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
-    );
-    const transfers = transfersByOwnerAndBlock.map((transfers) => {
-      // get the total amount
-      let totalDiff = new Decimal(0);
-      for (const transfer of transfers) {
-        totalDiff = totalDiff.add(transfer.amountTransfered);
-      }
-      // for the trx hash, we use the last transaction (order by logIndex)
-      const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
+      // there could be incoming and outgoing transfers in the same block for the same user
+      // we want to merge those into a single transfer
+      const transfersByOwnerAndBlock = Object.values(
+        groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
+      );
+      const transfers = transfersByOwnerAndBlock.map((transfers) => {
+        // get the total amount
+        let totalDiff = new Decimal(0);
+        for (const transfer of transfers) {
+          totalDiff = totalDiff.add(transfer.amountTransfered);
+        }
+        // for the trx hash, we use the last transaction (order by logIndex)
+        const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
 
-      return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
-    });
+        return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+      });
 
-    // sanity check
-    if (process.env.NODE_ENV === "development") {
-      for (const transfer of transfers) {
-        if (transfer.blockNumber < contractCall.fromBlock || transfer.blockNumber > contractCall.toBlock) {
-          throw new ProgrammerError({
-            msg: "Invalid block number",
-            data: { transfer, contractCall },
-          });
+      // sanity check
+      if (process.env.NODE_ENV === "development") {
+        for (const transfer of transfers) {
+          if (transfer.blockNumber < contractCall.fromBlock || transfer.blockNumber > contractCall.toBlock) {
+            throw new ProgrammerError({
+              msg: "Invalid block number",
+              data: { transfer, contractCall },
+            });
+          }
         }
       }
-    }
 
-    return transfers;
-  });
+      return [contractCall, transfers];
+    }),
+  );
 }

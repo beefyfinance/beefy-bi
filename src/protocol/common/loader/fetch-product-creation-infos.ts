@@ -43,7 +43,7 @@ export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx
         }),
         "priceFeedId",
       );
-      return objAndData.map((obj) => idMap[obj.data] ?? null);
+      return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
     },
   });
 }

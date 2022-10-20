@@ -36,13 +36,15 @@ export function upsertInvestor$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
 
       // return results in the same order
       const idMap = keyBy(results, "address");
-      return objAndData.map((obj) => {
-        const investor = idMap[obj.data.address.toLocaleLowerCase()];
-        if (!investor) {
-          throw new ProgrammerError({ msg: "Upserted investor not found", data: obj });
-        }
-        return investor.investor_id;
-      });
+      return new Map(
+        objAndData.map(({ data }) => {
+          const investor = idMap[data.address.toLocaleLowerCase()];
+          if (!investor) {
+            throw new ProgrammerError({ msg: "Upserted investor not found", data });
+          }
+          return [data, investor.investor_id];
+        }),
+      );
     },
   });
 }

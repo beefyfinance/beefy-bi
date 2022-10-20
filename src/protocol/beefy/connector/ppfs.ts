@@ -40,14 +40,14 @@ export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
   });
 }
 
-export async function fetchBeefyVaultPPFS(
+export async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
-  contractCalls: BeefyPPFSCallParams[],
-): Promise<Decimal[]> {
+  contractCalls: TParams[],
+): Promise<Map<TParams, Decimal>> {
   // short circuit if no calls
   if (contractCalls.length === 0) {
-    return [];
+    return new Map();
   }
 
   logger.debug({
@@ -82,24 +82,26 @@ export async function fetchBeefyVaultPPFS(
   // that happens when the vault is empty
   const ppfsResults = await Promise.allSettled(ppfsPromises);
 
-  return zipWith(contractCalls, ppfsResults, (contractCall, ppfsRes) => {
-    let ppfs: ethers.BigNumber;
-    if (ppfsRes.status === "fulfilled") {
-      ppfs = ppfsRes.value[0];
-    } else {
-      // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
-      // this means that the totalSupply is 0 so we set ppfs to zero
-      if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
-        ppfs = ethers.BigNumber.from("0");
+  return new Map(
+    zipWith(contractCalls, ppfsResults, (contractCall, ppfsRes) => {
+      let ppfs: ethers.BigNumber;
+      if (ppfsRes.status === "fulfilled") {
+        ppfs = ppfsRes.value[0];
       } else {
-        // otherwise, we throw the error
-        throw ppfsRes.reason;
+        // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
+        // this means that the totalSupply is 0 so we set ppfs to zero
+        if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
+          ppfs = ethers.BigNumber.from("0");
+        } else {
+          // otherwise, we throw the error
+          throw ppfsRes.reason;
+        }
       }
-    }
 
-    const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
-    return vaultShareRate;
-  });
+      const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
+      return [contractCall, vaultShareRate];
+    }),
+  );
 }
 
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance

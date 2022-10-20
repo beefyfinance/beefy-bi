@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
 import { normalizeAddress } from "../../../../utils/ethers";
+import { rootLogger } from "../../../../utils/logger";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
@@ -12,6 +13,8 @@ import { ImportCtx } from "../../../common/types/import-context";
 import { ImportQuery } from "../../../common/types/import-query";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
+
+const logger = rootLogger.child({ module: "beefy-loader", component: "load-transfers" });
 
 export type TransferToLoad<TProduct extends DbBeefyProduct> = {
   transfer: ERC20Transfer;
@@ -92,12 +95,39 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToL
       formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
     }),
 
+    Rx.tap((item) =>
+      logger.trace({
+        msg: "BEFORE fetchBlockDatetime$",
+        data: {
+          range: item.range,
+          latest: item.latest,
+          transactionHash: item.target.transfer.transactionHash,
+          ownerAddress: item.target.transfer.ownerAddress,
+          transferBlockNumber: item.target.transfer.blockNumber,
+        },
+      }),
+    ),
+
     // we also need the date of each block
     fetchBlockDatetime$({
       ctx: options.ctx,
       getBlockNumber: (t) => t.target.transfer.blockNumber,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
+
+    Rx.tap((item) =>
+      logger.trace({
+        msg: "AFTER fetchBlockDatetime$",
+        data: {
+          range: item.range,
+          latest: item.latest,
+          transactionHash: item.target.transfer.transactionHash,
+          ownerAddress: item.target.transfer.ownerAddress,
+          transferBlockNumber: item.target.transfer.blockNumber,
+          blockDatetime: item.blockDatetime.toISOString(),
+        },
+      }),
+    ),
 
     // ==============================
     // now we are ready for the insertion

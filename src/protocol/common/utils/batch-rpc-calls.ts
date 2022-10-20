@@ -43,7 +43,10 @@ const chainLock = new AsyncLock({
 export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   ctx: ImportCtx<TObj>;
   getQuery: (obj: TObj) => TQueryObj;
-  processBatch: (provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider, queryObjs: TQueryObj[]) => Promise<TQueryResp[]>;
+  processBatch: (
+    provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider,
+    queryObjs: TQueryObj[],
+  ) => Promise<Map<TQueryObj, TQueryResp>>;
   // we are doing this much rpc calls per input object
   // this is used to calculate the input batch to send to the client
   // and to know if we can inject the batch provider or if we should use the regular provider
@@ -118,7 +121,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
     Rx.mergeMap(async (objs: TObj[]) => {
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
-      const contractCalls = objs.map((obj) => options.getQuery(obj));
+      const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
 
       const provider = canUseBatchProvider ? options.ctx.rpcConfig.batchProvider : options.ctx.rpcConfig.linearProvider;
 
@@ -126,6 +129,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
         logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
 
         try {
+          const contractCalls = objAndCallParams.map(({ query }) => query);
           const res = await options.processBatch(provider, contractCalls);
           return res;
         } catch (error) {
@@ -140,7 +144,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
 
       try {
         // retry the call if it fails
-        const responses = await backOff(() => {
+        const resultMap = await backOff(() => {
           // acquire a lock for this chain so in case we do use batch provider, we are guaranteed
           // the we are only batching the current request size and not more
           logger.trace(mergeLogsInfos({ msg: "Acquiring provider lock for chain", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
@@ -150,13 +154,18 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
           );
         }, retryConfig);
 
-        if (responses.length !== objs.length) {
-          throw new ProgrammerError({
-            msg: "Query and result length mismatch",
-            data: { contractCallsCount: contractCalls.length, responsesLength: responses.length },
-          });
+        if (resultMap.size !== objs.length) {
+          logger.error({ msg: "resultMap size mismatch", data: { resultMap, objs } });
+          throw new ProgrammerError({ msg: "resultMap size mismatch", data: { resultMap, objs } });
         }
-        return zipWith(objs, responses, options.formatOutput);
+        return objAndCallParams.map(({ obj, query }) => {
+          if (!resultMap.has(query)) {
+            logger.error({ msg: "result not found", data: { obj, query, resultMap } });
+            throw new ProgrammerError({ msg: "result not found", data: { obj, query, resultMap } });
+          }
+          const res = resultMap.get(query) as TQueryResp;
+          return options.formatOutput(obj, res);
+        });
       } catch (err) {
         // here, none of the retrying worked, so we emit all the objects as in error
         logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { err } }, options.logInfos));

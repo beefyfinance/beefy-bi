@@ -1,6 +1,5 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
-import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
@@ -29,8 +28,7 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
     formatOutput: options.formatOutput,
     getQuery: options.getQueryParams,
     processBatch: async (provider, params: TParams[]) => {
-      const balancePromises: Promise<Decimal>[] = [];
-      for (const param of params) {
+      const balancePromises = params.map((param) => {
         const valueMultiplier = new Decimal(10).pow(-param.decimals);
         const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
 
@@ -40,12 +38,12 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
           blockTag = param.blockNumber + 1;
         }
 
-        const balancePromise = contract
+        return contract
           .balanceOf(param.ownerAddress, { blockTag })
-          .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"));
-        balancePromises.push(balancePromise);
-      }
-      return Promise.all(balancePromises);
+          .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"))
+          .then((balance: Decimal) => [params, balance]);
+      });
+      return new Map(await Promise.all(balancePromises));
     },
   });
 }

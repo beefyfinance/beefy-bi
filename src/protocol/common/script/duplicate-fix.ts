@@ -1,7 +1,6 @@
 import Decimal from "decimal.js";
 import { get, uniq } from "lodash";
 import { PoolClient } from "pg";
-import pgf from "pg-format";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
@@ -10,7 +9,6 @@ import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { fetchBlockDatetime$ } from "../connector/block-datetime";
 import { DbInvestment } from "../loader/investment";
-import { dbBatchCall$ } from "../utils/db-batch";
 import { createRpcConfig } from "../utils/rpc-config";
 
 const logger = rootLogger.child({ module: "beefy", component: "fix-duplicates" });
@@ -47,6 +45,7 @@ export function addDuplicateFixCmd<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) 
 interface DbInvestDuplicate {
   product_id: number;
   block_number: number;
+  investor_id: number;
   datetimes: Date[];
   balances: Decimal[];
   investment_datas: object[];
@@ -58,6 +57,7 @@ async function fixDuplicateImportedInvestmentBlocks(cmdParams: CmdParams) {
       `select 
           product_id,
           block_number,
+          investor_id,
           array_agg(distinct datetime) as datetimes, 
           array_agg(distinct balance::varchar) as balances,
           jsonb_agg(investment_data) as investment_datas

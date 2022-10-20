@@ -1,6 +1,9 @@
-import * as Rx from "rxjs";
+import { keyBy, uniq, zipWith } from "lodash";
+import { rootLogger } from "../../../utils/logger";
 import { ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
+
+const logger = rootLogger.child({ module: "common", component: "block-datetime" });
 
 export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends number>(options: {
   ctx: TCtx;
@@ -17,9 +20,21 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
     },
     getQuery: options.getBlockNumber,
     processBatch: async (provider, params: TParams[]) => {
-      const promises = params.map((blockNumber) => provider.getBlock(blockNumber));
-      const blocks = await Promise.all(promises);
-      return blocks.map((block) => new Date(block.timestamp * 1000));
+      const uniqBlockNumbers = uniq(params);
+      const blocks = await Promise.all(uniqBlockNumbers.map((blockNumber) => provider.getBlock(blockNumber)));
+      const blockByNumberMap = keyBy(blocks, "number");
+
+      const result = new Map(
+        params.map((blockNumber) => {
+          const block = blockByNumberMap[blockNumber];
+          if (block === undefined) {
+            logger.error({ msg: "block date not found", data: { blockNumber, blockByNumberMap, params } });
+            throw new Error(`Block ${blockNumber} not found`);
+          }
+          return [blockNumber, new Date(block.timestamp * 1000)];
+        }),
+      );
+      return result;
     },
     formatOutput: options.formatOutput,
     logInfos: { msg: "Fetching block datetime", data: {} },

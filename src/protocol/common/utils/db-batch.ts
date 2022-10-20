@@ -2,6 +2,7 @@ import { zipWith } from "lodash";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "db-batch" });
@@ -9,7 +10,7 @@ const logger = rootLogger.child({ module: "common", component: "db-batch" });
 export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryData, TQueryRes>(options: {
   ctx: TCtx;
   getData: (obj: TObj) => TQueryData;
-  processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<TQueryRes[]>;
+  processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<Map<TQueryData, TQueryRes>>;
   formatOutput: (obj: TObj, res: TQueryRes) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
@@ -21,11 +22,19 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
       try {
         const objAndData = objs.map((obj) => ({ obj, data: options.getData(obj) }));
 
-        const results = await options.processBatch(objAndData);
-        if (results.length !== objs.length) {
-          throw new Error(`Expected ${objs.length} results, got ${results.length}`);
+        const resultMap = await options.processBatch(objAndData);
+        if (resultMap.size !== objs.length) {
+          logger.error({ msg: "resultMap size mismatch", data: { resultMap, objs } });
+          throw new ProgrammerError({ msg: "resultMap size mismatch", data: { resultMap, objs } });
         }
-        return zipWith(objs, results, (obj, res) => options.formatOutput(obj, res));
+        return objAndData.map(({ obj, data }) => {
+          if (!resultMap.has(data)) {
+            logger.error({ msg: "result not found", data: { obj, data, resultMap } });
+            throw new ProgrammerError({ msg: "result not found", data: { obj, data, resultMap } });
+          }
+          const res = resultMap.get(data) as TQueryRes;
+          return options.formatOutput(obj, res);
+        });
       } catch (err) {
         logger.error({ msg: "Error inserting batch", data: { objsLen: objs.length, err } });
         logger.error(err);

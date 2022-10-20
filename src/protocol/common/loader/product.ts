@@ -78,13 +78,15 @@ export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams
       // ensure results are in the same order as the params
       const idMap = keyBy(results, "productKey");
 
-      return objAndData.map((obj) => {
-        const product = idMap[obj.data.productKey];
-        if (!product) {
-          throw new Error("Could not find product after upsert");
-        }
-        return product;
-      });
+      return new Map(
+        objAndData.map(({ data }) => {
+          const product = idMap[data.productKey];
+          if (!product) {
+            throw new Error("Could not find product after upsert");
+          }
+          return [data, product];
+        }),
+      );
     },
   });
 }
@@ -116,13 +118,15 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
       // ensure results are in the same order as the params
       const idMap = keyBy(results, "productId");
 
-      return objAndData.map((obj) => {
-        const product = idMap[obj.data];
-        if (!product) {
-          throw new Error("Could not find product");
-        }
-        return product;
-      });
+      return new Map(
+        objAndData.map(({ data }) => {
+          const product = idMap[data];
+          if (!product) {
+            throw new Error("Could not find product");
+          }
+          return [data, product];
+        }),
+      );
     },
   });
 }

@@ -61,7 +61,7 @@ export function upsertPrice$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams e
         ],
         options.ctx.client,
       );
-      return objAndData.map(({ obj, data: investment }) => investment);
+      return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });
 }

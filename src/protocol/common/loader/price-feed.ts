@@ -56,13 +56,15 @@ export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPara
       );
 
       const idMap = keyBy(results, "feedKey");
-      return objAndData.map((obj) => {
-        const feed = idMap[obj.data.feedKey];
-        if (!feed) {
-          throw new ProgrammerError({ msg: "Upserted price feed not found", data: obj });
-        }
-        return feed;
-      });
+      return new Map(
+        objAndData.map(({ data }) => {
+          const feed = idMap[data.feedKey];
+          if (!feed) {
+            throw new ProgrammerError({ msg: "Upserted price feed not found", data });
+          }
+          return [data, feed];
+        }),
+      );
     },
   });
 }
@@ -92,7 +94,7 @@ export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(option
 
       // ensure results are in the same order as the params
       const idMap = keyBy(results, "priceFeedId");
-      return objAndData.map((obj) => idMap[obj.data] ?? null);
+      return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
     },
   });
 }
