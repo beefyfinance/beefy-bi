@@ -191,6 +191,5 @@ function productFilter$(chain: Chain, cmdParams: CmdParams) {
         product.productData.type === "beefy:boost" ? product.productData.boost.contract_address : product.productData.vault.contract_address;
       return cmdParams.filterContractAddress === null || contractAddress.toLocaleLowerCase() === cmdParams.filterContractAddress.toLocaleLowerCase();
     }),
-    Rx.filter((product) => product.productData.type === "beefy:gov-vault"),
   );
 }
