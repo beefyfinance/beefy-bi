@@ -20,6 +20,7 @@ export function upsertInvestor$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getInvestorData,
+    logInfos: { msg: "upsert investor" },
     processBatch: async (objAndData) => {
       const results = await db_query<{ investor_id: number; address: string }>(
         `INSERT INTO investor (address, investor_data) VALUES %L

@@ -9,7 +9,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { fetchPriceFeed$, priceFeedList$ } from "../../common/loader/price-feed";
+import { fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { defaultHistoricalStreamConfig } from "../../common/utils/historical-recent-pipeline";
 import { createRpcConfig } from "../../common/utils/rpc-config";
@@ -25,6 +25,7 @@ interface CmdParams {
   client: PoolClient;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
   filterChains: Chain[];
+  includeEol: boolean;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
   repeatEvery: SamplingPeriod | null;
@@ -39,6 +40,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
         contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+        includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products" },
         task: {
           choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate"],
           demand: true,
@@ -56,6 +58,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         const cmdParams: CmdParams = {
           client,
           task: argv.task as CmdParams["task"],
+          includeEol: argv.includeEol,
           filterChains: argv.chain === "all" ? allChainIds : [argv.chain as Chain],
           filterContractAddress: argv.contractAddress || null,
           forceCurrentBlockNumber: argv.currentBlockNumber || null,
@@ -118,13 +121,36 @@ async function importProducts(cmdParams: CmdParams) {
   return consumeObservable(pipeline$);
 }
 
-async function importBeefyDataPrices(cmdParams: CmdParams) {
-  const pipeline$ = priceFeedList$(cmdParams.client, "beefy-data").pipe(
+function importBeefyDataPrices(cmdParams: CmdParams) {
+  const rpcConfig = createRpcConfig("bsc"); // never used
+  const streamConfig = defaultHistoricalStreamConfig;
+  const ctx = {
+    client: cmdParams.client,
+    emitErrors: (item: DbProduct) => {
+      throw new Error(`Error fetching price feed for product ${item.productId}`);
+    },
+    rpcConfig,
+    streamConfig,
+  };
+
+  const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
+    productFilter$(null, cmdParams),
+    // remove products that don't have a ppfs to fetch
+    Rx.filter((product) => isBeefyStandardVault(product) || isBeefyBoost(product)),
+    // now fetch the price feed we need
+    fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId2, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+    // drop those without a price feed yet
+    excludeNullFields$("priceFeed"),
+    Rx.map(({ priceFeed }) => priceFeed),
+    // remove duplicates
+    Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+    // now import data for those
     cmdParams.task === "recent-prices"
       ? importBeefyRecentUnderlyingPrices$({ client: cmdParams.client })
       : importBeefyHistoricalUnderlyingPrices$({ client: cmdParams.client }),
   );
-  logger.info({ msg: "starting prices import", data: { ...cmdParams, client: "<redacted>" } });
+
+  logger.info({ msg: "starting share rate data import", data: { ...cmdParams, client: "<redacted>" } });
   return consumeObservable(pipeline$);
 }
 
@@ -183,9 +209,24 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   return consumeObservable(pipeline$);
 }
 
-function productFilter$(chain: Chain, cmdParams: CmdParams) {
+function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
   return Rx.pipe(
-    Rx.filter((product: DbProduct) => product.chain === chain),
+    Rx.filter((product: DbProduct) => {
+      if (chain === null) {
+        return true;
+      }
+      return product.chain === chain;
+    }),
+    Rx.filter((product: DbProduct) => {
+      if (cmdParams.includeEol) {
+        return true;
+      }
+      const isEOL = product.productData.type === "beefy:boost" ? product.productData.boost.eol : product.productData.vault.eol;
+      return !isEOL;
+    }),
+    Rx.toArray(),
+    Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
+    Rx.concatAll(),
     Rx.filter((product) => {
       const contractAddress =
         product.productData.type === "beefy:boost" ? product.productData.boost.contract_address : product.productData.vault.contract_address;

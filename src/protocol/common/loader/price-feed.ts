@@ -29,6 +29,7 @@ export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPara
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getFeedData,
+    logInfos: { msg: "upsert price feed" },
     processBatch: async (objAndData) => {
       const results = await db_query<DbPriceFeed>(
         `INSERT INTO price_feed (feed_key, from_asset_key, to_asset_key, price_feed_data) VALUES %L
@@ -78,6 +79,7 @@ export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(option
     ctx: options.ctx,
     getData: options.getPriceFeedId,
     formatOutput: options.formatOutput,
+    logInfos: { msg: "fetch price feed" },
     processBatch: async (objAndData) => {
       const results = await db_query<DbPriceFeed>(
         `SELECT 

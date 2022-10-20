@@ -18,6 +18,7 @@ export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx
     ctx: options.ctx,
     getData: options.getPriceFeedId,
     formatOutput: options.formatOutput,
+    logInfos: { msg: "fetchPriceFeedContractCreationInfos", data: { which: options.which } },
     processBatch: async (objAndData) => {
       type TRes = { priceFeedId: number; productId: number; chain: Chain; contractCreatedAtBlock: number; contractCreationDate: Date };
       const fieldName = options.which === "price-feed-1" ? "price_feed_1_id" : "price_feed_2_id";

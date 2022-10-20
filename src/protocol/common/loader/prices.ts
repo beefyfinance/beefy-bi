@@ -26,6 +26,7 @@ export function upsertPrice$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams e
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getPriceData,
+    logInfos: { msg: "upsert price" },
     processBatch: async (objAndData) => {
       // add duplicate detection in dev only
       if (process.env.NODE_ENV === "development") {

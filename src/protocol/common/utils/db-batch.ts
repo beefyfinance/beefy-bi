@@ -1,7 +1,7 @@
 import { zipWith } from "lodash";
 import * as Rx from "rxjs";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
-import { rootLogger } from "../../../utils/logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";
 
@@ -11,6 +11,7 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
   ctx: TCtx;
   getData: (obj: TObj) => TQueryData;
   processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<Map<TQueryData, TQueryRes>>;
+  logInfos: LogInfos;
   formatOutput: (obj: TObj, res: TQueryRes) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
@@ -23,14 +24,10 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
         const objAndData = objs.map((obj) => ({ obj, data: options.getData(obj) }));
 
         const resultMap = await options.processBatch(objAndData);
-        if (resultMap.size !== objs.length) {
-          logger.error({ msg: "resultMap size mismatch", data: { resultMap, objs } });
-          throw new ProgrammerError({ msg: "resultMap size mismatch", data: { resultMap, objs } });
-        }
         return objAndData.map(({ obj, data }) => {
           if (!resultMap.has(data)) {
-            logger.error({ msg: "result not found", data: { obj, data, resultMap } });
-            throw new ProgrammerError({ msg: "result not found", data: { obj, data, resultMap } });
+            logger.error(mergeLogsInfos({ msg: "result not found", data: { obj, data, resultMap } }, options.logInfos));
+            throw new ProgrammerError(mergeLogsInfos({ msg: "result not found", data: { obj, data, resultMap } }, options.logInfos));
           }
           const res = resultMap.get(data) as TQueryRes;
           return options.formatOutput(obj, res);

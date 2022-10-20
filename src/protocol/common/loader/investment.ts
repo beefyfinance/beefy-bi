@@ -26,6 +26,7 @@ export function upsertInvestment$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPar
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getInvestmentData,
+    logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
       // add duplicate detection in dev only
       if (process.env.NODE_ENV === "development") {

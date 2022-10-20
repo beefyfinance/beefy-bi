@@ -1,7 +1,7 @@
 import { keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { Chain } from "../../../types/chain";
+import { allChainIds, Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
@@ -54,6 +54,7 @@ export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getProductData,
+    logInfos: { msg: "upsert product" },
     processBatch: async (objAndData) => {
       const results = await db_query<DbProduct>(
         `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, chain, product_data) VALUES %L
@@ -100,6 +101,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
     ctx: options.ctx,
     formatOutput: options.formatOutput,
     getData: options.getProductId,
+    logInfos: { msg: "fetch product" },
     processBatch: async (objAndData) => {
       const results = await db_query<DbProduct>(
         `SELECT
@@ -131,7 +133,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
   });
 }
 
-export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey, chain: Chain): Rx.Observable<DbProduct> {
+export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey, chain: Chain | null): Rx.Observable<DbProduct> {
   logger.debug({ msg: "Fetching vaults from db" });
   return Rx.of(
     db_query<DbProduct>(
@@ -144,8 +146,8 @@ export function productList$<TKey extends string>(client: PoolClient, keyPrefix:
         product_data as "productData"
       FROM product
       where product_key like %L || ':%'
-        and chain = %L`,
-      [keyPrefix, chain],
+        and chain in (%L)`,
+      [keyPrefix, chain === null ? allChainIds : [chain]],
       client,
     ),
   ).pipe(
