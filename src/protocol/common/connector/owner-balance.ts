@@ -41,7 +41,7 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
         return contract
           .balanceOf(param.ownerAddress, { blockTag })
           .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"))
-          .then((balance: Decimal) => [params, balance]);
+          .then((balance: Decimal) => [param, balance]);
       });
       return new Map(await Promise.all(balancePromises));
     },

@@ -154,14 +154,10 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
           );
         }, retryConfig);
 
-        if (resultMap.size !== objs.length) {
-          logger.error({ msg: "resultMap size mismatch", data: { resultMap, objs } });
-          throw new ProgrammerError({ msg: "resultMap size mismatch", data: { resultMap, objs } });
-        }
         return objAndCallParams.map(({ obj, query }) => {
           if (!resultMap.has(query)) {
-            logger.error({ msg: "result not found", data: { obj, query, resultMap } });
-            throw new ProgrammerError({ msg: "result not found", data: { obj, query, resultMap } });
+            logger.error(mergeLogsInfos({ msg: "result not found", data: { obj, query, resultMap } }, options.logInfos));
+            throw new ProgrammerError(mergeLogsInfos({ msg: "result not found", data: { obj, query, resultMap } }, options.logInfos));
           }
           const res = resultMap.get(query) as TQueryResp;
           return options.formatOutput(obj, res);
