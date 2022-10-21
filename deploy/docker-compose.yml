@@ -16,9 +16,9 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
-# docker compose -f deploy/docker-compose.yml stop importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent
-# docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent -d --force-recreate
-# docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent
+# docker compose -f deploy/docker-compose.yml stop importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical
+# docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical -d --force-recreate
+# docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical
 
 # RUN a command
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
@@ -194,20 +194,20 @@ services:
       - redis
       - timescaledb
 
-  #importer-share-rates-historical:
-  #  image: beefy-data-importer
-  #  restart: always
-  #  env_file: ../.env
-  #  environment:
-  #    REDIS_URL: redis://redis:6379
-  #    TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
-  #    DATA_DIRECTORY: /data
-  #    GIT_WORK_DIRECTORY: /git_work
-  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -r 1hour" # focus on historical transfers for now
-  #  volumes:
-  #    - git_work_directory:/git_work
-  #  networks:
-  #    - backend
-  #  depends_on:
-  #    - redis
-  #    - timescaledb
+  importer-share-rates-historical:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
+      DATA_DIRECTORY: /data
+      GIT_WORK_DIRECTORY: /git_work
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -r 1hour" # focus on historical transfers for now
+    volumes:
+      - git_work_directory:/git_work
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
