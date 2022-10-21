@@ -10,10 +10,10 @@ import {
   MAX_RANGES_PER_PRODUCT_TO_GENERATE,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
-import { isInRange, Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
+import { isInRange, Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
-import { DbBlockNumberRangeImportState, DbDateRangeImportState } from "../loader/import-state";
+import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
@@ -107,7 +107,6 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
     // we can now create the historical block query
     Rx.map((item) => {
       const importState = options.getImport(item.obj);
-      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.rpcConfig.chain];
 
       // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
       // where the RPC don't know about the block number he just gave us
@@ -120,24 +119,8 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
 
       let ranges = [fullRange];
 
-      // exclude the ranges we already covered
-      ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges);
-
-      // split in ranges no greater than the maximum allowed
-      ranges = rangeSplitManyToMaxLength(ranges, maxBlocksPerQuery);
-
-      // order by newset first since it's more important and more likely to be available via RPC calls
-      ranges = ranges.sort((a, b) => b.to - a.to);
-
-      // then add the ranges we had error on at the end
-      const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry, maxBlocksPerQuery);
-      ranges = ranges.concat(rangesToRetry);
-
-      // limit the amount of queries sent
-      if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
-        ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
-      }
-
+      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.rpcConfig.chain];
+      ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery);
       return options.formatOutput(item.obj, item.latestBlockNumber, ranges);
     }),
   );
@@ -163,24 +146,7 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
 
       let ranges = [fullRange];
 
-      // exclude the ranges we already covered
-      ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges);
-
-      // split in ranges no greater than the maximum allowed
-      ranges = rangeSplitManyToMaxLength(ranges, maxMsPerQuery);
-
-      // order by newset first since it's more important and more likely to be available via RPC calls
-      ranges = ranges.sort((a, b) => b.to.getTime() - a.to.getTime());
-
-      // then add the ranges we had error on at the end
-      const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry, maxMsPerQuery);
-      ranges = ranges.concat(rangesToRetry);
-
-      // limit the amount of queries sent
-      if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
-        ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
-      }
-
+      ranges = restrictRangesWithImportState(ranges, importState, maxMsPerQuery);
       return options.formatOutput(item, latestDate, ranges);
     }),
   );
@@ -211,6 +177,7 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
 
 export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
   ctx: ImportCtx<TObj>;
+  getImportState: (item: TObj) => DbBlockNumberRangeImportState;
   getParentImportState: (item: TObj) => DbBlockNumberRangeImportState;
   forceCurrentBlockNumber: number | null;
   chain: Chain;
@@ -276,6 +243,13 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
         }
         return { ...item, blockRanges };
       }),
+      // filter ranges based on what was already covered
+      Rx.map((item) => {
+        const importState = options.getImportState(item.obj);
+        const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
+        const ranges = restrictRangesWithImportState(item.blockRanges, importState, maxBlocksPerQuery);
+        return { ...item, blockRanges: ranges };
+      }),
       // transform to query obj
       Rx.map((item) => {
         return {
@@ -296,4 +270,29 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
     stdTTLSec: 5 * 60 /* 5 min */,
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
   });
+}
+
+function restrictRangesWithImportState<T extends SupportedRangeTypes>(
+  ranges: Range<T>[],
+  importState: DbImportState,
+  maxRangeLength: number,
+): Range<T>[] {
+  // exclude the ranges we already covered
+  ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
+
+  // split in ranges no greater than the maximum allowed
+  ranges = rangeSplitManyToMaxLength(ranges, maxRangeLength);
+
+  // order by newset first since it's more important and more likely to be available via RPC calls
+  ranges = rangeSort(ranges).reverse();
+
+  // then add the ranges we had error on at the end
+  const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry as Range<T>[], maxRangeLength);
+  ranges = ranges.concat(rangesToRetry);
+
+  // limit the amount of queries sent
+  if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
+    ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
+  }
+  return ranges;
 }

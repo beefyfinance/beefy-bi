@@ -1,4 +1,3 @@
-import { get, mean, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
@@ -6,7 +5,7 @@ import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
-import { addCoveringBlockRangesQuery, latestBlockNumber$ } from "../../../common/connector/import-queries";
+import { addCoveringBlockRangesQuery } from "../../../common/connector/import-queries";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
@@ -48,6 +47,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
           },
           chain: options.chain,
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
+          getImportState: (item) => item.importState,
           getParentImportState: (item) => item.parentImportState,
           formatOutput: (_, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ range, latest: latestBlockNumber })),
         }),
@@ -145,6 +145,6 @@ function processShareRateQuery$<
     }),
 
     // transform to result
-    Rx.map((item) => ({ ...item, success: get(item, "success", false) })),
+    Rx.map((item) => ({ ...item, success: true })),
   );
 }
