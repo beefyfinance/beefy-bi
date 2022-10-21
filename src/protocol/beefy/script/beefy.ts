@@ -77,7 +77,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               await task();
               const now = Date.now();
 
-              logger.info("Import script finished");
+              logger.info({ msg: "Import task finished" });
 
               if (cmdParams.repeatEvery !== null) {
                 const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.repeatEvery];

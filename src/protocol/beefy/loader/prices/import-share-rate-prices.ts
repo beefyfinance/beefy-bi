@@ -2,22 +2,23 @@ import { get, mean, sortBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { db_query } from "../../../../utils/db";
+import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { isInRange, Range } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
-import { addCoveredBlockListQuery, latestBlockNumber$ } from "../../../common/connector/import-queries";
+import { addCoveringBlockRangesQuery, latestBlockNumber$ } from "../../../common/connector/import-queries";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
-import { DbProductShareRateImportState } from "../../../common/loader/import-state";
+import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
 import { ImportCtx } from "../../../common/types/import-context";
-import { ImportPointQuery, ImportPointResult } from "../../../common/types/import-query";
+import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
+
+const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
 export function importBeefyHistoricalShareRatePrices$(options: { client: PoolClient; chain: Chain; forceCurrentBlockNumber: number | null }) {
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
@@ -28,26 +29,39 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx) =>
       Rx.pipe(
-        addCoveredBlockListQuery({
-          ctx,
+        // fetch the parent import state
+        fetchImportState$({
+          client: ctx.client,
+          streamConfig: ctx.streamConfig,
+          getImportStateKey: (item) => `product:investment:${item.importState.importData.productId}`,
+          formatOutput: (item, parentImportState: DbProductInvestmentImportState | null) => ({ ...item, parentImportState }),
+        }),
+        excludeNullFields$("parentImportState"),
+
+        addCoveringBlockRangesQuery({
+          ctx: {
+            ...ctx,
+            emitErrors: (item) => {
+              logger.error({ msg: "Error while adding covering block ranges", data: item });
+              throw new Error("Error while adding covering block ranges");
+            },
+          },
           chain: options.chain,
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
-          getScopeImportState: (item) => item.importState,
-          formatOutput: (item, latestBlockNumber, blockRanges) => ({ ...item, blockList }),
+          getParentImportState: (item) => item.parentImportState,
+          formatOutput: (_, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ range, latest: latestBlockNumber })),
         }),
-        Rx.pipe((item) => {}),
       ),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
-        // initialize the import state
-
-        // find the first date we are interested in this price
+        // find the first date we are interested in
         // so we need the first creation date of each product
         fetchPriceFeedContractCreationInfos({
           ctx: {
             ...ctx,
             emitErrors: (item) => {
-              throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
+              logger.error({ msg: "Error while fetching price feed contract creation infos", data: item });
+              throw new Error("Error while fetching price feed creation infos" + item.priceFeedId);
             },
           },
           which: "price-feed-1", // we work on the first applied price
@@ -78,10 +92,13 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
 }
 
 function processShareRateQuery$<
-  TObj extends ImportPointQuery<DbPriceFeed, number> & { importState: DbProductShareRateImportState },
+  TObj extends ImportRangeQuery<DbPriceFeed, number> & { importState: DbProductShareRateImportState },
   TCtx extends ImportCtx<TObj>,
->(options: { ctx: TCtx }): Rx.OperatorFunction<TObj, ImportPointResult<DbPriceFeed, number>> {
+>(options: { ctx: TCtx }): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, number>> {
   return Rx.pipe(
+    // get the midpoint of the range
+    Rx.map((item) => ({ ...item, rangeMidpoint: Math.floor((item.range.from + item.range.to) / 2) })),
+
     fetchProduct$({
       ctx: options.ctx,
       getProductId: (item) => item.importState.importData.productId,
@@ -102,7 +119,7 @@ function processShareRateQuery$<
           underlyingDecimals: vault.want_decimals,
           vaultAddress: vault.contract_address,
           vaultDecimals: vault.token_decimals,
-          blockNumber: item.point,
+          blockNumber: item.rangeMidpoint,
         };
       },
       formatOutput: (item, ppfs) => ({ ...item, ppfs }),
@@ -111,7 +128,7 @@ function processShareRateQuery$<
     // add block datetime
     fetchBlockDatetime$({
       ctx: options.ctx,
-      getBlockNumber: (item) => item.point,
+      getBlockNumber: (item) => item.rangeMidpoint,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
 
@@ -119,10 +136,10 @@ function processShareRateQuery$<
       ctx: options.ctx,
       getPriceData: (item) => ({
         datetime: item.blockDatetime,
-        blockNumber: item.point,
+        blockNumber: item.rangeMidpoint,
         priceFeedId: item.target.priceFeedId,
         price: item.ppfs,
-        priceData: { from: "ppfs-snapshots" },
+        priceData: { from: "ppfs-snapshots", query: { range: item.range, midPoint: item.rangeMidpoint, latest: item.latest } },
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),

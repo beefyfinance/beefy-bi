@@ -14,16 +14,6 @@ export interface ImportRangeResult<TTarget, TRange extends SupportedRangeTypes> 
   success: boolean;
 }
 
-export interface ImportPointQuery<TTarget, TType extends SupportedRangeTypes> {
-  target: TTarget;
-  point: TType;
-}
-export interface ImportPointResult<TTarget, TType extends SupportedRangeTypes> {
-  target: TTarget;
-  point: TType;
-  success: boolean;
-}
-
 export function isDateRangeResult<TTarget>(result: ImportRangeResult<TTarget, any>): result is ImportRangeResult<TTarget, Date> {
   return isDate(result.range.from);
 }

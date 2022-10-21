@@ -13,7 +13,7 @@ import {
 import { isInRange, Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
-import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
+import { DbBlockNumberRangeImportState, DbDateRangeImportState } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
@@ -209,21 +209,20 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
   );
 }
 
-export function addCoveredBlockListQuery<TObj, TRes>(options: {
+export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
   ctx: ImportCtx<TObj>;
-  getScopeImportState: (item: TObj) => DbBlockNumberRangeImportState;
+  getParentImportState: (item: TObj) => DbBlockNumberRangeImportState;
   forceCurrentBlockNumber: number | null;
   chain: Chain;
   formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
-}) {
+}): Rx.OperatorFunction<TObj, TRes> {
   const operator$ = Rx.pipe(
     Rx.pipe(
-      Rx.tap((_: TObj) => {}),
       fetchChainBlockList$({
         ctx: options.ctx,
         getChain: () => options.chain,
-        getFirstDate: (item) => options.getScopeImportState(item).importData.contractCreationDate,
-        formatOutput: (item, blockList) => ({ ...item, blockList }),
+        getFirstDate: (obj) => options.getParentImportState(obj).importData.contractCreationDate,
+        formatOutput: (obj, blockList) => ({ obj, blockList }),
       }),
       // get the average block time or the N latest blocks to interpolate up until now
       Rx.map((item) => {
@@ -235,7 +234,7 @@ export function addCoveredBlockListQuery<TObj, TRes>(options: {
       Rx.map((item) => {
         const blockList = item.blockList.filter((b) => {
           const isCovered = options
-            .getScopeImportState(item)
+            .getParentImportState(item.obj)
             .importData.ranges.coveredRanges.some((range) => isInRange(range, b.interpolated_block_number));
           return isCovered;
         });
@@ -273,14 +272,14 @@ export function addCoveredBlockListQuery<TObj, TRes>(options: {
         for (let i = 0; i < item.blockList.length - 1; i++) {
           const block = item.blockList[i];
           const nextBlock = item.blockList[i + 1];
-          blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number });
+          blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
         }
         return { ...item, blockRanges };
       }),
       // transform to query obj
       Rx.map((item) => {
         return {
-          input: item,
+          input: item.obj,
           output: {
             latestBlockNumber: item.latestBlockNumber,
             blockRanges: item.blockRanges,
@@ -292,7 +291,7 @@ export function addCoveredBlockListQuery<TObj, TRes>(options: {
 
   return cacheOperatorResult$({
     operator$,
-    getCacheKey: (item) => `blockList-${options.chain}-${options.getScopeImportState(item).importKey}`,
+    getCacheKey: (item) => `blockList-${options.chain}-${options.getParentImportState(item).importKey}`,
     logInfos: { msg: "block list for chain", data: { chain: options.chain } },
     stdTTLSec: 5 * 60 /* 5 min */,
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),

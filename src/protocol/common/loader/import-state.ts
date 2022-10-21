@@ -321,7 +321,11 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
 function hydrateImportStateRangesFromDb(importState: DbImportState) {
   const type = importState.importData.type;
   // hydrate dates properly
-  if (type === "product:investment" || type === "product:share-rate") {
+  if (type === "product:investment") {
+    importState.importData.contractCreationDate = new Date(importState.importData.contractCreationDate);
+    hydrateNumberImportRangesFromDb(importState.importData.ranges);
+  } else if (type === "product:share-rate") {
+    importState.importData.contractCreationDate = new Date(importState.importData.contractCreationDate);
     hydrateNumberImportRangesFromDb(importState.importData.ranges);
   } else if (type === "oracle:price") {
     importState.importData.firstDate = new Date(importState.importData.firstDate);
