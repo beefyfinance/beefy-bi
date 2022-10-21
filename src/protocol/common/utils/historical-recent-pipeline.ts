@@ -9,7 +9,7 @@ import { createObservableWithNext } from "../../../utils/rxjs/utils/create-obser
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
-import { ImportQuery, ImportResult } from "../types/import-query";
+import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "./batch-rpc-calls";
 import { memoryBackpressure$ } from "./memory-backpressure";
 import { createRpcConfig } from "./rpc-config";
@@ -42,8 +42,8 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   logInfos: LogInfos;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
-  createDefaultImportState$: (ctx: ImportCtx<ImportQuery<TInput, TRange>>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
-  generateQueries$: (ctx: ImportCtx<ImportQuery<TInput, TRange>>) => Rx.OperatorFunction<
+  createDefaultImportState$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
+  generateQueries$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<
     { target: TInput; importState: TImport },
     {
       range: Range<TRange>;
@@ -51,13 +51,13 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     }[]
   >;
   processImportQuery$: (
-    ctx: ImportCtx<ImportQuery<TInput, TRange>>,
-  ) => Rx.OperatorFunction<ImportQuery<TInput, TRange> & { importState: TImport }, ImportResult<TInput, TRange>>;
+    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
+  ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport }, ImportRangeResult<TInput, TRange>>;
 }) {
   const streamConfig = defaultHistoricalStreamConfig;
-  const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportQuery<TInput, TRange>>();
+  const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
 
-  const ctx: ImportCtx<ImportQuery<TInput, TRange>> = {
+  const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
     client: options.client,
     emitErrors,
     rpcConfig: createRpcConfig(options.chain),
@@ -154,7 +154,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   generateQueries$: (
-    ctx: ImportCtx<ImportQuery<TInput, TRange>>,
+    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
     lastImported: TRange | null,
   ) => Rx.OperatorFunction<
     { target: TInput },
@@ -164,12 +164,12 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     }[]
   >;
   processImportQuery$: (
-    ctx: ImportCtx<ImportQuery<TInput, TRange>>,
-  ) => Rx.OperatorFunction<ImportQuery<TInput, TRange>, ImportResult<TInput, TRange>>;
+    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
+  ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange>, ImportRangeResult<TInput, TRange>>;
 }) {
   const streamConfig = defaultRecentStreamConfig;
 
-  const ctx: ImportCtx<ImportQuery<TInput, TRange>> = {
+  const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
     client: options.client,
     emitErrors: () => {}, // ignore errors since we are doing live data
     rpcConfig: createRpcConfig(options.chain),

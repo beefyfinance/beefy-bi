@@ -7,19 +7,21 @@ import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-ob
 import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
 import { ImportCtx } from "../../../common/types/import-context";
-import { ImportQuery, ImportResult } from "../../../common/types/import-query";
+import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
 import { loadTransfers$, TransferToLoad } from "./load-transfers";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
-export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct, number>, TCtx extends ImportCtx<TObj>>(options: { ctx: TCtx }) {
+export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TCtx extends ImportCtx<TObj>>(options: {
+  ctx: TCtx;
+}) {
   const boostTransfers$ = Rx.pipe(
     Rx.filter(isBeefyBoostProductImportQuery),
 
     // fetch latest transfers from and to the boost contract
     fetchERC20TransferToAStakingContract$({
-      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyBoostProduct, number>>,
+      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyBoostProduct, number>>,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -51,7 +53,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
 
     // fetch the vault transfers
     fetchErc20Transfers$({
-      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyStdVaultProduct, number>>,
+      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyStdVaultProduct, number>>,
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {
@@ -80,7 +82,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     })),
 
     fetchERC20TransferToAStakingContract$({
-      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbBeefyGovVaultProduct, number>>,
+      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyGovVaultProduct, number>>,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -99,7 +101,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
 
   return Rx.pipe(
     // add typings to the input item
-    Rx.tap((_: ImportQuery<DbBeefyProduct, number>) => {}),
+    Rx.tap((_: ImportRangeQuery<DbBeefyProduct, number>) => {}),
 
     // dispatch to all the sub pipelines
     Rx.connect((items$) => Rx.merge(items$.pipe(boostTransfers$), items$.pipe(standardVaultTransfers$), items$.pipe(govVaultTransfers$))),
@@ -141,7 +143,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     Rx.mergeMap((items) => {
       const itemsTransfers = items.map((item) =>
         item.transfers.map(
-          (transfer): ImportQuery<TransferToLoad<DbBeefyProduct>, number> => ({
+          (transfer): ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number> => ({
             target: {
               transfer,
               product: item.target,
@@ -157,7 +159,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
         observable: transferErrors$,
         next: emitTransferErrors,
         complete: completeTransferErrors$,
-      } = createObservableWithNext<ImportQuery<TransferToLoad<DbBeefyProduct>, number>>();
+      } = createObservableWithNext<ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number>>();
 
       const transfersCtx = {
         ...options.ctx,
@@ -185,7 +187,7 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
           // merge the errors back in, all items here should have been successfully treated
           Rx.mergeWith(transferErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
           // make sure the type is correct
-          Rx.map((item): ImportResult<TransferToLoad<DbBeefyProduct>, number> => item),
+          Rx.map((item): ImportRangeResult<TransferToLoad<DbBeefyProduct>, number> => item),
         ),
 
         // return to product representation
@@ -209,6 +211,6 @@ export function importProductBlockRange$<TObj extends ImportQuery<DbBeefyProduct
     Rx.mergeAll(), // flatten items
 
     // mark the success status
-    Rx.map((item): ImportResult<DbBeefyProduct, number> => ({ ...item, success: get(item, "success", true) })),
+    Rx.map((item): ImportRangeResult<DbBeefyProduct, number> => ({ ...item, success: get(item, "success", true) })),
   );
 }

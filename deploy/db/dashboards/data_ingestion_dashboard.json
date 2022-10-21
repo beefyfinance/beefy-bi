@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1666294003062,
+  "iteration": 1666295074992,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -250,7 +250,7 @@
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 6, "x": 0, "y": 3 },
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 3 },
       "id": 43,
       "options": {
         "colorMode": "value",
@@ -269,65 +269,6 @@
           "metricColumn": "none",
           "rawQuery": true,
           "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom procuct_block_stats\norder by 1",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-        }
-      ],
-      "title": "Total blocks to cover",
-      "type": "stat"
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "decimals": 4,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "errors_count" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "success_count" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "not_covered_yet" },
-            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
-          }
-        ]
-      },
-      "gridPos": { "h": 9, "w": 6, "x": 6, "y": 3 },
-      "id": 49,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom procuct_block_stats\norder by 1",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -361,7 +302,7 @@
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 4, "x": 12, "y": 3 },
+      "gridPos": { "h": 10, "w": 4, "x": 12, "y": 3 },
       "id": 9,
       "options": {
         "displayLabels": ["percent", "name"],
@@ -458,7 +399,7 @@
           }
         ]
       },
-      "gridPos": { "h": 5, "w": 3, "x": 16, "y": 7 },
+      "gridPos": { "h": 6, "w": 3, "x": 16, "y": 7 },
       "id": 50,
       "options": {
         "displayLabels": ["percent", "name"],
@@ -484,6 +425,65 @@
       ],
       "title": "Success / Error rate",
       "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 4,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "errors_count" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "success_count" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "not_covered_yet" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 8 },
+      "id": 49,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom procuct_block_stats\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Total blocks to cover",
+      "type": "stat"
     },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
@@ -519,7 +519,7 @@
           }
         ]
       },
-      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 15, "w": 12, "x": 0, "y": 13 },
       "id": 8,
       "options": {
         "barRadius": 0,
@@ -585,7 +585,7 @@
           }
         ]
       },
-      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 12 },
+      "gridPos": { "h": 15, "w": 12, "x": 12, "y": 13 },
       "id": 51,
       "options": {
         "barRadius": 0,
@@ -644,7 +644,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 27 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 28 },
       "id": 20,
       "options": { "legend": { "calcs": [], "displayMode": "hidden", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
       "targets": [
@@ -671,7 +671,7 @@
           "color": { "mode": "thresholds" },
           "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
           "mappings": [],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
         },
         "overrides": [
           {
@@ -682,7 +682,7 @@
           { "matcher": { "id": "byName", "options": "import_key" }, "properties": [{ "id": "custom.width", "value": 278 }] }
         ]
       },
-      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 31 },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 32 },
       "id": 6,
       "options": {
         "footer": { "fields": "", "reducer": ["sum"], "show": false },
@@ -709,7 +709,7 @@
     },
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
       "id": 47,
       "panels": [
         {
@@ -728,13 +728,7 @@
                 "scaleDistribution": { "type": "linear" }
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
             },
             "overrides": []
           },
@@ -772,11 +766,7 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": {
-              "color": { "mode": "thresholds" },
-              "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            },
+            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
             "overrides": []
           },
           "gridPos": { "h": 5, "w": 4, "x": 12, "y": 4 },
@@ -830,13 +820,7 @@
                 "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
             },
             "overrides": []
           },
@@ -866,17 +850,13 @@
     },
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
       "id": 42,
       "panels": [
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": {
-              "color": { "mode": "thresholds" },
-              "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            },
+            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
             "overrides": []
           },
           "gridPos": { "h": 5, "w": 4, "x": 0, "y": 5 },
@@ -913,7 +893,7 @@
     },
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
       "id": 12,
       "panels": [
         {
@@ -970,11 +950,7 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": {
-              "color": { "mode": "thresholds" },
-              "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            },
+            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
             "overrides": []
           },
           "gridPos": { "h": 5, "w": 5, "x": 4, "y": 11 },
@@ -1013,11 +989,7 @@
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
-                "steps": [
-                  { "color": "blue", "value": null },
-                  { "color": "#EAB839", "value": 1 },
-                  { "color": "red", "value": 100 }
-                ]
+                "steps": [{ "color": "blue" }, { "color": "#EAB839", "value": 1 }, { "color": "red", "value": 100 }]
               }
             },
             "overrides": []
@@ -1057,7 +1029,7 @@
               "color": { "mode": "thresholds" },
               "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
             },
             "overrides": [
               {
@@ -1131,6 +1103,7 @@
       },
       {
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n    END",
         "hide": 0,
         "includeAll": true,
@@ -1146,6 +1119,7 @@
       },
       {
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select price_feed_1_id\nfrom product\nwhere product_id in ($_product_ids)",
         "hide": 0,
         "includeAll": true,
@@ -1161,6 +1135,7 @@
       },
       {
         "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select price_feed_2_id\nfrom product\nwhere product_id in ($_product_ids)",
         "hide": 0,
         "includeAll": true,
@@ -1181,6 +1156,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 54,
+  "version": 55,
   "weekStart": ""
 }

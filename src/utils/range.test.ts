@@ -1,5 +1,6 @@
 import { ProgrammerError } from "./programmer-error";
 import {
+  isInRange,
   rangeArrayExclude,
   rangeEqual,
   rangeExclude,
@@ -19,6 +20,12 @@ describe("range utils: numbers", () => {
   it("should return max value", () => {
     expect(rangeValueMax([1, 2, 6, 3, 4])).toBe(6);
     expect(rangeValueMax([])).toBe(undefined);
+  });
+
+  it("should test if a value is in the range", () => {
+    expect(isInRange({ from: 1, to: 2 }, 1)).toBe(true);
+    expect(isInRange({ from: 1, to: 2 }, 2)).toBe(true);
+    expect(isInRange({ from: 1, to: 2 }, 3)).toBe(false);
   });
 
   it("should compute range exclusions properly", () => {
@@ -230,6 +237,12 @@ describe("range utils: dates", () => {
       rangeValueMax([new Date("2000-01-01"), new Date("2000-01-02"), new Date("2000-01-06"), new Date("2000-01-03"), new Date("2000-01-04")]),
     ).toEqual(new Date("2000-01-06"));
     expect(rangeValueMax([])).toBe(undefined);
+  });
+
+  it("should test if a value is in the range", () => {
+    expect(isInRange({ from: new Date("2000-01-01"), to: new Date("2000-01-02") }, new Date("2000-01-01"))).toBe(true);
+    expect(isInRange({ from: new Date("2000-01-01"), to: new Date("2000-01-02") }, new Date("2000-01-02"))).toBe(true);
+    expect(isInRange({ from: new Date("2000-01-01"), to: new Date("2000-01-02") }, new Date("2000-01-03"))).toBe(false);
   });
 
   it("should compute range exclusions properly", () => {

@@ -1,9 +1,8 @@
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
 import { backOff } from "exponential-backoff";
-import { zipWith } from "lodash";
 import * as Rx from "rxjs";
-import { RpcCallMethod, RpcConfig } from "../../../types/rpc-config";
+import { RpcCallMethod } from "../../../types/rpc-config";
 import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -11,7 +10,6 @@ import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../.
 import { bufferUntilCountReached } from "../../../utils/rxjs/utils/buffer-until-count-reached";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ImportCtx } from "../types/import-context";
-import { ErrorEmitter, ImportQuery } from "../types/import-query";
 import { getRpcRetryConfig } from "./rpc-retry-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });

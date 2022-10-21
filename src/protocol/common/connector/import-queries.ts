@@ -1,5 +1,5 @@
 import { backOff } from "exponential-backoff";
-import NodeCache from "node-cache";
+import { mean, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
@@ -10,37 +10,31 @@ import {
   MAX_RANGES_PER_PRODUCT_TO_GENERATE,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
-import { rootLogger } from "../../../utils/logger";
-import { Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
-import { DbBlockNumberRangeImportState, DbDateRangeImportState } from "../loader/import-state";
+import { isInRange, Range, rangeArrayExclude, rangeSplitManyToMaxLength } from "../../../utils/range";
+import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
+import { fetchChainBlockList$ } from "../loader/chain-block-list";
+import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
+import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 
-const logger = rootLogger.child({ module: "common", component: "latest-block-number" });
-
-const latestBlockCache = new NodeCache({ stdTTL: 60 /* 1min */ });
-
-function latestBlockNumber$<TObj, TRes>(options: {
+export function latestBlockNumber$<TObj, TRes>(options: {
   rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const retryConfig = getRpcRetryConfig({ maxTotalRetryMs: 5_000, logInfos: { msg: "Fetching block number" } });
-  return Rx.mergeMap(async (obj) => {
-    if (options.forceCurrentBlockNumber !== null) {
-      return options.formatOutput(obj, options.forceCurrentBlockNumber);
-    }
-    const chain = options.rpcConfig.chain;
-    const cacheKey = chain;
-    let latestBlockNumber = latestBlockCache.get<number>(cacheKey);
-    if (latestBlockNumber === undefined) {
-      logger.trace({ msg: "Latest block number not found in cache, fetching", data: { chain } });
-      latestBlockNumber = await backOff(() => options.rpcConfig.linearProvider.getBlockNumber(), retryConfig);
-      latestBlockCache.set(cacheKey, latestBlockNumber);
-    }
-    return options.formatOutput(obj, latestBlockNumber);
-  }, options.streamConfig.workConcurrency);
+  return cacheOperatorResult$({
+    stdTTLSec: 60 /* 1min */,
+    getCacheKey: () => options.rpcConfig.chain,
+    logInfos: { msg: "latest block number", data: { chain: options.rpcConfig.chain } },
+    operator$: Rx.mergeMap(async (obj) => {
+      const latestBlockNumber = await backOff(() => options.rpcConfig.linearProvider.getBlockNumber(), retryConfig);
+      return { input: obj, output: latestBlockNumber };
+    }, options.streamConfig.workConcurrency),
+    formatOutput: options.formatOutput,
+  });
 }
 
 /**
@@ -213,4 +207,94 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
       return options.formatOutput(item, latestDate, recentDateQuery);
     }),
   );
+}
+
+export function addCoveredBlockListQuery<TObj, TRes>(options: {
+  ctx: ImportCtx<TObj>;
+  getScopeImportState: (item: TObj) => DbBlockNumberRangeImportState;
+  forceCurrentBlockNumber: number | null;
+  chain: Chain;
+  formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
+}) {
+  const operator$ = Rx.pipe(
+    Rx.pipe(
+      Rx.tap((_: TObj) => {}),
+      fetchChainBlockList$({
+        ctx: options.ctx,
+        getChain: () => options.chain,
+        getFirstDate: (item) => options.getScopeImportState(item).importData.contractCreationDate,
+        formatOutput: (item, blockList) => ({ ...item, blockList }),
+      }),
+      // get the average block time or the N latest blocks to interpolate up until now
+      Rx.map((item) => {
+        const lastTimeStepsCount = 40;
+        const averageBlockCountPerTimeStep = mean(item.blockList.slice(-lastTimeStepsCount).map((b) => b.interpolated_block_number));
+        return { ...item, averageBlockCountPerTimeStep };
+      }),
+      // exclude blocks that we never covered for this product
+      Rx.map((item) => {
+        const blockList = item.blockList.filter((b) => {
+          const isCovered = options
+            .getScopeImportState(item)
+            .importData.ranges.coveredRanges.some((range) => isInRange(range, b.interpolated_block_number));
+          return isCovered;
+        });
+        return { ...item, blockList };
+      }),
+    ),
+    Rx.pipe(
+      // fetch the last block of this chain
+      latestBlockNumber$({
+        rpcConfig: options.ctx.rpcConfig,
+        streamConfig: options.ctx.streamConfig,
+        forceCurrentBlockNumber: options.forceCurrentBlockNumber,
+        formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
+      }),
+      // interpolate a block numbers from the db to now
+      Rx.map((item) => {
+        if (item.blockList.length === 0) {
+          return { ...item, blockList: [] };
+        }
+        const blockList = sortBy(item.blockList, (b) => b.interpolated_block_number);
+        const blockStep = item.averageBlockCountPerTimeStep;
+        const lastDbBlock = blockList[blockList.length - 1];
+        const missingBlocks = Math.floor((item.latestBlockNumber - lastDbBlock.interpolated_block_number) / blockStep);
+        const missingBlockList = Array.from({ length: missingBlocks }, (_, i) => {
+          const interpolatedBlockNumber = lastDbBlock.interpolated_block_number + (i + 1) * blockStep;
+          return { datetime: null, block_number: null, interpolated_block_number: interpolatedBlockNumber };
+        });
+        return { ...item, blockList: [...blockList, ...missingBlockList] };
+      }),
+    ),
+    Rx.pipe(
+      // transform to ranges
+      Rx.map((item) => {
+        const blockRanges: Range<number>[] = [];
+        for (let i = 0; i < item.blockList.length - 1; i++) {
+          const block = item.blockList[i];
+          const nextBlock = item.blockList[i + 1];
+          blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number });
+        }
+        return { ...item, blockRanges };
+      }),
+      // transform to query obj
+      Rx.map((item) => {
+        return {
+          input: item,
+          output: {
+            latestBlockNumber: item.latestBlockNumber,
+            blockRanges: item.blockRanges,
+          },
+        };
+      }),
+    ),
+  );
+
+  return cacheOperatorResult$({
+    operator$,
+    getCacheKey: (item) => `blockList-${options.chain}-${options.getScopeImportState(item).importKey}`,
+    logInfos: { msg: "block list for chain", data: { chain: options.chain } },
+    stdTTLSec: 5 * 60 /* 5 min */,
+    formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
+  });
 }

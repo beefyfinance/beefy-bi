@@ -61,6 +61,11 @@ function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): Range
   }
 }
 
+export function isInRange<T extends SupportedRangeTypes>(range: Range<T>, value: T, strategy?: RangeStrategy<T>): boolean {
+  const strat = strategy || getRangeStrategy(range);
+  return strat.compare(range.from, value) <= 0 && strat.compare(value, range.to) <= 0;
+}
+
 export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {
   if (values.length <= 0) {
     return undefined;

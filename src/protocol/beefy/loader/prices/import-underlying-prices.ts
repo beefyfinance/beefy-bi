@@ -8,7 +8,7 @@ import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { ImportCtx } from "../../../common/types/import-context";
-import { ImportQuery, ImportResult } from "../../../common/types/import-query";
+import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 
@@ -80,15 +80,15 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient
   });
 }
 
-function insertPricePipeline$<TObj extends ImportQuery<DbPriceFeed, Date>, TCtx extends ImportCtx<TObj>>(options: {
+function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, TCtx extends ImportCtx<TObj>>(options: {
   ctx: TCtx;
-}): Rx.OperatorFunction<TObj, ImportResult<DbPriceFeed, Date>> {
+}): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, Date>> {
   const insertPrices$ = Rx.pipe(
     // fix typings
-    Rx.tap((_: ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot }) => {}),
+    Rx.tap((_: ImportRangeQuery<DbPriceFeed, Date> & { price: PriceSnapshot }) => {}),
 
     upsertPrice$({
-      ctx: options.ctx as unknown as ImportCtx<ImportQuery<DbPriceFeed, Date> & { price: PriceSnapshot }>,
+      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbPriceFeed, Date> & { price: PriceSnapshot }>,
       getPriceData: (item) => ({
         datetime: item.price.datetime,
         blockNumber: Math.floor(item.price.datetime.getTime() / 1000),

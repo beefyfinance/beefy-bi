@@ -1,5 +1,6 @@
 import * as Rx from "rxjs";
 
+// https://stackoverflow.com/a/72442680/2523414
 export function createObservableWithNext<T>(): {
   observable: Rx.Observable<T>;
   next: (value: T) => void;

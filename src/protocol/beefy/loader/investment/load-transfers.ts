@@ -10,7 +10,7 @@ import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
 import { ImportCtx } from "../../../common/types/import-context";
-import { ImportQuery } from "../../../common/types/import-query";
+import { ImportRangeQuery } from "../../../common/types/import-query";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
 
@@ -24,9 +24,9 @@ export type TransferToLoad<TProduct extends DbBeefyProduct> = {
 
 export type TransferLoadStatus = { transferCount: number; success: true };
 
-type TransferPayload<TProduct extends DbBeefyProduct> = ImportQuery<TransferToLoad<TProduct>, number>;
+type TransferPayload<TProduct extends DbBeefyProduct> = ImportRangeQuery<TransferToLoad<TProduct>, number>;
 
-export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToLoad<DbBeefyProduct>, number>> }) {
+export function loadTransfers$(options: { ctx: ImportCtx<ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number>> }) {
   const govVaultPipeline$ = Rx.pipe(
     // fix typings
     Rx.filter((item: TransferPayload<DbBeefyProduct>): item is TransferPayload<DbBeefyGovVaultProduct> => isBeefyGovVault(item.target.product)),
@@ -68,7 +68,7 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportQuery<TransferToL
 
   return Rx.pipe(
     // remove ignored addresses
-    Rx.filter((item: ImportQuery<TransferToLoad<DbBeefyProduct>, number>) => {
+    Rx.filter((item: ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number>) => {
       const shouldIgnore = item.target.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(item.target.transfer.ownerAddress));
       if (shouldIgnore) {
         //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });

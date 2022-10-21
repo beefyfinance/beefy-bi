@@ -7,7 +7,7 @@ import { db_query, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
-import { ImportResult } from "../types/import-query";
+import { ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 
@@ -183,7 +183,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
     if (isProductInvestmentImportState(newImportState) || isProductShareRateImportState(newImportState)) {
       newImportState.importData.chainLatestBlockNumber =
         rangeValueMax(
-          (items as ImportResult<TObj, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
+          (items as ImportRangeResult<TObj, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
         ) || 0;
     }
 
