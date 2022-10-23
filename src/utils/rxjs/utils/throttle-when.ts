@@ -1,5 +1,6 @@
 import * as Rx from "rxjs";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../logger";
+import { ProgrammerError } from "../../programmer-error";
 import { createObservableWithNext } from "./create-observable-with-next";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "throttle-when" });
@@ -14,7 +15,7 @@ export function throttleWhen<TObj>(options: {
   const obss: (ReturnType<typeof createObservableWithNext> | null)[] = [];
   let firstIdx = 0;
 
-  const poller = setInterval(() => {
+  function poll() {
     const shouldSend = options.shouldSend();
     if (!shouldSend) {
       logger.debug(mergeLogsInfos({ msg: "not sending" }, options.logInfos));
@@ -40,7 +41,8 @@ export function throttleWhen<TObj>(options: {
       obss[idx] = null;
     }
     firstIdx += options.sendBurstsOf;
-  }, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
+  }
+  let pollHandle: null | NodeJS.Timer = null;
 
   return Rx.pipe(
     Rx.delayWhen((_, index) => {
@@ -55,15 +57,36 @@ export function throttleWhen<TObj>(options: {
       return obs.observable;
     }),
 
-    Rx.finalize(() => {
-      setTimeout(() => {
-        clearInterval(poller);
+    Rx.tap({
+      subscribe: () => {
+        if (pollHandle !== null) {
+          throw new ProgrammerError("Poller already running");
+        }
+        logger.trace(
+          mergeLogsInfos(
+            { msg: "Starting poller", data: { checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs } },
+            options.logInfos,
+          ),
+        );
+        pollHandle = setInterval(poll, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
+      },
+      unsubscribe: () => {
+        if (!pollHandle) {
+          throw new ProgrammerError("Poller not running");
+        }
+        logger.trace(
+          mergeLogsInfos(
+            { msg: "Stopping poller", data: { checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs } },
+            options.logInfos,
+          ),
+        );
+        clearInterval(pollHandle);
         const openObss = obss.filter((obs) => obs !== null);
         if (openObss.length > 0) {
           logger.error({ msg: "throttleWhen: finalize: openObss", data: { openObssLength: openObss.length } });
           throw new Error("should not happen");
         }
-      });
+      },
     }),
   );
 }
