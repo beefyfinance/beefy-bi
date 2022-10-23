@@ -93,7 +93,7 @@ jsonb_set(import_data, '{ranges,coveredRanges}', '[]'::jsonb)
 where import_key in (select 'price:feed:'|| price_feed_1_id from product);
 
 
-
+delete from import_state where import_key in (select 'price:feed:'|| price_feed_1_id from product);
 
 
 

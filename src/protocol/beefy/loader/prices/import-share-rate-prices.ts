@@ -96,6 +96,7 @@ function processShareRateQuery$<
   TCtx extends ImportCtx<TObj>,
 >(options: { ctx: TCtx }): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, number>> {
   return Rx.pipe(
+    Rx.tap((product) => console.dir(product, { depth: 10 })),
     // get the midpoint of the range
     Rx.map((item) => ({ ...item, rangeMidpoint: Math.floor((item.range.from + item.range.to) / 2) })),
 
@@ -109,6 +110,7 @@ function processShareRateQuery$<
       ctx: options.ctx,
       getPPFSCallParams: (item) => {
         if (isBeefyBoost(item.product)) {
+          console.dir(item.product, { depth: null });
           throw new ProgrammerError("beefy boost do not have ppfs");
         }
         if (isBeefyGovVault(item.product)) {

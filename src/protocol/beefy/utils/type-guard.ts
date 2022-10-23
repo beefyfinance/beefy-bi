@@ -24,3 +24,10 @@ export function isBeefyStandardVaultProductImportQuery(
 export function isBeefyBoostProductImportQuery(o: ImportRangeQuery<DbBeefyProduct, number>): o is ImportRangeQuery<DbBeefyBoostProduct, number> {
   return isBeefyBoost(o.target);
 }
+
+export function isBeefyProductEOL(o: DbBeefyProduct): boolean {
+  return isBeefyBoost(o) ? o.productData.boost.eol : o.productData.vault.eol;
+}
+export function isBeefyProductLive(o: DbBeefyProduct): boolean {
+  return !isBeefyProductEOL(o);
+}

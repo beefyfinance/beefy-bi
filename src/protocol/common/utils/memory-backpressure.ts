@@ -19,12 +19,12 @@ export function memoryBackpressure$<TObj>(options: { logInfos: LogInfos; sendBur
         const memoryMb = getProcessMemoryMb();
 
         if (memoryMb < BACKPRESSURE_MEMORY_THRESHOLD_MB) {
-          logger.trace(mergeLogsInfos({ msg: "Sending in buffered item", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
+          logger.trace(
+            mergeLogsInfos({ msg: "Memory sufficiently low to send next items", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos),
+          );
           return true;
         }
-        logger.trace(
-          mergeLogsInfos({ msg: "Buffering until below machine thresholds", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos),
-        );
+        logger.trace(mergeLogsInfos({ msg: "Memory too high to send next items", data: { sendBurstsOf: options.sendBurstsOf } }, options.logInfos));
         return false;
       },
     }),

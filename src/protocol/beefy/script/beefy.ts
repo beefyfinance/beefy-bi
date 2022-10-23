@@ -17,7 +17,7 @@ import { importChainHistoricalData$, importChainRecentData$ } from "../loader/in
 import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
 import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
 import { importBeefyProducts$ } from "../loader/products";
-import { isBeefyBoost, isBeefyStandardVault } from "../utils/type-guard";
+import { isBeefyBoost, isBeefyProductLive, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
@@ -25,7 +25,7 @@ interface CmdParams {
   client: PoolClient;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
   filterChains: Chain[];
-  includeEol: boolean;
+  includeEol: Chain[] | null;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
   repeatEvery: SamplingPeriod | null;
@@ -40,7 +40,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
         contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
-        includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products" },
+        includeEol: { choices: [...allChainIds, "all"], demand: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
           choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate"],
           demand: true,
@@ -58,7 +58,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         const cmdParams: CmdParams = {
           client,
           task: argv.task as CmdParams["task"],
-          includeEol: argv.includeEol,
+          includeEol: argv.includeEol === null ? null : argv.includeEol === "all" ? allChainIds : [argv.includeEol as Chain],
           filterChains: argv.chain === "all" ? allChainIds : [argv.chain as Chain],
           filterContractAddress: argv.contractAddress || null,
           forceCurrentBlockNumber: argv.currentBlockNumber || null,
@@ -193,7 +193,8 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
     productFilter$(chain, cmdParams),
     // remove products that don't have a ppfs to fetch
-    Rx.filter((product) => isBeefyStandardVault(product) || isBeefyBoost(product)),
+    // we don't fetch boosts because they would be duplicates anyway
+    Rx.filter((product) => isBeefyStandardVault(product)),
     // now fetch the price feed we need
     fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
     // drop those without a price feed yet
@@ -218,11 +219,16 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
       return product.chain === chain;
     }),
     Rx.filter((product: DbProduct) => {
-      if (cmdParams.includeEol) {
+      const isLiveProduct = isBeefyProductLive(product);
+      if (isLiveProduct) {
         return true;
       }
-      const isEOL = product.productData.type === "beefy:boost" ? product.productData.boost.eol : product.productData.vault.eol;
-      return !isEOL;
+
+      if (cmdParams.includeEol === null) {
+        return false;
+      }
+
+      return cmdParams.includeEol.includes(product.chain);
     }),
     Rx.toArray(),
     Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
