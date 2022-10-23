@@ -60,7 +60,7 @@ export function throttleWhen<TObj>(options: {
     Rx.tap({
       subscribe: () => {
         if (pollHandle !== null) {
-          throw new ProgrammerError("Poller already running");
+          return;
         }
         logger.trace(
           mergeLogsInfos(
@@ -69,23 +69,6 @@ export function throttleWhen<TObj>(options: {
           ),
         );
         pollHandle = setInterval(poll, options.checkIntervalMs + Math.random() * options.checkIntervalJitterMs);
-      },
-      unsubscribe: () => {
-        if (!pollHandle) {
-          throw new ProgrammerError("Poller not running");
-        }
-        logger.trace(
-          mergeLogsInfos(
-            { msg: "Stopping poller", data: { checkIntervalMs: options.checkIntervalMs, checkIntervalJitterMs: options.checkIntervalJitterMs } },
-            options.logInfos,
-          ),
-        );
-        clearInterval(pollHandle);
-        const openObss = obss.filter((obs) => obs !== null);
-        if (openObss.length > 0) {
-          logger.error({ msg: "throttleWhen: finalize: openObss", data: { openObssLength: openObss.length } });
-          throw new Error("should not happen");
-        }
       },
     }),
   );
