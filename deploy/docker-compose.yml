@@ -15,10 +15,11 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
+# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-moonbeam  importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
-# docker compose -f deploy/docker-compose.yml stop importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical
-# docker compose -f deploy/docker-compose.yml up importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical -d --force-recreate
-# docker compose -f deploy/docker-compose.yml logs -f importer-products importer-investment-historical importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical
+# docker compose -f deploy/docker-compose.yml stop $TASK_LIST
+# docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
+# docker compose -f deploy/docker-compose.yml logs -f $TASK_LIST
 
 # RUN a command
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
