@@ -131,11 +131,47 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t products -r 1day"
 
-  importer-investment-historical:
+  importer-investment-historical-bsc:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c all -r 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc -r 15sec"
+
+  importer-investment-historical-fantom:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c fantom -r 15sec"
+
+  importer-investment-historical-avax:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c avax -r 15sec"
+
+  importer-investment-historical-polygon:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c polygon -r 15sec"
+
+  importer-investment-historical-other-1:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum -c aurora -c emerald -c fuse -c harmony -c metis -c optimism -c kava -r 15sec"
+
+  importer-investment-historical-other-2:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo -c cronos -c heco -c moonriver -r 15sec"
+
+  importer-investment-historical-moonbeam:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c moonbeam -r 15sec -e"
 
   importer-investment-recent:
     <<: *importer
