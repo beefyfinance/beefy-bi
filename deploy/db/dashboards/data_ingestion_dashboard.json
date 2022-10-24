@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 27,
-  "iteration": 1666629055549,
+  "iteration": 1666631568381,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -859,13 +859,7 @@
             "defaults": {
               "color": { "mode": "thresholds" },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
               "unit": "none"
             },
             "overrides": [
@@ -970,11 +964,7 @@
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "#EAB839", "value": 1 },
-                  { "color": "red", "value": 100 }
-                ]
+                "steps": [{ "color": "green" }, { "color": "#EAB839", "value": 1 }, { "color": "red", "value": 100 }]
               }
             },
             "overrides": []
@@ -1066,13 +1056,7 @@
               "color": { "mode": "thresholds" },
               "decimals": 4,
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] },
               "unit": "percentunit"
             },
             "overrides": [
@@ -1134,7 +1118,7 @@
                 "scaleDistribution": { "type": "linear" }
               },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] },
               "unit": "none"
             },
             "overrides": [
@@ -1200,7 +1184,7 @@
                 "scaleDistribution": { "type": "linear" }
               },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] },
               "unit": "none"
             },
             "overrides": [
@@ -1366,13 +1350,7 @@
                 "scaleDistribution": { "type": "linear" }
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
             },
             "overrides": []
           },
@@ -1410,11 +1388,7 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": {
-              "color": { "mode": "thresholds" },
-              "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
-            },
+            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
             "overrides": []
           },
           "gridPos": { "h": 5, "w": 4, "x": 12, "y": 46 },
@@ -1468,13 +1442,7 @@
                 "thresholdsStyle": { "mode": "off" }
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "green", "value": null },
-                  { "color": "red", "value": 80 }
-                ]
-              }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }, { "color": "red", "value": 80 }] }
             },
             "overrides": []
           },
@@ -1531,7 +1499,7 @@
               }
             ]
           },
-          "gridPos": { "h": 10, "w": 4, "x": 0, "y": 11 },
+          "gridPos": { "h": 10, "w": 4, "x": 0, "y": 47 },
           "id": 27,
           "options": {
             "displayLabels": ["percent", "name"],
@@ -1548,7 +1516,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with \nprocuct_date_stats as (\n  select \n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval as total_interval_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges') as interval_covered,\n    (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer\n  where p.chain in ($chain)\n)\nselect \n  EXTRACT(EPOCH FROM sum(intervals_to_retry)) as errors_count,\n  EXTRACT(EPOCH FROM sum(interval_covered) - sum(intervals_to_retry)) as success_count,\n  EXTRACT(EPOCH FROM sum(total_interval_to_cover) - sum(interval_covered)) as not_covered_yet\nfrom procuct_date_stats\norder by 1",
+              "rawSql": "with \nprocuct_date_stats as (\n  select \n    product_key, \n    product_id,\n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    justify_interval(now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval) as total_interval_to_cover,\n    justify_interval(least(\n      (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval),\n      jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    )) as interval_covered,\n    justify_interval((now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    least(\n      (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval),\n      jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    ))\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer and import_data->>'type' = 'oracle:price'\n  where p.product_id in ($_product_ids)\n)\nselect\n  round(EXTRACT(EPOCH FROM sum(intervals_to_retry))) as errors_count,\n  round(EXTRACT(EPOCH FROM sum(interval_covered) - sum(intervals_to_retry))) as success_count,\n  round(EXTRACT(EPOCH FROM sum(total_interval_to_cover) - sum(interval_covered))) as not_covered_yet\nfrom procuct_date_stats\norder by 1",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -1561,10 +1529,14 @@
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
           "fieldConfig": {
-            "defaults": { "color": { "mode": "thresholds" }, "mappings": [], "thresholds": { "mode": "absolute", "steps": [{ "color": "blue" }] } },
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+            },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 11 },
+          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 47 },
           "id": 28,
           "options": {
             "colorMode": "value",
@@ -1600,12 +1572,16 @@
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
-                "steps": [{ "color": "blue" }, { "color": "#EAB839", "value": 1 }, { "color": "red", "value": 100 }]
+                "steps": [
+                  { "color": "blue", "value": null },
+                  { "color": "#EAB839", "value": 1 },
+                  { "color": "red", "value": 100 }
+                ]
               }
             },
             "overrides": []
           },
-          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 16 },
+          "gridPos": { "h": 5, "w": 5, "x": 4, "y": 52 },
           "id": 31,
           "options": {
             "colorMode": "value",
@@ -1640,7 +1616,7 @@
               "color": { "mode": "thresholds" },
               "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
               "mappings": [],
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green" }] }
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
             },
             "overrides": [
               {
@@ -1649,9 +1625,13 @@
               }
             ]
           },
-          "gridPos": { "h": 11, "w": 24, "x": 0, "y": 21 },
+          "gridPos": { "h": 11, "w": 24, "x": 0, "y": 57 },
           "id": 30,
-          "options": { "footer": { "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [] },
+          "options": {
+            "footer": { "fields": "", "reducer": ["sum"], "show": false },
+            "showHeader": true,
+            "sortBy": [{ "desc": true, "displayName": "rest_to_cover" }]
+          },
           "pluginVersion": "9.0.2",
           "targets": [
             {
@@ -1660,7 +1640,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with\nprocuct_date_stats as (\n  select \n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval as total_interval_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges') as interval_covered,\n    (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer and import_data->>'type' = 'oracle:price'\n  where p.product_id in ($_product_ids)\n)\nselect * from procuct_date_stats",
+              "rawSql": "with\nprocuct_date_stats as (\n  select \n    product_key, \n    product_id,\n    i.import_data is not null as has_import_status,\n    (import_data->>'firstDate')::timestamptz as contract_creation_date,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    justify_interval(now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval) as total_interval_to_cover,\n    justify_interval(least(\n      (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval),\n      jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    )) as interval_covered,\n    justify_interval((now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval)\n    -\n    least(\n      (now() - (import_data->>'firstDate')::timestamptz + '1 ms'::interval),\n      jsonb_date_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    ))\n    as rest_to_cover,\n    jsonb_date_ranges_size_sum(import_data->'ranges'->'toRetry') as intervals_to_retry\n  from product p\n  left join import_state i on p.price_feed_2_id = (i.import_data->>'priceFeedId')::integer and import_data->>'type' = 'oracle:price'\n  where p.product_id in ($_product_ids)\n)\nselect * from procuct_date_stats",
               "refId": "A",
               "select": [[{ "params": ["value"], "type": "column" }]],
               "timeColumn": "time",
@@ -1767,6 +1747,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 64,
+  "version": 66,
   "weekStart": ""
 }
