@@ -132,6 +132,8 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t products -r 1day"
 
+  # arbitrum aurora avax bsc celo cronos emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
+
   importer-investment-historical-bsc:
     <<: *importer
     environment:
@@ -160,13 +162,13 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum -c aurora -c emerald -c fuse -c harmony -c metis -c optimism -c kava -r 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora emerald fuse harmony metis optimism kava -r 15sec"
 
   importer-investment-historical-other-2:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo -c cronos -c heco -c moonriver -r 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo cronos heco moonriver syscoin -r 15sec"
 
   importer-investment-historical-moonbeam:
     <<: *importer
@@ -178,7 +180,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c all -r 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c arbitrum aurora avax bsc celo cronos emerald fantom fuse harmony heco kava metis moonriver optimism polygon syscoin -r 15min"
 
   importer-prices-historical:
     <<: *importer
@@ -196,4 +198,4 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c all -r 1hour"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c arbitrum aurora avax bsc celo cronos emerald fantom fuse harmony heco kava metis moonriver optimism polygon syscoin -r 1hour"
