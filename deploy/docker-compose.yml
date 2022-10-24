@@ -15,7 +15,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-moonbeam  importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical"
+# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-moonbeam importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-other-3 importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -158,11 +158,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c polygon -r 15sec"
 
+  importer-investment-historical-moonbeam:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c moonbeam -r 15sec -e"
+
   importer-investment-historical-other-1:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora emerald fuse harmony metis optimism kava -r 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora emerald fuse harmony -r 15sec"
 
   importer-investment-historical-other-2:
     <<: *importer
@@ -170,11 +176,12 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo cronos heco moonriver syscoin -r 15sec"
 
-  importer-investment-historical-moonbeam:
+  # enable EOL for networks where we have all recent data imported
+  importer-investment-historical-other-3:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c moonbeam -r 15sec -e"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c metis optimism kava -r 15sec -e"
 
   importer-investment-recent:
     <<: *importer
