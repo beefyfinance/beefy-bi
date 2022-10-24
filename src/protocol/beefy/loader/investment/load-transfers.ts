@@ -5,6 +5,7 @@ import { rootLogger } from "../../../../utils/logger";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
+import { upsertBlock$ } from "../../../common/loader/blocks";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
@@ -105,6 +106,17 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportRangeQuery<Transf
     // ==============================
     // now we are ready for the insertion
     // ==============================
+
+    upsertBlock$({
+      ctx: options.ctx,
+      getBlockData: (item) => ({
+        datetime: item.blockDatetime,
+        blockNumber: item.target.transfer.blockNumber,
+        chain: options.ctx.rpcConfig.chain,
+        blockData: {},
+      }),
+      formatOutput: (item, block) => ({ ...item, block }),
+    }),
 
     // insert the investor data
     upsertInvestor$({

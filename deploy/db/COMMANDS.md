@@ -201,4 +201,29 @@ SELECT pg_terminate_backend(pid)
 
 update investment_balance_ts set balance = (investment_data->>'balance')::evm_decimal_256;
 
+
+
+
+
+
+
+INSERT INTO block_ts (
+    datetime,
+    chain,
+    block_number,
+    block_data
+) (
+    select b.datetime, p.chain, b.block_number, '{}'::jsonb
+    from investment_balance_ts b
+        join product p on p.product_id = b.product_id
+    UNION ALL
+    select distinct
+        (i.import_data->>'contractCreationDate')::timestamptz,
+        (i.import_data->>'chain')::chain_enum,
+        (i.import_data->>'contractCreatedAtBlock')::integer,
+        '{}'::jsonb
+    from import_state i
+    where i.import_data->>'contractCreationDate' is not null
+)
+on conflict do nothing
 ```

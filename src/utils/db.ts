@@ -339,5 +339,23 @@ export async function db_migrate() {
     );
   `);
 
+  // helper table to get an easy access to a list of blocks + timestamps
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS block_ts (
+      datetime timestamptz not null,
+      chain chain_enum not null,
+      block_number integer not null,
+      block_data jsonb not null
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS block_ts_uniq ON block_ts(chain, block_number, datetime);
+
+    SELECT create_hypertable(
+      relation => 'block_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '7 days',
+      if_not_exists => true
+    );
+  `);
+
   logger.info({ msg: "Migrate done" });
 }

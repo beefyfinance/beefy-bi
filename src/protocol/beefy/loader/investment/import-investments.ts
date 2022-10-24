@@ -4,6 +4,7 @@ import { Chain } from "../../../../types/chain";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/import-queries";
+import { upsertBlock$ } from "../../../common/loader/blocks";
 import { DbProductInvestmentImportState } from "../../../common/loader/import-state";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
@@ -44,6 +45,22 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
 
         // drop those without a creation info
         excludeNullFields$("contractCreationInfo"),
+
+        upsertBlock$({
+          ctx: {
+            ...ctx,
+            emitErrors: () => {
+              throw new Error("Failed to upsert block");
+            },
+          },
+          getBlockData: (item) => ({
+            datetime: item.contractCreationInfo.datetime,
+            chain: item.chain,
+            blockNumber: item.contractCreationInfo.blockNumber,
+            blockData: {},
+          }),
+          formatOutput: (item, block) => ({ ...item, block }),
+        }),
 
         Rx.map((item) => ({
           type: "product:investment",
