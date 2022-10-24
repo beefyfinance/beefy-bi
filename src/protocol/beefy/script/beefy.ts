@@ -25,7 +25,7 @@ interface CmdParams {
   client: PoolClient;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
   filterChains: Chain[];
-  includeEol: Chain[] | null;
+  includeEol: boolean;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
   repeatEvery: SamplingPeriod | null;
@@ -37,10 +37,17 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
     describe: "Start a single beefy import",
     builder: (yargs) =>
       yargs.options({
-        chain: { choices: [...allChainIds, "all"], alias: "c", demand: false, default: "all", describe: "only import data for this chain" },
+        chain: {
+          type: "array",
+          choices: [...allChainIds, "all"],
+          alias: "c",
+          demand: false,
+          default: "all",
+          describe: "only import data for this chain",
+        },
         contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
-        includeEol: { choices: [...allChainIds, "all"], demand: false, alias: "e", describe: "Include EOL products for some chain" },
+        includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
           choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate"],
           demand: true,
@@ -58,8 +65,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         const cmdParams: CmdParams = {
           client,
           task: argv.task as CmdParams["task"],
-          includeEol: argv.includeEol === null ? null : argv.includeEol === "all" ? allChainIds : [argv.includeEol as Chain],
-          filterChains: argv.chain === "all" ? allChainIds : [argv.chain as Chain],
+          includeEol: argv.includeEol,
+          filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
           filterContractAddress: argv.contractAddress || null,
           forceCurrentBlockNumber: argv.currentBlockNumber || null,
           repeatEvery: argv.repeatEvery || null,
@@ -224,11 +231,7 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
         return true;
       }
 
-      if (cmdParams.includeEol === null) {
-        return false;
-      }
-
-      return cmdParams.includeEol.includes(product.chain);
+      return cmdParams.includeEol;
     }),
     Rx.toArray(),
     Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
