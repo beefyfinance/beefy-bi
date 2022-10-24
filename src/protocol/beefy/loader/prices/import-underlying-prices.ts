@@ -40,8 +40,10 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
               throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
             },
           },
+          importStateType: "oracle:price",
           which: "price-feed-2", // we work on the second applied price
           getPriceFeedId: (item) => item.priceFeedId,
+          productType: "beefy:vault",
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
 
