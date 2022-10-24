@@ -1,7 +1,9 @@
-import * as ethers from "ethers";
-import { rootLogger } from "./logger";
-import { fetchJson } from "@ethersproject/web";
 import { deepCopy } from "@ethersproject/properties";
+import { fetchJson } from "@ethersproject/web";
+import AsyncLock from "async-lock";
+import * as ethers from "ethers";
+import { backOff } from "exponential-backoff";
+import { rootLogger } from "./logger";
 import { removeSecretsFromRpcUrl } from "./rpc/remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "utils", component: "ethers" });
@@ -167,4 +169,91 @@ export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.Json
     enumerable: false,
     configurable: false,
   });
+}
+
+/**
+ * Moonbeam RPC have caching issues
+ * Ex:
+ *   {"method":"eth_getBlockByNumber","params":["0x1c785f",false],"id":1,"jsonrpc":"2.0"}
+ *    - when response header contains "cf-cache-status: DYNAMIC", the response is wrong
+ *        -> {"jsonrpc":"2.0","result":null,"id":1}
+ *    - when response header contains "cf-cache-status: HIT", the response is correct
+ *        -> {"jsonrpc":"2.0","result":{"author":"0x19 ...
+ */
+export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.JsonRpcProvider) {
+  logger.trace({ msg: "Patching Moonbeam linear provider" });
+
+  const chainLock = new AsyncLock({
+    // max amount of time an item can remain in the queue before acquiring the lock
+    timeout: 0, // never
+    // we don't want a lock to be reentered
+    domainReentrant: false,
+    //max amount of time allowed between entering the queue and completing execution
+    maxOccupationTime: 0, // never
+    // max number of tasks allowed in the queue at a time
+    maxPending: 100_000,
+  });
+
+  const originalSend = provider.send.bind(provider);
+
+  class ShouldRetryException extends Error {}
+
+  function getResult(payload: { error?: { code?: number; data?: any; message?: string }; result?: any }): any {
+    if (payload.error) {
+      // @TODO: not any
+      const error: any = new Error(payload.error.message);
+      error.code = payload.error.code;
+      error.data = payload.error.data;
+      throw error;
+    }
+
+    return payload.result;
+  }
+
+  async function sendButRetryOnBlockNumberCacheHit(this: ethers.providers.JsonRpcProvider, method: string, params: Array<any>): Promise<any> {
+    if (method !== "eth_getBlockByNumber") {
+      return originalSend(method, params);
+    }
+
+    const result = await chainLock.acquire("moonbeam", () =>
+      backOff(
+        async () => {
+          const result = await originalSend(method, params);
+
+          if (result === null) {
+            console.dir(result, { depth: null });
+            logger.trace({ msg: "Got null result from eth_getBlockByNumber", data: { chain: "moonbeam", params } });
+            throw new ShouldRetryException("Got null result from eth_getBlockByNumber");
+          }
+          return result;
+        },
+        {
+          delayFirstAttempt: false,
+          startingDelay: 500,
+          timeMultiple: 5,
+          maxDelay: 1_000,
+          numOfAttempts: 10,
+          jitter: "full",
+          retry: (error) => {
+            if (error instanceof ShouldRetryException) {
+              return true;
+            }
+            return false;
+          },
+        },
+      ),
+    );
+
+    return result;
+  }
+
+  // override the id property so it's always 1 to maximize cache hits
+  /*Object.defineProperty(provider, "_nextId", {
+    get: () => 1,
+    set: () => {},
+    enumerable: false,
+    configurable: false,
+  });*/
+
+  provider.send = sendButRetryOnBlockNumberCacheHit.bind(provider);
 }

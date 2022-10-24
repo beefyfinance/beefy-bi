@@ -1,10 +1,15 @@
-import { Chain } from "../../../types/chain";
 import { ethers } from "ethers";
 import { sample } from "lodash";
-import { RPC_URLS } from "../../../utils/config";
-import { addDebugLogsToProvider, monkeyPatchEthersBatchProvider, monkeyPatchHarmonyLinearProvider } from "../../../utils/ethers";
-import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
+import { RPC_URLS } from "../../../utils/config";
+import {
+  addDebugLogsToProvider,
+  monkeyPatchEthersBatchProvider,
+  monkeyPatchHarmonyLinearProvider,
+  monkeyPatchMoonbeamLinearProvider,
+} from "../../../utils/ethers";
+import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
 export function createRpcConfig(chain: Chain): RpcConfig {
   const rpcOptions: ethers.utils.ConnectionInfo = {
@@ -23,6 +28,9 @@ export function createRpcConfig(chain: Chain): RpcConfig {
   monkeyPatchEthersBatchProvider(rpcConfig.batchProvider);
   if (chain === "harmony") {
     monkeyPatchHarmonyLinearProvider(rpcConfig.linearProvider);
+  }
+  if (chain === "moonbeam") {
+    monkeyPatchMoonbeamLinearProvider(rpcConfig.linearProvider);
   }
   return rpcConfig;
 }

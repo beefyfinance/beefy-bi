@@ -1,6 +1,6 @@
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { fetchChainBlockList$ } from "../protocol/common/loader/chain-block-list";
+import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime";
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
@@ -9,7 +9,7 @@ import { runMain } from "../utils/process";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 async function main(client: PoolClient) {
-  const chain: Chain = "bsc";
+  const chain: Chain = "moonbeam";
   const ctx: ImportCtx<any> = {
     client,
     emitErrors: (item) => {
@@ -17,7 +17,7 @@ async function main(client: PoolClient) {
     },
     rpcConfig: createRpcConfig(chain),
     streamConfig: {
-      maxInputTake: 10,
+      maxInputTake: 500,
       maxInputWaitMs: 1000,
       maxTotalRetryMs: 1000,
       workConcurrency: 1,
@@ -25,11 +25,13 @@ async function main(client: PoolClient) {
   };
 
   // get the block list
-  const obs$ = Rx.from([1]).pipe(
-    fetchChainBlockList$({
+  const obs$ = Rx.from([
+    1865772, 1865823, 1866600, 1867386, 1868174, 1869449, 1869763, 1868978, 1869781, 1870567, 1871355, 1892897, 1893377, 1893382, 1894241, 1895046,
+    1901888, 1902605, 1902850, 1903085, 1903566, 1904306, 1910577, 1911314,
+  ]).pipe(
+    fetchBlockDatetime$({
       ctx,
-      getChain: () => chain,
-      getFirstDate: () => new Date("2021-01-01"),
+      getBlockNumber: (blockNumber) => blockNumber,
       formatOutput: (_, blockList) => {
         return blockList;
       },
