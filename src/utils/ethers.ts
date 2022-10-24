@@ -221,7 +221,6 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
           const result = await originalSend(method, params);
 
           if (result === null) {
-            console.dir(result, { depth: null });
             logger.trace({ msg: "Got null result from eth_getBlockByNumber", data: { chain: "moonbeam", params } });
             throw new ShouldRetryException("Got null result from eth_getBlockByNumber");
           }
