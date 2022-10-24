@@ -179,6 +179,8 @@ export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.Json
  *        -> {"jsonrpc":"2.0","result":null,"id":1}
  *    - when response header contains "cf-cache-status: HIT", the response is correct
  *        -> {"jsonrpc":"2.0","result":{"author":"0x19 ...
+ *
+ * I could not find a way to disable the cache, so we just retry the request
  */
 export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.JsonRpcProvider) {
   logger.trace({ msg: "Patching Moonbeam linear provider" });
@@ -197,18 +199,6 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
   const originalSend = provider.send.bind(provider);
 
   class ShouldRetryException extends Error {}
-
-  function getResult(payload: { error?: { code?: number; data?: any; message?: string }; result?: any }): any {
-    if (payload.error) {
-      // @TODO: not any
-      const error: any = new Error(payload.error.message);
-      error.code = payload.error.code;
-      error.data = payload.error.data;
-      throw error;
-    }
-
-    return payload.result;
-  }
 
   async function sendButRetryOnBlockNumberCacheHit(this: ethers.providers.JsonRpcProvider, method: string, params: Array<any>): Promise<any> {
     if (method !== "eth_getBlockByNumber") {
