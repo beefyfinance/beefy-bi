@@ -22,6 +22,7 @@ version: "3.9" # optional since v1.27.0
 
 # RUN a command
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
+# docker exec -it -e LOG_LEVEL=trace deploy-importer-products-1 node ./dist/src/script/run.js db:migrate
 
 # BACKUP
 # cd ~/beefy/snapshots

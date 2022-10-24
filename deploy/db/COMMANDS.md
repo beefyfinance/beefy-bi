@@ -225,5 +225,5 @@ INSERT INTO block_ts (
     from import_state i
     where i.import_data->>'contractCreationDate' is not null
 )
-on conflict do nothing
+on conflict do nothing;
 ```
