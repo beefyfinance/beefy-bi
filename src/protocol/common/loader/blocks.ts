@@ -1,4 +1,5 @@
-import { uniqBy } from "lodash";
+import { keyBy, uniqBy } from "lodash";
+import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
 import { ImportCtx } from "../types/import-context";
@@ -45,6 +46,37 @@ export function upsertBlock$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams e
         options.ctx.client,
       );
       return new Map(objAndData.map(({ data }) => [data, data]));
+    },
+  });
+}
+
+export function fetchBlock$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
+  ctx: TCtx;
+  chain: Chain;
+  getBlockNumber: (obj: TObj) => number;
+  formatOutput: (obj: TObj, block: DbBlock | null) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    ctx: options.ctx,
+    getData: options.getBlockNumber,
+    formatOutput: options.formatOutput,
+    logInfos: { msg: "fetch block" },
+    processBatch: async (objAndData) => {
+      const results = await db_query<DbBlock>(
+        `SELECT 
+            datetime,
+            chain,
+            block_number as "blockNumber",
+            block_data as "blockData"
+          FROM block_ts
+          WHERE chain = %L and block_number IN (%L)`,
+        [options.chain, objAndData.map((obj) => obj.data)],
+        options.ctx.client,
+      );
+
+      // return a map where keys are the original parameters object refs
+      const idMap = keyBy(results, "blockNumber");
+      return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
     },
   });
 }

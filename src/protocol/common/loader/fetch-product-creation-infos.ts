@@ -41,7 +41,7 @@ export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx
         options.ctx.client,
       );
 
-      // ensure results are in the same order as the params
+      // return a map where keys are the original parameters object refs
       const idMap = keyBy(
         results.map((res) => {
           res.contractCreationDate = new Date(res.contractCreationDate);

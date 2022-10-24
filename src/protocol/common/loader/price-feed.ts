@@ -94,7 +94,7 @@ export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(option
         options.ctx.client,
       );
 
-      // ensure results are in the same order as the params
+      // return a map where keys are the original parameters object refs
       const idMap = keyBy(results, "priceFeedId");
       return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
     },

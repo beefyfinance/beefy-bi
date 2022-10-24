@@ -76,7 +76,7 @@ export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams
         options.ctx.client,
       );
 
-      // ensure results are in the same order as the params
+      // return a map where keys are the original parameters object refs
       const idMap = keyBy(results, "productKey");
 
       return new Map(
@@ -117,7 +117,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
         options.ctx.client,
       );
 
-      // ensure results are in the same order as the params
+      // return a map where keys are the original parameters object refs
       const idMap = keyBy(results, "productId");
 
       return new Map(

@@ -6,7 +6,6 @@ import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { addCoveringBlockRangesQuery } from "../../../common/connector/import-queries";
-import { upsertBlock$ } from "../../../common/loader/blocks";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
@@ -133,17 +132,6 @@ function processShareRateQuery$<
       ctx: options.ctx,
       getBlockNumber: (item) => item.rangeMidpoint,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
-    }),
-
-    upsertBlock$({
-      ctx: options.ctx,
-      getBlockData: (item) => ({
-        datetime: item.blockDatetime,
-        chain: item.product.chain,
-        blockNumber: item.rangeMidpoint,
-        blockData: {},
-      }),
-      formatOutput: (item, block) => ({ ...item, block }),
     }),
 
     upsertPrice$({

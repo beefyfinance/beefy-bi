@@ -46,6 +46,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
         // drop those without a creation info
         excludeNullFields$("contractCreationInfo"),
 
+        // add this block to our global block list
         upsertBlock$({
           ctx: {
             ...ctx,
