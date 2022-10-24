@@ -20,7 +20,6 @@ if (timezone !== "UTC") {
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 export const BATCH_DB_INSERT_SIZE = 5000;
-export const BATCH_DB_SELECT_SIZE = 5000;
 export const BATCH_MAX_WAIT_MS = 5000;
 
 export const MAX_RANGES_PER_PRODUCT_TO_GENERATE = process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE

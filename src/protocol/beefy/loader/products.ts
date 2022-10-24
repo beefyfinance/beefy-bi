@@ -2,6 +2,7 @@ import { groupBy, keyBy } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
@@ -21,6 +22,8 @@ export function importBeefyProducts$(options: { client: PoolClient }) {
     // But we can afford to wait a bit longer before processing the next batch to be more efficient
     maxInputWaitMs: 30 * 1000,
     maxInputTake: 500,
+    dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+    dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };

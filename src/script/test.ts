@@ -4,6 +4,7 @@ import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
 import { withPgClient } from "../utils/db";
 import { runMain } from "../utils/process";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
@@ -20,6 +21,8 @@ async function main(client: PoolClient) {
       maxInputTake: 500,
       maxInputWaitMs: 1000,
       maxTotalRetryMs: 1000,
+      dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+      dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
       workConcurrency: 1,
     },
   };

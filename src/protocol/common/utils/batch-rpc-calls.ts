@@ -20,6 +20,11 @@ export interface BatchStreamConfig {
   // how long to wait before making groups
   maxInputWaitMs: number;
 
+  // how many items to take from the input stream before making groups
+  dbMaxInputTake: number;
+  // how long to wait before making groups
+  dbMaxInputWaitMs: number;
+
   // how many concurrent groups to process at the same time
   workConcurrency: number;
 

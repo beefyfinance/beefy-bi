@@ -1,6 +1,6 @@
 import { zipWith } from "lodash";
 import * as Rx from "rxjs";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { BATCH_DB_INSERT_SIZE } from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";
@@ -15,7 +15,7 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
   formatOutput: (obj: TObj, res: TQueryRes) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
+    Rx.bufferTime(options.ctx.streamConfig.dbMaxInputWaitMs, undefined, options.ctx.streamConfig.dbMaxInputTake),
     Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects

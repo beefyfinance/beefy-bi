@@ -2,7 +2,6 @@ import { cloneDeep, groupBy, keyBy, uniq } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { BATCH_DB_INSERT_SIZE, BATCH_DB_SELECT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { db_query, db_transaction } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -70,7 +69,7 @@ function upsertImportState$<TInput, TRes>(options: {
   formatOutput: (obj: TInput, importState: DbImportState) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
   return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_INSERT_SIZE),
+    Rx.bufferTime(options.streamConfig.dbMaxInputWaitMs, undefined, options.streamConfig.dbMaxInputTake),
     Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects
@@ -110,7 +109,7 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
   formatOutput: (obj: TObj, importState: TImport | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    Rx.bufferTime(BATCH_MAX_WAIT_MS, undefined, BATCH_DB_SELECT_SIZE),
+    Rx.bufferTime(options.streamConfig.dbMaxInputWaitMs, undefined, options.streamConfig.dbMaxInputTake),
     Rx.filter((items) => items.length > 0),
 
     // upsert data and map to input objects

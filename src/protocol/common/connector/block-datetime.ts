@@ -57,6 +57,9 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
         emitErrors: () => {
           throw new Error("Failed to upsert block");
         },
+        // make sure we are aligned with the RPC config so we have an overall consistent behavior
+        dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
+        dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
       },
       getBlockData: (item) => ({
         datetime: item.blockDate,
@@ -71,7 +74,15 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
   return Rx.pipe(
     // fetch our block from the database
     fetchBlock$({
-      ctx: options.ctx,
+      ctx: {
+        ...options.ctx,
+        streamConfig: {
+          ...options.ctx.streamConfig,
+          // make sure we are aligned with the RPC config so we have an overall consistent behavior
+          dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
+          dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
+        },
+      },
       chain: chain,
       getBlockNumber: options.getBlockNumber,
       formatOutput: (obj, dbBlock) => ({ obj, dbBlock }),

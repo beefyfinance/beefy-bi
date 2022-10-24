@@ -3,6 +3,7 @@ import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
@@ -22,6 +23,8 @@ export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   // But we can afford to wait a bit longer before processing the next batch to be more efficient
   maxInputWaitMs: 30 * 1000,
   maxInputTake: 500,
+  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
   // and we can affort longer retries
   maxTotalRetryMs: 30_000,
 };
@@ -32,6 +35,9 @@ export const defaultRecentStreamConfig: BatchStreamConfig = {
   // But we can not afford to wait before processing the next batch
   maxInputWaitMs: 5_000,
   maxInputTake: 500,
+
+  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
   // and we cannot afford too long of a retry per product
   maxTotalRetryMs: 10_000,
 };
