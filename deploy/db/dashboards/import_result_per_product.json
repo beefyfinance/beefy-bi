@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 36,
-  "iteration": 1666655864423,
+  "iteration": 1666655864435,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -40,7 +40,7 @@
       "gridPos": { "h": 4, "w": 2, "x": 0, "y": 0 },
       "id": 7,
       "options": {
-        "displayLabels": ["percent"],
+        "displayLabels": ["percent", "value"],
         "legend": { "displayMode": "hidden", "placement": "bottom" },
         "pieType": "donut",
         "reduceOptions": { "calcs": ["uniqueValues"], "fields": "", "values": true },
@@ -53,7 +53,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with chain_blocks as (\n  select \n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain = '$chain'\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1\n),\nimport_state_scope as (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (select max(block_number) from block_ts where chain = '$chain')\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n  where i.import_key in (\n    select 'product:investment:' || product_id\n    from unnest(ARRAY[$_product_ids]) as t(product_id)\n  ) \n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select datetime, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1\n)\nselect\n  range_result::text,\n  count(*)\nfrom product_import_result_ts r\nwhere range_result is not null\ngroup by 1\n  ",
+          "rawSql": "with chain_blocks as (\n  select \n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain = '$chain'\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1\n),\nimport_state_scope as (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (select max(block_number) from block_ts where chain = '$chain')\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n  where i.import_key in (\n    select 'product:investment:' || product_id\n    from unnest(ARRAY[$_product_ids]) as t(product_id)\n  ) \n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select datetime, r.product_id, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1, 2\n)\nselect\n  range_result::text,\n  count(*)\nfrom product_import_result_ts r\nwhere range_result is not null\ngroup by 1\n  ",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
@@ -361,6 +361,6 @@
   "timezone": "",
   "title": "Import Result per product",
   "uid": "yaUZxINVz",
-  "version": 16,
+  "version": 17,
   "weekStart": ""
 }
