@@ -25,13 +25,6 @@ version: "3.9" # optional since v1.27.0
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-products-1 node ./dist/src/script/run.js db:migrate
 
-# BACKUP
-# cd ~/beefy/snapshots
-# docker stop deploy-importer-1 deploy-grafana-1 deploy-redis-1
-# docker run --rm -it --network container:deploy-timescaledb-1 -w /data -v $PWD:/data beefy-data-importer /bin/sh
-# apk add postgresql-client
-# pg_dump -h timescaledb -p 5432 -U beefy -Fc -v -f beefy.`date +'%Y-%m-%d.%H-%M-%S'`.pg_dump.bak beefy
-
 x-importer: &importer
   image: beefy-data-importer
   restart: always

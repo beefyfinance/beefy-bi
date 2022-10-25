@@ -17,10 +17,11 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 36,
-  "iteration": 1666655864435,
+  "iteration": 1666655864513,
   "links": [],
   "liveNow": false,
   "panels": [
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 9, "panels": [], "title": "Transfers Import", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "description": "",
@@ -37,7 +38,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 2, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 2, "x": 0, "y": 1 },
       "id": 7,
       "options": {
         "displayLabels": ["percent", "value"],
@@ -70,6 +71,53 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 2, "x": 2, "y": 1 },
+      "id": 18,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["uniqueValues"], "fields": "", "values": true },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*) filter(where i.import_key is null) as missing, count(*) all\nfrom product p\nleft join import_state i on 'product:investment:' || p.product_id = i.import_key\nwhere p.product_id in ($_product_ids)",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Product without an import state",
+      "transformations": [],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
           "custom": { "fillOpacity": 70, "lineWidth": 0, "spanNulls": false },
           "mappings": [],
           "thresholds": {
@@ -84,7 +132,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 22, "x": 2, "y": 0 },
+      "gridPos": { "h": 4, "w": 20, "x": 4, "y": 1 },
       "id": 3,
       "options": {
         "alignValue": "left",
@@ -132,7 +180,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 4 },
+      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 5 },
       "id": 6,
       "options": {
         "alignValue": "left",
@@ -160,58 +208,254 @@
       "transformations": [{ "id": "prepareTimeSeries", "options": { "format": "many" } }],
       "type": "state-timeline"
     },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 }, "id": 13, "panels": [], "title": "PPFS", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 69,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "stepBefore",
-            "lineWidth": 0,
-            "pointSize": 1,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "normal" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          }
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [
+            {
+              "options": { "1": { "color": "blue", "index": 0, "text": "covered" }, "2": { "color": "red", "index": 1, "text": "error" } },
+              "type": "value"
+            }
+          ]
         },
         "overrides": []
       },
-      "gridPos": { "h": 14, "w": 21, "x": 3, "y": 28 },
-      "id": 5,
-      "options": { "legend": { "calcs": [], "displayMode": "hidden", "placement": "right" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "gridPos": { "h": 4, "w": 2, "x": 0, "y": 30 },
+      "id": 15,
+      "options": {
+        "displayLabels": ["percent", "value"],
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["uniqueValues"], "fields": "", "values": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket_gapfill('$interval', b.datetime) as time,\n  case \n    when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), '$chain:', '')\n    else p.product_key\n  end as product_key,\n  count(*) as \" \"\nFROM\n  investment_balance_ts b\n  JOIN product p on b.product_id = p.product_id\nWHERE\n  $__timeFilter(b.datetime)\n  and p.chain = '$chain'\n  and p.product_id in ($_product_ids)\ngroup by 1,2\norder by 1,2",
+          "rawSql": "with chain_blocks as (\n  select \n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain = '$chain'\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1\n),\nimport_state_scope as (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (select max(block_number) from block_ts where chain = '$chain')\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n  where i.import_key in (\n    select 'price:feed:' || price_feed_id\n    from unnest(ARRAY[$_price_feed_1_ids]) as t(price_feed_id)\n  ) \n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select datetime, r.product_id, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1, 2\n)\nselect\n  range_result::text,\n  count(*)\nfrom product_import_result_ts r\nwhere range_result is not null\ngroup by 1\n  ",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Transfers counts",
-      "type": "timeseries"
+      "title": "Coverage (0 = not covered, 1 = success, 2 = error)",
+      "transformations": [],
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 2, "x": 2, "y": 30 },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["uniqueValues"], "fields": "", "values": true },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*) filter(where i.import_key is null) as missing, count(*) all\nfrom product p\nleft join import_state i on 'price:feed:' || p.price_feed_1_id = i.import_key\nwhere p.product_id in ($_product_ids)",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Product without an import state",
+      "transformations": [],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 70, "lineWidth": 0, "spanNulls": false },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "purple", "value": null },
+              { "color": "blue", "value": 0 },
+              { "color": "green", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 20, "x": 4, "y": 30 },
+      "id": 14,
+      "options": {
+        "alignValue": "left",
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with chain_blocks as (\n  select \n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain = '$chain'\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1\n),\nimport_state_scope as (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (select max(block_number) from block_ts where chain = '$chain')\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n  where i.import_key in (\n    select 'price:feed:' || price_feed_id\n    from unnest(ARRAY[$_price_feed_1_ids]) as t(price_feed_id)\n  ) \n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select datetime, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1\n)\nselect\n  r.datetime as time,\n  range_result as \"$chain\"\nfrom product_import_result_ts r\norder by datetime\n  ",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Coverage (0 = not covered, 1 = success, 2 = error)",
+      "transformations": [{ "id": "prepareTimeSeries", "options": { "format": "many" } }],
+      "type": "state-timeline"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 70, "lineWidth": 0, "spanNulls": false },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "purple", "value": null },
+              { "color": "blue", "value": 0 },
+              { "color": "green", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 34 },
+      "id": 16,
+      "options": {
+        "alignValue": "left",
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with chain_blocks as (\n  select \n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain = '$chain'\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1\n),\nimport_state_scope as (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (select max(block_number) from block_ts where chain = '$chain')\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n  where i.import_key in (\n    select 'price:feed:' || price_feed_id\n    from unnest(ARRAY[$_price_feed_1_ids]) as t(price_feed_id)\n  ) \n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select product_id, datetime, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1,2\n)\nselect\n  r.datetime as time,\n  case \n    when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), '$chain:', '')\n    else p.product_key\n  end as product_key,\n  range_result as \" \"\nfrom product_import_result_ts r\njoin product p on r.product_id = p.product_id\norder by datetime\n  ",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Coverage (0 = not covered, 1 = success, 2 = error)",
+      "transformations": [{ "id": "prepareTimeSeries", "options": { "format": "many" } }],
+      "type": "state-timeline"
+    },
+    {
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 58 },
+      "id": 11,
+      "panels": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 69,
+                "gradientMode": "none",
+                "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                "lineInterpolation": "stepBefore",
+                "lineWidth": 0,
+                "pointSize": 1,
+                "scaleDistribution": { "type": "linear" },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": { "group": "A", "mode": "normal" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 80 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 14, "w": 21, "x": 3, "y": 30 },
+          "id": 5,
+          "options": { "legend": { "calcs": [], "displayMode": "hidden", "placement": "right" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  time_bucket_gapfill('$interval', b.datetime) as time,\n  case \n    when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), '$chain:', '')\n    else p.product_key\n  end as product_key,\n  count(*) as \" \"\nFROM\n  investment_balance_ts b\n  JOIN product p on b.product_id = p.product_id\nWHERE\n  $__timeFilter(b.datetime)\n  and p.chain = '$chain'\n  and p.product_id in ($_product_ids)\ngroup by 1,2\norder by 1,2",
+              "refId": "A",
+              "select": [[{ "params": ["value"], "type": "column" }]],
+              "timeColumn": "time",
+              "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+            }
+          ],
+          "title": "Transfers counts",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Transfers",
+      "type": "row"
     }
   ],
   "refresh": false,
@@ -221,7 +465,7 @@
   "templating": {
     "list": [
       {
-        "current": { "selected": false, "text": "moonbeam", "value": "moonbeam" },
+        "current": { "selected": true, "text": "metis", "value": "metis" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select distinct chain from product",
         "hide": 0,
@@ -277,7 +521,7 @@
         "type": "interval"
       },
       {
-        "current": { "selected": false, "text": ["All"], "value": ["$__all"] },
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select product_key from product where chain = '$chain' and case when '$include_eol' = 'yes' then true else coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false' END",
         "hide": 0,
@@ -307,7 +551,7 @@
         "type": "custom"
       },
       {
-        "current": { "selected": false, "text": ["All"], "value": ["$__all"] },
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select product_id from product where product_key in ($product_keys)",
         "hide": 0,
@@ -323,7 +567,22 @@
         "type": "query"
       },
       {
-        "current": { "selected": false, "text": "383395", "value": "383395" },
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "definition": "select price_feed_1_id from product where product_id in ($_product_ids)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_price_feed_1_ids",
+        "options": [],
+        "query": "select price_feed_1_id from product where product_id in ($_product_ids)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "411040", "value": "411040" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "\n  select min((i.import_data->>'contractCreatedAtBlock')::integer) as creation_block\n  from import_state i\n  left join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  where p.product_id in ($_product_ids)",
         "hide": 0,
@@ -339,7 +598,7 @@
         "type": "query"
       },
       {
-        "current": { "selected": false, "text": "2022-02-10T18:43:12Z", "value": "2022-02-10T18:43:12Z" },
+        "current": { "selected": false, "text": "2022-01-15T19:40:56Z", "value": "2022-01-15T19:40:56Z" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "  select TO_CHAR(min((i.import_data->>'contractCreationDate')::timestamptz), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')\n  from import_state i\n  left join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  where p.product_id in ($_product_ids)",
         "hide": 0,
@@ -361,6 +620,6 @@
   "timezone": "",
   "title": "Import Result per product",
   "uid": "yaUZxINVz",
-  "version": 17,
+  "version": 18,
   "weekStart": ""
 }
