@@ -287,7 +287,11 @@ function restrictRangesWithImportState<T extends SupportedRangeTypes>(
   ranges = rangeSort(ranges).reverse();
 
   // then add the ranges we had error on at the end
-  const rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry as Range<T>[], maxRangeLength);
+  let rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry as Range<T>[], maxRangeLength);
+  // retry oldest first
+  rangesToRetry = rangeSort(rangesToRetry).reverse();
+
+  // put retries last
   ranges = ranges.concat(rangesToRetry);
 
   // limit the amount of queries sent
