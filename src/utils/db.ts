@@ -230,6 +230,21 @@ export async function db_migrate() {
       LANGUAGE SQL
       IMMUTABLE
       RETURNS NULL ON NULL INPUT;
+
+
+      CREATE OR REPLACE FUNCTION GapFillInternal( 
+        s anyelement, 
+        v anyelement) RETURNS anyelement AS 
+      $$ 
+      BEGIN 
+        RETURN COALESCE(v,s); 
+      END; 
+      $$ LANGUAGE PLPGSQL IMMUTABLE; 
+      
+      CREATE AGGREGATE GapFill(anyelement) ( 
+        SFUNC=GapFillInternal, 
+        STYPE=anyelement 
+      ); 
   `);
 
   // token price registry to avoid manipulating and indexing strings on the other tables
