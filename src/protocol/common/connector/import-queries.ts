@@ -10,13 +10,16 @@ import {
   MAX_RANGES_PER_PRODUCT_TO_GENERATE,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
-import { isInRange, Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
+import { rootLogger } from "../../../utils/logger";
+import { isInRange, Range, rangeArrayExclude, rangeMerge, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { getRpcRetryConfig } from "../utils/rpc-retry-config";
+
+const logger = rootLogger.child({ module: "common", component: "import-queries" });
 
 export function latestBlockNumber$<TObj, TRes>(options: {
   rpcConfig: RpcConfig;
@@ -30,6 +33,11 @@ export function latestBlockNumber$<TObj, TRes>(options: {
     getCacheKey: () => options.rpcConfig.chain,
     logInfos: { msg: "latest block number", data: { chain: options.rpcConfig.chain } },
     operator$: Rx.mergeMap(async (obj) => {
+      if (options.forceCurrentBlockNumber) {
+        logger.info({ msg: "Using forced block number", data: { blockNumber: options.forceCurrentBlockNumber, chain: options.rpcConfig.chain } });
+        return { input: obj, output: options.forceCurrentBlockNumber };
+      }
+
       const latestBlockNumber = await backOff(() => options.rpcConfig.linearProvider.getBlockNumber(), retryConfig);
       return { input: obj, output: latestBlockNumber };
     }, options.streamConfig.workConcurrency),
@@ -116,11 +124,18 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
         from: options.getFirstBlockNumber(importState),
         to: item.latestBlockNumber - waitForBlockPropagation,
       };
+      logger.trace({ msg: "Full range", data: { fullRange, importStateKey: importState.importKey } });
 
       let ranges = [fullRange];
 
       const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.rpcConfig.chain];
       ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery);
+
+      // apply forced block number
+      if (options.forceCurrentBlockNumber !== null) {
+        logger.trace({ msg: "Forcing current block number", data: { blockNumber: options.forceCurrentBlockNumber } });
+        ranges = rangeArrayExclude(ranges, [{ from: options.forceCurrentBlockNumber, to: Infinity }]);
+      }
       return options.formatOutput(item.obj, item.latestBlockNumber, ranges);
     }),
   );
