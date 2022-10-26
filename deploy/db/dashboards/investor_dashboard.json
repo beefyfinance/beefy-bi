@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 26,
-  "iteration": 1666689634862,
+  "iteration": 1666791757107,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -66,14 +66,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith maybe_empty_investments_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n), \ninvestments_ts as (\n  select \n      ts.datetime,\n      p.product_id,\n      i.balance\n  from generate_series($__timeFrom()::timestamptz, $__timeTo()::timestamptz, '$interval') ts(datetime)\n      cross join (select UNNEST(ARRAY[$_product_ids]::integer[])) as p(product_id)\n      left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id\n),\nbalance_with_gaps_ts as (\n    select\n      time_bucket('$interval', $__timeFrom()::timestamptz - ('$interval'::interval)) as datetime,\n      product_id,\n      last(balance::numeric, datetime) as balance\n    from investment_balance_ts\n    where datetime < $__timeTo()\n      and investor_id = $_investor_id\n      and product_id in ($_product_ids)\n    group by 1,2\n  union all\n    select * from investments_ts\n),\nbalance_gf_ts as (\n   select \n    datetime,\n    product_id,\n    gapfill(balance) over (partition by product_id order by datetime) as balance\n  from balance_with_gaps_ts\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_1_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_1_ids)\n  group by 1,2\n),\nprice_1_ts as (\n  select * from price_1_gf_ts where price is not null\n),\nprice_2_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_2_ids)\n  group by 1,2\n),\nprice_2_ts as (\n  select * from price_2_gf_ts where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price * p2.price) as \"$\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\n  left join price_2_ts p2 on b.datetime = p2.datetime and pr.price_feed_2_id = p2.price_feed_id\norder by 1;",
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price * p2.price) as \"$\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\n  left join price_2_ts p2 on b.datetime = p2.datetime and pr.price_feed_2_id = p2.price_feed_id\norder by 1;",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Investor Vault balances",
+      "title": "Investor USD value",
       "type": "timeseries"
     },
     {
@@ -120,14 +120,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith maybe_empty_investments_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n), \ninvestments_ts as (\n  select \n      ts.datetime,\n      p.product_id,\n      i.balance\n  from generate_series($__timeFrom()::timestamptz, $__timeTo()::timestamptz, '$interval') ts(datetime)\n      cross join (select UNNEST(ARRAY[$_product_ids]::integer[])) as p(product_id)\n      left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id\n),\nbalance_with_gaps_ts as (\n    select\n      time_bucket('$interval', $__timeFrom()::timestamptz - ('$interval'::interval)) as datetime,\n      product_id,\n      last(balance::numeric, datetime) as balance\n    from investment_balance_ts\n    where datetime < $__timeTo()\n      and investor_id = $_investor_id\n      and product_id in ($_product_ids)\n    group by 1,2\n  union all\n    select * from investments_ts\n),\nbalance_gf_ts as (\n   select \n    datetime,\n    product_id,\n    gapfill(balance) over (partition by product_id order by datetime) as balance\n  from balance_with_gaps_ts\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_1_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_1_ids)\n  group by 1,2\n),\nprice_1_ts as (\n  select * from price_1_gf_ts where price is not null\n),\nprice_2_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_2_ids)\n  group by 1,2\n),\nprice_2_ts as (\n  select * from price_2_gf_ts where price is not null\n)\nselect\n  p2.datetime as time,\n  pr.product_key,\n  p2.price\nfrom price_2_ts p2\n  left join product pr on pr.price_feed_2_id = p2.price_feed_id\norder by 1;",
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  p2.datetime as time,\n  pr.product_key,\n  p2.price\nfrom price_2_ts p2\n  left join product pr on pr.price_feed_2_id = p2.price_feed_id\norder by 1;",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Investor Vault balances",
+      "title": "Underlying -> USD price",
       "type": "timeseries"
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 }, "id": 8, "panels": [], "title": "Underlying value", "type": "row" },
@@ -175,14 +175,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith maybe_empty_investments_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n), \ninvestments_ts as (\n  select \n      ts.datetime,\n      p.product_id,\n      i.balance\n  from generate_series($__timeFrom()::timestamptz, $__timeTo()::timestamptz, '$interval') ts(datetime)\n      cross join (select UNNEST(ARRAY[$_product_ids]::integer[])) as p(product_id)\n      left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id\n),\nbalance_with_gaps_ts as (\n    select\n      time_bucket('$interval', $__timeFrom()::timestamptz - ('$interval'::interval)) as datetime,\n      product_id,\n      last(balance::numeric, datetime) as balance\n    from investment_balance_ts\n    where datetime < $__timeTo()\n      and investor_id = $_investor_id\n      and product_id in ($_product_ids)\n    group by 1,2\n  union all\n    select * from investments_ts\n),\nbalance_gf_ts as (\n   select \n    datetime,\n    product_id,\n    gapfill(balance) over (partition by product_id order by datetime) as balance\n  from balance_with_gaps_ts\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_1_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_1_ids)\n  group by 1,2\n),\nprice_1_ts as (\n  select * from price_1_gf_ts where price is not null\n),\nprice_2_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_2_ids)\n  group by 1,2\n),\nprice_2_ts as (\n  select * from price_2_gf_ts where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price) as \"underlying balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\norder by 1;",
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price) as \"underlying balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\norder by 1;",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Investor Vault underlying balances",
+      "title": "Share -> Underlying price",
       "type": "timeseries"
     },
     { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 }, "id": 10, "panels": [], "title": "Moo Token Value", "type": "row" },
@@ -230,14 +230,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "\nwith maybe_empty_investments_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    product_id,\n    locf(last(balance::numeric, datetime)) as balance\n  from investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and investor_id = $_investor_id\n    and product_id in ($_product_ids)\n  GROUP BY 1, 2\n), \ninvestments_ts as (\n  select \n      ts.datetime,\n      p.product_id,\n      i.balance\n  from generate_series($__timeFrom()::timestamptz, $__timeTo()::timestamptz, '$interval') ts(datetime)\n      cross join (select UNNEST(ARRAY[$_product_ids]::integer[])) as p(product_id)\n      left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id\n),\nbalance_with_gaps_ts as (\n    select\n      time_bucket('$interval', $__timeFrom()::timestamptz - ('$interval'::interval)) as datetime,\n      product_id,\n      last(balance::numeric, datetime) as balance\n    from investment_balance_ts\n    where datetime < $__timeTo()\n      and investor_id = $_investor_id\n      and product_id in ($_product_ids)\n    group by 1,2\n  union all\n    select * from investments_ts\n),\nbalance_gf_ts as (\n   select \n    datetime,\n    product_id,\n    gapfill(balance) over (partition by product_id order by datetime) as balance\n  from balance_with_gaps_ts\n),\nbalance_ts as (\n  select * from balance_gf_ts where balance is not null\n),\nprice_1_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_1_ids)\n  group by 1,2\n),\nprice_1_ts as (\n  select * from price_1_gf_ts where price is not null\n),\nprice_2_gf_ts as (\n  select\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    price_feed_id as price_feed_id,\n    locf(last(price::numeric, datetime)) as price\n  from price_ts\n  where \n    datetime between $__timeFrom()::timestamptz - ('$interval'::interval) and $__timeTo()\n    and price_feed_id in ($_price_feed_2_ids)\n  group by 1,2\n),\nprice_2_ts as (\n  select * from price_2_gf_ts where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance ) as \"moo balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance ) as \"moo balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
           "refId": "A",
           "select": [[{ "params": ["value"], "type": "column" }]],
           "timeColumn": "time",
           "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
         }
       ],
-      "title": "Investor Vault Moo Token balances",
+      "title": "Investor share token amount",
       "type": "timeseries"
     }
   ],
@@ -366,11 +366,11 @@
       }
     ]
   },
-  "time": { "from": "now-90d", "to": "now" },
+  "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 10,
+  "version": 12,
   "weekStart": ""
 }
