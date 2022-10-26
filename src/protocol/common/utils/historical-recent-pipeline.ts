@@ -28,6 +28,16 @@ export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   // and we can affort longer retries
   maxTotalRetryMs: 30_000,
 };
+export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
+  // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
+  workConcurrency: 1,
+  maxInputWaitMs: 1000,
+  maxInputTake: 1,
+  dbMaxInputTake: 1,
+  dbMaxInputWaitMs: 1,
+  // and we can affort longer retries
+  maxTotalRetryMs: 30_000,
+};
 export const defaultRecentStreamConfig: BatchStreamConfig = {
   // since we are doing live data on a small amount of queries (one per vault)
   // we can afford some amount of concurrency
@@ -60,7 +70,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport }, ImportRangeResult<TInput, TRange>>;
 }) {
-  const streamConfig = defaultHistoricalStreamConfig;
+  const streamConfig = options.chain === "moonbeam" ? defaultMoonbeamHistoricalStreamConfig : defaultHistoricalStreamConfig;
   const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
 
   const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {

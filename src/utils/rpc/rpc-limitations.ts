@@ -139,9 +139,13 @@ const findings = (() => {
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        eth_getLogs: 1,
+        /*eth_getLogs: 1,
         eth_call: 128,
         eth_getBlockByNumber: 2,
+        eth_blockNumber: null,*/
+        eth_getLogs: null,
+        eth_call: null,
+        eth_getBlockByNumber: null,
         eth_blockNumber: null,
       },
     },
