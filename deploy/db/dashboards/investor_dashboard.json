@@ -17,11 +17,294 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 26,
-  "iteration": 1666791757107,
+  "iteration": 1666800332915,
   "links": [],
   "liveNow": false,
   "panels": [
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 4, "panels": [], "title": "USD value", "type": "row" },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "id": 14, "panels": [], "title": "Investor summary ", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": []
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 4, "x": 0, "y": 1 },
+      "id": 17,
+      "options": {
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["allValues"], "fields": "/.*/", "limit": 70, "values": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with share_balance as (\n  SELECT\n    b.product_id,\n    last(b.balance::numeric, b.datetime) as share_balance,\n    last(b.datetime, b.datetime) as share_last_time\n  FROM\n    investment_balance_ts b\n  WHERE\n    b.investor_id = $_investor_id\n    and b.product_id in (select unnest(ARRAY[$_product_ids]::integer[]))\n  group by 1\n),\nprice_1 as (\n  SELECT\n    p1.price_feed_id,\n    last(p1.price::numeric, p1.datetime) as price,\n    last(p1.datetime, p1.datetime) as last_time\n  FROM\n    price_ts p1\n  WHERE\n    p1.price_feed_id in (select unnest(ARRAY[$_price_feed_1_ids]::integer[]))\n  group by 1\n),\nprice_2 as (\n  SELECT\n    p2.price_feed_id,\n    last(p2.price::numeric, p2.datetime) as price,\n    last(p2.datetime, p2.datetime) as last_time\n  FROM\n    price_ts p2\n  WHERE\n    p2.price_feed_id in (select unnest(ARRAY[$_price_feed_2_ids]::integer[]))\n  group by 1\n)\nselect \n  case \n    when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), p.chain || ':', '')\n    else p.product_key\n  end as product_key,\n  b.share_balance * p1.price * p2.price as usd_balance\nfrom share_balance b\n  left join product p on b.product_id = p.product_id\n  left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id\n  left join price_2 p2 on p.price_feed_2_id = p2.price_feed_id\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Vault allocation",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": []
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] }
+        ]
+      },
+      "gridPos": { "h": 7, "w": 4, "x": 4, "y": 1 },
+      "id": 19,
+      "options": {
+        "legend": { "displayMode": "hidden", "placement": "bottom" },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["allValues"], "fields": "/.*/", "limit": 70, "values": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with share_balance as (\n  SELECT\n    b.product_id,\n    last(b.balance::numeric, b.datetime) as share_balance,\n    last(b.datetime, b.datetime) as share_last_time\n  FROM\n    investment_balance_ts b\n  WHERE\n    b.investor_id = $_investor_id\n    and b.product_id in (select unnest(ARRAY[$_product_ids]::integer[]))\n  group by 1\n),\nprice_1 as (\n  SELECT\n    p1.price_feed_id,\n    last(p1.price::numeric, p1.datetime) as price,\n    last(p1.datetime, p1.datetime) as last_time\n  FROM\n    price_ts p1\n  WHERE\n    p1.price_feed_id in (select unnest(ARRAY[$_price_feed_1_ids]::integer[]))\n  group by 1\n),\nprice_2 as (\n  SELECT\n    p2.price_feed_id,\n    last(p2.price::numeric, p2.datetime) as price,\n    last(p2.datetime, p2.datetime) as last_time\n  FROM\n    price_ts p2\n  WHERE\n    p2.price_feed_id in (select unnest(ARRAY[$_price_feed_2_ids]::integer[]))\n  group by 1\n)\nselect \n  p.chain,\n  b.share_balance * p1.price * p2.price as usd_balance\nfrom share_balance b\n  left join product p on b.product_id = p.product_id\n  left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id\n  left join price_2 p2 on p.price_feed_2_id = p2.price_feed_id\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Chain allocation",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] }
+        ]
+      },
+      "gridPos": { "h": 5, "w": 5, "x": 8, "y": 1 },
+      "id": 18,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["allValues"], "fields": "/.*/", "limit": 70, "values": true },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with share_balance as (\n  SELECT\n    b.product_id,\n    last(b.balance::numeric, b.datetime) as share_balance,\n    last(b.datetime, b.datetime) as share_last_time\n  FROM\n    investment_balance_ts b\n  WHERE\n    b.investor_id = $_investor_id\n    and b.product_id in (select unnest(ARRAY[$_product_ids]::integer[]))\n  group by 1\n),\nprice_1 as (\n  SELECT\n    p1.price_feed_id,\n    last(p1.price::numeric, p1.datetime) as price,\n    last(p1.datetime, p1.datetime) as last_time\n  FROM\n    price_ts p1\n  WHERE\n    p1.price_feed_id in (select unnest(ARRAY[$_price_feed_1_ids]::integer[]))\n  group by 1\n),\nprice_2 as (\n  SELECT\n    p2.price_feed_id,\n    last(p2.price::numeric, p2.datetime) as price,\n    last(p2.datetime, p2.datetime) as last_time\n  FROM\n    price_ts p2\n  WHERE\n    p2.price_feed_id in (select unnest(ARRAY[$_price_feed_2_ids]::integer[]))\n  group by 1\n)\nselect \n  sum(b.share_balance * p1.price * p2.price) as usd_balance\nfrom share_balance b\n  left join product p on b.product_id = p.product_id\n  left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id\n  left join price_2 p2 on p.price_feed_2_id = p2.price_feed_id\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Portfolio value",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "product_key" }, "properties": [{ "id": "custom.width", "value": null }] },
+          { "matcher": { "id": "byName", "options": "chain" }, "properties": [{ "id": "custom.width", "value": null }] },
+          { "matcher": { "id": "byName", "options": "is_eol" }, "properties": [{ "id": "custom.width", "value": null }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "id": 16,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "usd_balance" }]
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with share_balance as (\n  SELECT\n    b.product_id,\n    last(b.balance::numeric, b.datetime) as share_balance,\n    last(b.datetime, b.datetime) as share_last_time\n  FROM\n    investment_balance_ts b\n  WHERE\n    b.investor_id = $_investor_id\n    and b.product_id in (select unnest(ARRAY[$_product_ids]::integer[]))\n  group by 1\n),\nprice_1 as (\n  SELECT\n    p1.price_feed_id,\n    last(p1.price::numeric, p1.datetime) as price,\n    last(p1.datetime, p1.datetime) as last_time\n  FROM\n    price_ts p1\n  WHERE\n    p1.price_feed_id in (select unnest(ARRAY[$_price_feed_1_ids]::integer[]))\n  group by 1\n),\nprice_2 as (\n  SELECT\n    p2.price_feed_id,\n    last(p2.price::numeric, p2.datetime) as price,\n    last(p2.datetime, p2.datetime) as last_time\n  FROM\n    price_ts p2\n  WHERE\n    p2.price_feed_id in (select unnest(ARRAY[$_price_feed_2_ids]::integer[]))\n  group by 1\n)\nselect \n  case \n    when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), p.chain || ':', '')\n    else p.product_key\n  end as product_key,\n  p.chain,\n  coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text as is_eol,\n  p1.price as share_to_underlying_price, \n  p2.price as underlying_to_usd_price,\n  b.share_balance, \n  b.share_balance * p1.price as underlying_balance,\n  b.share_balance * p1.price * p2.price as usd_balance\nfrom share_balance b\n  left join product p on b.product_id = p.product_id\n  left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id\n  left join price_2 p2 on p.price_feed_2_id = p2.price_feed_id\norder by 1",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor current portfolio summary",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 4,
+      "panels": [],
+      "title": "Investor historical data",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 19 },
+      "id": 6,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance ) as \"moo balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor share token amount",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 35 },
+      "id": 12,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price) as \"underlying balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investor Underlying amount",
+      "type": "timeseries"
+    },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -56,7 +339,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 1 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 51 },
       "id": 2,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -76,6 +359,61 @@
       "title": "Investor USD value",
       "type": "timeseries"
     },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 67 }, "id": 8, "panels": [], "title": "Vaults data", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 68 },
+      "id": 5,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  p1.datetime as time,\n  pr.product_key,\n  p1.price as \"share price\"\nfrom price_1_ts p1\n  left join product pr on p1.price_feed_id = pr.price_feed_1_id\norder by 1;",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Share -> Underlying price",
+      "type": "timeseries"
+    },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -110,7 +448,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 17 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 84 },
       "id": 11,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -128,116 +466,6 @@
         }
       ],
       "title": "Underlying -> USD price",
-      "type": "timeseries"
-    },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 }, "id": 8, "panels": [], "title": "Underlying value", "type": "row" },
-    {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 34 },
-      "id": 5,
-      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance * p1.price) as \"underlying balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\n  left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id\norder by 1;",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-        }
-      ],
-      "title": "Share -> Underlying price",
-      "type": "timeseries"
-    },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 }, "id": 10, "panels": [], "title": "Moo Token Value", "type": "row" },
-    {
-      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 51 },
-      "id": 6,
-      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with balance_ts as (\n  select * \n  from narrow_gapfilled_investor_balance($__timeFrom(), $__timeTo(), '$interval', $_investor_id, ARRAY[$_product_ids]::integer[])\n  where balance is not null\n),\nprice_1_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_1_ids]::integer[])\n  where price is not null\n),\nprice_2_ts as (\n  select *\n  from  narrow_gapfilled_price($__timeFrom(), $__timeTo(), '$interval', ARRAY[$_price_feed_2_ids]::integer[])\n  where price is not null\n)\nselect\n  b.datetime as time,\n  pr.product_key,\n  (b.balance ) as \"moo balance\"\nfrom balance_ts b\n  left join product pr on b.product_id = pr.product_id\norder by 1;",
-          "refId": "A",
-          "select": [[{ "params": ["value"], "type": "column" }]],
-          "timeColumn": "time",
-          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
-        }
-      ],
-      "title": "Investor share token amount",
       "type": "timeseries"
     }
   ],
@@ -301,6 +529,51 @@
         "type": "query"
       },
       {
+        "current": { "selected": true, "text": "yes", "value": "yes" },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "hide_exited_investments",
+        "options": [
+          { "selected": true, "text": "yes", "value": "yes" },
+          { "selected": false, "text": "no", "value": "no" }
+        ],
+        "query": "yes, no",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+        "definition": "with last_balances as (\n  select p.product_key, last(balance::numeric, b.datetime) as last_balance\n  from investment_balance_ts b\n  join product p on p.product_id = b.product_id\n  where investor_id = $_investor_id and chain in ($chain)\n  group by 1\n)\nselect distinct product_key\nfrom last_balances\nwhere last_balance is not null and \ncase \n    when '$hide_exited_investments' = 'yes' then last_balance > 0\n    else true\nend\n",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_keys",
+        "options": [],
+        "query": "with last_balances as (\n  select p.product_key, last(balance::numeric, b.datetime) as last_balance\n  from investment_balance_ts b\n  join product p on p.product_id = b.product_id\n  where investor_id = $_investor_id and chain in ($chain)\n  group by 1\n)\nselect distinct product_key\nfrom last_balances\nwhere last_balance is not null and \ncase \n    when '$hide_exited_investments' = 'yes' then last_balance > 0\n    else true\nend\n",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "yes", "value": "yes" },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "remove_product_key_prefixes",
+        "options": [
+          { "selected": true, "text": "yes", "value": "yes" },
+          { "selected": false, "text": "no", "value": "no" }
+        ],
+        "query": "yes, no",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
         "current": { "selected": false, "text": "149822", "value": "149822" },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
         "definition": "select investor_id\nfrom investor\nwhere hexstr_to_bytea('$investor_address') = address",
@@ -319,13 +592,13 @@
       {
         "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
         "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
-        "definition": "select distinct b.product_id\nfrom investment_balance_ts b\njoin product p on p.product_id = b.product_id\nwhere investor_id = $_investor_id and chain in ($chain)",
+        "definition": "select product_id from product where product_key in ($product_keys)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select distinct b.product_id\nfrom investment_balance_ts b\njoin product p on p.product_id = b.product_id\nwhere investor_id = $_investor_id and chain in ($chain)",
+        "query": "select product_id from product where product_key in ($product_keys)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -366,11 +639,11 @@
       }
     ]
   },
-  "time": { "from": "now-24h", "to": "now" },
+  "time": { "from": "now-90d", "to": "now" },
   "timepicker": {},
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 12,
+  "version": 21,
   "weekStart": ""
 }

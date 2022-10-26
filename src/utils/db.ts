@@ -378,10 +378,7 @@ export async function db_migrate() {
         _time_from timestamptz, _time_to timestamptz, _interval interval,
         _investor_id integer, _product_ids integer[]
     ) returns table (datetime timestamptz, product_id integer, balance numeric) AS 
-    $F$
-    declare
-    begin
-    return query 
+    $$
         -- find out investor's investments inside the requested range
         with maybe_empty_investments_ts as (
             SELECT
@@ -392,7 +389,7 @@ export async function db_migrate() {
             WHERE
                 b.datetime BETWEEN _time_from AND _time_to
                 and b.investor_id = _investor_id
-                and array_position(_product_ids, b.product_id) is not null
+                and b.product_id in (select unnest(_product_ids))
             GROUP BY 1, 2
         ),
         -- generate a full range of timestamps for these products and merge with actual investments
@@ -402,7 +399,7 @@ export async function db_migrate() {
                 ts.datetime,
                 p.product_id,
                 i.balance
-            from generate_series(_time_from, _time_to, _interval) ts(datetime)
+            from generate_series(time_bucket(_interval, _time_from), time_bucket(_interval, _time_to), _interval) ts(datetime)
                 cross join (select UNNEST(_product_ids)) as p(product_id)
                 left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id
         ),
@@ -415,7 +412,7 @@ export async function db_migrate() {
             from investment_balance_ts b
                 where b.datetime < _time_from
                 and b.investor_id = _investor_id
-                and array_position(_product_ids, b.product_id) is not null
+                and b.product_id in (select unnest(_product_ids))
             group by 1,2
 
             union all
@@ -432,21 +429,15 @@ export async function db_migrate() {
         )
         select *
         from balance_gf_ts
-    ;
-    end;
-    $F$
-    language plpgsql
-    ;
+    $$
+    language sql;
 
 
     CREATE OR REPLACE FUNCTION narrow_gapfilled_price(
       _time_from timestamptz, _time_to timestamptz, _interval interval,
       _price_feed_ids integer[]
     ) returns table (datetime timestamptz, price_feed_id integer, price numeric) AS 
-    $F$
-    declare
-    begin
-    return query 
+    $$
       -- find out the price inside the requested range
       with maybe_empty_price_ts as (
           SELECT
@@ -456,7 +447,7 @@ export async function db_migrate() {
           from price_ts p
           WHERE
               p.datetime BETWEEN _time_from AND _time_to
-              and array_position(_price_feed_ids, p.price_feed_id) is not null
+              and p.price_feed_id in (select unnest(_price_feed_ids))
           GROUP BY 1, 2
       ),
       -- generate a full range of timestamps for these price feeds and merge with prices
@@ -466,7 +457,7 @@ export async function db_migrate() {
               ts.datetime,
               pf.price_feed_id,
               p.price
-          from generate_series(_time_from, _time_to, _interval) ts(datetime)
+          from generate_series(time_bucket(_interval, _time_from), time_bucket(_interval, _time_to), _interval) ts(datetime)
               cross join (select UNNEST(_price_feed_ids)) as pf(price_feed_id)
               left join maybe_empty_price_ts p on ts.datetime = p.datetime and p.price_feed_id = pf.price_feed_id
       ),
@@ -478,7 +469,7 @@ export async function db_migrate() {
               last(p.price::numeric, p.datetime) as price
           from price_ts p
               where p.datetime < _time_from
-              and array_position(_price_feed_ids, p.price_feed_id) is not null
+              and p.price_feed_id in (select unnest(_price_feed_ids))
           group by 1,2
 
           union all
@@ -495,12 +486,8 @@ export async function db_migrate() {
       )
       select *
       from price_gf_ts
-    ;
-    end;
-    $F$
-    language plpgsql
-    ;
-
+    $$
+    language sql;
   `);
 
   logger.info({ msg: "Migrate done" });
