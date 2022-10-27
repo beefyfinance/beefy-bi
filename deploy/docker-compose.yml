@@ -15,7 +15,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-optimism importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-other-3 importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical importer-share-rates-historical-moonbeam"
+# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-optimism importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-other-3 importer-investment-historical-other-4 importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical importer-share-rates-historical-moonbeam"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -161,7 +161,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora emerald harmony -r 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum emerald harmony -r 15sec"
 
   importer-investment-historical-other-2:
     <<: *importer
@@ -174,7 +174,13 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c fuse metis moonbeam optimism kava -r 15sec -e"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c fuse optimism -r 15sec -e"
+
+  importer-investment-historical-other-4:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c aurora metis moonbeam kava -r 15sec -e"
 
   importer-investment-recent:
     <<: *importer
