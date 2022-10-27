@@ -118,6 +118,25 @@ services:
       - timescaledb
     networks:
       - backend
+      - frontend
+
+  public-api:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_RO_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
+      WORK_CMD: "./dist/src/api/api.js"
+    networks:
+      - backend
+      - frontend
+    depends_on:
+      - redis
+      - timescaledb
 
   importer-products:
     <<: *importer
