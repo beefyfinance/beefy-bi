@@ -58,7 +58,6 @@ volumes:
 
 networks:
   backend: {}
-  frontend: {}
 
 services:
   redis:
@@ -119,7 +118,6 @@ services:
       - timescaledb
     networks:
       - backend
-      - frontend
 
   public-api:
     image: beefy-data-importer
@@ -134,7 +132,6 @@ services:
       WORK_CMD: "./dist/src/api/api.js"
     networks:
       - backend
-      - frontend
     depends_on:
       - redis
       - timescaledb
