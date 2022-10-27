@@ -15,11 +15,17 @@ export class PortfolioService {
       last_balance: string;
     }>(
       `
-      select p.product_id, last(balance::numeric, b.datetime) as last_balance
-      from investment_balance_ts b
-      join product p on p.product_id = b.product_id
-      where investor_id = %L and chain in (%L)
-      group by 1
+      with last_balances as (
+        select p.product_id, last(balance::numeric, b.datetime) as last_balance
+        from investment_balance_ts b
+        join product p on p.product_id = b.product_id
+        where investor_id = %L and chain in (%L)
+        group by 1
+      )
+      select *
+      from last_balances
+      where last_balance is not null
+        and last_balance > 0
     `,
       [investorId, chains],
       this.services.db,
