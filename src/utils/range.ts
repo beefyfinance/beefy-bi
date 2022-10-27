@@ -46,7 +46,7 @@ export function isNumberRange(range: Range<any>): range is Range<number> {
 function checkRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>) {
   const strat = strategy || getRangeStrategy(range);
   if (strat.compare(range.from, range.to) > 0) {
-    throw new ProgrammerError("Range is invalid: from > to");
+    throw new ProgrammerError({ msg: "Range is invalid: from > to", data: { range } });
   }
 }
 
