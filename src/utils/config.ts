@@ -21,6 +21,7 @@ if (timezone !== "UTC") {
 export const API_PORT = parseInt(process.env.API_PORT || "8080", 10);
 export const API_LISTEN = process.env.API_LISTEN || "127.0.0.1";
 export const API_DISABLE_HTTPS = process.env.API_DISABLE_HTTPS === "true";
+export const API_DOMAIN = process.env.API_DOMAIN || "localhost";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 export const TIMESCALEDB_RO_URL = process.env.TIMESCALEDB_RO_URL || "psql://api_ro:api_ro@localhost:5432/beefy";
