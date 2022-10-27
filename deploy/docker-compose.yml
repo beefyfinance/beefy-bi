@@ -15,7 +15,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-moonbeam importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-other-3 importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical importer-share-rates-historical-moonbeam"
+# export TASK_LIST="importer-products importer-investment-historical-bsc importer-investment-historical-fantom importer-investment-historical-avax importer-investment-historical-polygon importer-investment-historical-optimism importer-investment-historical-other-1 importer-investment-historical-other-2 importer-investment-historical-other-3 importer-investment-recent importer-prices-historical importer-prices-recent importer-share-rates-historical importer-share-rates-historical-moonbeam"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -150,6 +150,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c polygon -r 15sec"
+
+  importer-investment-historical-optimism:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c optimism -r 15sec"
 
   importer-investment-historical-other-1:
     <<: *importer
