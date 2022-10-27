@@ -128,6 +128,7 @@ services:
     environment:
       TZ: UTC
       REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       TIMESCALEDB_RO_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/api.js"
