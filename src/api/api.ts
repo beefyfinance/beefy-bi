@@ -53,7 +53,7 @@ server.register(async (instance, opts, done) => {
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)
-    .register(routes, { prefix: "/api/v1" });
+    .register(routes, { prefix: "/api/v0" });
 
   done();
 });
