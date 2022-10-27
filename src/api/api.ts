@@ -8,14 +8,16 @@ import FastifyRateLimit from "@fastify/rate-limit";
 import FastifyRedis from "@fastify/redis";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify from "fastify";
-import { TIMESCALEDB_URL } from "../utils/config";
+import { API_PORT, TIMESCALEDB_URL } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { getRedisClient } from "../utils/shared-resources/shared-lock";
 import routes from "./route";
 import { registerDI } from "./service"; // register DI services
 
 const logger = rootLogger.child({ module: "api", component: "main" });
-const server = fastify();
+const server = fastify({
+  logger,
+});
 
 // register anything that connects to redis (caching mostly)
 server.register(async (instance, opts, done) => {
@@ -45,53 +47,18 @@ server.register(async (instance, opts, done) => {
     })
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
-    .register(FastifyRateLimit, {
-      max: 1,
-      timeWindow: 5000,
-      cache: 10000,
-      redis: redisClient,
-      continueExceeding: true,
-      skipOnError: false,
-      enableDraftSpec: true, // default false. Uses IEFT draft header standard
-    })
+    // rate limit disabled globally because I don't know how to disable it just for swagger ui
+    .register(FastifyRateLimit, { global: false })
     .register(FastifyCors)
     .register(FastifyHelmet)
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)
     .register(routes, { prefix: "/api/v1" });
-  /*
-  instance.get("/", (req, reply) => {
-    instance.cache.set("hello", { hello: "world" }, 10000, (err) => {
-      if (err) return reply.send(err);
-      reply.send({ hello: "world" });
-    });
-  });
 
-  instance.get("/cache", (req, reply) => {
-    console.log("Headers: ", req.headers);
-    instance.cache.get("hello", (err, val) => {
-      reply.send(err || val);
-    });
-  });
-
-  instance.get("/products", function (req, reply) {
-    instance.pg.query("SELECT * from product limit 1", [], function onResult(err, result) {
-      reply.send(err || result.rows);
-    });
-  });
-  instance.get<{
-    Querystring: { address: string };
-  }>("/investor", (req, reply) => {
-    const { address } = req.query;
-    return instance.diContainer.cradle.investor.getInvestorId(address);
-  });
-
-  instance.register();
-*/
   done();
 });
 
-server.listen({ port: 8080 }, (err, address) => {
+server.listen({ port: API_PORT }, (err, address) => {
   if (err) {
     console.error(err);
     process.exit(1);

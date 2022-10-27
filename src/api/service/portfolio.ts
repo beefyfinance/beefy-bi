@@ -89,9 +89,9 @@ export class PortfolioService {
             coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
             p1.price as share_to_underlying_price, 
             p2.price as underlying_to_usd_price,
-            b.share_balance, 
-            b.share_balance * p1.price as underlying_balance,
-            b.share_balance * p1.price * p2.price as usd_balance
+            b.share_balance::evm_decimal_256, 
+            (b.share_balance * p1.price)::evm_decimal_256 as underlying_balance,
+            (b.share_balance * p1.price * p2.price)::evm_decimal_256 as usd_balance
           from share_balance b
             left join product p on b.product_id = p.product_id
             left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id

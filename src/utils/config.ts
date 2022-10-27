@@ -18,6 +18,8 @@ if (timezone !== "UTC") {
   throw new Error("Please set TZ=UTC in your .env file or command line");
 }
 
+export const API_PORT = parseInt(process.env.API_PORT || "8080", 10);
+
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 export const TIMESCALEDB_RO_URL = process.env.TIMESCALEDB_RO_URL || "psql://api_ro:api_ro@localhost:5432/beefy";
 export const BATCH_DB_INSERT_SIZE = 5000;
