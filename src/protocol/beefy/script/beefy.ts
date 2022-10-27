@@ -57,47 +57,50 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         repeatEvery: { choices: allSamplingPeriods, demand: false, alias: "r", describe: "repeat the task from time to time" },
       }),
     handler: (argv): Promise<any> =>
-      withPgClient(async (client) => {
-        //await db_migrate();
+      withPgClient(
+        async (client) => {
+          //await db_migrate();
 
-        logger.info("Starting import script", { argv });
+          logger.info("Starting import script", { argv });
 
-        const cmdParams: CmdParams = {
-          client,
-          task: argv.task as CmdParams["task"],
-          includeEol: argv.includeEol,
-          filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
-          filterContractAddress: argv.contractAddress || null,
-          forceCurrentBlockNumber: argv.currentBlockNumber || null,
-          repeatEvery: argv.repeatEvery || null,
-        };
-        if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
-          throw new ProgrammerError("Cannot force current block number without a chain filter");
-        }
+          const cmdParams: CmdParams = {
+            client,
+            task: argv.task as CmdParams["task"],
+            includeEol: argv.includeEol,
+            filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
+            filterContractAddress: argv.contractAddress || null,
+            forceCurrentBlockNumber: argv.currentBlockNumber || null,
+            repeatEvery: argv.repeatEvery || null,
+          };
+          if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
+            throw new ProgrammerError("Cannot force current block number without a chain filter");
+          }
 
-        const tasks = getTasksToRun(cmdParams);
+          const tasks = getTasksToRun(cmdParams);
 
-        return Promise.all(
-          tasks.map(async (task) => {
-            do {
-              const start = Date.now();
-              await task();
-              const now = Date.now();
+          return Promise.all(
+            tasks.map(async (task) => {
+              do {
+                const start = Date.now();
+                await task();
+                const now = Date.now();
 
-              logger.info({ msg: "Import task finished" });
+                logger.info({ msg: "Import task finished" });
 
-              if (cmdParams.repeatEvery !== null) {
-                const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.repeatEvery];
-                if (shouldSleepABit) {
-                  const sleepTime = samplingPeriodMs[cmdParams.repeatEvery] - (now - start);
-                  logger.info({ msg: "Sleeping after import", data: { sleepTime } });
-                  await sleep(sleepTime);
+                if (cmdParams.repeatEvery !== null) {
+                  const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.repeatEvery];
+                  if (shouldSleepABit) {
+                    const sleepTime = samplingPeriodMs[cmdParams.repeatEvery] - (now - start);
+                    logger.info({ msg: "Sleeping after import", data: { sleepTime } });
+                    await sleep(sleepTime);
+                  }
                 }
-              }
-            } while (cmdParams.repeatEvery !== null);
-          }),
-        );
-      })(),
+              } while (cmdParams.repeatEvery !== null);
+            }),
+          );
+        },
+        { readOnly: false },
+      )(),
   });
 }
 

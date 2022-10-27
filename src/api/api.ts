@@ -1,3 +1,4 @@
+import FastifyDI from "@fastify/awilix";
 import FastifyCaching, { FastifyCachingPluginOptions } from "@fastify/caching";
 import FastifyCors from "@fastify/cors";
 import FastifyEtag from "@fastify/etag";
@@ -5,18 +6,20 @@ import FastifyHelmet from "@fastify/helmet";
 import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit from "@fastify/rate-limit";
 import FastifyRedis from "@fastify/redis";
-import { FastifyPluginAsyncJsonSchemaToTs } from "@fastify/type-provider-json-schema-to-ts";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify from "fastify";
 import { TIMESCALEDB_URL } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { getRedisClient } from "../utils/shared-resources/shared-lock";
+import routes from "./route";
+import { registerDI } from "./service"; // register DI services
 
 const logger = rootLogger.child({ module: "api", component: "main" });
 const server = fastify();
 
 // register anything that connects to redis (caching mostly)
 server.register(async (instance, opts, done) => {
+  await registerDI();
   const redisClient = await getRedisClient();
   const AbstractCache: any = require("abstract-cache"); // todo: add or install types
   const abcache = AbstractCache({
@@ -40,6 +43,7 @@ server.register(async (instance, opts, done) => {
       connectionString: TIMESCALEDB_URL,
       application_name: "api",
     })
+    .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
     .register(FastifyRateLimit, {
       max: 1,
@@ -53,8 +57,9 @@ server.register(async (instance, opts, done) => {
     .register(FastifyCors)
     .register(FastifyHelmet)
     .register(FastifyEtag)
-    .register(FastifyCaching, cacheOptions);
-
+    .register(FastifyCaching, cacheOptions)
+    .register(routes, { prefix: "/api/v1" });
+  /*
   instance.get("/", (req, reply) => {
     instance.cache.set("hello", { hello: "world" }, 10000, (err) => {
       if (err) return reply.send(err);
@@ -74,7 +79,15 @@ server.register(async (instance, opts, done) => {
       reply.send(err || result.rows);
     });
   });
+  instance.get<{
+    Querystring: { address: string };
+  }>("/investor", (req, reply) => {
+    const { address } = req.query;
+    return instance.diContainer.cradle.investor.getInvestorId(address);
+  });
 
+  instance.register();
+*/
   done();
 });
 
