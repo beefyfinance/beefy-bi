@@ -8,7 +8,7 @@ import FastifyRateLimit from "@fastify/rate-limit";
 import FastifyRedis from "@fastify/redis";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify from "fastify";
-import { API_PORT, TIMESCALEDB_URL } from "../utils/config";
+import { API_LISTEN, API_PORT, TIMESCALEDB_URL } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { getRedisClient } from "../utils/shared-resources/shared-lock";
 import routes from "./route";
@@ -58,7 +58,7 @@ server.register(async (instance, opts, done) => {
   done();
 });
 
-server.listen({ port: API_PORT }, (err, address) => {
+server.listen({ port: API_PORT, host: API_LISTEN }, (err, address) => {
   if (err) {
     console.error(err);
     process.exit(1);
