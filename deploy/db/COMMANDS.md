@@ -226,4 +226,22 @@ INSERT INTO block_ts (
     where i.import_data->>'contractCreationDate' is not null
 )
 on conflict do nothing;
+
+
+create table test as
+ select  (investment_data->>'balanceDiff')::evm_decimal_256  as v from investment_balance_ts;
+
+begin;
+alter table investment_balance_ts rename column investment_data to _investment_data;
+alter table investment_balance_ts add column balance_diff NUMERIC(100, 24);
+alter table investment_balance_ts add column investment_data jsonb;
+update investment_balance_ts set investment_data = _investment_data;
+alter table investment_balance_ts alter column investment_data set not null;
+alter table investment_balance_ts drop column _investment_data;
+update investment_balance_ts set balance_diff = (investment_data->>'balanceDiff')::numeric(100,24);
+alter table investment_balance_ts alter column balance_diff set not null;
+alter table investment_balance_ts alter column balance_diff set data type evm_decimal_256;
+commit;
+
+
 ```

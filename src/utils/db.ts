@@ -308,6 +308,7 @@ export async function db_migrate() {
 
       -- the investment details
       balance evm_decimal_256 not null, -- with decimals applied
+      balance_diff evm_decimal_256 not null, -- with decimals applied, used to compute P&L
 
       -- some debug info to help us understand how we got this data
       investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc

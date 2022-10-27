@@ -14,6 +14,7 @@ export interface DbInvestment {
   productId: number;
   investorId: number;
   balance: Decimal;
+  balanceDiff: Decimal;
   investmentData: object;
 }
 
@@ -45,11 +46,13 @@ export function upsertInvestment$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPar
               product_id,
               investor_id,
               balance,
+              balance_diff,
               investment_data
           ) VALUES %L
               ON CONFLICT (product_id, investor_id, block_number, datetime) 
               DO UPDATE SET 
                 balance = EXCLUDED.balance, 
+                balance_diff = EXCLUDED.balance_diff,
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
@@ -59,6 +62,7 @@ export function upsertInvestment$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPar
             data.productId,
             data.investorId,
             data.balance.toString(),
+            data.balanceDiff.toString(),
             data.investmentData,
           ]),
         ],

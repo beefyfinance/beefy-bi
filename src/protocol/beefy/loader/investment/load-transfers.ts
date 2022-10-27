@@ -148,6 +148,7 @@ export function loadTransfers$(options: { ctx: ImportCtx<ImportRangeQuery<Transf
         investorId: item.investorId,
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
+        balanceDiff: item.target.transfer.amountTransfered,
         investmentData: {
           chain: options.ctx.rpcConfig.chain,
           balance: item.vaultSharesBalance.toString(),
