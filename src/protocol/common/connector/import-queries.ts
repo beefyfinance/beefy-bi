@@ -124,6 +124,7 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
         from: options.getFirstBlockNumber(importState),
         to: item.latestBlockNumber - waitForBlockPropagation,
       };
+
       logger.trace({ msg: "Full range", data: { fullRange, importStateKey: importState.importKey } });
 
       let ranges = [fullRange];

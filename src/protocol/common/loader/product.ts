@@ -1,4 +1,4 @@
-import { keyBy } from "lodash";
+import { keyBy, uniq } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
@@ -113,7 +113,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
             product_data as "productData"
         FROM product 
         WHERE product_id IN (%L)`,
-        [objAndData.map(({ data }) => data)],
+        [uniq(objAndData.map(({ data }) => data))],
         options.ctx.client,
       );
 
