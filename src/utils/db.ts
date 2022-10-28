@@ -383,13 +383,14 @@ export async function db_migrate() {
     CREATE OR REPLACE FUNCTION narrow_gapfilled_investor_balance(
         _time_from timestamptz, _time_to timestamptz, _interval interval,
         _investor_id integer, _product_ids integer[]
-    ) returns table (datetime timestamptz, product_id integer, balance numeric) AS 
+    ) returns table (datetime timestamptz, product_id integer, balance numeric, balance_diff numeric) AS 
     $$
         -- find out investor's investments inside the requested range
         with maybe_empty_investments_ts as (
             SELECT
                 time_bucket_gapfill(_interval, b.datetime) as datetime,
                 b.product_id,
+                sum(balance_diff) as balance_diff,
                 locf(last(b.balance::numeric, b.datetime)) as balance
             from investment_balance_ts b
             WHERE
@@ -404,7 +405,8 @@ export async function db_migrate() {
             select 
                 ts.datetime,
                 p.product_id,
-                i.balance
+                i.balance,
+                i.balance_diff
             from generate_series(time_bucket(_interval, _time_from), time_bucket(_interval, _time_to), _interval) ts(datetime)
                 cross join (select UNNEST(_product_ids)) as p(product_id)
                 left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id
@@ -414,7 +416,8 @@ export async function db_migrate() {
             select
                 time_bucket(_interval, _time_from - _interval) as datetime,
                 b.product_id,
-                last(b.balance::numeric, b.datetime) as balance
+                last(b.balance::numeric, b.datetime) as balance,
+                sum(b.balance_diff) as balance_diff
             from investment_balance_ts b
                 where b.datetime < _time_from
                 and b.investor_id = _investor_id
@@ -430,14 +433,14 @@ export async function db_migrate() {
             select 
                 b.datetime,
                 b.product_id,
-                gapfill(b.balance) over (partition by b.product_id order by b.datetime) as balance
+                gapfill(b.balance) over (partition by b.product_id order by b.datetime) as balance,
+                b.balance_diff
             from balance_with_gaps_ts b
         )
         select *
         from balance_gf_ts
     $$
     language sql;
-
 
     CREATE OR REPLACE FUNCTION narrow_gapfilled_price(
       _time_from timestamptz, _time_to timestamptz, _interval interval,
