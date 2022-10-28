@@ -17,7 +17,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 26,
-  "iteration": 1666800332915,
+  "iteration": 1666880573499,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -159,9 +159,9 @@
         "overrides": [
           { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
           { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
-          { "matcher": { "id": "byName", "options": "product_key" }, "properties": [{ "id": "custom.width", "value": null }] },
-          { "matcher": { "id": "byName", "options": "chain" }, "properties": [{ "id": "custom.width", "value": null }] },
-          { "matcher": { "id": "byName", "options": "is_eol" }, "properties": [{ "id": "custom.width", "value": null }] }
+          { "matcher": { "id": "byName", "options": "product_key" }, "properties": [{ "id": "custom.width" }] },
+          { "matcher": { "id": "byName", "options": "chain" }, "properties": [{ "id": "custom.width" }] },
+          { "matcher": { "id": "byName", "options": "is_eol" }, "properties": [{ "id": "custom.width" }] }
         ]
       },
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
@@ -190,8 +190,58 @@
       "type": "table"
     },
     {
+      "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto", "inspect": false },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "underlying_to_usd_price" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "usd_balance" }, "properties": [{ "id": "unit", "value": "currencyUSD" }] },
+          { "matcher": { "id": "byName", "options": "product_key" }, "properties": [{ "id": "custom.width" }] },
+          { "matcher": { "id": "byName", "options": "usd_diff" }, "properties": [{ "id": "custom.width" }, { "id": "unit", "value": "currencyUSD" }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
+      "id": 20,
+      "options": {
+        "footer": { "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [
+          { "desc": true, "displayName": "product_key" },
+          { "desc": true, "displayName": "datetime" }
+        ]
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with investment_diff_raw as (\n  select b.datetime, b.product_id, b.balance, b.balance_diff, last(pr1.price::numeric, pr1.datetime) as price1, last(pr2.price::numeric, pr2.datetime) as price2\n  from investment_balance_ts b\n  left join product p \n    on b.product_id = p.product_id\n  -- we should have the exact price1 (share to underlying) from this exact block for all investment change\n  left join price_ts pr1 \n    on p.price_feed_1_id = pr1.price_feed_id \n    and pr1.datetime = b.datetime \n    and pr1.block_number = b.block_number \n  -- but for price 2 (underlying to usd) we need to match on approx time\n  left join price_ts pr2 \n    on p.price_feed_2_id = pr2.price_feed_id \n    and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)\n  where b.investor_id = $_investor_id\n    and b.product_id in (select unnest(ARRAY[$_product_ids]::integer[]))\n  group by 1,2,3,4\n),\ninvestment_diff as (\n  select b.datetime,\n    case \n      when '$remove_product_key_prefixes' = 'yes' then regexp_replace(regexp_replace(p.product_key, 'beefy:', ''), p.chain || ':', '')\n      else p.product_key\n    end as product_key,\n    p.chain,\n    coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text as is_eol,\n    b.price1 as share_to_underlying_price, \n    b.price2 as underlying_to_usd_price,\n    b.balance as share_balance, \n    (b.balance * b.price1)::evm_decimal_256 as underlying_balance,\n    (b.balance * b.price1 * b.price2)::evm_decimal_256 as usd_balance,\n    b.balance_diff as share_diff, \n    (b.balance_diff * b.price1)::evm_decimal_256 as underlying_diff,\n    (b.balance_diff * b.price1 * b.price2)::evm_decimal_256 as usd_diff\n  from investment_diff_raw b\n  join product p on p.product_id = b.product_id\n)\nselect * \nfrom investment_diff\norder by product_key asc, datetime asc\n",
+          "refId": "A",
+          "select": [[{ "params": ["value"], "type": "column" }]],
+          "timeColumn": "time",
+          "where": [{ "name": "$__timeFilter", "params": [], "type": "macro" }]
+        }
+      ],
+      "title": "Investment timeline",
+      "type": "table"
+    },
+    {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
       "id": 4,
       "panels": [],
       "title": "Investor historical data",
@@ -231,7 +281,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 19 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 29 },
       "id": 6,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -285,7 +335,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 35 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 45 },
       "id": 12,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -339,7 +389,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 51 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 61 },
       "id": 2,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -359,7 +409,7 @@
       "title": "Investor USD value",
       "type": "timeseries"
     },
-    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 67 }, "id": 8, "panels": [], "title": "Vaults data", "type": "row" },
+    { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 77 }, "id": 8, "panels": [], "title": "Vaults data", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "P1A7A05C63CAD1F73" },
       "fieldConfig": {
@@ -394,7 +444,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 68 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 78 },
       "id": 5,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -448,7 +498,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 84 },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 94 },
       "id": 11,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "targets": [
@@ -490,7 +540,7 @@
         "auto": true,
         "auto_count": 30,
         "auto_min": "1m",
-        "current": { "selected": false, "text": "auto", "value": "$__auto_interval_interval" },
+        "current": { "selected": true, "text": "auto", "value": "$__auto_interval_interval" },
         "hide": 0,
         "name": "interval",
         "options": [
@@ -644,6 +694,6 @@
   "timezone": "",
   "title": "Investor Dashboard",
   "uid": "JAT_BdMVz",
-  "version": 21,
+  "version": 22,
   "weekStart": ""
 }
