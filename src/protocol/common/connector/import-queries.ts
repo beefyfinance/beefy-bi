@@ -259,6 +259,8 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
         }
         return { ...item, blockRanges };
       }),
+      // sometimes the interpolated block numbers are not accurate and the resulting ranges are invalid
+      Rx.map((item) => ({ ...item, blockRanges: item.blockRanges.filter((r) => r.from <= r.to) })),
       // filter ranges based on what was already covered
       Rx.map((item) => {
         const importState = options.getImportState(item.obj);
