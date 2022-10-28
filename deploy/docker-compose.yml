@@ -21,6 +21,7 @@ version: "3.9" # optional since v1.27.0
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
 # docker compose -f deploy/docker-compose.yml logs -f $TASK_LIST
 
+# docker compose -f deploy/docker-compose.yml up public-api -d --force-recreate
 # RUN a command
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-products-1 node ./dist/src/script/run.js db:migrate

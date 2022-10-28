@@ -28,8 +28,8 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     if (investorId === null) {
       return reply.code(404).send({ error: "Investor not found" });
     }
-    const productValues = await instance.diContainer.cradle.portfolio.getInvestorTimeline(investorId);
-    return reply.send(productValues);
+    const investorTimeline = await instance.diContainer.cradle.portfolio.getInvestorTimeline(investorId);
+    return reply.send(investorTimeline);
   });
 
   done();

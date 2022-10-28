@@ -154,7 +154,7 @@ export class PortfolioService {
             select b.datetime,
               p.product_key,
               p.chain,
-              coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text as is_eol,
+              coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
               b.price1 as share_to_underlying_price, 
               b.price2 as underlying_to_usd_price,
               b.balance as share_balance, 
