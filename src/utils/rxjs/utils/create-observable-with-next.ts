@@ -1,17 +1,49 @@
 import * as Rx from "rxjs";
+import { ProgrammerError } from "../../programmer-error";
 
-// https://stackoverflow.com/a/72442680/2523414
 export function createObservableWithNext<T>(): {
   observable: Rx.Observable<T>;
   next: (value: T) => void;
   complete: () => void;
 } {
-  const subject = new Rx.Subject<T>();
-  const observable = subject.asObservable();
+  let subscriber: null | Rx.Subscriber<T> = null;
 
-  const next = (value: T) => subject.next(value);
+  // queue actions while the subscriber is not ready
+  const actionsQueue: Array<{ what: "next"; next: T } | { what: "complete" }> = [];
+
+  const observable = new Rx.Observable<T>((s) => {
+    subscriber = s;
+
+    for (const action of actionsQueue) {
+      if (action.what === "next") {
+        s.next(action.next);
+      } else if (action.what === "complete") {
+        s.complete();
+      } else {
+        // @ts-ignore (never)
+        throw new ProgrammerError(`Unknown action ${action.what}`);
+      }
+    }
+
+    return () => {
+      subscriber = null;
+    };
+  });
+
+  const next = (value: T) => {
+    if (!subscriber) {
+      actionsQueue.push({ what: "next", next: value });
+    } else {
+      subscriber.next(value);
+    }
+  };
   const complete = () => {
-    subject.complete();
+    if (!subscriber) {
+      actionsQueue.push({ what: "complete" });
+    } else {
+      subscriber.complete();
+      subscriber = null;
+    }
   };
 
   return {

@@ -33,6 +33,7 @@ export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
       eth_blockNumber: 0,
       eth_getBlockByNumber: 0,
       eth_getLogs: 0,
+      eth_getTransactionReceipt: 0,
     },
     getQuery: options.getPPFSCallParams,
     processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.ctx.rpcConfig.chain, params),

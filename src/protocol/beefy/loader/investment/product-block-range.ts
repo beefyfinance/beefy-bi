@@ -1,15 +1,28 @@
-import { get } from "lodash";
+import Decimal from "decimal.js";
 import * as Rx from "rxjs";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
-import { ProgrammerError } from "../../../../utils/programmer-error";
-import { createObservableWithNext } from "../../../../utils/rxjs/utils/create-observable-with-next";
-import { fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
+import { Range } from "../../../../utils/range";
+import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
+import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
+import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
+import { fetchTransactionGas$ } from "../../../common/connector/transaction-gas";
+import { upsertInvestment$ } from "../../../common/loader/investment";
+import { upsertInvestor$ } from "../../../common/loader/investor";
+import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
 import { ImportCtx } from "../../../common/types/import-context";
-import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
-import { isBeefyBoostProductImportQuery, isBeefyGovVaultProductImportQuery, isBeefyStandardVaultProductImportQuery } from "../../utils/type-guard";
-import { loadTransfers$, TransferToLoad } from "./load-transfers";
+import { ImportRangeQuery } from "../../../common/types/import-query";
+import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
+import { fetchBeefyPPFS$ } from "../../connector/ppfs";
+import {
+  isBeefyBoost,
+  isBeefyBoostProductImportQuery,
+  isBeefyGovVault,
+  isBeefyGovVaultProductImportQuery,
+  isBeefyStandardVault,
+  isBeefyStandardVaultProductImportQuery,
+} from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
@@ -127,90 +140,185 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       }
     }),
 
-    // work by batches of 300 block range
-    Rx.pipe(
-      Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
-      Rx.filter((items) => items.length > 0),
-
-      Rx.tap((items) =>
-        logger.debug({
-          msg: "Importing a batch of transfers",
-          data: { count: items.length, transferLen: items.map((i) => i.transfers.length).reduce((a, b) => a + b, 0) },
-        }),
-      ),
-    ),
-
-    Rx.mergeMap((items) => {
-      const itemsTransfers = items.map((item) =>
-        item.transfers.map(
-          (transfer): ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number> => ({
-            target: {
+    executeSubPipeline$({
+      ctx: options.ctx as any,
+      getObjs: (item) =>
+        item.transfers
+          .map(
+            (transfer): TransferToLoad => ({
               transfer,
               product: item.target,
-              ignoreAddresses: item.ignoreAddresses,
-            },
-            range: item.range,
-            latest: item.latest,
+              latest: item.latest,
+              range: item.range,
+            }),
+          )
+          .filter((transfer) => {
+            const shouldIgnore = item.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(transfer.transfer.ownerAddress));
+            if (shouldIgnore) {
+              //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
+            }
+            return !shouldIgnore;
           }),
-        ),
-      );
+      pipeline: (ctx) => loadTransfers$({ ctx }),
+      formatOutput: (item, _ /* we don't care about the result */) => item,
+    }),
 
-      const {
-        observable: transferErrors$,
-        next: emitTransferErrors,
-        complete: completeTransferErrors$,
-      } = createObservableWithNext<ImportRangeQuery<TransferToLoad<DbBeefyProduct>, number>>();
+    Rx.map((item) => ({ ...item, success: true })),
+  );
+}
 
-      const transfersCtx = {
-        ...options.ctx,
-        emitErrors: emitTransferErrors,
-      };
+export type TransferToLoad<TProduct extends DbBeefyProduct = DbBeefyProduct> = {
+  transfer: ERC20Transfer;
+  product: TProduct;
+  range: Range<number>;
+  latest: number;
+};
 
-      return Rx.of(itemsTransfers.flat()).pipe(
-        Rx.mergeAll(),
+export type TransferLoadStatus = { transferCount: number; success: true };
 
-        Rx.tap((item) =>
-          logger.trace({
-            msg: "importing transfer",
-            data: { product: item.target.product.productId, blockRange: item.range, transfer: item.target },
-          }),
-        ),
+export function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> }>(options: { ctx: ImportCtx<TInput> }) {
+  const govVaultPipeline$ = Rx.pipe(
+    // fix typings
+    Rx.filter((item: TInput) => isBeefyGovVault(item.target.product)),
+    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
+    Rx.map((item) => ({ ...item, ppfs: new Decimal(1) })),
+  );
 
-        // enhance transfer and insert in database
-        loadTransfers$({ ctx: transfersCtx }),
+  const stdVaultOrBoostPipeline$ = Rx.pipe(
+    // fix typings
+    Rx.filter((item: TInput) => isBeefyStandardVault(item.target.product) || isBeefyBoost(item.target.product)),
 
-        // merge errors
-        Rx.pipe(
-          Rx.map((item) => ({ ...item, success: get(item, "success", true) })),
-          // make sure we close the errors observable when we are done
-          Rx.finalize(() => setTimeout(completeTransferErrors$)),
-          // merge the errors back in, all items here should have been successfully treated
-          Rx.mergeWith(transferErrors$.pipe(Rx.map((item) => ({ ...item, success: false })))),
-          // make sure the type is correct
-          Rx.map((item): ImportRangeResult<TransferToLoad<DbBeefyProduct>, number> => item),
-        ),
+    // fetch the ppfs
+    fetchBeefyPPFS$({
+      ctx: options.ctx,
+      getPPFSCallParams: (item) => {
+        if (isBeefyBoost(item.target.product)) {
+          const boostData = item.target.product.productData.boost;
+          return {
+            vaultAddress: boostData.staked_token_address,
+            underlyingDecimals: boostData.vault_want_decimals,
+            vaultDecimals: boostData.staked_token_decimals,
+            blockNumber: item.target.transfer.blockNumber,
+          };
+        } else {
+          const vault = item.target.product;
+          return {
+            vaultAddress: vault.productData.vault.contract_address,
+            underlyingDecimals: vault.productData.vault.want_decimals,
+            vaultDecimals: vault.productData.vault.token_decimals,
+            blockNumber: item.target.transfer.blockNumber,
+          };
+        }
+      },
+      formatOutput: (item, ppfs) => ({ ...item, ppfs }),
+    }),
+  );
 
-        // return to product representation
-        Rx.toArray(),
-        Rx.map((transfers) => {
-          logger.trace({ msg: "imported transfers", data: { itemCount: items.length, transferCount: transfers.length } });
-          return items.map((item) => {
-            // get all transfers for this product
-            const itemTransferResults = transfers.filter((t) => t.target.product.productId === item.target.productId);
-            // only a success if ALL transfer imports were successful
-            const success = itemTransferResults.every((t) => t.success);
-            return {
-              ...item,
-              success,
-            };
-          });
-        }),
-      );
-    }, options.ctx.streamConfig.workConcurrency),
+  return Rx.pipe(
+    Rx.tap((item: TInput) => logger.trace({ msg: "loading transfer", data: { chain: options.ctx.rpcConfig.chain, transferData: item } })),
 
-    Rx.mergeAll(), // flatten items
+    // ==============================
+    // fetch additional transfer data
+    // ==============================
 
-    // mark the success status
-    Rx.map((item): ImportRangeResult<DbBeefyProduct, number> => ({ ...item, success: get(item, "success", true) })),
+    // fetch the ppfs
+    Rx.connect((items$) => Rx.merge(govVaultPipeline$(items$), stdVaultOrBoostPipeline$(items$))),
+
+    // we need the balance of each owner
+    fetchERC20TokenBalance$({
+      ctx: options.ctx,
+      getQueryParams: (item) => ({
+        blockNumber: item.target.transfer.blockNumber,
+        decimals: item.target.transfer.tokenDecimals,
+        contractAddress: item.target.transfer.tokenAddress,
+        ownerAddress: item.target.transfer.ownerAddress,
+      }),
+      formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
+    }),
+
+    // we also need the date of each block
+    fetchBlockDatetime$({
+      ctx: options.ctx,
+      getBlockNumber: (t) => t.target.transfer.blockNumber,
+      formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
+    }),
+
+    // fetch the transaction cost in gas so we can calculate the gas cost of the transfer and ROI/APY better
+    fetchTransactionGas$({
+      ctx: options.ctx,
+      getQueryParams: (item) => ({
+        blockNumber: item.target.transfer.blockNumber,
+        transactionHash: item.target.transfer.transactionHash,
+      }),
+      formatOutput: (item, gas) => ({ ...item, gas }),
+    }),
+
+    // ==============================
+    // now we are ready for the insertion
+    // ==============================
+
+    // insert the investor data
+    upsertInvestor$({
+      ctx: options.ctx,
+      getInvestorData: (item) => ({
+        address: item.target.transfer.ownerAddress,
+        investorData: {},
+      }),
+      formatOutput: (item, investorId) => ({ ...item, investorId }),
+    }),
+
+    // insert ppfs as a price
+    upsertPrice$({
+      ctx: options.ctx,
+      getPriceData: (item) => ({
+        priceFeedId: item.target.product.priceFeedId1,
+        blockNumber: item.target.transfer.blockNumber,
+        price: item.ppfs,
+        datetime: item.blockDatetime,
+        priceData: {
+          chain: options.ctx.rpcConfig.chain,
+          trxHash: item.target.transfer.transactionHash,
+          sharesRate: item.ppfs.toString(),
+          productType:
+            item.target.product.productData.type === "beefy:vault"
+              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.product.productData.type,
+          query: { range: item.target.range, latest: item.target.latest, date: new Date().toISOString() },
+        },
+      }),
+      formatOutput: (item, priceRow) => ({ ...item, priceRow }),
+    }),
+
+    // insert the investment data
+    upsertInvestment$({
+      ctx: options.ctx,
+      getInvestmentData: (item) => ({
+        datetime: item.blockDatetime,
+        blockNumber: item.target.transfer.blockNumber,
+        productId: item.target.product.productId,
+        investorId: item.investorId,
+        // balance is expressed in vault shares
+        balance: item.vaultSharesBalance,
+        balanceDiff: item.target.transfer.amountTransfered,
+        investmentData: {
+          chain: options.ctx.rpcConfig.chain,
+          balance: item.vaultSharesBalance.toString(),
+          balanceDiff: item.target.transfer.amountTransfered.toString(),
+          trxHash: item.target.transfer.transactionHash,
+          sharesRate: item.ppfs.toString(),
+          productType:
+            item.target.product.productData.type === "beefy:vault"
+              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
+              : item.target.product.productData.type,
+          query: { range: item.target.range, latest: item.target.latest, date: new Date().toISOString() },
+          gas: {
+            cumulativeGasUsed: item.gas.cumulativeGasUsed.toString(),
+            effectiveGasPrice: item.gas.effectiveGasPrice.toString(),
+            gasUsed: item.gas.gasUsed.toString(),
+          },
+        },
+      }),
+      formatOutput: (item, investment) => ({ ...item, investment, result: true }),
+    }),
   );
 }

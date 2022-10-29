@@ -246,3 +246,25 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
 
   provider.send = sendButRetryOnBlockNumberCacheHit.bind(provider);
 }
+
+/**
+ * Celo RPC doesn't provide some mandatory response fields
+ * https://github.com/ethers-io/ethers.js/issues/1735#issuecomment-1016079512
+ * This is less invasive than the celo-ethers-wrapper package that is not able to handle batch requests since it also overrides the send method
+ */
+export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider) {
+  // Override certain block formatting properties that don't exist on Celo blocks
+  // Reaches into https://github.com/ethers-io/ethers.js/blob/master/packages/providers/src.ts/formatter.ts
+  const blockFormat = provider.formatter.formats.block;
+  blockFormat.gasLimit = () => ethers.BigNumber.from(0);
+  blockFormat.nonce = () => "";
+  blockFormat.difficulty = () => 0;
+
+  const blockWithTransactionsFormat = provider.formatter.formats.blockWithTransactions;
+  blockWithTransactionsFormat.gasLimit = () => ethers.BigNumber.from(0);
+  blockWithTransactionsFormat.nonce = () => "";
+  blockWithTransactionsFormat.difficulty = () => 0;
+
+  const transactionFormat = provider.formatter.formats.transaction;
+  transactionFormat.gasLimit = () => ethers.BigNumber.from(0);
+}

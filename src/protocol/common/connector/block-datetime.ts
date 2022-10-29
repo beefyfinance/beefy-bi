@@ -27,6 +27,7 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
         eth_blockNumber: 0,
         eth_getBlockByNumber: 1,
         eth_getLogs: 0,
+        eth_getTransactionReceipt: 0,
       },
       getQuery: options.getBlockNumber,
       processBatch: async (provider, params: TParams[]) => {

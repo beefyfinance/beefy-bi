@@ -23,6 +23,7 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
       eth_blockNumber: 0,
       eth_getBlockByNumber: 0,
       eth_getLogs: 0,
+      eth_getTransactionReceipt: 0,
     },
     logInfos: { msg: "Fetching ERC20 token balance", data: {} },
     formatOutput: options.formatOutput,

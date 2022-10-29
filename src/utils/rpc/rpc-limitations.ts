@@ -21,8 +21,14 @@ const disableBatchingFor = {
   "rpc.api.moonriver.moonbeam.network": true,
 };
 
-// make sure we don't hit limitations exactly
-const safetyMargin = 0.8;
+// make sure we don't hit limitations exactly, apply % margin to be safe
+const safetyMargin = {
+  eth_getLogs: 0.7,
+  eth_call: 0.8,
+  eth_getBlockByNumber: 0.7,
+  eth_blockNumber: 0.7,
+  eth_getTransactionReceipt: 0.5, // this returns a lot of data so make sure we are way below the actual limit
+};
 const maxBatchSize = 500;
 
 const findings = (() => {
@@ -31,46 +37,45 @@ const findings = (() => {
       "https://rpc.ankr.com/arbitrum": {
         eth_getLogs: 4,
         eth_call: 4,
-        eth_getBlockByNumber: 8,
-        eth_blockNumber: null,
+        eth_getBlockByNumber: 16,
+        eth_blockNumber: 8,
+        eth_getTransactionReceipt: null,
       },
     },
     aurora: {
       "https://mainnet.aurora.dev": {
-        eth_getLogs: null,
+        eth_getLogs: 8,
         eth_call: 500,
-        eth_getBlockByNumber: 64,
+        eth_getBlockByNumber: null,
         eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     avax: {
       "https://rpc.ankr.com/avalanche": {
-        eth_getLogs: null,
-        eth_call: 500,
-        eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_getLogs: 8,
+        eth_call: 16,
+        eth_getBlockByNumber: 32,
+        eth_blockNumber: 2,
+        eth_getTransactionReceipt: null,
       },
     },
     bsc: {
       "https://rpc.ankr.com/bsc": {
         eth_getLogs: 2,
-        eth_call: 500,
-        eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_call: 1,
+        eth_getBlockByNumber: null,
+        eth_blockNumber: 8,
+        eth_getTransactionReceipt: null,
       },
     },
     celo: {
-      "https://rpc.ankr.com/celo": {
-        eth_getLogs: 8,
-        eth_call: 1,
-        eth_getBlockByNumber: null,
-        eth_blockNumber: null,
-      },
       "https://celo-mainnet--rpc.datahub.figment.io": {
-        eth_getLogs: 26,
-        eth_call: 192,
+        eth_getLogs: 1,
+        eth_call: null,
         eth_getBlockByNumber: null,
-        eth_blockNumber: 500,
+        eth_blockNumber: 1,
+        eth_getTransactionReceipt: null,
       },
     },
     cronos: {
@@ -79,106 +84,115 @@ const findings = (() => {
         eth_call: 2,
         eth_getBlockByNumber: 2,
         eth_blockNumber: 2,
+        eth_getTransactionReceipt: null,
       },
     },
     emerald: {
       "https://emerald.oasis.dev": {
         eth_getLogs: 500,
-        eth_call: 1,
+        eth_call: 96,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     fantom: {
       "https://rpc.ankr.com/fantom": {
-        eth_getLogs: 8,
-        eth_call: 8,
-        eth_getBlockByNumber: 64,
-        eth_blockNumber: 4,
+        eth_getLogs: 2,
+        eth_call: 1,
+        eth_getBlockByNumber: 1,
+        eth_blockNumber: null,
+        eth_getTransactionReceipt: null,
       },
     },
     fuse: {
       "https://explorer-node.fuse.io": {
-        eth_getLogs: null,
-        eth_call: 1,
-        eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_getLogs: 4,
+        eth_call: null,
+        eth_getBlockByNumber: 32,
+        eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     harmony: {
       "https://rpc.ankr.com/harmony": {
-        eth_getLogs: 232,
-        eth_call: 500,
-        eth_getBlockByNumber: 500,
+        eth_getLogs: 16,
+        eth_call: 1,
+        eth_getBlockByNumber: 8,
         eth_blockNumber: null,
+        eth_getTransactionReceipt: null,
       },
     },
     heco: {
       "https://http-mainnet.hecochain.com": {
-        eth_getLogs: 8,
+        eth_getLogs: 28,
         eth_call: 1,
-        eth_getBlockByNumber: 500,
+        eth_getBlockByNumber: 1,
         eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     kava: {
       "https://evm.kava.io": {
         eth_getLogs: 2,
-        eth_call: 8,
-        eth_getBlockByNumber: 16,
-        eth_blockNumber: 256,
+        eth_call: 56,
+        eth_getBlockByNumber: 96,
+        eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     metis: {
       "https://andromeda.metis.io": {
-        eth_getLogs: 2,
-        eth_call: 256,
+        eth_getLogs: 8,
+        eth_call: 32,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     moonbeam: {
       "https://rpc.ankr.com/moonbeam": {
-        /*eth_getLogs: 1,
-        eth_call: 128,
-        eth_getBlockByNumber: 2,
-        eth_blockNumber: null,*/
-        eth_getLogs: null,
-        eth_call: null,
-        eth_getBlockByNumber: null,
+        eth_getLogs: 16,
+        eth_call: 172,
+        eth_getBlockByNumber: 500,
         eth_blockNumber: null,
+        eth_getTransactionReceipt: null,
       },
     },
     moonriver: {
       "https://rpc.api.moonriver.moonbeam.network": {
-        eth_getLogs: 16,
-        eth_call: 128,
+        eth_getLogs: 24,
+        eth_call: 64,
         eth_getBlockByNumber: 500,
         eth_blockNumber: 500,
+        eth_getTransactionReceipt: null,
       },
     },
     optimism: {
       "https://rpc.ankr.com/optimism": {
-        eth_getLogs: 32,
-        eth_call: 128,
+        eth_getLogs: 8,
+        eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: 500,
+        eth_blockNumber: 1,
+        eth_getTransactionReceipt: null,
       },
     },
     polygon: {
       "https://rpc.ankr.com/polygon": {
-        eth_getLogs: 12,
+        eth_getLogs: 4,
         eth_call: 500,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_blockNumber: 8,
+        eth_getTransactionReceipt: null,
       },
     },
     syscoin: {
       "https://rpc.ankr.com/syscoin": {
-        eth_getLogs: 60,
+        eth_getLogs: 64,
         eth_call: 1,
         eth_getBlockByNumber: 500,
-        eth_blockNumber: null,
+        eth_blockNumber: 2,
+        eth_getTransactionReceipt: null,
       },
     },
   };
@@ -222,7 +236,7 @@ const findings = (() => {
 
         // apply safety margin
         if (newLimit !== null && newLimit !== maxBatchSize) {
-          newLimit = Math.floor(newLimit * safetyMargin);
+          newLimit = Math.floor(newLimit * safetyMargin[method]);
           logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
 
@@ -255,6 +269,7 @@ export interface RpcLimitations {
   eth_call: number | null;
   eth_getBlockByNumber: number | null;
   eth_blockNumber: number | null;
+  eth_getTransactionReceipt: number | null;
   minDelayBetweenCalls: number | "no-limit";
 }
 

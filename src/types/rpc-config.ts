@@ -11,6 +11,6 @@ export interface RpcConfig {
   limitations: RpcLimitations;
 }
 
-export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber";
+export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber" | "eth_getTransactionReceipt";
 
-export const allRpcCallMethods: RpcCallMethod[] = ["eth_getLogs", "eth_call", "eth_getBlockByNumber", "eth_blockNumber"];
+export const allRpcCallMethods: RpcCallMethod[] = ["eth_getLogs", "eth_call", "eth_getBlockByNumber", "eth_blockNumber", "eth_getTransactionReceipt"];
