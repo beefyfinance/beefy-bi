@@ -109,7 +109,7 @@ export function executeSubPipeline$<TObj, TCtx extends ImportCtx<TObj>, TRes, TS
               }
               const targetRes = targetMap.get(target);
               if (!targetRes || !targetRes.success) {
-                logger.error({ msg: "Sub item failed", data: { item, targets, targetsByParent } });
+                logger.debug({ msg: "Sub item failed", data: { item, targets, targetsByParent } });
                 hasError = true;
               } else {
                 targetResults.set(target, targetRes.result);
