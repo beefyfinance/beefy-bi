@@ -4,7 +4,9 @@ import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
 import { rootLogger } from "./logger";
+import { isArchiveNodeNeededError } from "./rpc/archive-node-needed";
 import { removeSecretsFromRpcUrl } from "./rpc/remove-secrets-from-rpc-url";
+import { MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS } from "./rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "utils", component: "ethers" });
 
@@ -49,6 +51,43 @@ export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvide
       }
     },
   );
+}
+
+/**
+ * some RPC are in fact clusters of archive and non-archive nodes
+ * sometimes we hit a non-archive node and it fails but we can retry to hope we hit an archive node
+ */
+export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.JsonRpcProvider) {
+  logger.trace({ msg: "Monkey patching archive node RPC provider", data: { rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) } });
+  const originalSend = provider.send.bind(provider);
+
+  provider.send = async (method: string, params: any[]) => {
+    let attemptsRemaining = MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS;
+    let lastError: any;
+    while (attemptsRemaining-- > 0) {
+      try {
+        const result = await originalSend(method, params);
+        return result;
+      } catch (e) {
+        if (isArchiveNodeNeededError(e)) {
+          lastError = e;
+          logger.warn({
+            msg: "RPC archive node error on an archive node",
+            data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+          });
+          logger.warn(e);
+        } else {
+          throw e;
+        }
+      }
+    }
+    logger.error({
+      msg: "RPC archive node error after all retries, consider setting this rpc as being a non-archive node",
+      data: { error: lastError, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+    });
+    logger.error(lastError);
+    throw lastError;
+  };
 }
 
 // until this is fixed: https://github.com/ethers-io/ethers.js/issues/2749#issuecomment-1268638214

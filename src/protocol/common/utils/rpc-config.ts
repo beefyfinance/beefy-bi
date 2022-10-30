@@ -5,6 +5,7 @@ import { RpcConfig } from "../../../types/rpc-config";
 import { RPC_URLS } from "../../../utils/config";
 import {
   addDebugLogsToProvider,
+  monkeyPatchArchiveNodeRpcProvider,
   monkeyPatchCeloProvider,
   monkeyPatchEthersBatchProvider,
   monkeyPatchHarmonyLinearProvider,
@@ -38,5 +39,11 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     monkeyPatchCeloProvider(rpcConfig.linearProvider);
     monkeyPatchCeloProvider(rpcConfig.batchProvider);
   }
+
+  if (rpcConfig.limitations.isArchiveNode) {
+    monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider);
+    monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider);
+  }
+
   return rpcConfig;
 }

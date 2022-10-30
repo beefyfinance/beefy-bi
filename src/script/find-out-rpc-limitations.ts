@@ -12,8 +12,9 @@ import { CHAIN_RPC_MAX_QUERY_BLOCKS, CONFIG_DIRECTORY, MIN_DELAY_BETWEEN_RPC_CAL
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { ProgrammerError } from "../utils/programmer-error";
+import { isArchiveNodeNeededError } from "../utils/rpc/archive-node-needed";
 import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
-import { RpcLimitations } from "../utils/rpc/rpc-limitations";
+import { defaultLimitations, MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS, MAX_RPC_BATCH_SIZE, RpcLimitations } from "../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
@@ -61,17 +62,7 @@ runMain(main);
  * With this information, generate a config file we can use on execution
  **/
 async function testRpcLimits(chain: Chain, rpcUrl: string) {
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = {
-    isArchiveNode: false,
-    minDelayBetweenCalls: MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain],
-    methods: {
-      eth_getLogs: null,
-      eth_call: null,
-      eth_getBlockByNumber: null,
-      eth_blockNumber: null,
-      eth_getTransactionReceipt: null,
-    },
-  };
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = defaultLimitations;
 
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
@@ -104,18 +95,50 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   // find out if this is an archive node
   // some RPC are in fact clusters of archive and non-archive nodes
   // sometimes we hit a non-archive node and it fails but we can retry to hope we hit an archive node
-  let attempts = 30;
+  let attempts = MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS;
+  const wNativeCreationBlock: { [chain in Chain]: number } = {
+    arbitrum: 55,
+    aurora: 51919680,
+    avax: 820,
+    bsc: 149268,
+    celo: 2919,
+    cronos: 446,
+    emerald: 7881,
+    fantom: 640717,
+    fuse: 7216440,
+    harmony: 5481181,
+    heco: 404035,
+    kava: 393,
+    metis: 1400, // couldn't find the exact wtoken creation block
+    moonbeam: 171210,
+    moonriver: 413534,
+    // not sure if this is correct, explorer shows a weird block
+    // https://optimistic.etherscan.io/address/0x4200000000000000000000000000000000000006
+    // https://optimistic.etherscan.io/tx/GENESIS_4200000000000000000000000000000000000006 -> 404
+    optimism: 1,
+    polygon: 4931456,
+    syscoin: 1523,
+  };
   while (attempts-- > 0) {
     try {
-      const block = await linearProvider.getBlock(1);
-      if (block) {
+      const balance = await linearProvider.getBalance(getChainWNativeTokenAddress(chain), wNativeCreationBlock[chain] + 1);
+      if (balance) {
         findings[chain][removeSecretsFromRpcUrl(rpcUrl)].isArchiveNode = true;
         break;
       }
     } catch (e) {
-      logger.warn({ msg: "Failed to get first block", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+      if (isArchiveNodeNeededError(e)) {
+        logger.warn({ msg: "Failed to get first block", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+      } else {
+        logger.error({ msg: "Failed, this is not an archive node", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+        logger.error(e);
+        break;
+      }
     }
-    await sleep(1000);
+    const waitBeforeNextTest = MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain];
+    if (waitBeforeNextTest !== "no-limit") {
+      await sleep(waitBeforeNextTest);
+    }
   }
 
   // eth_getTransactionReceipt
@@ -212,12 +235,11 @@ async function doRpcAllowThisMuch(options: {
 }
 
 async function findTheLimit<T>(chain: Chain, saveFinding: (n: number) => void, process: (n: number) => Promise<T>) {
-  const maxBatchSize = 500;
   // work our way up to find the limit
   // this avoids overloading the rpc right away (compared to testing the max limit first and working our way down)
   let batchSize = 1;
   let lastSuccessfullBatchSize = batchSize;
-  let maxBatchSizeForThisCall = maxBatchSize;
+  let maxBatchSizeForThisCall = MAX_RPC_BATCH_SIZE;
   let infiniteLoopCounter = 1000;
   while (infiniteLoopCounter > 0) {
     infiniteLoopCounter--;

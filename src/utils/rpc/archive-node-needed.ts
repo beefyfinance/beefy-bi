@@ -1,5 +1,5 @@
-import { Chain } from "../../types/chain";
 import { get, isObjectLike, isString } from "lodash";
+import { Chain } from "../../types/chain";
 
 export class ArchiveNodeNeededError extends Error {
   constructor(public readonly chain: Chain, public readonly error: any) {
@@ -34,7 +34,7 @@ export function isErrorDueToMissingDataFromNode(error: any) {
     directRpcError &&
     isObjectLike(directRpcError) &&
     get(directRpcError, "code") === -32000 &&
-    get(directRpcError, "message")?.startsWith("missing trie node")
+    (get(directRpcError, "message")?.startsWith("missing trie node") || get(directRpcError, "message")?.startsWith("header not found"))
   ) {
     return true;
   }

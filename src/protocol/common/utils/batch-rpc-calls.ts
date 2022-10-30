@@ -130,39 +130,18 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
       const work = async () => {
         logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
 
-        let archiveNodeAttemptsRemaining = 30;
-        let lastError: Error | undefined;
-        while (archiveNodeAttemptsRemaining-- > 0) {
-          try {
-            const contractCalls = objAndCallParams.map(({ query }) => query);
-            const res = await options.processBatch(provider, contractCalls);
-            return res;
-          } catch (error) {
-            if (error instanceof ArchiveNodeNeededError) {
-              if (options.ctx.rpcConfig.limitations.isArchiveNode) {
-                lastError = error;
-                logger.trace({
-                  msg: "Archive node needed but we are already using an archive node, retrying",
-                  data: { error, archiveNodeAttemptsRemaining },
-                });
-              } else {
-                throw error;
-              }
-            } else if (isErrorDueToMissingDataFromNode(error)) {
-              if (options.ctx.rpcConfig.limitations.isArchiveNode) {
-                lastError = new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
-                logger.trace({
-                  msg: "Archive node needed but we are already using an archive node, retrying",
-                  data: { error, archiveNodeAttemptsRemaining },
-                });
-              } else {
-                throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
-              }
-            }
+        try {
+          const contractCalls = objAndCallParams.map(({ query }) => query);
+          const res = await options.processBatch(provider, contractCalls);
+          return res;
+        } catch (error) {
+          if (error instanceof ArchiveNodeNeededError) {
             throw error;
+          } else if (isErrorDueToMissingDataFromNode(error)) {
+            throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
           }
+          throw error;
         }
-        throw lastError;
       };
 
       try {

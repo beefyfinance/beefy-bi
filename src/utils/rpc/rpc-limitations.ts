@@ -30,12 +30,31 @@ const safetyMargin = {
   eth_blockNumber: 0.7,
   eth_getTransactionReceipt: 0.5, // this returns a lot of data so make sure we are way below the actual limit
 };
-const maxBatchSize = 500;
+export const MAX_RPC_BATCH_SIZE = 500;
+export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
+
+export const defaultLimitations: RpcLimitations = {
+  isArchiveNode: false,
+  minDelayBetweenCalls: 1000,
+  methods: {
+    eth_getLogs: null,
+    eth_call: null,
+    eth_getBlockByNumber: null,
+    eth_blockNumber: null,
+    eth_getTransactionReceipt: null,
+  },
+};
 
 const findings = (() => {
   const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } = JSON.parse(
     fs.readFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", "utf8"),
   );
+  // add missing chains
+  for (const chain of allChainIds) {
+    if (!rawLimitations[chain]) {
+      rawLimitations[chain] = {};
+    }
+  }
 
   for (const chain of allChainIds) {
     for (const rpcUrl of Object.keys(rawLimitations[chain])) {
@@ -75,7 +94,7 @@ const findings = (() => {
         }
 
         // apply safety margin
-        if (newLimit !== null && newLimit !== maxBatchSize) {
+        if (newLimit !== null && newLimit !== MAX_RPC_BATCH_SIZE) {
           newLimit = Math.floor(newLimit * safetyMargin[method]);
           logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
@@ -124,5 +143,6 @@ export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations 
       return content;
     }
   }
-  throw new ProgrammerError({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
+  logger.error({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
+  return defaultLimitations;
 }
