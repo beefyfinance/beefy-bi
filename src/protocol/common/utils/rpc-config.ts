@@ -9,6 +9,7 @@ import {
   monkeyPatchCeloProvider,
   monkeyPatchEthersBatchProvider,
   monkeyPatchHarmonyLinearProvider,
+  monkeyPatchHarmonyReceiptFormat,
   monkeyPatchMoonbeamLinearProvider,
   monkeyPatchOptimismReceiptFormat,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
@@ -33,6 +34,8 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
 
   if (chain === "harmony") {
     monkeyPatchHarmonyLinearProvider(rpcConfig.linearProvider);
+    monkeyPatchHarmonyReceiptFormat(rpcConfig.linearProvider);
+    monkeyPatchHarmonyReceiptFormat(rpcConfig.batchProvider);
   }
   if (chain === "moonbeam") {
     monkeyPatchMoonbeamLinearProvider(rpcConfig.linearProvider);

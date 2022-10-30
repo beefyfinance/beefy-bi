@@ -308,7 +308,7 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
 }
 
 /**
- * Optimism fee structure is different from other chains
+ * Optimism gas structure is different from other chains
  */
 export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
   // Override certain receipt formatting properties that only exist on Optimism
@@ -320,6 +320,14 @@ export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.Json
   receiptFormat.l1FeeScalar = bigNumberFormatter;
   receiptFormat.l1GasPrice = bigNumberFormatter;
   receiptFormat.l1GasUsed = bigNumberFormatter;
+}
+
+/**
+ * Harmony gas structure is different from other chains
+ */
+export function monkeyPatchHarmonyReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
+  const receiptFormat = provider.formatter.formats.receipt;
+  receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0);
 }
 
 /**

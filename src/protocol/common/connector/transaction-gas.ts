@@ -53,7 +53,7 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
           chain,
           transactionHash: transactionHash,
           cumulativeGasUsed: new Decimal(receipt.cumulativeGasUsed.toString()),
-          effectiveGasPrice: new Decimal(receipt.effectiveGasPrice?.toString()), // not provided by all chains
+          effectiveGasPrice: new Decimal(receipt.effectiveGasPrice.toString()),
           gasUsed: new Decimal(receipt.gasUsed.toString()),
         };
 
