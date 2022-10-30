@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { get, set } from "lodash";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ImportCtx } from "../types/import-context";
@@ -14,6 +15,11 @@ export interface TransactionGas {
   effectiveGasPrice: Decimal;
   cumulativeGasUsed: Decimal;
   gasUsed: Decimal;
+
+  l1Fee?: Decimal;
+  l1FeeScalar?: Decimal;
+  l1GasPrice?: Decimal;
+  l1GasUsed?: Decimal;
 }
 
 interface GetTransactionGasCallParams {
@@ -37,18 +43,32 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
     logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.rpcConfig.chain } },
     getQuery: options.getQueryParams,
     processBatch: async (provider, params: GetTransactionGasCallParams[]) => {
-      const promises = params.map(async (param) => {
-        const receipt = await provider.getTransactionReceipt(param.transactionHash);
-        const gasStats: TransactionGas = {
-          chain: options.ctx.rpcConfig.chain,
-          transactionHash: param.transactionHash,
+      const transactionHashes = params.map((p) => p.transactionHash);
+
+      // it is probable we get multiple call for the same transaction hash
+      const resultByHashPromises = transactionHashes.map(async (transactionHash) => {
+        const receipt = await provider.getTransactionReceipt(transactionHash);
+        const chain = options.ctx.rpcConfig.chain;
+        let gasStats: TransactionGas = {
+          chain,
+          transactionHash: transactionHash,
           cumulativeGasUsed: new Decimal(receipt.cumulativeGasUsed.toString()),
           effectiveGasPrice: new Decimal(receipt.effectiveGasPrice.toString()),
           gasUsed: new Decimal(receipt.gasUsed.toString()),
         };
-        return [param, gasStats] as const;
+
+        if (chain === "optimism") {
+          gasStats.l1Fee = new Decimal(get(receipt, "l1Fee", "0"));
+          gasStats.l1FeeScalar = new Decimal(get(receipt, "l1FeeScalar", "0"));
+          gasStats.l1GasPrice = new Decimal(get(receipt, "l1GasPrice", "0"));
+          gasStats.l1GasUsed = new Decimal(get(receipt, "l1GasUsed", "0"));
+        }
+
+        return [transactionHash, gasStats] as const;
       });
-      return new Map(await Promise.all(promises));
+      const resultByHash = new Map(await Promise.all(resultByHashPromises));
+
+      return new Map(params.map((param) => [param, resultByHash.get(param.transactionHash)!]));
     },
     formatOutput: options.formatOutput,
   });

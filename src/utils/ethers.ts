@@ -247,7 +247,7 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
   class ShouldRetryException extends Error {}
 
   async function sendButRetryOnBlockNumberCacheHit(this: ethers.providers.JsonRpcProvider, method: string, params: Array<any>): Promise<any> {
-    if (method !== "eth_getBlockByNumber") {
+    if (method !== "eth_getBlockByNumber" && method !== "eth_getTransactionReceipt") {
       return originalSend(method, params);
     }
 
@@ -257,8 +257,8 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
           const result = await originalSend(method, params);
 
           if (result === null) {
-            logger.trace({ msg: "Got null result from eth_getBlockByNumber", data: { chain: "moonbeam", params } });
-            throw new ShouldRetryException("Got null result from eth_getBlockByNumber");
+            logger.trace({ msg: "Got null result from method", data: { chain: "moonbeam", params, method } });
+            throw new ShouldRetryException("Got null result from " + method);
           }
           return result;
         },
@@ -281,14 +281,6 @@ export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.Jso
 
     return result;
   }
-
-  // override the id property so it's always 1 to maximize cache hits
-  /*Object.defineProperty(provider, "_nextId", {
-    get: () => 1,
-    set: () => {},
-    enumerable: false,
-    configurable: false,
-  });*/
 
   provider.send = sendButRetryOnBlockNumberCacheHit.bind(provider);
 }
@@ -313,6 +305,19 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
 
   const transactionFormat = provider.formatter.formats.transaction;
   transactionFormat.gasLimit = () => ethers.BigNumber.from(0);
+}
+
+/**
+ * Optimism fee structure is different from other chains
+ */
+export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
+  // Override certain receipt formatting properties that only exist on Optimism
+  const receiptFormat = provider.formatter.formats.receipt;
+  receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0);
+  receiptFormat.l1Fee = provider.formatter.bigNumber;
+  receiptFormat.l1FeeScalar = provider.formatter.bigNumber;
+  receiptFormat.l1GasPrice = provider.formatter.bigNumber;
+  receiptFormat.l1GasUsed = provider.formatter.bigNumber;
 }
 
 /**

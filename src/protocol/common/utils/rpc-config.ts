@@ -10,6 +10,7 @@ import {
   monkeyPatchEthersBatchProvider,
   monkeyPatchHarmonyLinearProvider,
   monkeyPatchMoonbeamLinearProvider,
+  monkeyPatchOptimismReceiptFormat,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
 } from "../../../utils/ethers";
 import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
@@ -39,6 +40,10 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
   if (chain === "celo") {
     monkeyPatchCeloProvider(rpcConfig.linearProvider);
     monkeyPatchCeloProvider(rpcConfig.batchProvider);
+  }
+  if (chain === "optimism") {
+    monkeyPatchOptimismReceiptFormat(rpcConfig.linearProvider);
+    monkeyPatchOptimismReceiptFormat(rpcConfig.batchProvider);
   }
 
   const retryDelay = rpcConfig.limitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.limitations.minDelayBetweenCalls;
