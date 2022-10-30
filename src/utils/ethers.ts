@@ -312,10 +312,10 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
  */
 export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
   // Override certain receipt formatting properties that only exist on Optimism
-  const receiptFormat = provider.formatter.formats.receipt;
-  receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0);
-
   const bigNumberFormatter = ethers.providers.Formatter.allowNull(provider.formatter.bigNumber, null);
+
+  const receiptFormat = provider.formatter.formats.receipt;
+  receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0); // effective gas price is not provided by Optimism rpc
   receiptFormat.l1Fee = bigNumberFormatter;
   receiptFormat.l1FeeScalar = bigNumberFormatter;
   receiptFormat.l1GasPrice = bigNumberFormatter;
