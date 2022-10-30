@@ -1,0 +1,236 @@
+{
+  "arbitrum": {
+    "https://rpc.ankr.com/arbitrum": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": 6,
+        "eth_getBlockByNumber": 12,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 8
+      }
+    }
+  },
+  "aurora": {
+    "https://mainnet.aurora.dev": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 16,
+        "eth_call": 6,
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "avax": {
+    "https://rpc.ankr.com/avalanche": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 4,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "bsc": {
+    "https://rpc.ankr.com/bsc": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 378,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": null
+      }
+    }
+  },
+  "celo": {
+    "https://celo-mainnet--rpc.datahub.figment.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 64,
+        "eth_call": 64,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 24
+      }
+    }
+  },
+  "cronos": {
+    "https://evm-cronos.crypto.org": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 2,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 2
+      }
+    }
+  },
+  "emerald": {
+    "https://emerald.oasis.dev": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 500,
+        "eth_call": 8,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "fantom": {
+    "https://rpc.ankr.com/fantom": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 8,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "fuse": {
+    "https://explorer-node.fuse.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": null,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "harmony": {
+    "https://rpc.ankr.com/harmony": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 324,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 8,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": null
+      }
+    }
+  },
+  "heco": {
+    "https://http-mainnet.hecochain.com": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 48,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "kava": {
+    "https://evm.kava.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 12,
+        "eth_call": 16,
+        "eth_getBlockByNumber": 176,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 2
+      }
+    }
+  },
+  "metis": {
+    "https://andromeda.metis.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 80,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "moonbeam": {
+    "https://rpc.ankr.com/moonbeam": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 64,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 8,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": null
+      }
+    }
+  },
+  "moonriver": {
+    "https://rpc.api.moonriver.moonbeam.network": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 56,
+        "eth_call": 439,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "optimism": {
+    "https://rpc.ankr.com/optimism": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 56,
+        "eth_call": 128,
+        "eth_getBlockByNumber": 32,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "polygon": {
+    "https://rpc.ankr.com/polygon": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 128,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "syscoin": {
+    "https://rpc.ankr.com/syscoin": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "methods": {
+        "eth_getLogs": 32,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  }
+}

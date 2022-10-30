@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import * as fs from "fs";
 import { sample } from "lodash";
 import yargs from "yargs";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
@@ -7,19 +8,18 @@ import { allChainIds, Chain } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { sleep } from "../utils/async";
-import { CHAIN_RPC_MAX_QUERY_BLOCKS, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_URLS } from "../utils/config";
+import { CHAIN_RPC_MAX_QUERY_BLOCKS, CONFIG_DIRECTORY, MIN_DELAY_BETWEEN_RPC_CALLS_MS, RPC_URLS } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { ProgrammerError } from "../utils/programmer-error";
 import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
+import { RpcLimitations } from "../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
 
 const findings = {} as {
   [chain in Chain]: {
-    [rpcUrl: string]: {
-      [call in RpcCallMethod]: number | null;
-    };
+    [rpcUrl: string]: RpcLimitations;
   };
 };
 
@@ -62,11 +62,15 @@ runMain(main);
  **/
 async function testRpcLimits(chain: Chain, rpcUrl: string) {
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = {
-    eth_getLogs: null,
-    eth_call: null,
-    eth_getBlockByNumber: null,
-    eth_blockNumber: null,
-    eth_getTransactionReceipt: null,
+    isArchiveNode: false,
+    minDelayBetweenCalls: MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain],
+    methods: {
+      eth_getLogs: null,
+      eth_call: null,
+      eth_getBlockByNumber: null,
+      eth_blockNumber: null,
+      eth_getTransactionReceipt: null,
+    },
   };
 
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
@@ -90,11 +94,29 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
   );
 
   const createSaveFinding = (key: RpcCallMethod) => (n: number) => {
-    if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] || 0) < n) {
-      findings[chain][removeSecretsFromRpcUrl(rpcUrl)][key] = n;
+    if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)].methods[key] || 0) < n) {
+      findings[chain][removeSecretsFromRpcUrl(rpcUrl)].methods[key] = n;
+      fs.writeFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", JSON.stringify(findings, null, 2));
       logger.debug({ msg: "Updated findings", data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: key, newValue: n } });
     }
   };
+
+  // find out if this is an archive node
+  // some RPC are in fact clusters of archive and non-archive nodes
+  // sometimes we hit a non-archive node and it fails but we can retry to hope we hit an archive node
+  let attempts = 30;
+  while (attempts-- > 0) {
+    try {
+      const block = await linearProvider.getBlock(1);
+      if (block) {
+        findings[chain][removeSecretsFromRpcUrl(rpcUrl)].isArchiveNode = true;
+        break;
+      }
+    } catch (e) {
+      logger.warn({ msg: "Failed to get first block", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+    }
+    await sleep(1000);
+  }
 
   // eth_getTransactionReceipt
   logger.info({ msg: "testing eth_getTransactionReceipt", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
@@ -159,6 +181,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string) {
     return Promise.all(promises);
   });
 
+  fs.writeFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", JSON.stringify(findings, null, 2));
   logger.info({
     msg: "Testing done for rpc",
     data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] },

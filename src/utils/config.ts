@@ -232,6 +232,8 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   syscoin: _getDelayFromEnv("syscoin"),
 };
 
+export const CONFIG_DIRECTORY = process.env.DATA_DIRECTORY || path.join(__dirname, "..", "..", "data", "config");
+
 export const DATA_DIRECTORY = process.env.DATA_DIRECTORY || path.join(__dirname, "..", "..", "data", "indexed-data");
 
 export const GIT_WORK_DIRECTORY = process.env.GIT_WORK_DIRECTORY || path.join(__dirname, "..", "..", "data", "git-work");

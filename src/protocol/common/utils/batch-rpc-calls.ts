@@ -3,7 +3,6 @@ import { ethers } from "ethers";
 import { backOff } from "exponential-backoff";
 import * as Rx from "rxjs";
 import { RpcCallMethod } from "../../../types/rpc-config";
-import { MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
@@ -63,7 +62,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs });
 
   // get the rpc provider maximum batch size
-  const methodLimitations = options.ctx.rpcConfig.limitations;
+  const methodLimitations = options.ctx.rpcConfig.limitations.methods;
 
   // find out the max number of objects to process in a batch
   let canUseBatchProvider = true;
@@ -91,7 +90,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
 
   if (!canUseBatchProvider) {
     // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
-    if (MIN_DELAY_BETWEEN_RPC_CALLS_MS[options.ctx.rpcConfig.chain] === "no-limit") {
+    if (options.ctx.rpcConfig.limitations.minDelayBetweenCalls === "no-limit") {
       const newMax = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake / 10));
       logger.trace(
         mergeLogsInfos(
@@ -131,18 +130,39 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
       const work = async () => {
         logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
 
-        try {
-          const contractCalls = objAndCallParams.map(({ query }) => query);
-          const res = await options.processBatch(provider, contractCalls);
-          return res;
-        } catch (error) {
-          if (error instanceof ArchiveNodeNeededError) {
+        let archiveNodeAttemptsRemaining = 30;
+        let lastError: Error | undefined;
+        while (archiveNodeAttemptsRemaining-- > 0) {
+          try {
+            const contractCalls = objAndCallParams.map(({ query }) => query);
+            const res = await options.processBatch(provider, contractCalls);
+            return res;
+          } catch (error) {
+            if (error instanceof ArchiveNodeNeededError) {
+              if (options.ctx.rpcConfig.limitations.isArchiveNode) {
+                lastError = error;
+                logger.trace({
+                  msg: "Archive node needed but we are already using an archive node, retrying",
+                  data: { error, archiveNodeAttemptsRemaining },
+                });
+              } else {
+                throw error;
+              }
+            } else if (isErrorDueToMissingDataFromNode(error)) {
+              if (options.ctx.rpcConfig.limitations.isArchiveNode) {
+                lastError = new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
+                logger.trace({
+                  msg: "Archive node needed but we are already using an archive node, retrying",
+                  data: { error, archiveNodeAttemptsRemaining },
+                });
+              } else {
+                throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
+              }
+            }
             throw error;
-          } else if (isErrorDueToMissingDataFromNode(error)) {
-            throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
           }
-          throw error;
         }
+        throw lastError;
       };
 
       try {

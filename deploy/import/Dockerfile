@@ -42,6 +42,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY ./src ./src
 COPY ./data/interfaces ./data/interfaces
+COPY ./data/config ./data/config
 RUN npm run build
 
 
