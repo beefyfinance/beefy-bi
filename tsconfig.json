@@ -11,5 +11,5 @@
     "sourceMap": true,
     "noImplicitAny": true
   },
-  "include": ["./src/main.ts", "./data/interfaces/**/*.json"]
+  "include": ["./src/main.ts", "./data/interfaces/**/*.json", "./data/config/**/*.json"]
 }
