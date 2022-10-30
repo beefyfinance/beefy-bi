@@ -58,10 +58,10 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
         };
 
         if (chain === "optimism") {
-          gasStats.l1Fee = new Decimal(get(receipt, "l1Fee", "0"));
-          gasStats.l1FeeScalar = new Decimal(get(receipt, "l1FeeScalar", "0"));
-          gasStats.l1GasPrice = new Decimal(get(receipt, "l1GasPrice", "0"));
-          gasStats.l1GasUsed = new Decimal(get(receipt, "l1GasUsed", "0"));
+          gasStats.l1Fee = new Decimal(get(receipt, "l1Fee")?.toString() || "0");
+          gasStats.l1FeeScalar = new Decimal(get(receipt, "l1FeeScalar")?.toString() || "0");
+          gasStats.l1GasPrice = new Decimal(get(receipt, "l1GasPrice")?.toString() || "0");
+          gasStats.l1GasUsed = new Decimal(get(receipt, "l1GasUsed")?.toString() || "0");
         }
 
         return [transactionHash, gasStats] as const;

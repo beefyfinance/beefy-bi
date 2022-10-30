@@ -314,10 +314,12 @@ export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.Json
   // Override certain receipt formatting properties that only exist on Optimism
   const receiptFormat = provider.formatter.formats.receipt;
   receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0);
-  receiptFormat.l1Fee = provider.formatter.bigNumber;
-  receiptFormat.l1FeeScalar = provider.formatter.bigNumber;
-  receiptFormat.l1GasPrice = provider.formatter.bigNumber;
-  receiptFormat.l1GasUsed = provider.formatter.bigNumber;
+
+  const bigNumberFormatter = ethers.providers.Formatter.allowNull(provider.formatter.bigNumber, null);
+  receiptFormat.l1Fee = bigNumberFormatter;
+  receiptFormat.l1FeeScalar = bigNumberFormatter;
+  receiptFormat.l1GasPrice = bigNumberFormatter;
+  receiptFormat.l1GasUsed = bigNumberFormatter;
 }
 
 /**
