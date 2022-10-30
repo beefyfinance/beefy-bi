@@ -3,6 +3,8 @@ import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
+import { get } from "lodash";
+import { sleep } from "./async";
 import { rootLogger } from "./logger";
 import { isArchiveNodeNeededError } from "./rpc/archive-node-needed";
 import { removeSecretsFromRpcUrl } from "./rpc/remove-secrets-from-rpc-url";
@@ -57,11 +59,15 @@ export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvide
  * some RPC are in fact clusters of archive and non-archive nodes
  * sometimes we hit a non-archive node and it fails but we can retry to hope we hit an archive node
  */
-export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.JsonRpcProvider) {
+export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
   logger.trace({ msg: "Monkey patching archive node RPC provider", data: { rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) } });
   const originalSend = provider.send.bind(provider);
 
   provider.send = async (method: string, params: any[]) => {
+    if (get(provider, "__disableRetryArchiveNodeErrors", false)) {
+      return originalSend(method, params);
+    }
+
     let attemptsRemaining = MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS;
     let lastError: any;
     while (attemptsRemaining-- > 0) {
@@ -76,6 +82,7 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
             data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
           });
           logger.warn(e);
+          await sleep(retryDelay);
         } else {
           throw e;
         }
@@ -306,4 +313,37 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
 
   const transactionFormat = provider.formatter.formats.transaction;
   transactionFormat.gasLimit = () => ethers.BigNumber.from(0);
+}
+
+/**
+ * Sometimes we are getting an "underlying network changed" error
+ * most likely some disconnect on the RPC side
+ * we just retry the request
+ */
+export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+  const originalSend = provider.send.bind(provider);
+  let attemptsRemaining = 10;
+  let lastError: Error | undefined = undefined;
+  provider.send = async function send(method: string, params: Array<any>): Promise<any> {
+    try {
+      const result = await originalSend(method, params);
+      return result;
+    } catch (error: any) {
+      if (get(error, "message", "").includes("underlying network changed")) {
+        lastError = error;
+        logger.warn({
+          msg: "Got underlying network changed error, retrying",
+          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+        });
+        await sleep(retryDelay);
+      } else {
+        throw error;
+      }
+    }
+    logger.error({
+      msg: "Got underlying network changed error, but no more attempts remaining",
+      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+    });
+    throw lastError;
+  };
 }

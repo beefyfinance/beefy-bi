@@ -1,10 +1,9 @@
 import * as fs from "fs";
 import { cloneDeep } from "lodash";
 import { allChainIds, Chain } from "../../types/chain";
-import { allRpcCallMethods, RpcCallMethod } from "../../types/rpc-config";
+import { allRpcCallMethods } from "../../types/rpc-config";
 import { CONFIG_DIRECTORY, MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../config";
 import { rootLogger } from "../logger";
-import { ProgrammerError } from "../programmer-error";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
@@ -144,5 +143,5 @@ export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations 
     }
   }
   logger.error({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
-  return defaultLimitations;
+  return cloneDeep(defaultLimitations);
 }

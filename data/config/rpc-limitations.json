@@ -4,11 +4,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": 4,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -17,11 +17,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": null,
+        "eth_call": null,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 2
       }
     }
   },
@@ -30,10 +30,10 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 4,
+        "eth_call": 286,
         "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
+        "eth_blockNumber": 16,
         "eth_getTransactionReceipt": 500
       }
     }
@@ -43,11 +43,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": null,
+        "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 20
       }
     }
   },
@@ -56,11 +56,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 2
       }
     }
   },
@@ -69,11 +69,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": 1,
+        "eth_call": null,
+        "eth_getBlockByNumber": null,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 2
       }
     }
   },
@@ -82,11 +82,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 10,
+        "eth_call": 128,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -95,11 +95,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
+        "eth_getLogs": 2,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 1,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 317
       }
     }
   },
@@ -108,11 +108,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 4,
+        "eth_call": 378,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 64
       }
     }
   },
@@ -121,37 +121,37 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 96,
+        "eth_call": 317,
         "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 256
       }
     }
   },
   "heco": {
     "https://http-mainnet.hecochain.com": {
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 28,
+        "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 378
       }
     }
   },
   "kava": {
     "https://evm.kava.io": {
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": 2,
+        "eth_call": 32,
+        "eth_getBlockByNumber": 64,
+        "eth_blockNumber": 32,
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -160,11 +160,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 8,
+        "eth_call": 256,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 64
       }
     }
   },
@@ -173,11 +173,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": 16,
+        "eth_call": 14,
+        "eth_getBlockByNumber": null,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -186,11 +186,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 20,
+        "eth_call": 128,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 64
       }
     }
   },
@@ -199,11 +199,11 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
+        "eth_getLogs": 40,
         "eth_call": 500,
         "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 160
       }
     }
   },
@@ -212,24 +212,24 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
+        "eth_getLogs": 10,
         "eth_call": 500,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 378
       }
     }
   },
   "syscoin": {
     "https://rpc.ankr.com/syscoin": {
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 92,
-        "eth_call": 500,
+        "eth_getLogs": 32,
+        "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": null
       }
     }
   }

@@ -10,6 +10,7 @@ import {
   monkeyPatchEthersBatchProvider,
   monkeyPatchHarmonyLinearProvider,
   monkeyPatchMoonbeamLinearProvider,
+  monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
 } from "../../../utils/ethers";
 import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
@@ -40,10 +41,14 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     monkeyPatchCeloProvider(rpcConfig.batchProvider);
   }
 
+  const retryDelay = rpcConfig.limitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.limitations.minDelayBetweenCalls;
   if (rpcConfig.limitations.isArchiveNode) {
-    monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider);
-    monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider);
+    monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider, retryDelay);
+    monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider, retryDelay);
   }
+
+  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(rpcConfig.linearProvider, retryDelay);
+  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(rpcConfig.batchProvider, retryDelay);
 
   return rpcConfig;
 }
