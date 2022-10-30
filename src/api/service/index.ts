@@ -5,7 +5,9 @@ import { getRedisClient } from "../../utils/shared-resources/shared-lock";
 import { AsyncCache } from "./cache";
 import { InvestorService } from "./investor";
 import { PortfolioService } from "./portfolio";
+import { PriceService } from "./price";
 import { ProductService } from "./product";
+
 const AbstractCache: any = require("abstract-cache"); // todo: add or install types
 
 declare module "@fastify/awilix" {
@@ -14,6 +16,7 @@ declare module "@fastify/awilix" {
     investor: InvestorService;
     portfolio: PortfolioService;
     product: ProductService;
+    price: PriceService;
     cache: AsyncCache;
   }
 }

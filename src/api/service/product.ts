@@ -27,7 +27,19 @@ export class ProductService {
     const cacheKey = `api:product-service:product:${productKey}`;
     const ttl = 1000 * 60 * 60 * 24 * 7; // 1 week
     return this.services.cache.wrap(cacheKey, ttl, async () =>
-      db_query_one<DbProduct>(`SELECT product_id, chain, product_data FROM product where product_key = %L`, [productKey], this.services.db),
+      db_query_one<DbProduct>(
+        `SELECT 
+          product_id as "productId", 
+          product_key as "productKey", 
+          price_feed_1_id as "priceFeedId1", 
+          price_feed_2_id as "priceFeedId2", 
+          chain, 
+          product_data as "productData" 
+        FROM product 
+        where product_key = %L`,
+        [productKey],
+        this.services.db,
+      ),
     );
   }
 }
