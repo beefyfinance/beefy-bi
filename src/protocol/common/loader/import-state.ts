@@ -1,9 +1,11 @@
+import { backOff } from "exponential-backoff";
 import { cloneDeep, groupBy, keyBy, uniq } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { ConnectionTimeoutError, sleep } from "../../../utils/async";
 import { db_query, db_transaction } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { ImportRangeResult } from "../types/import-query";
@@ -202,56 +204,87 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 
     // update multiple import states at once
     Rx.mergeMap(async (items) => {
+      const logInfos: LogInfos = {
+        msg: "import-state update transaction",
+        data: { importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
+      };
       // we start a transaction as we need to do a select FOR UPDATE
-      const newImportStates = await db_transaction(
-        async (client) => {
-          const dbImportStates = await db_query<TImport>(
-            `SELECT import_key as "importKey", import_data as "importData"
+      const work = () =>
+        db_transaction(
+          async (client) => {
+            const dbImportStates = await db_query<TImport>(
+              `SELECT import_key as "importKey", import_data as "importData"
             FROM import_state
             WHERE import_key in (%L)
             FOR UPDATE`,
-            [uniq(items.map((item) => options.getImportStateKey(item)))],
-            client,
-          );
+              [uniq(items.map((item) => options.getImportStateKey(item)))],
+              client,
+            );
 
-          const dbImportStateMap = keyBy(
-            dbImportStates.map((i) => {
-              hydrateImportStateRangesFromDb(i);
-              return i;
-            }),
-            "importKey",
-          );
-          const inputItemsByImportStateKey = groupBy(items, (item) => options.getImportStateKey(item));
-          const newImportStates = Object.entries(inputItemsByImportStateKey).map(([importKey, sameKeyInputItems]) => {
-            const dbImportState = dbImportStateMap[importKey];
-            if (!dbImportState) {
-              throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
+            const dbImportStateMap = keyBy(
+              dbImportStates.map((i) => {
+                hydrateImportStateRangesFromDb(i);
+                return i;
+              }),
+              "importKey",
+            );
+            const inputItemsByImportStateKey = groupBy(items, (item) => options.getImportStateKey(item));
+            const newImportStates = Object.entries(inputItemsByImportStateKey).map(([importKey, sameKeyInputItems]) => {
+              const dbImportState = dbImportStateMap[importKey];
+              if (!dbImportState) {
+                throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
+              }
+              return mergeImportState(sameKeyInputItems, dbImportState);
+            });
+
+            logger.trace({ msg: "updateImportState$ (merged)", data: newImportStates });
+            await Promise.all(
+              newImportStates.map((data) =>
+                db_query(`UPDATE import_state SET import_data = %L WHERE import_key = %L`, [data.importData, data.importKey], client),
+              ),
+            );
+
+            logger.trace({ msg: "updateImportState$ (merged) done", data: newImportStates });
+
+            return newImportStates;
+          },
+          { logInfos },
+        );
+
+      try {
+        const newImportStates = await backOff(() => work(), {
+          delayFirstAttempt: false,
+          startingDelay: 500,
+          timeMultiple: 5,
+          maxDelay: 1_000,
+          numOfAttempts: 10,
+          jitter: "full",
+          retry: (error) => {
+            if (error instanceof ConnectionTimeoutError) {
+              logger.error(mergeLogsInfos({ msg: "Connection timeout error, will retry", data: { error } }, logInfos));
+              return true;
             }
-            return mergeImportState(sameKeyInputItems, dbImportState);
-          });
+            return false;
+          },
+        });
 
-          logger.trace({ msg: "updateImportState$ (merged)", data: newImportStates });
-          await Promise.all(
-            newImportStates.map((data) =>
-              db_query(`UPDATE import_state SET import_data = %L WHERE import_key = %L`, [data.importData, data.importKey], client),
-            ),
-          );
+        const resultMap = keyBy(newImportStates, "importKey");
 
-          return newImportStates;
-        },
-        { logInfos: { msg: "import-state update transaction", data: { importKeys: uniq(items.map((item) => options.getImportStateKey(item))) } } },
-      );
-
-      const resultMap = keyBy(newImportStates, "importKey");
-
-      return items.map((item) => {
-        const importKey = options.getImportStateKey(item);
-        const importState = resultMap[importKey] ?? null;
-        if (!importState) {
-          throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
+        return items.map((item) => {
+          const importKey = options.getImportStateKey(item);
+          const importState = resultMap[importKey] ?? null;
+          if (!importState) {
+            throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
+          }
+          return options.formatOutput(item, importState);
+        });
+      } catch (error) {
+        if (error instanceof ConnectionTimeoutError) {
+          logger.error(mergeLogsInfos({ msg: "Connection timeout error, will not retry, import state not updated", data: { error } }, logInfos));
+          return [];
         }
-        return options.formatOutput(item, importState);
-      });
+        throw error;
+      }
     }, options.streamConfig.workConcurrency),
 
     // flatten the items

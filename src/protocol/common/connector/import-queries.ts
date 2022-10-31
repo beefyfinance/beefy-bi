@@ -1,9 +1,9 @@
 import { backOff } from "exponential-backoff";
-import { max, mean, min, minBy, sortBy } from "lodash";
+import { max, min } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
-import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
+import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import {
   BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
   CHAIN_RPC_MAX_QUERY_BLOCKS,
