@@ -69,4 +69,4 @@ async function main(client: PoolClient) {
   console.dir(rangeMerge(ranges), { depth: null });
 }
 
-runMain(withPgClient(main, { readOnly: false }));
+runMain(withPgClient(main, { readOnly: false, logInfos: { msg: "test" } }));

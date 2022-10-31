@@ -203,41 +203,44 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
     // update multiple import states at once
     Rx.mergeMap(async (items) => {
       // we start a transaction as we need to do a select FOR UPDATE
-      const newImportStates = await db_transaction(async (client) => {
-        const dbImportStates = await db_query<TImport>(
-          `SELECT import_key as "importKey", import_data as "importData"
+      const newImportStates = await db_transaction(
+        async (client) => {
+          const dbImportStates = await db_query<TImport>(
+            `SELECT import_key as "importKey", import_data as "importData"
             FROM import_state
             WHERE import_key in (%L)
             FOR UPDATE`,
-          [uniq(items.map((item) => options.getImportStateKey(item)))],
-          client,
-        );
+            [uniq(items.map((item) => options.getImportStateKey(item)))],
+            client,
+          );
 
-        const dbImportStateMap = keyBy(
-          dbImportStates.map((i) => {
-            hydrateImportStateRangesFromDb(i);
-            return i;
-          }),
-          "importKey",
-        );
-        const inputItemsByImportStateKey = groupBy(items, (item) => options.getImportStateKey(item));
-        const newImportStates = Object.entries(inputItemsByImportStateKey).map(([importKey, sameKeyInputItems]) => {
-          const dbImportState = dbImportStateMap[importKey];
-          if (!dbImportState) {
-            throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
-          }
-          return mergeImportState(sameKeyInputItems, dbImportState);
-        });
+          const dbImportStateMap = keyBy(
+            dbImportStates.map((i) => {
+              hydrateImportStateRangesFromDb(i);
+              return i;
+            }),
+            "importKey",
+          );
+          const inputItemsByImportStateKey = groupBy(items, (item) => options.getImportStateKey(item));
+          const newImportStates = Object.entries(inputItemsByImportStateKey).map(([importKey, sameKeyInputItems]) => {
+            const dbImportState = dbImportStateMap[importKey];
+            if (!dbImportState) {
+              throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
+            }
+            return mergeImportState(sameKeyInputItems, dbImportState);
+          });
 
-        logger.trace({ msg: "updateImportState$ (merged)", data: newImportStates });
-        await Promise.all(
-          newImportStates.map((data) =>
-            db_query(`UPDATE import_state SET import_data = %L WHERE import_key = %L`, [data.importData, data.importKey], client),
-          ),
-        );
+          logger.trace({ msg: "updateImportState$ (merged)", data: newImportStates });
+          await Promise.all(
+            newImportStates.map((data) =>
+              db_query(`UPDATE import_state SET import_data = %L WHERE import_key = %L`, [data.importData, data.importKey], client),
+            ),
+          );
 
-        return newImportStates;
-      });
+          return newImportStates;
+        },
+        { logInfos: { msg: "import-state update transaction", data: { importKeys: items.map((item) => options.getImportStateKey(item)) } } },
+      );
 
       const resultMap = keyBy(newImportStates, "importKey");
 
