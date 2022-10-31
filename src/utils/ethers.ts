@@ -3,7 +3,7 @@ import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
-import { get } from "lodash";
+import { get, isArray } from "lodash";
 import { sleep } from "./async";
 import { rootLogger } from "./logger";
 import { isArchiveNodeNeededError } from "./rpc/archive-node-needed";
@@ -198,7 +198,9 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
 }
 
 /**
- * Harmony RPC returns nonsense when the call id is not 1.
+ * Harmony RPC returns empty values sometimes
+ * At first we thought it was because of the jsonrpc id
+ * But it seems to be a bug in the RPC itself where it returns empty values
  * Ex:
  *   {"jsonrpc":"2.0","method":"hmyv2_getTransactionsHistory","params":[{"address":"0x6ab6d61428fde76768d7b45d8bfeec19c6ef91a8","pageIndex":0,"pageSize":1,"fullTx":true,"txType":"ALL","order":"ASC"}],"id":1}
  *    -> OK
@@ -208,13 +210,61 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
 export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.JsonRpcProvider) {
   logger.trace({ msg: "Patching Harmony linear provider" });
 
-  // override the id property so it's always 1
-  Object.defineProperty(provider, "_nextId", {
-    get: () => 1,
-    set: () => {},
-    enumerable: false,
-    configurable: false,
+  const chainLock = new AsyncLock({
+    // max amount of time an item can remain in the queue before acquiring the lock
+    timeout: 0, // never
+    // we don't want a lock to be reentered
+    domainReentrant: false,
+    //max amount of time allowed between entering the queue and completing execution
+    maxOccupationTime: 0, // never
+    // max number of tasks allowed in the queue at a time
+    maxPending: 100_000,
   });
+
+  const originalSend = provider.send.bind(provider);
+
+  class ShouldRetryException extends Error {}
+
+  async function sendButRetryOnUnsatisfyingResponse(this: ethers.providers.JsonRpcProvider, method: string, params: Array<any>): Promise<any> {
+    const result = await chainLock.acquire("harmony", () =>
+      backOff(
+        async () => {
+          const result = await originalSend(method, params);
+
+          if (this instanceof ethers.providers.JsonRpcBatchProvider) {
+            if (!isArray(result) || result.length !== params.length) {
+              logger.trace({ msg: "Got null result from method", data: { chain: "harmony", params, method } });
+              throw new ShouldRetryException("Got null result from " + method);
+            }
+          } else {
+            if (result === null) {
+              logger.trace({ msg: "Got null result from method", data: { chain: "harmony", params, method } });
+              throw new ShouldRetryException("Got null result from " + method);
+            }
+          }
+          return result;
+        },
+        {
+          delayFirstAttempt: false,
+          startingDelay: 500,
+          timeMultiple: 5,
+          maxDelay: 1_000,
+          numOfAttempts: 10,
+          jitter: "full",
+          retry: (error) => {
+            if (error instanceof ShouldRetryException) {
+              return true;
+            }
+            return false;
+          },
+        },
+      ),
+    );
+
+    return result;
+  }
+
+  provider.send = sendButRetryOnUnsatisfyingResponse.bind(provider);
 }
 
 /**
@@ -226,7 +276,7 @@ export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.Json
  *    - when response header contains "cf-cache-status: HIT", the response is correct
  *        -> {"jsonrpc":"2.0","result":{"author":"0x19 ...
  *
- * I could not find a way to disable the cache, so we just retry the request
+ * I could not find a way to disable the cache, so we just retry the request.
  */
 export function monkeyPatchMoonbeamLinearProvider(provider: ethers.providers.JsonRpcProvider) {
   logger.trace({ msg: "Patching Moonbeam linear provider" });
