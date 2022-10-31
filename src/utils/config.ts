@@ -32,6 +32,8 @@ export const MAX_RANGES_PER_PRODUCT_TO_GENERATE = process.env.MAX_RANGES_PER_PRO
   ? parseInt(process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE, 10)
   : 100;
 
+export const BACKPRESSURE_DISABLED = process.env.BACKPRESSURE_DISABLED ? process.env.BACKPRESSURE_DISABLED === "true" : false;
+
 export const BACKPRESSURE_MEMORY_THRESHOLD_MB = process.env.BACKPRESSURE_MEMORY_THRESHOLD_MB
   ? parseInt(process.env.BACKPRESSURE_MEMORY_THRESHOLD_MB, 10)
   : 400; // 400Mb

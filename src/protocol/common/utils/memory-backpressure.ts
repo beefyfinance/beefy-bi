@@ -1,5 +1,10 @@
 import * as Rx from "rxjs";
-import { BACKPRESSURE_CHECK_INTERVAL_MS, BACKPRESSURE_CHECK_JITTER_MS, BACKPRESSURE_MEMORY_THRESHOLD_MB } from "../../../utils/config";
+import {
+  BACKPRESSURE_CHECK_INTERVAL_MS,
+  BACKPRESSURE_CHECK_JITTER_MS,
+  BACKPRESSURE_DISABLED,
+  BACKPRESSURE_MEMORY_THRESHOLD_MB,
+} from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { throttleWhen } from "../../../utils/rxjs/utils/throttle-when";
 
@@ -9,6 +14,9 @@ const logger = rootLogger.child({ module: "rxjs-utils", component: "memory-backp
  * Throttle input objects until the process memory is below the configured threshold.
  */
 export function memoryBackpressure$<TObj>(options: { logInfos: LogInfos; sendBurstsOf: number }) {
+  if (BACKPRESSURE_DISABLED) {
+    return Rx.pipe();
+  }
   return Rx.pipe(
     throttleWhen<TObj>({
       checkIntervalJitterMs: BACKPRESSURE_CHECK_JITTER_MS,
