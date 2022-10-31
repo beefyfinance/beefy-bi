@@ -201,13 +201,16 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
  * Harmony RPC returns empty values sometimes
  * At first we thought it was because of the jsonrpc id
  * But it seems to be a bug in the RPC itself where it returns empty values
+ * Happens to both batch and non batch requests, so we patch both
+ * Spotted on eth_getTransactionReceipt and hmyv2_getTransactionsHistory
+ *
  * Ex:
  *   {"jsonrpc":"2.0","method":"hmyv2_getTransactionsHistory","params":[{"address":"0x6ab6d61428fde76768d7b45d8bfeec19c6ef91a8","pageIndex":0,"pageSize":1,"fullTx":true,"txType":"ALL","order":"ASC"}],"id":1}
  *    -> OK
  *   {"jsonrpc":"2.0","method":"hmyv2_getTransactionsHistory","params":[{"address":"0x6ab6d61428fde76768d7b45d8bfeec19c6ef91a8","pageIndex":0,"pageSize":1,"fullTx":true,"txType":"ALL","order":"ASC"}],"id":42}
  *    -> empty list
  */
-export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.JsonRpcProvider) {
+export function monkeyPatchHarmonyProviderRetryNullResponses(provider: ethers.providers.JsonRpcProvider) {
   logger.trace({ msg: "Patching Harmony linear provider" });
 
   const chainLock = new AsyncLock({
@@ -226,21 +229,18 @@ export function monkeyPatchHarmonyLinearProvider(provider: ethers.providers.Json
   class ShouldRetryException extends Error {}
 
   async function sendButRetryOnUnsatisfyingResponse(this: ethers.providers.JsonRpcProvider, method: string, params: Array<any>): Promise<any> {
+    if (method !== "eth_getBlockByNumber" && method !== "eth_getTransactionReceipt" && method !== "hmyv2_getTransactionsHistory") {
+      return originalSend(method, params);
+    }
+
     const result = await chainLock.acquire("harmony", () =>
       backOff(
         async () => {
           const result = await originalSend(method, params);
 
-          if (this instanceof ethers.providers.JsonRpcBatchProvider) {
-            if (!isArray(result) || result.length !== params.length) {
-              logger.trace({ msg: "Got null result from method", data: { chain: "harmony", params, method } });
-              throw new ShouldRetryException("Got null result from " + method);
-            }
-          } else {
-            if (result === null) {
-              logger.trace({ msg: "Got null result from method", data: { chain: "harmony", params, method } });
-              throw new ShouldRetryException("Got null result from " + method);
-            }
+          if (result === null) {
+            logger.trace({ msg: "Got null result from method", data: { chain: "harmony", params, method } });
+            throw new ShouldRetryException("Got null result from " + method);
           }
           return result;
         },

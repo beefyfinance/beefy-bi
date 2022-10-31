@@ -8,7 +8,7 @@ import {
   monkeyPatchArchiveNodeRpcProvider,
   monkeyPatchCeloProvider,
   monkeyPatchEthersBatchProvider,
-  monkeyPatchHarmonyLinearProvider,
+  monkeyPatchHarmonyProviderRetryNullResponses,
   monkeyPatchHarmonyReceiptFormat,
   monkeyPatchLayer2ReceiptFormat,
   monkeyPatchMoonbeamLinearProvider,
@@ -33,7 +33,8 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
   monkeyPatchEthersBatchProvider(rpcConfig.batchProvider);
 
   if (chain === "harmony") {
-    monkeyPatchHarmonyLinearProvider(rpcConfig.linearProvider);
+    monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.linearProvider);
+    monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.batchProvider);
     monkeyPatchHarmonyReceiptFormat(rpcConfig.linearProvider);
     monkeyPatchHarmonyReceiptFormat(rpcConfig.batchProvider);
   }
