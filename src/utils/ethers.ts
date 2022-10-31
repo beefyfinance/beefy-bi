@@ -310,7 +310,7 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
 /**
  * Optimism gas structure is different from other chains
  */
-export function monkeyPatchOptimismReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
+export function monkeyPatchLayer2ReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
   // Override certain receipt formatting properties that only exist on Optimism
   const bigNumberFormatter = ethers.providers.Formatter.allowNull(provider.formatter.bigNumber, null);
 

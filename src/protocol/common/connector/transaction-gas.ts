@@ -57,7 +57,7 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
           gasUsed: new Decimal(receipt.gasUsed.toString()),
         };
 
-        if (chain === "optimism") {
+        if (chain === "optimism" || chain === "metis") {
           gasStats.l1Fee = new Decimal(get(receipt, "l1Fee")?.toString() || "0");
           gasStats.l1FeeScalar = new Decimal(get(receipt, "l1FeeScalar")?.toString() || "0");
           gasStats.l1GasPrice = new Decimal(get(receipt, "l1GasPrice")?.toString() || "0");
