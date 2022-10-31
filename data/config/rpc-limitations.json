@@ -30,7 +30,7 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": 4,
+        "eth_getLogs": 2,
         "eth_call": 286,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 16,
