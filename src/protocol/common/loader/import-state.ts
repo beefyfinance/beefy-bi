@@ -239,7 +239,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 
           return newImportStates;
         },
-        { logInfos: { msg: "import-state update transaction", data: { importKeys: items.map((item) => options.getImportStateKey(item)) } } },
+        { logInfos: { msg: "import-state update transaction", data: { importKeys: uniq(items.map((item) => options.getImportStateKey(item))) } } },
       );
 
       const resultMap = keyBy(newImportStates, "importKey");
