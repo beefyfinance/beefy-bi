@@ -38,10 +38,13 @@ export async function registerDI() {
     investor: asClass(InvestorService, {
       lifetime: Lifetime.SINGLETON,
     }),
+    portfolio: asClass(PortfolioService, {
+      lifetime: Lifetime.SINGLETON,
+    }),
     product: asClass(ProductService, {
       lifetime: Lifetime.SINGLETON,
     }),
-    portfolio: asClass(PortfolioService, {
+    price: asClass(PriceService, {
       lifetime: Lifetime.SINGLETON,
     }),
     cache: asValue(cache),

@@ -3,7 +3,7 @@ import { cloneDeep, groupBy, keyBy, uniq } from "lodash";
 import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { ConnectionTimeoutError, sleep } from "../../../utils/async";
+import { ConnectionTimeoutError } from "../../../utils/async";
 import { db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
