@@ -1,9 +1,9 @@
 import { backOff } from "exponential-backoff";
-import { mean, sortBy } from "lodash";
+import { max, mean, min, minBy, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
-import { samplingPeriodMs } from "../../../types/sampling";
+import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import {
   BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
   CHAIN_RPC_MAX_QUERY_BLOCKS,
@@ -191,10 +191,10 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
   );
 }
 
-export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
+export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
   ctx: ImportCtx<TObj>;
+  timeStep: SamplingPeriod;
   getImportState: (item: TObj) => DbBlockNumberRangeImportState;
-  getParentImportState: (item: TObj) => DbBlockNumberRangeImportState;
   forceCurrentBlockNumber: number | null;
   chain: Chain;
   formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
@@ -204,48 +204,17 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
       fetchChainBlockList$({
         ctx: options.ctx,
         getChain: () => options.chain,
-        getFirstDate: (obj) => options.getParentImportState(obj).importData.contractCreationDate,
+        timeStep: options.timeStep,
+        getFirstDate: (obj) => options.getImportState(obj).importData.contractCreationDate,
         formatOutput: (obj, blockList) => ({ obj, blockList }),
       }),
-      // get the average block time or the N latest blocks to interpolate up until now
-      Rx.map((item) => {
-        const lastTimeStepsCount = 40;
-        const averageBlockCountPerTimeStep = mean(item.blockList.slice(-lastTimeStepsCount).map((b) => b.interpolated_block_number));
-        return { ...item, averageBlockCountPerTimeStep };
-      }),
-      // exclude blocks that we never covered for this product
-      Rx.map((item) => {
-        const blockList = item.blockList.filter((b) => {
-          const isCovered = options
-            .getParentImportState(item.obj)
-            .importData.ranges.coveredRanges.some((range) => isInRange(range, b.interpolated_block_number));
-          return isCovered;
-        });
-        return { ...item, blockList };
-      }),
-    ),
-    Rx.pipe(
+
       // fetch the last block of this chain
       latestBlockNumber$({
         rpcConfig: options.ctx.rpcConfig,
         streamConfig: options.ctx.streamConfig,
         forceCurrentBlockNumber: options.forceCurrentBlockNumber,
         formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
-      }),
-      // interpolate a block numbers from the db to now
-      Rx.map((item) => {
-        if (item.blockList.length === 0) {
-          return { ...item, blockList: [] };
-        }
-        const blockList = sortBy(item.blockList, (b) => b.interpolated_block_number);
-        const blockStep = item.averageBlockCountPerTimeStep;
-        const lastDbBlock = blockList[blockList.length - 1];
-        const missingBlocks = Math.floor((item.latestBlockNumber - lastDbBlock.interpolated_block_number) / blockStep);
-        const missingBlockList = Array.from({ length: missingBlocks }, (_, i) => {
-          const interpolatedBlockNumber = lastDbBlock.interpolated_block_number + (i + 1) * blockStep;
-          return { datetime: null, block_number: null, interpolated_block_number: interpolatedBlockNumber };
-        });
-        return { ...item, blockList: [...blockList, ...missingBlockList] };
       }),
     ),
     Rx.pipe(
@@ -259,13 +228,36 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
         }
         return { ...item, blockRanges };
       }),
+      // add ranges before and after db blocks
+      Rx.map((item) => {
+        if (item.blockList.length === 0) {
+          return { ...item, blockList: [] };
+        }
+        const importState = options.getImportState(item.obj);
+        const blockNumbrers = item.blockList.map((b) => b.interpolated_block_number);
+        const minDbBlock = min(blockNumbrers) as number;
+        const maxDbBlock = max(blockNumbrers) as number;
+        return {
+          ...item,
+          blockRanges: [
+            { from: importState.importData.contractCreatedAtBlock, to: minDbBlock - 1 },
+            ...item.blockRanges,
+            { from: maxDbBlock + 1, to: item.latestBlockNumber },
+          ],
+        };
+      }),
+
       // sometimes the interpolated block numbers are not accurate and the resulting ranges are invalid
       Rx.map((item) => ({ ...item, blockRanges: item.blockRanges.filter((r) => r.from <= r.to) })),
       // filter ranges based on what was already covered
       Rx.map((item) => {
         const importState = options.getImportState(item.obj);
         const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
-        const ranges = restrictRangesWithImportState(item.blockRanges, importState, maxBlocksPerQuery);
+        const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.chain];
+        const maxTimeStepMs = samplingPeriodMs[options.timeStep];
+        const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
+        const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
+        const ranges = restrictRangesWithImportState(item.blockRanges, importState, rangeMaxLength);
         return { ...item, blockRanges: ranges };
       }),
       // transform to query obj
@@ -283,7 +275,7 @@ export function addCoveringBlockRangesQuery<TObj, TRes>(options: {
 
   return cacheOperatorResult$({
     operator$,
-    getCacheKey: (item) => `blockList-${options.chain}-${options.getParentImportState(item).importKey}`,
+    getCacheKey: (item) => `blockList-${options.chain}-${options.getImportState(item).importKey}`,
     logInfos: { msg: "block list for chain", data: { chain: options.chain } },
     stdTTLSec: 5 * 60 /* 5 min */,
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),

@@ -1,5 +1,6 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { SamplingPeriod } from "../../../types/sampling";
 import { db_query, db_query_one } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ImportCtx } from "../types/import-context";
@@ -11,6 +12,7 @@ export function fetchChainBlockList$<
 >(options: {
   ctx: ImportCtx<TObj>;
   getFirstDate: (obj: TObj) => Date;
+  timeStep: SamplingPeriod;
   getChain: (obj: TObj) => Chain;
   formatOutput: (obj: TObj, blockList: TListItem[]) => TRes;
 }) {
@@ -36,7 +38,6 @@ export function fetchChainBlockList$<
 
     // fetch a decent first list of blocks from investments of this chain
     Rx.concatMap(async (item) => {
-      const timeStep = "15 minutes";
       const blockList = await db_query<TListItem>(
         `
             with blocks as (
@@ -58,7 +59,7 @@ export function fetchChainBlockList$<
             from blocks
             where interpolated_block_number is not null;
         `,
-        [timeStep, item.firstChainDate.toISOString(), timeStep, timeStep, options.getChain(item.obj)],
+        [options.timeStep, item.firstChainDate.toISOString(), options.timeStep, options.timeStep, options.getChain(item.obj)],
         options.ctx.client,
       );
       return { input: item.obj, output: blockList };

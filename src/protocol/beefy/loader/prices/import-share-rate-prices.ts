@@ -5,7 +5,7 @@ import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
-import { addCoveringBlockRangesQuery } from "../../../common/connector/import-queries";
+import { addRegularIntervalBlockRangesQueries } from "../../../common/connector/import-queries";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
@@ -74,7 +74,7 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
         }),
         excludeNullFields$("parentImportState"),
 
-        addCoveringBlockRangesQuery({
+        addRegularIntervalBlockRangesQueries({
           ctx: {
             ...ctx,
             emitErrors: (item) => {
@@ -83,9 +83,9 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: PoolCli
             },
           },
           chain: options.chain,
+          timeStep: "15min",
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImportState: (item) => item.importState,
-          getParentImportState: (item) => item.parentImportState,
           formatOutput: (_, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ range, latest: latestBlockNumber })),
         }),
       ),
