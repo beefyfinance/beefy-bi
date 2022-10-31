@@ -48,6 +48,11 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
       // it is probable we get multiple call for the same transaction hash
       const resultByHashPromises = transactionHashes.map(async (transactionHash) => {
         const receipt = await provider.getTransactionReceipt(transactionHash);
+        // log the address if the receipt is not in the format we expect
+        if (!receipt || !receipt.blockNumber || !receipt.cumulativeGasUsed || !receipt.gasUsed) {
+          logger.error({ msg: "Invalid transaction receipt", data: { chain: options.ctx.rpcConfig.chain, transactionHash, receipt } });
+        }
+
         const chain = options.ctx.rpcConfig.chain;
         let gasStats: TransactionGas = {
           chain,
