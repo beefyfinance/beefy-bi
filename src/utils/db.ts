@@ -40,15 +40,19 @@ export async function getPgPool({
   if (!appNameCounters[appName]) {
     appNameCounters[appName] = 0;
   }
-  appNameCounters[appName] += 1;
-  const appNameToUse = appName + ":" + appNameCounters[appName];
 
   if (pool === null) {
+    appNameCounters[appName] += 1;
+    const appNameToUse = appName + ":common:" + appNameCounters[appName];
+
     const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PoolConfig;
     pool = new Pool({ ...config, application_name: appNameToUse });
   }
   if (freshClient) {
+    appNameCounters[appName] += 1;
+    const appNameToUse = appName + ":fresh:" + appNameCounters[appName];
+
     const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PoolConfig;
     return new Pool({ ...config, application_name: appNameToUse });
