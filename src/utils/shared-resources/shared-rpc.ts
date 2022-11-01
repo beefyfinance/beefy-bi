@@ -108,8 +108,7 @@ export async function callLockProtectedRpc<TRes>(
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
   const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${publicRpcUrl}`;
 
-  async function callRpcAndWaitIfNeeded() {
-    // now, we are the only one running this code
+  async function waitUntilWeCanCallRPCAgain() {
     // find out the last time we called this explorer
     const lastCallStr = await lastCallDateCache.get(lastCallCacheKey);
     const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
@@ -128,6 +127,11 @@ export async function callLockProtectedRpc<TRes>(
         logger.trace(mergeLogsInfos({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
       }
     }
+  }
+
+  async function callRpcAndWaitIfNeeded() {
+    // now, we are the only one running this code
+    await waitUntilWeCanCallRPCAgain();
 
     // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
     // the we are only batching the current request size and not more
@@ -156,6 +160,9 @@ export async function callLockProtectedRpc<TRes>(
         logger.trace(mergeLogsInfos({ msg: "No lock needed for", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
         res = await callRpcAndWaitIfNeeded();
       } else {
+        // do a sleep session before acquiring the lock if needed
+        await waitUntilWeCanCallRPCAgain();
+
         logger.trace(mergeLogsInfos({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
         let lock = await redlock.acquire([rpcLockId], 2 * 60 * 1000);
         logger.trace(mergeLogsInfos({ msg: "Lock acquired", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
