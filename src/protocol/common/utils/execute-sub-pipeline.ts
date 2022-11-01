@@ -37,7 +37,7 @@ export function executeSubPipeline$<TObj, TCtx extends ImportCtx<TObj>, TRes, TS
       ),
     ),
 
-    Rx.mergeMap((items) => {
+    Rx.concatMap((items) => {
       const {
         observable: pipelineErrors$,
         next: emitPipelineErrors,
@@ -125,7 +125,7 @@ export function executeSubPipeline$<TObj, TCtx extends ImportCtx<TObj>, TRes, TS
           return okItems;
         }),
       );
-    }, options.ctx.streamConfig.workConcurrency),
+    }),
 
     Rx.mergeAll(), // flatten items
   );
