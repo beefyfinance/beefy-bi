@@ -89,17 +89,20 @@ export async function db_transaction<TRes>(
   { appName, connectTimeoutMs = 10_000, logInfos }: { appName: string; connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
 ) {
   const pgPool = await getPgPool({ appName, freshClient: true, readOnly: false });
-  const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
   try {
-    await client.query("BEGIN");
-    const res = await fn(client);
-    await client.query("COMMIT");
-    return res;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
+    try {
+      await client.query("BEGIN");
+      const res = await fn(client);
+      await client.query("COMMIT");
+      return res;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } finally {
-    client.release();
     pgPool.end();
   }
 }
