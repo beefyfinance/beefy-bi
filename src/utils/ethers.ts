@@ -386,6 +386,7 @@ export function monkeyPatchHarmonyReceiptFormat(provider: ethers.providers.JsonR
  * we just retry the request
  */
 export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+  logger.trace({ msg: "Patching provider to retry underlying network changed error" });
   const originalSend = provider.send.bind(provider);
   let attemptsRemaining = 10;
   let lastError: Error | undefined = undefined;

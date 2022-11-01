@@ -232,5 +232,18 @@
         "eth_getTransactionReceipt": null
       }
     }
+  },
+  "ethereum": {
+    "https://rpc.ankr.com/eth": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
   }
 }

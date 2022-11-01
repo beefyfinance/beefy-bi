@@ -6,6 +6,7 @@ export type Chain =
   | "celo"
   | "cronos"
   | "emerald"
+  | "ethereum"
   | "fantom"
   | "fuse"
   | "harmony"
@@ -26,6 +27,7 @@ export const allChainIds: Chain[] = [
   "celo",
   "cronos",
   "emerald",
+  "ethereum",
   "fantom",
   "fuse",
   "harmony",

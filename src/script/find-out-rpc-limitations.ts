@@ -107,6 +107,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, writeToFile: boolean)
     celo: 2919,
     cronos: 446,
     emerald: 7881,
+    ethereum: 4719568,
     fantom: 640717,
     fuse: 7216440,
     harmony: 5481181,

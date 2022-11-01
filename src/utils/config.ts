@@ -97,6 +97,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
         //"https://evm.cronos.org",
       ],
   emerald: process.env.EMERALD_RPC ? [process.env.EMERALD_RPC] : ["https://emerald.oasis.dev"],
+  ethereum: process.env.ETHEREUM_RPC ? [process.env.ETHEREUM_RPC] : ["https://rpc.ankr.com/eth"],
   fantom: process.env.FANTOM_RPC ? [process.env.FANTOM_RPC] : ["https://rpc.ftm.tools", "https://rpcapi.fantom.network"],
   fuse: process.env.FUSE_RPC
     ? [process.env.FUSE_RPC]
@@ -138,6 +139,7 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   celo: "https://explorer.celo.org/",
   cronos: "https://api.cronoscan.com/api",
   emerald: "https://explorer.emerald.oasis.dev/",
+  ethereum: "https://api.etherscan.io/api",
   fantom: "https://api.ftmscan.com/api",
   fuse: "https://explorer.fuse.io/",
   harmony: "https://explorer.harmony.one/",
@@ -162,6 +164,7 @@ export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
   celo: 3000,
   cronos: 1000, // 2k for https://evm-cronos.crypto.org
   emerald: 100, // invalid request: max allowed of rounds in logs query is: 100
+  ethereum: 3000,
   fantom: 3000,
   fuse: 3000,
   harmony: 1024, // GetLogs query must be smaller than size 1024
@@ -183,6 +186,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   celo: 4000,
   cronos: 5840,
   emerald: 10000,
+  ethereum: 10 * 60 * 1000, // 10 minutes
   fantom: 1900,
   fuse: 5000,
   harmony: 3000,
@@ -221,6 +225,7 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   celo: _getDelayFromEnv("celo"),
   cronos: _getDelayFromEnv("cronos"),
   emerald: _getDelayFromEnv("emerald"),
+  ethereum: _getDelayFromEnv("ethereum"),
   fantom: _getDelayFromEnv("fantom"),
   fuse: _getDelayFromEnv("fuse"),
   harmony: _getDelayFromEnv("harmony"),
