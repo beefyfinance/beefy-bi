@@ -1,6 +1,4 @@
-import AsyncLock from "async-lock";
 import { ethers } from "ethers";
-import { backOff } from "exponential-backoff";
 import * as Rx from "rxjs";
 import { RpcCallMethod } from "../../../types/rpc-config";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
@@ -9,7 +7,6 @@ import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../.
 import { bufferUntilCountReached } from "../../../utils/rxjs/utils/buffer-until-count-reached";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ImportCtx } from "../types/import-context";
-import { getRpcRetryConfig } from "./rpc-retry-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -31,17 +28,6 @@ export interface BatchStreamConfig {
   maxTotalRetryMs: number;
 }
 
-const chainLock = new AsyncLock({
-  // max amount of time an item can remain in the queue before acquiring the lock
-  timeout: 0, // never
-  // we don't want a lock to be reentered
-  domainReentrant: false,
-  //max amount of time allowed between entering the queue and completing execution
-  maxOccupationTime: 0, // never
-  // max number of tasks allowed in the queue at a time
-  maxPending: 100_000,
-});
-
 export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   ctx: ImportCtx<TObj>;
   getQuery: (obj: TObj) => TQueryObj;
@@ -59,8 +45,6 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   logInfos: { msg: string; data?: Record<string, unknown> };
   formatOutput: (objs: TObj, results: TQueryResp) => TRes;
 }) {
-  const retryConfig = getRpcRetryConfig({ logInfos: options.logInfos, maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs });
-
   // get the rpc provider maximum batch size
   const methodLimitations = options.ctx.rpcConfig.limitations.methods;
 
@@ -146,15 +130,13 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
 
       try {
         // retry the call if it fails
-        const resultMap = await backOff(() => {
-          // acquire a lock for this chain so in case we do use batch provider, we are guaranteed
-          // the we are only batching the current request size and not more
-          logger.trace(mergeLogsInfos({ msg: "Acquiring provider lock for chain", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
-
-          return callLockProtectedRpc(options.ctx.rpcConfig.chain, provider, options.ctx.rpcConfig.limitations, () =>
-            chainLock.acquire(options.ctx.rpcConfig.chain, work),
-          );
-        }, retryConfig);
+        const resultMap = await callLockProtectedRpc(work, {
+          chain: options.ctx.rpcConfig.chain,
+          provider,
+          rpcLimitations: options.ctx.rpcConfig.limitations,
+          logInfos: options.logInfos,
+          maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+        });
 
         return objAndCallParams.map(({ obj, query }) => {
           if (!resultMap.has(query)) {

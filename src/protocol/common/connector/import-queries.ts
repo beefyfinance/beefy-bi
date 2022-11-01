@@ -1,4 +1,3 @@
-import { backOff } from "exponential-backoff";
 import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
@@ -11,13 +10,13 @@ import {
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { isInRange, Range, rangeArrayExclude, rangeMerge, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
+import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
+import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
-import { getRpcRetryConfig } from "../utils/rpc-retry-config";
 
 const logger = rootLogger.child({ module: "common", component: "import-queries" });
 
@@ -27,7 +26,6 @@ export function latestBlockNumber$<TObj, TRes>(options: {
   streamConfig: BatchStreamConfig;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  const retryConfig = getRpcRetryConfig({ maxTotalRetryMs: 5_000, logInfos: { msg: "Fetching block number" } });
   return cacheOperatorResult$({
     stdTTLSec: 60 /* 1min */,
     getCacheKey: () => options.rpcConfig.chain,
@@ -38,7 +36,13 @@ export function latestBlockNumber$<TObj, TRes>(options: {
         return { input: obj, output: options.forceCurrentBlockNumber };
       }
 
-      const latestBlockNumber = await backOff(() => options.rpcConfig.linearProvider.getBlockNumber(), retryConfig);
+      const latestBlockNumber = await callLockProtectedRpc(() => options.rpcConfig.linearProvider.getBlockNumber(), {
+        chain: options.rpcConfig.chain,
+        provider: options.rpcConfig.linearProvider,
+        rpcLimitations: options.rpcConfig.limitations,
+        logInfos: { msg: "latest block number", data: { chain: options.rpcConfig.chain } },
+        maxTotalRetryMs: options.streamConfig.maxTotalRetryMs,
+      });
       return { input: obj, output: latestBlockNumber };
     }, options.streamConfig.workConcurrency),
     formatOutput: options.formatOutput,

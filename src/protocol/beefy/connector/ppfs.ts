@@ -41,7 +41,7 @@ export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
   });
 }
 
-export async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
+async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: TParams[],
@@ -107,7 +107,7 @@ export async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
 
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance
 // this is derived from mooAmountToOracleAmount in beefy-v2 repo
-export function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
+function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
   const mooTokenAmount = new Decimal("1.0");
 
   // go to chain representation

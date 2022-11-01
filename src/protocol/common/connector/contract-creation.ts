@@ -6,6 +6,7 @@ import { RpcConfig } from "../../../types/rpc-config";
 import { EXPLORER_URLS, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
+import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { createRpcConfig } from "../utils/rpc-config";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
@@ -132,7 +133,6 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
 }
 
 async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain) {
-  const rpcConfig = createRpcConfig(chain);
   const params = [
     {
       address: contractAddress,
@@ -146,7 +146,14 @@ async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain)
   type TResp = { transactions: { blockNumber: number; timestamp: number }[] };
 
   try {
-    const resp: TResp = await rpcConfig.linearProvider.send("hmyv2_getTransactionsHistory", params);
+    const rpcConfig = createRpcConfig(chain);
+    const resp: TResp = await callLockProtectedRpc(() => rpcConfig.linearProvider.send("hmyv2_getTransactionsHistory", params), {
+      chain: chain,
+      provider: rpcConfig.linearProvider,
+      rpcLimitations: rpcConfig.limitations,
+      maxTotalRetryMs: 10000,
+      logInfos: { msg: "getHarmonyRpcCreationInfos", data: { contractAddress, chain, params } },
+    });
 
     // remove nulls
     const trxs = resp.transactions.filter((t) => t);

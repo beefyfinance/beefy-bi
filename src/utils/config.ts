@@ -47,13 +47,6 @@ export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
 
-export const RPC_EXPONENTIAL_RETRY_ATTEMPTS = process.env.RPC_EXPONENTIAL_RETRY_ATTEMPTS
-  ? parseInt(process.env.RPC_EXPONENTIAL_RETRY_ATTEMPTS, 10)
-  : 5;
-export const RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS = process.env.RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS
-  ? parseInt(process.env.RPC_EXPONENTIAL_RETRY_MAX_DELAY_BETWEEN_CALLS_MS, 10)
-  : 60_000;
-
 export const RPC_URLS: { [chain in Chain]: string[] } = {
   arbitrum: process.env.ARBITRUM_RPC
     ? [process.env.ARBITRUM_RPC]
@@ -203,7 +196,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
 // -1 means no delay and no locking
 // 0 means no delay but one call at a time (locking)
 // > 0 is is minimum delay in ms between calls
-function _getDelayFromEnv(chain: Chain) {
+function _getDelayFromEnv(chain: Chain, defaultDelay: number = 1000) {
   const delay = process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
   if (delay) {
     const delayMs = parseInt(delay, 10);
@@ -213,7 +206,7 @@ function _getDelayFromEnv(chain: Chain) {
       return delayMs;
     }
   }
-  return 1000; // default to 1s between calls
+  return defaultDelay;
 }
 export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   [chain in Chain]: number | "no-limit";
@@ -227,7 +220,7 @@ export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
   emerald: _getDelayFromEnv("emerald"),
   ethereum: _getDelayFromEnv("ethereum"),
   fantom: _getDelayFromEnv("fantom"),
-  fuse: _getDelayFromEnv("fuse"),
+  fuse: _getDelayFromEnv("fuse", 2000),
   harmony: _getDelayFromEnv("harmony"),
   heco: _getDelayFromEnv("heco"),
   kava: _getDelayFromEnv("kava"),
