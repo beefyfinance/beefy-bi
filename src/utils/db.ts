@@ -128,6 +128,7 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
     return rows;
   } catch (error) {
     logger.error({ msg: "Query error", data: { sql, params, error } });
+    logger.error(error);
     throw error;
   }
 }
