@@ -1,4 +1,5 @@
 import { Decimal } from "decimal.js";
+import { ethers } from "ethers";
 import { get, set } from "lodash";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
@@ -63,10 +64,16 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
         };
 
         if (chain === "optimism" || chain === "metis") {
-          gasStats.l1Fee = new Decimal(get(receipt, "l1Fee")?.toString() || "0");
-          gasStats.l1FeeScalar = new Decimal(get(receipt, "l1FeeScalar")?.toString() || "0");
-          gasStats.l1GasPrice = new Decimal(get(receipt, "l1GasPrice")?.toString() || "0");
-          gasStats.l1GasUsed = new Decimal(get(receipt, "l1GasUsed")?.toString() || "0");
+          const l2Receipt = receipt as unknown as {
+            l1Fee?: ethers.BigNumber;
+            l1FeeScalar?: ethers.BigNumber;
+            l1GasPrice?: ethers.BigNumber;
+            l1GasUsed?: ethers.BigNumber;
+          };
+          gasStats.l1Fee = new Decimal(get(l2Receipt, "l1Fee")?.toString() || "0");
+          gasStats.l1FeeScalar = new Decimal(get(l2Receipt, "l1FeeScalar")?.toString() || "0");
+          gasStats.l1GasPrice = new Decimal(get(l2Receipt, "l1GasPrice")?.toString() || "0");
+          gasStats.l1GasUsed = new Decimal(get(l2Receipt, "l1GasUsed")?.toString() || "0");
         }
 
         return [transactionHash, gasStats] as const;
