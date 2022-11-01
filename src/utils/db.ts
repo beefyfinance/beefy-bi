@@ -4,7 +4,7 @@ import pgf from "pg-format";
 import { allChainIds } from "../types/chain";
 import { withTimeout } from "./async";
 import { TIMESCALEDB_RO_URL, TIMESCALEDB_URL } from "./config";
-import { LogInfos, rootLogger } from "./logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "./logger";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -86,14 +86,23 @@ export function withPgClient<TArgs extends any[], TRes>(
 
 export async function db_transaction<TRes>(
   fn: (client: PoolClient) => Promise<TRes>,
-  { appName, connectTimeoutMs = 10_000, logInfos }: { appName: string; connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
+  {
+    appName,
+    connectTimeoutMs = 10_000,
+    queryTimeoutMs = 10_000,
+    logInfos,
+  }: { appName: string; connectTimeoutMs?: number; queryTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
 ) {
   const pgPool = await getPgPool({ appName, freshClient: true, readOnly: false });
   try {
-    const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
+    const client = await withTimeout(
+      () => pgPool.connect(),
+      connectTimeoutMs,
+      mergeLogsInfos(logInfos, { msg: "connect", data: { connectTimeoutMs } }),
+    );
     try {
       await client.query("BEGIN");
-      const res = await fn(client);
+      const res = await withTimeout(() => fn(client), queryTimeoutMs, mergeLogsInfos(logInfos, { msg: "query", data: { queryTimeoutMs } }));
       await client.query("COMMIT");
       return res;
     } catch (error) {

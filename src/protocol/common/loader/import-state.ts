@@ -249,7 +249,12 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 
             return newImportStates;
           },
-          { appName: "beefy:import_state:update_transaction", logInfos },
+          {
+            connectTimeoutMs: 5000,
+            queryTimeoutMs: 2000 /* this should be a very quick operation */,
+            appName: "beefy:import_state:update_transaction",
+            logInfos,
+          },
         );
 
       try {
