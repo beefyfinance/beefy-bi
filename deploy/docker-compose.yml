@@ -194,7 +194,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c fuse optimism -r 15sec -e"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c fuse optimism ethereum -r 15sec -e"
 
   importer-investment-historical-other-4:
     <<: *importer
@@ -267,7 +267,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c fuse optimism -r 15sec -e"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c fuse optimism ethereum -r 15sec -e"
 
   importer-share-rates-historical-other-4:
     <<: *importer
