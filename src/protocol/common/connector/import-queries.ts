@@ -1,5 +1,5 @@
 import { backOff } from "exponential-backoff";
-import { max, min } from "lodash";
+import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
@@ -221,8 +221,9 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
       // transform to ranges
       Rx.map((item) => {
         const blockRanges: Range<number>[] = [];
-        for (let i = 0; i < item.blockList.length - 1; i++) {
-          const block = item.blockList[i];
+        const blockList = sortBy(item.blockList, (block) => block.interpolated_block_number);
+        for (let i = 0; i < blockList.length - 1; i++) {
+          const block = blockList[i];
           const nextBlock = item.blockList[i + 1];
           blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
         }
