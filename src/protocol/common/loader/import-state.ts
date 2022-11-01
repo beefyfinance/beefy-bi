@@ -216,6 +216,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
               `SELECT import_key as "importKey", import_data as "importData"
             FROM import_state
             WHERE import_key in (%L)
+            ORDER BY import_key -- Remove the possibility of deadlocks https://stackoverflow.com/a/51098442/2523414
             FOR UPDATE`,
               [uniq(items.map((item) => options.getImportStateKey(item)))],
               client,
