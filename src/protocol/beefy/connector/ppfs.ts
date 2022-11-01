@@ -2,7 +2,6 @@ import axios from "axios";
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
 import { zipWith } from "lodash";
-import * as Rx from "rxjs";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";

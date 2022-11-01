@@ -1,6 +1,5 @@
 import Decimal from "decimal.js";
 import { groupBy, uniqBy } from "lodash";
-import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ImportCtx } from "../types/import-context";
@@ -30,9 +29,9 @@ export function upsertPrice$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams e
     processBatch: async (objAndData) => {
       // add duplicate detection in dev only
       if (process.env.NODE_ENV === "development") {
-        const duplicates = Object.entries(groupBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`)).filter(
-          ([_, v]) => v.length > 1,
-        );
+        const duplicates = Object.entries(
+          groupBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}-${data.price.toString()}`),
+        ).filter(([_, v]) => v.length > 1);
         if (duplicates.length > 0) {
           logger.error({ msg: "Duplicate prices", data: duplicates });
         }

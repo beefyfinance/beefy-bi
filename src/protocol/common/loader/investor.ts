@@ -1,5 +1,4 @@
 import { keyBy, uniqBy } from "lodash";
-import * as Rx from "rxjs";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";

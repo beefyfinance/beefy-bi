@@ -1,6 +1,4 @@
-import { zipWith } from "lodash";
 import * as Rx from "rxjs";
-import { BATCH_DB_INSERT_SIZE } from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";

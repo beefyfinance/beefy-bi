@@ -1,7 +1,6 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
 import { flatten, groupBy, zipWith } from "lodash";
-import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";

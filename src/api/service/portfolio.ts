@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
 import { allChainIds, Chain } from "../../types/chain";
 import { DbClient, db_query } from "../../utils/db";
 import { AsyncCache } from "./cache";

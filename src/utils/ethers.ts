@@ -3,7 +3,7 @@ import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
-import { get, isArray } from "lodash";
+import { get } from "lodash";
 import { sleep } from "./async";
 import { rootLogger } from "./logger";
 import { isArchiveNodeNeededError } from "./rpc/archive-node-needed";

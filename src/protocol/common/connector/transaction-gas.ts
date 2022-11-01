@@ -1,6 +1,6 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
-import { get, set } from "lodash";
+import { get } from "lodash";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ImportCtx } from "../types/import-context";

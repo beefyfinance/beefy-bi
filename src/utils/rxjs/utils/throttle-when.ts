@@ -1,6 +1,5 @@
 import * as Rx from "rxjs";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../logger";
-import { ProgrammerError } from "../../programmer-error";
 import { createObservableWithNext } from "./create-observable-with-next";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "throttle-when" });
