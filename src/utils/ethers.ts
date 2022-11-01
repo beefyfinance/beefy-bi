@@ -375,7 +375,7 @@ export function monkeyPatchLayer2ReceiptFormat(provider: ethers.providers.JsonRp
 /**
  * Harmony gas structure is different from other chains
  */
-export function monkeyPatchHarmonyReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
+export function monkeyPatchMissingEffectiveGasPriceReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
   const receiptFormat = provider.formatter.formats.receipt;
   receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0);
 }

@@ -9,8 +9,8 @@ import {
   monkeyPatchCeloProvider,
   monkeyPatchEthersBatchProvider,
   monkeyPatchHarmonyProviderRetryNullResponses,
-  monkeyPatchHarmonyReceiptFormat,
   monkeyPatchLayer2ReceiptFormat,
+  monkeyPatchMissingEffectiveGasPriceReceiptFormat,
   monkeyPatchMoonbeamLinearProvider,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
 } from "../../../utils/ethers";
@@ -35,8 +35,8 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
   if (chain === "harmony") {
     monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.linearProvider);
     monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.batchProvider);
-    monkeyPatchHarmonyReceiptFormat(rpcConfig.linearProvider);
-    monkeyPatchHarmonyReceiptFormat(rpcConfig.batchProvider);
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.linearProvider);
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
   }
   if (chain === "moonbeam") {
     monkeyPatchMoonbeamLinearProvider(rpcConfig.linearProvider);
@@ -48,6 +48,10 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
   if (chain === "optimism" || chain === "metis") {
     monkeyPatchLayer2ReceiptFormat(rpcConfig.linearProvider);
     monkeyPatchLayer2ReceiptFormat(rpcConfig.batchProvider);
+  }
+  if (chain === "cronos") {
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.linearProvider);
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
   }
 
   const retryDelay = rpcConfig.limitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.limitations.minDelayBetweenCalls;
