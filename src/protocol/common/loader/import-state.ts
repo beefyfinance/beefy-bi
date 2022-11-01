@@ -248,7 +248,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 
             return newImportStates;
           },
-          { logInfos },
+          { appName: "beefy:import_state:update_transaction", logInfos },
         );
 
       try {

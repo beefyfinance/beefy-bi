@@ -99,7 +99,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             }),
           );
         },
-        { readOnly: false, logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+        { appName: "beefy:run", readOnly: false, logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
       )(),
   });
 }

@@ -161,7 +161,9 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
             logger.error(
               mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.rpcConfig.chain, obj, query, resultMap } }, options.logInfos),
             );
-            throw new ProgrammerError(mergeLogsInfos({ msg: "result not found", data: { obj, query, resultMap } }, options.logInfos));
+            throw new ProgrammerError(
+              mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.rpcConfig.chain, obj, query, resultMap } }, options.logInfos),
+            );
           }
           const res = resultMap.get(query) as TQueryResp;
           return options.formatOutput(obj, res);

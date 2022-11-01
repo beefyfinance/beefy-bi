@@ -27,28 +27,49 @@ beefy=# select
 (1 row)
  */
 let pool: Pool | null = null;
-export async function getPgPool({ freshClient = false, readOnly = true }: { freshClient?: boolean; readOnly?: boolean }) {
+const appNameCounters: Record<string, number> = {};
+export async function getPgPool({
+  appName = "beefy",
+  freshClient = false,
+  readOnly = true,
+}: {
+  appName?: string;
+  freshClient?: boolean;
+  readOnly?: boolean;
+}) {
+  if (!appNameCounters[appName]) {
+    appNameCounters[appName] = 0;
+  }
+  appNameCounters[appName] += 1;
+  const appNameToUse = appName + ":" + appNameCounters[appName];
+
   if (pool === null) {
     const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PoolConfig;
-    pool = new Pool(config);
+    pool = new Pool({ ...config, application_name: appNameToUse });
   }
   if (freshClient) {
     const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PoolConfig;
-    return new Pool(config);
+    return new Pool({ ...config, application_name: appNameToUse });
   }
+
   return pool;
 }
 
 // inject pg client as first argument
 export function withPgClient<TArgs extends any[], TRes>(
   fn: (client: PoolClient, ...args: TArgs) => Promise<TRes>,
-  { connectTimeoutMs = 10_000, readOnly = true, logInfos }: { connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
+  {
+    appName,
+    connectTimeoutMs = 10_000,
+    readOnly = true,
+    logInfos,
+  }: { appName: string; connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
 ): (...args: TArgs) => Promise<TRes> {
   return async (...args: TArgs) => {
-    const pgPool = await getPgPool({ freshClient: false, readOnly });
-    const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
+    const pgPool = await getPgPool({ appName, freshClient: false, readOnly });
+    let client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
     let res: TRes;
     try {
       res = await fn(client, ...args);
@@ -61,9 +82,9 @@ export function withPgClient<TArgs extends any[], TRes>(
 
 export async function db_transaction<TRes>(
   fn: (client: PoolClient) => Promise<TRes>,
-  { connectTimeoutMs = 10_000, logInfos }: { connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
+  { appName, connectTimeoutMs = 10_000, logInfos }: { appName: string; connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
 ) {
-  const pgPool = await getPgPool({ freshClient: true, readOnly: false });
+  const pgPool = await getPgPool({ appName, freshClient: true, readOnly: false });
   const client = await withTimeout(() => pgPool.connect(), connectTimeoutMs, logInfos);
   try {
     await client.query("BEGIN");

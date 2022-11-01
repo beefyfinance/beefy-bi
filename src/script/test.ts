@@ -69,4 +69,4 @@ async function main(client: PoolClient) {
   console.dir(rangeMerge(ranges), { depth: null });
 }
 
-runMain(withPgClient(main, { readOnly: false, logInfos: { msg: "test" } }));
+runMain(withPgClient(main, { appName: "beefy:test_script", readOnly: false, logInfos: { msg: "test" } }));
