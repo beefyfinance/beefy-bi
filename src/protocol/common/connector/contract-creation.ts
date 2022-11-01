@@ -151,7 +151,7 @@ async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain)
       chain: chain,
       provider: rpcConfig.linearProvider,
       rpcLimitations: rpcConfig.limitations,
-      maxTotalRetryMs: 10000,
+      maxTotalRetryMs: 60 * 1000,
       logInfos: { msg: "getHarmonyRpcCreationInfos", data: { contractAddress, chain, params } },
     });
 

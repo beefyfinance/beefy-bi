@@ -1,6 +1,6 @@
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
-import { backOff } from "exponential-backoff";
+import { backOff, IBackOffOptions } from "exponential-backoff";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../utils/logger";
@@ -70,96 +70,114 @@ export async function callLockProtectedRpc<TRes>(
     ),
   );
 
-  const client = await getRedisClient();
+  const lastCallDateCache = await getRedisClient();
   const redlock = await getRedlock();
   const delayBetweenCalls = options.rpcLimitations.minDelayBetweenCalls;
+
+  const backoffConfig: Partial<IBackOffOptions> = {
+    delayFirstAttempt: false,
+    startingDelay,
+    timeMultiple,
+    maxDelay: options.maxTotalRetryMs,
+    numOfAttempts,
+    jitter: "full",
+    retry: (error, attemptNumber) => {
+      const isRetryable = isErrorRetryable(error);
+      if (isRetryable) {
+        const logMsg = mergeLogsInfos({ msg: "RPC Error caught, will retry", data: { error, attemptNumber, numOfAttempts } }, options.logInfos);
+        if (attemptNumber < 3) logger.trace(logMsg);
+        else if (attemptNumber < 5) logger.debug(logMsg);
+        else if (attemptNumber < 9) logger.info(logMsg);
+        else if (attemptNumber < 10) logger.warn(logMsg);
+        else {
+          logger.error(logMsg);
+          logger.error(error);
+        }
+      } else {
+        logger.debug(
+          mergeLogsInfos({ msg: "Unretryable RPC Error caught, will not retry", data: { error, attemptNumber, numOfAttempts } }, options.logInfos),
+        );
+        logger.error(error);
+      }
+      return isRetryable;
+    },
+  };
 
   // create a loggable string as raw rpc url may contain an api key
   const publicRpcUrl = removeSecretsFromRpcUrl(options.provider.connection.url);
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
   const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${publicRpcUrl}`;
 
-  // do multiple tries as well
-  return backOff(
-    () => {
-      const doWork = async () => {
-        // now, we are the only one running this code
-        // find out the last time we called this explorer
-        const lastCallStr = await client.get(lastCallCacheKey);
-        const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
+  async function callRpcAndWaitIfNeeded() {
+    // now, we are the only one running this code
+    // find out the last time we called this explorer
+    const lastCallStr = await lastCallDateCache.get(lastCallCacheKey);
+    const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
 
-        const now = new Date();
-        logger.trace({
-          msg: "Last call was",
-          data: { lastCallDate: lastCallDate.toISOString(), now: now.toISOString() },
-        });
+    const now = new Date();
+    logger.trace({
+      msg: "Last call was",
+      data: { lastCallDate: lastCallDate.toISOString(), now: now.toISOString() },
+    });
 
-        // wait a bit before calling the rpc again if needed
-        if (delayBetweenCalls !== "no-limit") {
-          if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-            logger.trace({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } });
-            await sleep(delayBetweenCalls);
-            logger.trace({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } });
-          }
-        }
-        // now we are going to call, so set the last call date
-        await client.set(lastCallCacheKey, new Date().toISOString());
-
-        let res: TRes | null = null;
-        try {
-          res = await work();
-        } finally {
-          // reset the last call date if the call succeeded
-          // just in case rate limiting is accounted by explorers at the end of requests
-          await client.set(lastCallCacheKey, new Date().toISOString());
-        }
-
-        return res;
-      };
-
-      if (delayBetweenCalls === "no-limit") {
-        logger.trace({ msg: "No lock needed for", data: { publicRpcUrl, resourceId: rpcLockId } });
-
-        // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
-        // the we are only batching the current request size and not more
-        return chainLock.acquire(options.chain, doWork);
-      } else {
-        logger.trace({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId: rpcLockId } });
-        return redlock.using([rpcLockId], 2 * 60 * 1000, async () => {
-          logger.trace({ msg: " Acquired lock for", data: { publicRpcUrl, resourceId: rpcLockId } });
-
-          // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
-          // the we are only batching the current request size and not more
-          return chainLock.acquire(options.chain, doWork);
-        });
+    // wait a bit before calling the rpc again if needed
+    if (delayBetweenCalls !== "no-limit") {
+      if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+        logger.trace(mergeLogsInfos({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+        await sleep(delayBetweenCalls);
+        logger.trace(mergeLogsInfos({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
       }
-    },
-    {
-      delayFirstAttempt: false,
-      startingDelay,
-      timeMultiple,
-      maxDelay: options.maxTotalRetryMs,
-      numOfAttempts,
+    }
 
-      jitter: "full",
-      retry: (error, attemptNumber) => {
-        const isRetryable = isErrorRetryable(error);
-        if (isRetryable) {
-          const logMsg = mergeLogsInfos({ msg: "RPC Error caught, will retry", data: { error } }, options.logInfos);
-          if (attemptNumber < 3) logger.trace(logMsg);
-          else if (attemptNumber < 5) logger.debug(logMsg);
-          else if (attemptNumber < 9) logger.info(logMsg);
-          else if (attemptNumber < 10) logger.warn(logMsg);
-          else {
-            logger.error(logMsg);
-            logger.error(error);
-          }
-        } else {
-          logger.debug(mergeLogsInfos({ msg: "Unretryable RPC Error caught, will not retry", data: { error } }, options.logInfos));
-          logger.error(error);
+    // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
+    // the we are only batching the current request size and not more
+    return chainLock.acquire(options.chain, async () => {
+      // now we are going to call, so set the last call date
+      await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
+
+      let res: TRes | null = null;
+      try {
+        res = await work();
+      } finally {
+        // reset the last call date if the call succeeded
+        // just in case rate limiting is accounted by explorers at the end of requests
+        await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
+      }
+
+      return res;
+    });
+  }
+
+  // do multiple tries as well
+  const callWithBackoff = () =>
+    backOff(async () => {
+      let res: TRes;
+      if (delayBetweenCalls === "no-limit") {
+        logger.trace(mergeLogsInfos({ msg: "No lock needed for", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+        res = await callRpcAndWaitIfNeeded();
+      } else {
+        logger.trace(mergeLogsInfos({ msg: "Trying to acquire lock", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+        let lock = await redlock.acquire([rpcLockId], 2 * 60 * 1000);
+        logger.trace(mergeLogsInfos({ msg: "Lock acquired", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+        try {
+          res = await callRpcAndWaitIfNeeded();
+        } finally {
+          logger.trace(mergeLogsInfos({ msg: "Releasing lock", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+          await lock.release();
         }
-        return isRetryable;
-      },
-    },
-  );
+      }
+      logger.trace(mergeLogsInfos({ msg: "RPC Call success", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+      return res;
+    }, backoffConfig);
+
+  try {
+    logger.trace({ msg: "Calling RPC", data: { publicRpcUrl, resourceId: rpcLockId } });
+    const res = await callWithBackoff();
+    logger.trace(mergeLogsInfos({ msg: "RPC call succeeded", data: { publicRpcUrl } }, options.logInfos));
+    return res;
+  } catch (error) {
+    logger.error(mergeLogsInfos({ msg: "RPC call failed", data: { publicRpcUrl, error } }, options.logInfos));
+    logger.error(error);
+    throw error;
+  }
 }

@@ -9,6 +9,7 @@ import {
   MAX_RANGES_PER_PRODUCT_TO_GENERATE,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
+import { DbClient, db_query_one } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
@@ -21,6 +22,7 @@ import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 const logger = rootLogger.child({ module: "common", component: "import-queries" });
 
 export function latestBlockNumber$<TObj, TRes>(options: {
+  client: DbClient;
   rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   streamConfig: BatchStreamConfig;
@@ -36,14 +38,33 @@ export function latestBlockNumber$<TObj, TRes>(options: {
         return { input: obj, output: options.forceCurrentBlockNumber };
       }
 
-      const latestBlockNumber = await callLockProtectedRpc(() => options.rpcConfig.linearProvider.getBlockNumber(), {
-        chain: options.rpcConfig.chain,
-        provider: options.rpcConfig.linearProvider,
-        rpcLimitations: options.rpcConfig.limitations,
-        logInfos: { msg: "latest block number", data: { chain: options.rpcConfig.chain } },
-        maxTotalRetryMs: options.streamConfig.maxTotalRetryMs,
-      });
-      return { input: obj, output: latestBlockNumber };
+      try {
+        const latestBlockNumber = await callLockProtectedRpc(() => options.rpcConfig.linearProvider.getBlockNumber(), {
+          chain: options.rpcConfig.chain,
+          provider: options.rpcConfig.linearProvider,
+          rpcLimitations: options.rpcConfig.limitations,
+          logInfos: { msg: "latest block number", data: { chain: options.rpcConfig.chain } },
+          maxTotalRetryMs: options.streamConfig.maxTotalRetryMs,
+        });
+        return { input: obj, output: latestBlockNumber };
+      } catch (err) {
+        logger.error({ msg: "Error while fetching latest block number", data: { chain: options.rpcConfig.chain, err } });
+      }
+      logger.info({ msg: "Using last block number from database", data: { chain: options.rpcConfig.chain } });
+
+      const dbRes = await db_query_one<{ latest_block_number: number }>(
+        `
+        select last(block_number, datetime) as latest_block_number 
+        from block_ts 
+        where chain = %L
+      `,
+        [options.rpcConfig.chain],
+        options.client,
+      );
+      if (!dbRes) {
+        throw new Error(`No block number found for chain ${options.rpcConfig.chain}`);
+      }
+      return { input: obj, output: dbRes.latest_block_number };
     }, options.streamConfig.workConcurrency),
     formatOutput: options.formatOutput,
   });
@@ -54,6 +75,7 @@ export function latestBlockNumber$<TObj, TRes>(options: {
  * used to get last data for the given chain
  */
 export function addLatestBlockQuery$<TObj, TRes>(options: {
+  client: DbClient;
   rpcConfig: RpcConfig;
   forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
@@ -66,6 +88,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 
     // go get the latest block number for this chain
     latestBlockNumber$({
+      client: options.client,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       rpcConfig: options.rpcConfig,
       streamConfig: options.streamConfig,
@@ -102,6 +125,7 @@ export function addLatestBlockQuery$<TObj, TRes>(options: {
 export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumberRangeImportState>(options: {
   forceCurrentBlockNumber: number | null;
   rpcConfig: RpcConfig;
+  client: DbClient;
   streamConfig: BatchStreamConfig;
   getImport: (obj: TObj) => TImport;
   getFirstBlockNumber: (importState: TImport) => number;
@@ -110,6 +134,7 @@ export function addHistoricalBlockQuery$<TObj, TRes, TImport extends DbBlockNumb
   return Rx.pipe(
     // go get the latest block number for this chain
     latestBlockNumber$({
+      client: options.client,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       streamConfig: options.streamConfig,
       rpcConfig: options.rpcConfig,
@@ -215,6 +240,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
 
       // fetch the last block of this chain
       latestBlockNumber$({
+        client: options.ctx.client,
         rpcConfig: options.ctx.rpcConfig,
         streamConfig: options.ctx.streamConfig,
         forceCurrentBlockNumber: options.forceCurrentBlockNumber,

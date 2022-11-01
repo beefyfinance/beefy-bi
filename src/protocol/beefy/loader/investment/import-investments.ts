@@ -23,6 +23,7 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
     generateQueries$: (ctx) =>
       addHistoricalBlockQuery$({
         rpcConfig: ctx.rpcConfig,
+        client: ctx.client,
         streamConfig: ctx.streamConfig,
         forceCurrentBlockNumber,
         getImport: (item) => item.importState,
@@ -91,6 +92,7 @@ export function importChainRecentData$(client: DbClient, chain: Chain, forceCurr
     isLiveItem: isBeefyProductLive,
     generateQueries$: (ctx, lastImported) =>
       addLatestBlockQuery$({
+        client,
         rpcConfig: ctx.rpcConfig,
         forceCurrentBlockNumber,
         streamConfig: ctx.streamConfig,
