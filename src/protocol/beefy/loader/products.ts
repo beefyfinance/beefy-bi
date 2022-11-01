@@ -1,8 +1,8 @@
 import { groupBy, keyBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
@@ -15,7 +15,7 @@ import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-products" });
 
-export function importBeefyProducts$(options: { client: PoolClient }) {
+export function importBeefyProducts$(options: { client: DbClient }) {
   const streamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
     workConcurrency: 1,

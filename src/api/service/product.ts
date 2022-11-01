@@ -1,10 +1,9 @@
-import { PoolClient } from "pg";
 import { DbProduct } from "../../protocol/common/loader/product";
-import { db_query_one } from "../../utils/db";
+import { DbClient, db_query_one } from "../../utils/db";
 import { AsyncCache } from "./cache";
 
 export class ProductService {
-  constructor(private services: { db: PoolClient; cache: AsyncCache }) {}
+  constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
   async getSingleProductPriceFeedIds(productId: number) {
     const cacheKey = `api:product-service:price-feeds:${productId}`;

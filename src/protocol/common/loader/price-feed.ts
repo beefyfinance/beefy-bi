@@ -1,7 +1,6 @@
 import { keyBy, uniqBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
-import { db_query } from "../../../utils/db";
+import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ImportCtx } from "../types/import-context";
@@ -101,7 +100,7 @@ export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(option
   });
 }
 
-export function priceFeedList$<TKey extends string>(client: PoolClient, keyPrefix: TKey): Rx.Observable<DbPriceFeed> {
+export function priceFeedList$<TKey extends string>(client: DbClient, keyPrefix: TKey): Rx.Observable<DbPriceFeed> {
   logger.debug({ msg: "Fetching price feed from db", data: { keyPrefix } });
   return Rx.of(
     db_query<DbPriceFeed>(

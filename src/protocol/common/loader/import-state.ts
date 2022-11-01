@@ -1,10 +1,9 @@
 import { backOff } from "exponential-backoff";
 import { cloneDeep, groupBy, keyBy, uniq } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { ConnectionTimeoutError } from "../../../utils/async";
-import { db_query, db_transaction } from "../../../utils/db";
+import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
@@ -65,7 +64,7 @@ export function isProductShareRateImportState(o: DbImportState): o is DbProductS
 }
 
 function upsertImportState$<TInput, TRes>(options: {
-  client: PoolClient;
+  client: DbClient;
   streamConfig: BatchStreamConfig;
   getImportStateData: (obj: TInput) => DbImportState;
   formatOutput: (obj: TInput, importState: DbImportState) => TRes;
@@ -105,7 +104,7 @@ function upsertImportState$<TInput, TRes>(options: {
 }
 
 export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(options: {
-  client: PoolClient;
+  client: DbClient;
   streamConfig: BatchStreamConfig;
   getImportStateKey: (obj: TObj) => string;
   formatOutput: (obj: TObj, importState: TImport | null) => TRes;
@@ -145,7 +144,7 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
 }
 
 export function updateImportState$<TObj, TRes, TImport extends DbImportState, TRange extends SupportedRangeTypes>(options: {
-  client: PoolClient;
+  client: DbClient;
   streamConfig: BatchStreamConfig;
   getRange: (obj: TObj) => Range<TRange>;
   isSuccess: (obj: TObj) => boolean;
@@ -299,7 +298,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
 }
 
 export function addMissingImportState$<TInput, TRes, TImport extends DbImportState>(options: {
-  client: PoolClient;
+  client: DbClient;
   streamConfig: BatchStreamConfig;
   getImportStateKey: (obj: TInput) => string;
   createDefaultImportState$: Rx.OperatorFunction<TInput, TImport["importData"]>;

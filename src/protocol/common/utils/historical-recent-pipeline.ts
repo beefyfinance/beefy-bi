@@ -1,9 +1,9 @@
 import { get, sortBy } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { DbClient } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
@@ -53,7 +53,7 @@ export const defaultRecentStreamConfig: BatchStreamConfig = {
 };
 
 export function createHistoricalImportPipeline<TInput, TRange extends SupportedRangeTypes, TImport extends DbImportState>(options: {
-  client: PoolClient;
+  client: DbClient;
   chain: Chain;
   logInfos: LogInfos;
   getImportStateKey: (input: TInput) => string;
@@ -163,7 +163,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
 
 const recentImportCache: Record<string, SupportedRangeTypes> = {};
 export function createRecentImportPipeline<TInput, TRange extends SupportedRangeTypes>(options: {
-  client: PoolClient;
+  client: DbClient;
   chain: Chain;
   logInfos: LogInfos;
   cacheKey: string;

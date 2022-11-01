@@ -1,6 +1,6 @@
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
+import { DbClient } from "../../../../utils/db";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -19,7 +19,7 @@ import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
-export function importBeefyHistoricalShareRatePrices$(options: { client: PoolClient; chain: Chain; forceCurrentBlockNumber: number | null }) {
+export function importBeefyHistoricalShareRatePrices$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null }) {
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
     client: options.client,
     chain: options.chain, // unused

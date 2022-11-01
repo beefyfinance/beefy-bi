@@ -1,8 +1,7 @@
 import { keyBy, uniq } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { db_query } from "../../../utils/db";
+import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
 import { BeefyVault } from "../../beefy/connector/vault-list";
@@ -133,7 +132,7 @@ export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams 
   });
 }
 
-export function productList$<TKey extends string>(client: PoolClient, keyPrefix: TKey, chain: Chain | null): Rx.Observable<DbProduct> {
+export function productList$<TKey extends string>(client: DbClient, keyPrefix: TKey, chain: Chain | null): Rx.Observable<DbProduct> {
   logger.debug({ msg: "Fetching vaults from db" });
   return Rx.of(
     db_query<DbProduct>(

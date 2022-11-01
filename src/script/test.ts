@@ -1,17 +1,16 @@
 import { max, min } from "lodash";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime";
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
-import { withPgClient } from "../utils/db";
+import { DbClient, withPgClient } from "../utils/db";
 import { runMain } from "../utils/process";
 import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
-async function main(client: PoolClient) {
+async function main(client: DbClient) {
   const chain: Chain = "moonbeam";
   const ctx: ImportCtx<any> = {
     client,

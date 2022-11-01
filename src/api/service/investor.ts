@@ -1,9 +1,8 @@
-import { PoolClient } from "pg";
-import { db_query_one } from "../../utils/db";
+import { DbClient, db_query_one } from "../../utils/db";
 import { AsyncCache } from "./cache";
 
 export class InvestorService {
-  constructor(private services: { db: PoolClient; cache: AsyncCache }) {}
+  constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
   async getInvestorId(address: string) {
     const cacheKey = `api:investor-service:${address.toLocaleLowerCase()}`;

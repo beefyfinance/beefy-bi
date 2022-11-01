@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
+import { DbClient } from "../../../../utils/db";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
@@ -14,7 +14,7 @@ import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 
 const getImportStateKey = (priceFeed: DbPriceFeed) => `price:feed:${priceFeed.priceFeedId}`;
 
-export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolClient }) {
+export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClient }) {
   return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
     client: options.client,
     chain: "bsc", // unused
@@ -65,7 +65,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: PoolCl
   });
 }
 
-export function importBeefyRecentUnderlyingPrices$(options: { client: PoolClient }) {
+export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }) {
   return createRecentImportPipeline<DbPriceFeed, Date>({
     client: options.client,
     chain: "bsc", // unused

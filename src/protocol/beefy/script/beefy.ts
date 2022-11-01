@@ -1,10 +1,9 @@
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
 import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { withPgClient } from "../../../utils/db";
+import { DbClient, withPgClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
@@ -22,7 +21,7 @@ import { isBeefyBoost, isBeefyProductLive, isBeefyStandardVault } from "../utils
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
 interface CmdParams {
-  client: PoolClient;
+  client: DbClient;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
   filterChains: Chain[];
   includeEol: boolean;

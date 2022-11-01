@@ -1,6 +1,6 @@
-import { PoolClient } from "pg";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
+import { DbClient } from "../../../../utils/db";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/import-queries";
@@ -13,7 +13,7 @@ import { importProductBlockRange$ } from "./product-block-range";
 
 const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
-export function importChainHistoricalData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
+export function importChainHistoricalData$(client: DbClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
     client,
     chain,
@@ -81,7 +81,7 @@ export function importChainHistoricalData$(client: PoolClient, chain: Chain, for
   });
 }
 
-export function importChainRecentData$(client: PoolClient, chain: Chain, forceCurrentBlockNumber: number | null) {
+export function importChainRecentData$(client: DbClient, chain: Chain, forceCurrentBlockNumber: number | null) {
   return createRecentImportPipeline<DbBeefyProduct, number>({
     client,
     chain,

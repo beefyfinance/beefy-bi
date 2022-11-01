@@ -1,13 +1,11 @@
 import Decimal from "decimal.js";
-import { PoolClient } from "pg";
-import { boolean, string } from "yargs";
 import { allChainIds, Chain } from "../../types/chain";
-import { db_query } from "../../utils/db";
+import { DbClient, db_query } from "../../utils/db";
 import { AsyncCache } from "./cache";
 import { ProductService } from "./product";
 
 export class PortfolioService {
-  constructor(private services: { db: PoolClient; cache: AsyncCache; product: ProductService }) {}
+  constructor(private services: { db: DbClient; cache: AsyncCache; product: ProductService }) {}
 
   getInvestedProducts(investorId: number, chains: Chain[]) {
     return db_query<{

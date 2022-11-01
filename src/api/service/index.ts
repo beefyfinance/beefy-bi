@@ -1,6 +1,6 @@
 import { diContainer } from "@fastify/awilix";
 import { asClass, asValue, Lifetime } from "awilix";
-import { getPgPool } from "../../utils/db";
+import { getPgClient } from "../../utils/db";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
 import { AsyncCache } from "./cache";
 import { InvestorService } from "./investor";
@@ -12,7 +12,7 @@ const AbstractCache: any = require("abstract-cache"); // todo: add or install ty
 
 declare module "@fastify/awilix" {
   interface Cradle {
-    db: Awaited<ReturnType<typeof getPgPool>>;
+    db: Awaited<ReturnType<typeof getPgClient>>;
     investor: InvestorService;
     portfolio: PortfolioService;
     product: ProductService;
@@ -22,7 +22,7 @@ declare module "@fastify/awilix" {
 }
 
 export async function registerDI() {
-  const pgClient = await getPgPool({ freshClient: true, readOnly: true });
+  const pgClient = await getPgClient({ freshClient: true, readOnly: true });
   const redisClient = await getRedisClient();
   const abcache = AbstractCache({
     useAwait: false,

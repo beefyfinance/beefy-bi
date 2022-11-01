@@ -1,9 +1,8 @@
-import { PoolClient } from "pg";
-import { db_query } from "../../utils/db";
+import { DbClient, db_query } from "../../utils/db";
 import { AsyncCache } from "./cache";
 
 export class PriceService {
-  constructor(private services: { db: PoolClient; cache: AsyncCache }) {}
+  constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
   async getPriceTs(priceFeedId: number) {
     const cacheKey = `api:price-service:${priceFeedId}`;
