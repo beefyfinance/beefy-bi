@@ -7,6 +7,7 @@ import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import { ImportCtx } from "../types/import-context";
 import { ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
@@ -143,9 +144,14 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
   );
 }
 
-export function updateImportState$<TObj, TRes, TImport extends DbImportState, TRange extends SupportedRangeTypes>(options: {
-  client: DbClient;
-  streamConfig: BatchStreamConfig;
+export function updateImportState$<
+  TObj,
+  TCtx extends ImportCtx<TObj>,
+  TRes,
+  TImport extends DbImportState,
+  TRange extends SupportedRangeTypes,
+>(options: {
+  ctx: TCtx;
   getRange: (obj: TObj) => Range<TRange>;
   isSuccess: (obj: TObj) => boolean;
   getImportStateKey: (obj: TObj) => string;
@@ -198,7 +204,7 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
   return Rx.pipe(
     // merge the product import ranges together to call the database less often
     // but flush often enough so we don't go too long before updating the import ranges
-    Rx.bufferTime(options.streamConfig.maxInputWaitMs, undefined, options.streamConfig.maxInputTake),
+    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, options.ctx.streamConfig.maxInputTake),
     Rx.filter((items) => items.length > 0),
 
     // update multiple import states at once
@@ -286,11 +292,14 @@ export function updateImportState$<TObj, TRes, TImport extends DbImportState, TR
       } catch (error) {
         if (error instanceof ConnectionTimeoutError) {
           logger.error(mergeLogsInfos({ msg: "Connection timeout error, will not retry, import state not updated", data: { error } }, logInfos));
+          for (const item of items) {
+            options.ctx.emitErrors(item);
+          }
           return [];
         }
         throw error;
       }
-    }, options.streamConfig.workConcurrency),
+    }, options.ctx.streamConfig.workConcurrency),
 
     // flatten the items
     Rx.concatAll(),

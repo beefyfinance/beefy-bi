@@ -146,8 +146,12 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
 
       // update the import state
       updateImportState$({
-        client: options.client,
-        streamConfig,
+        ctx: {
+          ...ctx,
+          emitErrors: (item) => {
+            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
+          },
+        },
         getRange: (item) => item.range,
         isSuccess: (item) => item.success,
         getImportStateKey: (item) => options.getImportStateKey(item.target),
@@ -239,8 +243,12 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       }),
       excludeNullFields$("importState"),
       updateImportState$({
-        client: ctx.client,
-        streamConfig: ctx.streamConfig,
+        ctx: {
+          ...ctx,
+          emitErrors: (item) => {
+            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
+          },
+        },
         getImportStateKey: (item) => options.getImportStateKey(item.target),
         getRange: (item) => item.range,
         isSuccess: (item) => item.success,
