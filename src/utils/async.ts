@@ -14,9 +14,14 @@ export function withTimeout<TRes>(fn: () => Promise<TRes>, timeoutMs: number, lo
       logger.error(mergeLogsInfos({ msg: "Timeout", data: { timeoutMs } }, logInfos));
       reject(new ConnectionTimeoutError(`Timeout after ${timeoutMs}ms`));
     }, timeoutMs);
-    fn().then((res) => {
-      clearTimeout(timeout);
-      resolve(res);
-    });
+    fn()
+      .then((res) => {
+        clearTimeout(timeout);
+        resolve(res);
+      })
+      .catch((error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
   });
 }
