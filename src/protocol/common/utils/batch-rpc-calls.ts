@@ -120,7 +120,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
     }),
 
     // for each batch, fetch the transfers
-    Rx.mergeMap(async (objs: TObj[]) => {
+    Rx.concatMap(async (objs: TObj[]) => {
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
       const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
@@ -177,7 +177,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
         }
         return Rx.EMPTY;
       }
-    }, options.ctx.streamConfig.workConcurrency),
+    }),
 
     Rx.tap(
       (objs) =>
