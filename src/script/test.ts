@@ -1,5 +1,6 @@
 import { max, min } from "lodash";
 import * as Rx from "rxjs";
+import { fetchBeefyPPFS$ } from "../protocol/beefy/connector/ppfs";
 import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime";
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
@@ -11,7 +12,7 @@ import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range"
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 async function main(client: DbClient) {
-  const chain: Chain = "moonbeam";
+  const chain: Chain = "emerald";
   const ctx: ImportCtx<any> = {
     client,
     emitErrors: (item) => {
@@ -43,6 +44,8 @@ async function main(client: DbClient) {
   );
   const res = await consumeObservable(obs$);
   */
+
+  /*
   const ranges = [
     { from: 15752182, to: 31661214 },
     { from: 31661905, to: 31664305 },
@@ -65,7 +68,36 @@ async function main(client: DbClient) {
   ];
   const res = rangeExcludeMany({ from: min(ranges.map((r) => r.from))!, to: max(ranges.map((r) => r.to))! }, ranges);
   console.dir(res, { depth: null });
-  console.dir(rangeMerge(ranges), { depth: null });
+  console.dir(rangeMerge(ranges), { depth: null });*/
+
+  const queries = [
+    // "0x350147",
+    // "0x350146",
+    // "0x350118",
+    // "0x3500be",
+    // "0x350064",
+    // "0x35000a",
+    //"0x34ffb0",
+    "0x16e678",
+    // "0x16e632"
+  ];
+
+  const obs$ = Rx.from(queries).pipe(
+    fetchBeefyPPFS$({
+      ctx,
+      getPPFSCallParams: (item) => ({
+        blockNumber: parseInt(item, 16),
+        underlyingDecimals: 18,
+        vaultAddress: "0xb42441990ffb06f155bb5b52577fb137bcb1eb5f",
+        vaultDecimals: 18,
+      }),
+      formatOutput: (_, ppfs) => {
+        return ppfs;
+      },
+    }),
+  );
+  const res = await consumeObservable(obs$);
+  console.dir(res);
 }
 
 runMain(withPgClient(main, { appName: "beefy:test_script", readOnly: false, logInfos: { msg: "test" } }));

@@ -248,6 +248,14 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
       }),
     ),
     Rx.pipe(
+      // filter blocks after the creation date of the contract
+      Rx.map((item) => ({
+        ...item,
+        blockList: item.blockList.filter(
+          (block) => block.interpolated_block_number >= options.getImportState(item.obj).importData.contractCreatedAtBlock,
+        ),
+      })),
+
       // transform to ranges
       Rx.map((item) => {
         const blockRanges: Range<number>[] = [];
