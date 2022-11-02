@@ -211,7 +211,7 @@ export function updateImportState$<
     Rx.mergeMap(async (items) => {
       const logInfos: LogInfos = {
         msg: "import-state update transaction",
-        data: { importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
+        data: { chain: options.ctx.rpcConfig.chain, importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
       };
       // we start a transaction as we need to do a select FOR UPDATE
       const work = () =>
@@ -263,6 +263,7 @@ export function updateImportState$<
         );
 
       try {
+        logger.trace(mergeLogsInfos({ msg: "Updating import state" }, logInfos));
         const newImportStates = await backOff(() => work(), {
           delayFirstAttempt: false,
           startingDelay: 500,
@@ -285,6 +286,7 @@ export function updateImportState$<
           const importKey = options.getImportStateKey(item);
           const importState = resultMap[importKey] ?? null;
           if (!importState) {
+            logger.error(mergeLogsInfos({ msg: "Import state not found", data: { importKey, items } }, logInfos));
             throw new ProgrammerError({ msg: "Import state not found", data: { importKey, items } });
           }
           return options.formatOutput(item, importState);
