@@ -263,7 +263,7 @@ export function updateImportState$<
         );
 
       try {
-        logger.trace(mergeLogsInfos({ msg: "Updating import state" }, logInfos));
+        logger.debug(mergeLogsInfos({ msg: "Updating import state" }, logInfos));
         const newImportStates = await backOff(() => work(), {
           delayFirstAttempt: false,
           startingDelay: 500,
@@ -273,8 +273,7 @@ export function updateImportState$<
           jitter: "full",
           retry: (error) => {
             if (error instanceof ConnectionTimeoutError) {
-              logger.error(mergeLogsInfos({ msg: "Connection timeout error, will retry", data: { error } }, logInfos));
-              logger.error(error);
+              logger.debug(mergeLogsInfos({ msg: "Connection timeout error, will retry", data: { error } }, logInfos));
               return true;
             }
             return false;

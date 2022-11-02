@@ -80,7 +80,7 @@ export function withPgClient<TArgs extends any[], TRes>(
       await withTimeout(() => pgClient.connect(), connectTimeoutMs, logInfos);
       res = await fn(pgClient, ...args);
     } finally {
-      pgClient.end();
+      await pgClient.end();
     }
     return res;
   };
@@ -108,7 +108,7 @@ export async function db_transaction<TRes>(
       throw error;
     }
   } finally {
-    pgClient.end();
+    await pgClient.end();
   }
 }
 
