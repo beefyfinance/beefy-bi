@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import * as fs from "fs";
-import { cloneDeep, sample, set } from "lodash";
+import { cloneDeep, merge, sample, set } from "lodash";
 import yargs from "yargs";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
@@ -215,7 +215,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, writeToFile: boolean)
   if (writeToFile) {
     const findingsFile = CONFIG_DIRECTORY + "/rpc-limitations.json";
     const originalContent = JSON.parse(fs.readFileSync(findingsFile, "utf-8"));
-    fs.writeFileSync(findingsFile, JSON.stringify(Object.assign({}, originalContent, findings), null, 2));
+    fs.writeFileSync(findingsFile, JSON.stringify(merge(originalContent, findings), null, 2));
   }
   logger.info({
     msg: "Testing done for rpc",

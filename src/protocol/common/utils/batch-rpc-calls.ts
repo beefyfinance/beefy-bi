@@ -1,10 +1,10 @@
 import { ethers } from "ethers";
 import * as Rx from "rxjs";
 import { RpcCallMethod } from "../../../types/rpc-config";
-import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
+import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { bufferUntilCountReached } from "../../../utils/rxjs/utils/buffer-until-count-reached";
+import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ImportCtx } from "../types/import-context";
 
@@ -41,70 +41,26 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   rpcCallsPerInputObj: {
     [method in RpcCallMethod]: number;
   };
-  getCallMultiplierForObj?: (obj: TObj) => number;
   logInfos: { msg: string; data?: Record<string, unknown> };
   formatOutput: (objs: TObj, results: TQueryResp) => TRes;
 }) {
-  // get the rpc provider maximum batch size
-  const methodLimitations = options.ctx.rpcConfig.limitations.methods;
-
-  // find out the max number of objects to process in a batch
-  let canUseBatchProvider = true;
-  let maxInputObjsPerBatch = options.ctx.streamConfig.maxInputTake;
-  for (const [method, count] of Object.entries(options.rpcCallsPerInputObj)) {
-    // we don't use this method so we don't care
-    if (count <= 0) {
-      continue;
-    }
-    const maxCount = methodLimitations[method as RpcCallMethod];
-    if (maxCount === null) {
-      canUseBatchProvider = false;
-      logger.trace(mergeLogsInfos({ msg: "disabling batch provider since limitation is null", data: { method } }, options.logInfos));
-      break;
-    }
-    const newMax = Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count));
-    logger.trace(
-      mergeLogsInfos(
-        { msg: "updating maxInputObjsPerBatch with provided count per item", data: { old: maxInputObjsPerBatch, new: newMax } },
-        options.logInfos,
-      ),
-    );
-    maxInputObjsPerBatch = newMax;
-  }
-
-  if (!canUseBatchProvider) {
-    // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
-    if (options.ctx.rpcConfig.limitations.minDelayBetweenCalls === "no-limit") {
-      const newMax = Math.max(1, Math.floor(options.ctx.streamConfig.maxInputTake / 10));
-      logger.trace(
-        mergeLogsInfos(
-          { msg: "updating maxInputObjsPerBatch since RPC is in no-limit mode", data: { old: maxInputObjsPerBatch, new: newMax } },
-          options.logInfos,
-        ),
-      );
-      maxInputObjsPerBatch = newMax;
-    } else {
-      logger.trace(
-        mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
-      );
-      maxInputObjsPerBatch = 1;
-    }
-  }
-  logger.debug(mergeLogsInfos({ msg: "config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos));
+  const { maxInputObjsPerBatch, canUseBatchProvider } = getBatchConfigFromLimitations({
+    maxInputObjsPerBatch: options.ctx.streamConfig.maxInputTake,
+    rpcCallsPerInputObj: options.rpcCallsPerInputObj,
+    limitations: options.ctx.rpcConfig.limitations,
+    logInfos: options.logInfos,
+  });
 
   return Rx.pipe(
+    // add object TS type
+    Rx.tap((_: TObj) => {}),
+
     // take a batch of items
-    bufferUntilCountReached<TObj>({
-      maxBufferSize: maxInputObjsPerBatch,
-      maxBufferTimeMs: options.ctx.streamConfig.maxInputWaitMs,
-      pollFrequencyMs: 150,
-      pollJitterMs: 50,
-      logInfos: options.logInfos,
-      getCount: options.getCallMultiplierForObj || (() => 1),
-    }),
+    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, maxInputObjsPerBatch),
+    Rx.filter((objs) => objs.length > 0),
 
     // for each batch, fetch the transfers
-    Rx.concatMap(async (objs: TObj[]) => {
+    Rx.concatMap(async (objs) => {
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
       const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
@@ -129,7 +85,6 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
       };
 
       try {
-        // retry the call if it fails
         const resultMap = await callLockProtectedRpc(work, {
           chain: options.ctx.rpcConfig.chain,
           provider,
@@ -172,4 +127,62 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
     // flatten
     Rx.mergeAll(),
   );
+}
+
+function getBatchConfigFromLimitations(options: {
+  maxInputObjsPerBatch: number;
+  rpcCallsPerInputObj: {
+    [method in RpcCallMethod]: number;
+  };
+  limitations: RpcLimitations;
+  logInfos: LogInfos;
+}) {
+  // get the rpc provider maximum batch size
+  const methodLimitations = options.limitations.methods;
+
+  // find out the max number of objects to process in a batch
+  let canUseBatchProvider = true;
+  let maxInputObjsPerBatch = options.maxInputObjsPerBatch;
+  for (const [method, count] of Object.entries(options.rpcCallsPerInputObj)) {
+    // we don't use this method so we don't care
+    if (count <= 0) {
+      continue;
+    }
+    const maxCount = methodLimitations[method as RpcCallMethod];
+    if (maxCount === null) {
+      canUseBatchProvider = false;
+      logger.trace(mergeLogsInfos({ msg: "disabling batch provider since limitation is null", data: { method } }, options.logInfos));
+      break;
+    }
+    const newMax = Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count));
+    logger.trace(
+      mergeLogsInfos(
+        { msg: "updating maxInputObjsPerBatch with provided count per item", data: { old: maxInputObjsPerBatch, new: newMax } },
+        options.logInfos,
+      ),
+    );
+    maxInputObjsPerBatch = newMax;
+  }
+
+  if (!canUseBatchProvider) {
+    // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
+    if (options.limitations.minDelayBetweenCalls === "no-limit") {
+      const newMax = Math.max(1, Math.floor(options.maxInputObjsPerBatch / 10));
+      logger.trace(
+        mergeLogsInfos(
+          { msg: "updating maxInputObjsPerBatch since RPC is in no-limit mode", data: { old: maxInputObjsPerBatch, new: newMax } },
+          options.logInfos,
+        ),
+      );
+      maxInputObjsPerBatch = newMax;
+    } else {
+      logger.trace(
+        mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
+      );
+      maxInputObjsPerBatch = 1;
+    }
+  }
+  logger.debug(mergeLogsInfos({ msg: "config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos));
+
+  return { maxInputObjsPerBatch, canUseBatchProvider };
 }

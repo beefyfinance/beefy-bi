@@ -39,15 +39,37 @@
     }
   },
   "bsc": {
+    "https://bsc-dataseed1.ninicoin.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 98,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-mainnet.nodereal.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 271,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    },
     "https://rpc.ankr.com/bsc": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 20
+        "eth_getLogs": 2,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 378,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": 500
       }
     }
   },
