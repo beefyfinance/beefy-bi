@@ -274,6 +274,7 @@ export function updateImportState$<
           retry: (error) => {
             if (error instanceof ConnectionTimeoutError) {
               logger.error(mergeLogsInfos({ msg: "Connection timeout error, will retry", data: { error } }, logInfos));
+              logger.error(error);
               return true;
             }
             return false;
