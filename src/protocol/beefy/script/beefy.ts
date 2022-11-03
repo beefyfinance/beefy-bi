@@ -134,6 +134,7 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
   const rpcConfig = createRpcConfig("bsc"); // never used
   const streamConfig = defaultHistoricalStreamConfig;
   const ctx = {
+    chain: "bsc" as Chain, // not used here
     client: cmdParams.client,
     emitErrors: (item: DbProduct) => {
       throw new Error(`Error fetching price feed for product ${item.productId}`);
@@ -191,6 +192,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   const rpcConfig = createRpcConfig(chain);
   const streamConfig = defaultHistoricalStreamConfig;
   const ctx = {
+    chain,
     client: cmdParams.client,
     emitErrors: (item: DbProduct) => {
       throw new Error(`Error fetching price feed for product ${item.productId}`);

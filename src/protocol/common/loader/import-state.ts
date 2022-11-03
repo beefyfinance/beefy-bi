@@ -211,7 +211,7 @@ export function updateImportState$<
     Rx.mergeMap(async (items) => {
       const logInfos: LogInfos = {
         msg: "import-state update transaction",
-        data: { chain: options.ctx.rpcConfig.chain, importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
+        data: { chain: options.ctx.chain, importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
       };
       // we start a transaction as we need to do a select FOR UPDATE
       const work = () =>

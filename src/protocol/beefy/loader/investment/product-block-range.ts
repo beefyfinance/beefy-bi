@@ -215,7 +215,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
   );
 
   return Rx.pipe(
-    Rx.tap((item: TInput) => logger.trace({ msg: "loading transfer", data: { chain: options.ctx.rpcConfig.chain, transferData: item } })),
+    Rx.tap((item: TInput) => logger.trace({ msg: "loading transfer", data: { chain: options.ctx.chain, transferData: item } })),
 
     // ==============================
     // fetch additional transfer data
@@ -276,7 +276,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
         price: item.ppfs,
         datetime: item.blockDatetime,
         priceData: {
-          chain: options.ctx.rpcConfig.chain,
+          chain: options.ctx.chain,
           trxHash: item.target.transfer.transactionHash,
           sharesRate: item.ppfs.toString(),
           productType:
@@ -301,7 +301,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
         balance: item.vaultSharesBalance,
         balanceDiff: item.target.transfer.amountTransfered,
         investmentData: {
-          chain: options.ctx.rpcConfig.chain,
+          chain: options.ctx.chain,
           balance: item.vaultSharesBalance.toString(),
           balanceDiff: item.target.transfer.amountTransfered.toString(),
           trxHash: item.target.transfer.transactionHash,

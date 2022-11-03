@@ -68,7 +68,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
       const provider = canUseBatchProvider ? options.ctx.rpcConfig.batchProvider : options.ctx.rpcConfig.linearProvider;
 
       const work = async () => {
-        logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.rpcConfig.chain } }, options.logInfos));
+        logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.chain } }, options.logInfos));
 
         try {
           const contractCalls = objAndCallParams.map(({ query }) => query);
@@ -78,7 +78,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
           if (error instanceof ArchiveNodeNeededError) {
             throw error;
           } else if (isErrorDueToMissingDataFromNode(error)) {
-            throw new ArchiveNodeNeededError(options.ctx.rpcConfig.chain, error);
+            throw new ArchiveNodeNeededError(options.ctx.chain, error);
           }
           throw error;
         }
@@ -86,7 +86,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
 
       try {
         const resultMap = await callLockProtectedRpc(work, {
-          chain: options.ctx.rpcConfig.chain,
+          chain: options.ctx.chain,
           provider,
           rpcLimitations: options.ctx.rpcConfig.limitations,
           logInfos: options.logInfos,
@@ -95,11 +95,9 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
 
         return objAndCallParams.map(({ obj, query }) => {
           if (!resultMap.has(query)) {
-            logger.error(
-              mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.rpcConfig.chain, obj, query, resultMap } }, options.logInfos),
-            );
+            logger.error(mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.chain, obj, query, resultMap } }, options.logInfos));
             throw new ProgrammerError(
-              mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.rpcConfig.chain, obj, query, resultMap } }, options.logInfos),
+              mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.chain, obj, query, resultMap } }, options.logInfos),
             );
           }
           const res = resultMap.get(query) as TQueryResp;
@@ -107,7 +105,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
         });
       } catch (err) {
         // here, none of the retrying worked, so we emit all the objects as in error
-        logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { chain: options.ctx.rpcConfig.chain, err } }, options.logInfos));
+        logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { chain: options.ctx.chain, err } }, options.logInfos));
         logger.error(err);
         for (const obj of objs) {
           options.ctx.emitErrors(obj);
@@ -119,9 +117,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
     Rx.tap(
       (objs) =>
         Array.isArray(objs) &&
-        logger.trace(
-          mergeLogsInfos({ msg: "batchRpcCalls$ - done", data: { chain: options.ctx.rpcConfig.chain, objsCount: objs.length } }, options.logInfos),
-        ),
+        logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - done", data: { chain: options.ctx.chain, objsCount: objs.length } }, options.logInfos)),
     ),
 
     // flatten

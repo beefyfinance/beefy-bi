@@ -13,7 +13,7 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
   getBlockNumber: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }) {
-  const chain = options.ctx.rpcConfig.chain;
+  const chain = options.ctx.chain;
 
   const fetchFromRPC$ = Rx.pipe(
     // add TS typings

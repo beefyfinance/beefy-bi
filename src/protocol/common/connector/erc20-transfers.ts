@@ -50,10 +50,9 @@ export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
       eth_getLogs: 2,
       eth_getTransactionReceipt: 0,
     },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.rpcConfig.chain } },
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
     getQuery: options.getQueryParams,
-    processBatch: (provider, contractCalls: GetTransferCallParams[]) =>
-      fetchERC20TransferEvents(provider, options.ctx.rpcConfig.chain, contractCalls),
+    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(provider, options.ctx.chain, contractCalls),
     formatOutput: options.formatOutput,
   });
 }

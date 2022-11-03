@@ -34,6 +34,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
     },
     streamConfig,
     rpcConfig: createRpcConfig("bsc"), // we don't use it here
+    chain: "bsc" as Chain, // we don't use it here
   }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
   const boostImportCtx = {

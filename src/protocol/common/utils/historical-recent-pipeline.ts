@@ -12,7 +12,6 @@ import { addMissingImportState$, DbImportState, fetchImportState$, updateImportS
 import { ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "./batch-rpc-calls";
-import { memoryBackpressure$ } from "./memory-backpressure";
 import { createRpcConfig } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "common", component: "historical-import" });
@@ -59,7 +58,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   createDefaultImportState$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
-  generateQueries$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<
+  generateQueries$: (ctx: ImportCtx<{ target: TInput }>) => Rx.OperatorFunction<
     { target: TInput; importState: TImport },
     {
       range: Range<TRange>;
@@ -74,6 +73,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
 
   const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
+    chain: options.chain,
     client: options.client,
     emitErrors,
     rpcConfig: createRpcConfig(options.chain),
@@ -82,7 +82,12 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
 
   const createDefaultImportState$ = options.createDefaultImportState$(ctx);
   const processImportQuery$ = options.processImportQuery$(ctx);
-  const generateQueries$ = options.generateQueries$(ctx);
+  const generateQueries$ = options.generateQueries$({
+    ...ctx,
+    emitErrors: (item) => {
+      logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+    },
+  });
 
   return Rx.pipe(
     addMissingImportState$({
@@ -114,16 +119,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       ),
     ),
 
-    // some backpressure mechanism
-    Rx.pipe(
-      memoryBackpressure$({
-        logInfos: options.logInfos,
-        sendBurstsOf: streamConfig.maxInputTake,
-      }),
-      Rx.tap((item) =>
-        logger.info(
-          mergeLogsInfos({ msg: "processing query", data: { range: item.range, importStateKey: item.importState.importKey } }, options.logInfos),
-        ),
+    Rx.tap((item) =>
+      logger.info(
+        mergeLogsInfos({ msg: "processing query", data: { range: item.range, importStateKey: item.importState.importKey } }, options.logInfos),
       ),
     ),
 
@@ -174,7 +172,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   generateQueries$: (
-    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
+    ctx: ImportCtx<{ target: TInput }>,
     lastImported: TRange | null,
   ) => Rx.OperatorFunction<
     { target: TInput },
@@ -190,6 +188,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   const streamConfig = defaultRecentStreamConfig;
 
   const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
+    chain: options.chain,
     client: options.client,
     emitErrors: () => {}, // ignore errors since we are doing live data
     rpcConfig: createRpcConfig(options.chain),
@@ -197,7 +196,15 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   };
 
   const processImportQuery$ = options.processImportQuery$(ctx);
-  const generateQueries$ = options.generateQueries$(ctx, (recentImportCache[options.cacheKey] ?? null) as TRange | null);
+  const generateQueries$ = options.generateQueries$(
+    {
+      ...ctx,
+      emitErrors: (item) => {
+        logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+      },
+    },
+    (recentImportCache[options.cacheKey] ?? null) as TRange | null,
+  );
 
   // maintain the latest processed range value for each chain so we don't reprocess the same data again and again
 

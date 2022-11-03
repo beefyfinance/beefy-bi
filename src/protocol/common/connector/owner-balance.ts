@@ -35,7 +35,7 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
 
         // aurora RPC return the state before the transaction is applied
         let blockTag = param.blockNumber;
-        if (options.ctx.rpcConfig.chain === "aurora") {
+        if (options.ctx.chain === "aurora") {
           blockTag = param.blockNumber + 1;
         }
 

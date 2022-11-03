@@ -23,7 +23,7 @@ export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
   getPPFSCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, ppfs: Decimal) => TRes;
 }) {
-  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.ctx.rpcConfig.chain } };
+  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.ctx.chain } };
   return batchRpcCalls$({
     ctx: options.ctx,
     logInfos,
@@ -35,7 +35,7 @@ export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParam
       eth_getTransactionReceipt: 0,
     },
     getQuery: options.getPPFSCallParams,
-    processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.ctx.rpcConfig.chain, params),
+    processBatch: (provider, params) => fetchBeefyVaultPPFS(provider, options.ctx.chain, params),
     formatOutput: options.formatOutput,
   });
 }

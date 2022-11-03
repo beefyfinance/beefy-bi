@@ -14,6 +14,7 @@ import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 async function main(client: DbClient) {
   const chain: Chain = "emerald";
   const ctx: ImportCtx<any> = {
+    chain,
     client,
     emitErrors: (item) => {
       throw new Error("Error for item " + JSON.stringify(item));

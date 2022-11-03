@@ -41,7 +41,7 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
       eth_getLogs: 0,
       eth_getTransactionReceipt: 1,
     },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.rpcConfig.chain } },
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
     getQuery: options.getQueryParams,
     processBatch: async (provider, params: GetTransactionGasCallParams[]) => {
       const transactionHashes = params.map((p) => p.transactionHash);
@@ -51,10 +51,10 @@ export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
         const receipt = await provider.getTransactionReceipt(transactionHash);
         // log the address if the receipt is not in the format we expect
         if (!receipt || !receipt.effectiveGasPrice || !receipt.cumulativeGasUsed || !receipt.gasUsed) {
-          logger.error({ msg: "Invalid transaction receipt", data: { chain: options.ctx.rpcConfig.chain, transactionHash, receipt } });
+          logger.error({ msg: "Invalid transaction receipt", data: { chain: options.ctx.chain, transactionHash, receipt } });
         }
 
-        const chain = options.ctx.rpcConfig.chain;
+        const chain = options.ctx.chain;
         let gasStats: TransactionGas = {
           chain,
           transactionHash: transactionHash,

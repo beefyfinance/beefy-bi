@@ -32,17 +32,6 @@ export const MAX_RANGES_PER_PRODUCT_TO_GENERATE = process.env.MAX_RANGES_PER_PRO
   ? parseInt(process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE, 10)
   : 100;
 
-export const BACKPRESSURE_DISABLED = process.env.BACKPRESSURE_DISABLED ? process.env.BACKPRESSURE_DISABLED === "true" : false;
-
-export const BACKPRESSURE_MEMORY_THRESHOLD_MB = process.env.BACKPRESSURE_MEMORY_THRESHOLD_MB
-  ? parseInt(process.env.BACKPRESSURE_MEMORY_THRESHOLD_MB, 10)
-  : 400; // 400Mb
-
-export const BACKPRESSURE_CHECK_JITTER_MS = process.env.BACKPRESSURE_CHECK_JITTER_MS ? parseInt(process.env.BACKPRESSURE_CHECK_JITTER_MS, 10) : 5000;
-export const BACKPRESSURE_CHECK_INTERVAL_MS = process.env.BACKPRESSURE_CHECK_INTERVAL_MS
-  ? parseInt(process.env.BACKPRESSURE_CHECK_INTERVAL_MS, 10)
-  : 15_000; // 15sec
-
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
