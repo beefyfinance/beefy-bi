@@ -21,13 +21,16 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
     generateQueries$: (ctx) =>
-      addHistoricalBlockQuery$({
-        ctx,
-        forceCurrentBlockNumber,
-        getImport: (item) => item.importState,
-        getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
-        formatOutput: (_, latestBlockNumber, blockQueries) => blockQueries.map((range) => ({ range, latest: latestBlockNumber })),
-      }),
+      Rx.pipe(
+        addHistoricalBlockQuery$({
+          ctx,
+          forceCurrentBlockNumber,
+          getImport: (item) => item.importState,
+          getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
+          formatOutput: (item, latestBlockNumber, blockQueries) => blockQueries.map((range) => ({ ...item, range, latest: latestBlockNumber })),
+        }),
+        Rx.concatAll(),
+      ),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
         // initialize the import state
@@ -93,7 +96,7 @@ export function importChainRecentData$(client: DbClient, chain: Chain, forceCurr
         ctx,
         forceCurrentBlockNumber,
         getLastImportedBlock: () => lastImported,
-        formatOutput: (item, latest, range) => [{ ...item, range, latest }],
+        formatOutput: (item, latest, range) => ({ ...item, range, latest }),
       }),
     processImportQuery$: (ctx) => importProductBlockRange$({ ctx, mode: "recent" }),
   });

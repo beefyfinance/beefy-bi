@@ -86,8 +86,9 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
           timeStep: "15min",
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImportState: (item) => item.importState,
-          formatOutput: (_, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ range, latest: latestBlockNumber })),
+          formatOutput: (item, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ ...item, range, latest: latestBlockNumber })),
         }),
+        Rx.concatAll(),
       ),
     processImportQuery$: (ctx) => processShareRateQuery$({ ctx }),
   });

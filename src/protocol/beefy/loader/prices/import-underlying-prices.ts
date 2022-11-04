@@ -22,11 +22,14 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
     getImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
     generateQueries$: (ctx) =>
-      addHistoricalDateQuery$({
-        getImport: (item) => item.importState,
-        getFirstDate: (importState) => importState.importData.firstDate,
-        formatOutput: (item, latestDate, queries) => queries.map((range) => ({ ...item, latest: latestDate, range })),
-      }),
+      Rx.pipe(
+        addHistoricalDateQuery$({
+          getImport: (item) => item.importState,
+          getFirstDate: (importState) => importState.importData.firstDate,
+          formatOutput: (item, latestDate, queries) => queries.map((range) => ({ ...item, latest: latestDate, range })),
+        }),
+        Rx.concatAll(),
+      ),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
         // initialize the import state
@@ -76,7 +79,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }
     generateQueries$: (ctx, lastImported) =>
       addLatestDateQuery$({
         getLastImportedDate: () => lastImported,
-        formatOutput: (item, latestDate, query) => [{ ...item, latest: latestDate, range: query }],
+        formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
       }),
     processImportQuery$: (ctx) => insertPricePipeline$({ ctx }),
   });

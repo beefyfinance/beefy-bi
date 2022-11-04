@@ -8,6 +8,7 @@ import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { logObservableLifecycle } from "../../../utils/rxjs/utils/log-observable-lifecycle";
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
@@ -58,13 +59,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   createDefaultImportState$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
-  generateQueries$: (ctx: ImportCtx<{ target: TInput }>) => Rx.OperatorFunction<
-    { target: TInput; importState: TImport },
-    {
-      range: Range<TRange>;
-      latest: TRange;
-    }[]
-  >;
+  generateQueries$: (
+    ctx: ImportCtx<{ target: TInput }>,
+  ) => Rx.OperatorFunction<{ target: TInput; importState: TImport }, ImportRangeQuery<TInput, TRange> & { importState: TImport }>;
   processImportQuery$: (
     ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport }, ImportRangeResult<TInput, TRange>>;
@@ -85,7 +82,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   const generateQueries$ = options.generateQueries$({
     ...ctx,
     emitErrors: (item) => {
-      logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+      logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { chain: ctx.chain, item } }, options.logInfos));
     },
   });
 
@@ -112,16 +109,14 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     ),
 
     // create the queries
-    Rx.concatMap((item) =>
-      Rx.of(item).pipe(
-        generateQueries$,
-        Rx.concatMap((queries) => queries.map((query) => ({ ...item, ...query }))),
-      ),
-    ),
+    generateQueries$,
 
     Rx.tap((item) =>
       logger.info(
-        mergeLogsInfos({ msg: "processing query", data: { range: item.range, importStateKey: item.importState.importKey } }, options.logInfos),
+        mergeLogsInfos(
+          { msg: "processing query", data: { chain: ctx.chain, range: item.range, importStateKey: item.importState.importKey } },
+          options.logInfos,
+        ),
       ),
     ),
 
@@ -181,13 +176,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   generateQueries$: (
     ctx: ImportCtx<{ target: TInput }>,
     lastImported: TRange | null,
-  ) => Rx.OperatorFunction<
-    { target: TInput },
-    {
-      range: Range<TRange>;
-      latest: TRange;
-    }[]
-  >;
+  ) => Rx.OperatorFunction<{ target: TInput }, ImportRangeQuery<TInput, TRange>>;
   processImportQuery$: (
     ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange>, ImportRangeResult<TInput, TRange>>;
@@ -207,7 +196,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     {
       ...ctx,
       emitErrors: (item) => {
-        logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+        logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { chain: ctx.chain, item } }, options.logInfos));
       },
     },
     (recentImportCache[options.cacheKey] ?? null) as TRange | null,
@@ -218,35 +207,33 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   return Rx.pipe(
     // only process live items
     Rx.filter((item: TInput) => options.isLiveItem(item)),
+
     // make is a query
     Rx.map((target) => ({ target })),
 
     // create the import queries
-    Rx.concatMap((item) =>
-      Rx.of(item).pipe(
-        generateQueries$,
-        Rx.concatMap((queries) => queries.map((query) => ({ ...item, ...query }))),
-      ),
-    ),
+    generateQueries$,
+
+    Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { chain: ctx.chain, range: item.range } }, options.logInfos))),
 
     // run the import
     processImportQuery$,
 
-    // update the last processed cache
-    Rx.tap((item) => {
-      logger.trace(mergeLogsInfos({ msg: "updating recent import cache", data: { range: item.range } }, options.logInfos));
-      if (item.success) {
-        const cachedValue = recentImportCache[options.cacheKey];
-        if (cachedValue === undefined) {
-          recentImportCache[options.cacheKey] = item.range.to;
-        } else {
-          recentImportCache[options.cacheKey] = rangeValueMax([cachedValue, item.range.to]) as TRange;
+    Rx.pipe(
+      // update the last processed cache
+      Rx.tap((item) => {
+        logger.trace(mergeLogsInfos({ msg: "updating recent import cache", data: { chain: ctx.chain, range: item.range } }, options.logInfos));
+        if (item.success) {
+          const cachedValue = recentImportCache[options.cacheKey];
+          if (cachedValue === undefined) {
+            recentImportCache[options.cacheKey] = item.range.to;
+          } else {
+            recentImportCache[options.cacheKey] = rangeValueMax([cachedValue, item.range.to]) as TRange;
+          }
         }
-      }
-    }),
-
-    Rx.tap((item) => logger.trace(mergeLogsInfos({ msg: "processed recent import", data: { range: item.range } }, options.logInfos))),
-
+      }),
+      Rx.tap((item) => logger.trace(mergeLogsInfos({ msg: "processed recent import", data: { range: item.range } }, options.logInfos))),
+    ),
     // update the import state for those who have one
     Rx.pipe(
       fetchImportState$({
@@ -268,11 +255,9 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
         isSuccess: (item) => item.success,
         formatOutput: (item) => item,
       }),
+      Rx.tap({
+        complete: () => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos)),
+      }),
     ),
-
-    // make sure we close the errors observable when we are done
-    Rx.tap({
-      complete: () => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos)),
-    }),
   );
 }
