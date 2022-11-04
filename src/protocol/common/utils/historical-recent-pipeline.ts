@@ -134,14 +134,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
         // make sure we close the errors observable when we are done
         Rx.finalize(() => setTimeout(completeErrorObs)),
         // merge the errors back in, all items here should have been successfully treated
-        Rx.mergeWith(
-          errorObs$.pipe(
-            Rx.tap((item) => {
-              logger.error(mergeLogsInfos({ msg: "error emited for item", data: item }, options.logInfos));
-            }),
-            Rx.map((item) => ({ ...item, success: false })),
-          ),
-        ),
+        Rx.mergeWith(errorObs$.pipe(Rx.map((item) => ({ ...item, success: false })))),
       ),
 
       // update the import state
