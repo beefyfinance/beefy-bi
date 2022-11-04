@@ -28,6 +28,7 @@ const logger = rootLogger.child({ module: "beefy", component: "import-product-bl
 
 export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TCtx extends ImportCtx<TObj>>(options: {
   ctx: TCtx;
+  mode: "recent" | "historical";
 }) {
   const boostTransfers$ = Rx.pipe(
     Rx.filter(isBeefyBoostProductImportQuery),
@@ -67,7 +68,10 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     // fetch the vault transfers
     fetchErc20Transfers$({
       ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyStdVaultProduct, number>>,
-      allowFetchingFromEthscan: true,
+      // we only want to fetch from etherscan when fetching historical data
+      // for recent data we are better off using rpc batching since we fetch a small amount of data for many addresses
+      // whereas for historical data we are able to batch lots of ranges for a single address in one etherscan call
+      allowFetchingFromEthscan: options.mode === "historical",
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {

@@ -81,11 +81,11 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
       } catch (e) {
         if (isArchiveNodeNeededError(e)) {
           lastError = e;
-          logger.warn({
+          logger.debug({
             msg: "RPC archive node error on an archive node, will retry",
             data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
           });
-          logger.warn(e);
+          logger.debug(e);
           await sleep(retryDelay);
         } else {
           throw e;

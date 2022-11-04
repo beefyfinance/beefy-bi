@@ -270,6 +270,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       }),
     ),
 
+    // make sure we close the errors observable when we are done
     Rx.tap({
       complete: () => logger.info(mergeLogsInfos({ msg: "Recent data import end" }, options.logInfos)),
     }),

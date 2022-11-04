@@ -76,7 +76,7 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
           },
         })),
       ),
-    processImportQuery$: (ctx) => importProductBlockRange$({ ctx }),
+    processImportQuery$: (ctx) => importProductBlockRange$({ ctx, mode: "historical" }),
   });
 }
 
@@ -95,6 +95,6 @@ export function importChainRecentData$(client: DbClient, chain: Chain, forceCurr
         getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => [{ ...item, range, latest }],
       }),
-    processImportQuery$: (ctx) => importProductBlockRange$({ ctx }),
+    processImportQuery$: (ctx) => importProductBlockRange$({ ctx, mode: "recent" }),
   });
 }
