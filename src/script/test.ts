@@ -16,7 +16,7 @@ import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range"
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 async function main(client: DbClient) {
-  const chain: Chain = "emerald";
+  const chain: Chain = "bsc";
   const ctx: ImportCtx<any> = {
     chain,
     client,
@@ -105,12 +105,11 @@ async function main(client: DbClient) {
   console.dir(res);
   return;*/
 
+  if (!ctx.rpcConfig.etherscan) {
+    return;
+  }
+  const provider = ctx.rpcConfig.etherscan.provider;
   const address = "0x7828ff4ABA7aAb932D8407C78324B069D24284c9";
-  const provider = new MultiChainEtherscanProvider({
-    chainId: 56,
-    name: "bsc",
-  });
-  addDebugLogsToProvider(provider);
 
   const contract = new ethers.Contract(address, ERC20Abi, provider);
 
@@ -118,13 +117,13 @@ async function main(client: DbClient) {
   const fromFilter = contract.filters.Transfer(address, null);
   const toFilter = contract.filters.Transfer(null, address);
   console.dir([eventFilter.topics, fromFilter.topics, toFilter.topics], { depth: null });
-  return;
   await sleep(1000);
-  const logs = await provider.getLogs({
+  /*const logs = await provider.getLogs({
     address,
     toBlock: 22743966,
     topics: eventFilter.topics,
-  });
+  });*/
+  const logs = await contract.queryFilter(eventFilter, undefined, 22743966);
   console.dir(logs);
 }
 

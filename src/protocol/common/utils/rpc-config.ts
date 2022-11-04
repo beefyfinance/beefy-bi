@@ -35,16 +35,20 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
     rpcLimitations: getRpcLimitations(chain, rpcOptions.url),
   };
+
+  // instanciate etherscan provider
   if (MultiChainEtherscanProvider.isChainSupported(chain)) {
     const apiKey = ETHERSCAN_API_KEY[chain];
     rpcConfig.etherscan = {
-      provider: new MultiChainEtherscanProvider(chain, apiKey || undefined),
-      minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps */ : 1000,
+      provider: new MultiChainEtherscanProvider(networkish, apiKey || undefined),
+      minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps with an api key */ : 5000 /* 1 call every 5s without an api key */,
     };
+    addDebugLogsToProvider(rpcConfig.etherscan.provider);
   }
 
   // monkey patch providers so they don't call eth_getChainId before every call
   // this effectively divides the number of calls by 2
+  // https://github.com/ethers-io/ethers.js/issues/901#issuecomment-647836318
   rpcConfig.linearProvider.detectNetwork = () => Promise.resolve(networkish);
   rpcConfig.batchProvider.detectNetwork = () => Promise.resolve(networkish);
 
