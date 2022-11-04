@@ -41,7 +41,18 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     const apiKey = ETHERSCAN_API_KEY[chain];
     rpcConfig.etherscan = {
       provider: new MultiChainEtherscanProvider(networkish, apiKey || undefined),
-      minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps with an api key */ : 5000 /* 1 call every 5s without an api key */,
+      limitations: {
+        isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
+        methods: {
+          // no batching is supported
+          eth_blockNumber: null,
+          eth_getBlockByNumber: null,
+          eth_getLogs: null,
+          eth_call: null,
+          eth_getTransactionReceipt: null,
+        },
+        minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps with an api key */ : 5000 /* 1 call every 5s without an api key */,
+      },
     };
     addDebugLogsToProvider(rpcConfig.etherscan.provider);
   }

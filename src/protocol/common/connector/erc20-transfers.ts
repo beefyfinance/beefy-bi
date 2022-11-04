@@ -1,10 +1,14 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
 import { flatten, groupBy, zipWith } from "lodash";
+import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { rangeMerge } from "../../../utils/range";
+import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
@@ -38,9 +42,93 @@ interface GetTransferCallParams {
 
 export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
   ctx: TCtx;
+  allowFetchingFromEthscan: boolean;
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
+  // if possible, fetch a bunch of data from etherscan so we can avoid doing a lot of rpc calls
+  // since etherscan can return a list of transfers without having to restrict by a block range
+  // we can quickly find out if the vault has any transfers at all for the given range
+  if (options.ctx.rpcConfig.etherscan && options.allowFetchingFromEthscan) {
+    logger.debug({ msg: "Fetching transfers from etherscan provider", data: { chain: options.ctx.chain } });
+    const ethscanConfig = options.ctx.rpcConfig.etherscan;
+    return Rx.pipe(
+      Rx.pipe(
+        // call getqueryparams on each object
+        Rx.map((obj: TObj) => ({ obj, params: options.getQueryParams(obj) })),
+        // make sure we are using this properly
+        Rx.tap((item) => {
+          if (item.params.trackAddress) {
+            throw new ProgrammerError({ msg: "etherscan fetching does not support trackAddress", data: { params: item.params } });
+          }
+        }),
+      ),
+      Rx.pipe(
+        Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, options.ctx.streamConfig.maxInputTake),
+        Rx.filter((items) => items.length > 0),
+      ),
+
+      // group by address since we can only fetch one address at a time
+      Rx.concatMap((items) => {
+        logger.trace({ msg: "Fetching transfers from etherscan provider", data: { chain: options.ctx.chain, items: items.length } });
+        // merge ranges by address for all the items so we can fetch a bunch of data at once
+        const itemsByAddress = groupBy(items, (item) => item.params.address);
+        return Object.entries(itemsByAddress);
+      }),
+
+      // use a concatMap so we are not concurrently fetching data from etherscan
+      Rx.concatMap(async ([address, items]) => {
+        const resultMap: Map<TObj, ERC20Transfer[]> = new Map();
+        const decimals = items[0].params.decimals;
+        const itemsRanges = items.map((item) => ({ from: item.params.fromBlock, to: item.params.toBlock }));
+        const mergedRanges = rangeMerge(itemsRanges);
+
+        logger.trace({
+          msg: "Fetching transfers from etherscan provider",
+          data: { chain: options.ctx.chain, address, items: items.length, ranges: mergedRanges },
+        });
+
+        let allTransfers: ERC20Transfer[] = [];
+        for (const range of mergedRanges) {
+          const params: GetTransferCallParams = { address, decimals, fromBlock: range.from, toBlock: range.to };
+          const transfers = await fetchERC20TransferEventsFromExplorer(ethscanConfig.provider, ethscanConfig.limitations, options.ctx.chain, params);
+          allTransfers = allTransfers.concat(transfers);
+        }
+
+        if (allTransfers.length > 0) {
+          logger.debug({
+            msg: "Fetched transfers from etherscan provider",
+            data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
+          });
+        } else {
+          logger.trace({
+            msg: "No transfers found from etherscan provider",
+            data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
+          });
+        }
+
+        // reassign the transfers to the input items
+        for (const item of items) {
+          if (resultMap.has(item.obj)) {
+            throw new ProgrammerError({ msg: "duplicate item", data: { item } });
+          }
+          const itemTransfers = allTransfers.filter(
+            (transfer) => transfer.blockNumber >= item.params.fromBlock && transfer.blockNumber <= item.params.toBlock,
+          );
+          resultMap.set(item.obj, itemTransfers);
+        }
+        return resultMap;
+      }),
+
+      // format the output as expected
+      Rx.pipe(
+        Rx.map((resultMap) => Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers))),
+        Rx.concatAll(),
+      ),
+    );
+  }
+
+  // otherwise, just fetch from the rpc
   return batchRpcCalls$({
     ctx: options.ctx,
     rpcCallsPerInputObj: {
@@ -52,7 +140,7 @@ export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
     },
     logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
     getQuery: options.getQueryParams,
-    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEvents(provider, options.ctx.chain, contractCalls),
+    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
     formatOutput: options.formatOutput,
   });
 }
@@ -67,6 +155,7 @@ export function fetchERC20TransferToAStakingContract$<TObj, TCtx extends ImportC
   return fetchErc20Transfers$({
     ctx: options.ctx,
     getQueryParams: options.getQueryParams,
+    allowFetchingFromEthscan: false, // we don't support this for now
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);
       const contractAddress = params.trackAddress;
@@ -93,7 +182,7 @@ export function fetchERC20TransferToAStakingContract$<TObj, TCtx extends ImportC
  * Make a batched call to the RPC for all the given contract calls
  * Returns the results in the same order as the contract calls
  */
-async function fetchERC20TransferEvents(
+async function fetchERC20TransferEventsFromRpc(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: GetTransferCallParams[],
@@ -103,22 +192,12 @@ async function fetchERC20TransferEvents(
   }
 
   logger.debug({
-    msg: "Fetching transfer events",
+    msg: "Fetching transfer events from RPC",
     data: { chain, contractCalls: contractCalls.length },
   });
 
-  // fetch all contract logs in one call
-  interface TransferEvent {
-    transactionHash: string;
-    from: string;
-    to: string;
-    value: Decimal;
-    blockNumber: number;
-    logIndex: number;
-  }
-  const eventsPromises: Promise<TransferEvent[]>[] = [];
+  const eventsPromises: Promise<ethers.Event[]>[] = [];
   for (const contractCall of contractCalls) {
-    const valueMultiplier = new Decimal(10).pow(-contractCall.decimals);
     const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
 
     let fromPromise: Promise<ethers.Event[]>;
@@ -136,91 +215,171 @@ async function fetchERC20TransferEvents(
     }
 
     // apply decimals and format the events
-    eventsPromises.push(
-      Promise.all([fromPromise, toPromise])
-        .then(([from, to]) => from.concat(to))
-        .then((events) =>
-          events.map(
-            (event): TransferEvent => ({
-              transactionHash: event.transactionHash,
-              from: event.args?.from,
-              to: event.args?.to,
-              value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
-              blockNumber: event.blockNumber,
-              logIndex: event.logIndex,
-            }),
-          ),
-        ),
-    );
+    eventsPromises.push(Promise.all([fromPromise, toPromise]).then(([from, to]) => from.concat(to)));
   }
   const eventsRes = await Promise.all(eventsPromises);
 
   const eventCount = eventsRes.reduce((acc, events) => acc + events.length, 0);
   if (eventCount > 0) {
     logger.trace({
-      msg: "Got transfer events",
+      msg: "Got transfer events from RPC",
       data: { chain, contractCalls: contractCalls.length, eventCount },
     });
   }
 
   return new Map(
     zipWith(contractCalls, eventsRes, (contractCall, events) => {
-      // we have "from-to" transfers, we need to split them into "from" and "to" transfers
-      const allTransfers = flatten(
-        events.map((event): ERC20Transfer[] => [
-          {
-            chain: chain,
-            tokenAddress: contractCall.address,
-            tokenDecimals: contractCall.decimals,
-            ownerAddress: event.from,
-            blockNumber: event.blockNumber,
-            transactionHash: event.transactionHash,
-            amountTransfered: event.value.negated(),
-            logIndex: event.logIndex,
-          },
-          {
-            chain: chain,
-            tokenAddress: contractCall.address,
-            tokenDecimals: contractCall.decimals,
-            ownerAddress: event.to,
-            blockNumber: event.blockNumber,
-            transactionHash: event.transactionHash,
-            amountTransfered: event.value,
-            logIndex: event.logIndex,
-          },
-        ]),
-      );
-
-      // there could be incoming and outgoing transfers in the same block for the same user
-      // we want to merge those into a single transfer
-      const transfersByOwnerAndBlock = Object.values(
-        groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
-      );
-      const transfers = transfersByOwnerAndBlock.map((transfers) => {
-        // get the total amount
-        let totalDiff = new Decimal(0);
-        for (const transfer of transfers) {
-          totalDiff = totalDiff.add(transfer.amountTransfered);
-        }
-        // for the trx hash, we use the last transaction (order by logIndex)
-        const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
-
-        return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
-      });
-
-      // sanity check
-      if (process.env.NODE_ENV === "development") {
-        for (const transfer of transfers) {
-          if (transfer.blockNumber < contractCall.fromBlock || transfer.blockNumber > contractCall.toBlock) {
-            throw new ProgrammerError({
-              msg: "Invalid block number",
-              data: { transfer, contractCall },
-            });
-          }
-        }
-      }
-
+      const transfers = eventsToTransfers(chain, contractCall, events);
       return [contractCall, transfers];
     }),
   );
+}
+
+/**
+ * Make a batched call to the RPC for all the given contract calls
+ * Returns the results in the same order as the contract calls
+ */
+export async function fetchERC20TransferEventsFromExplorer(
+  provider: ethers.providers.EtherscanProvider,
+  limitations: RpcLimitations,
+  chain: Chain,
+  contractCall: GetTransferCallParams,
+): Promise<ERC20Transfer[]> {
+  logger.debug({
+    msg: "Fetching transfer events from explorer",
+    data: { chain, contractCall },
+  });
+
+  const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
+
+  if (contractCall.trackAddress) {
+    throw new ProgrammerError({ msg: "Tracking not implemented for etherscan", contractCall });
+  }
+
+  const eventFilter = contract.filters.Transfer();
+
+  // etherscan returns logs in time order ascending and limits results to 1000
+  // we want to continue fetching as long as we have 1000 results in the list
+  let fromBlock = contractCall.fromBlock;
+  let toBlock = contractCall.toBlock;
+  let allEvents: ethers.Event[] = [];
+  let maxLoops = 100;
+  while (maxLoops-- > 0) {
+    const events = await callLockProtectedRpc(() => contract.queryFilter(eventFilter, fromBlock, toBlock), {
+      chain: chain,
+      logInfos: { msg: "Fetching ERC20 transfers from etherscan", data: { chain, contractCall } },
+      maxTotalRetryMs: 1000 * 60 * 5,
+      provider: provider,
+      rpcLimitations: limitations,
+    });
+
+    // here, we have all the events we can get from etherscan
+    if (events.length < 1000) {
+      allEvents = allEvents.concat(events);
+      break;
+    }
+
+    // we have 1000 events, we need to fetch more
+    // remove the events from the last block we fetched
+    const lastBlock = events[events.length - 1].blockNumber;
+    const eventsToAdd = events.filter((event) => event.blockNumber < lastBlock);
+    allEvents = allEvents.concat(eventsToAdd);
+    fromBlock = lastBlock;
+  }
+  const eventCount = allEvents.length;
+  if (eventCount > 0) {
+    logger.trace({
+      msg: "Got transfer events from explorer",
+      data: { chain, eventCount, contractCall },
+    });
+  }
+  const transfers = eventsToTransfers(chain, contractCall, allEvents);
+  return transfers;
+}
+
+/**
+ * Transforms the RPC log events to transfers
+ * When a transfer is made from A to B, the RPC will return 1 log event
+ * but we want to split it into 2 transfers: a negative transfer from A and a positive transfer to B
+ * We may also have multiple log transfers inside the same block for the same user
+ * We want to merge those into a single transfer by summing the amounts
+ */
+function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, events: ethers.Event[]): ERC20Transfer[] {
+  // intermediate format
+  interface TransferEvent {
+    transactionHash: string;
+    from: string;
+    to: string;
+    value: Decimal;
+    blockNumber: number;
+    logIndex: number;
+  }
+  const valueMultiplier = new Decimal(10).pow(-contractCall.decimals);
+
+  // we have "from-to" transfers, we need to split them into "from" and "to" transfers
+  const allTransfers = flatten(
+    events
+      .map(
+        (event): TransferEvent => ({
+          transactionHash: event.transactionHash,
+          from: event.args?.from,
+          to: event.args?.to,
+          value: valueMultiplier.mul(event.args?.value.toString() ?? "0"),
+          blockNumber: event.blockNumber,
+          logIndex: event.logIndex,
+        }),
+      )
+      .map((event): ERC20Transfer[] => [
+        {
+          chain: chain,
+          tokenAddress: contractCall.address,
+          tokenDecimals: contractCall.decimals,
+          ownerAddress: event.from,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          amountTransfered: event.value.negated(),
+          logIndex: event.logIndex,
+        },
+        {
+          chain: chain,
+          tokenAddress: contractCall.address,
+          tokenDecimals: contractCall.decimals,
+          ownerAddress: event.to,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          amountTransfered: event.value,
+          logIndex: event.logIndex,
+        },
+      ]),
+  );
+
+  // there could be incoming and outgoing transfers in the same block for the same user
+  // we want to merge those into a single transfer
+  const transfersByOwnerAndBlock = Object.values(
+    groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
+  );
+  const transfers = transfersByOwnerAndBlock.map((transfers) => {
+    // get the total amount
+    let totalDiff = new Decimal(0);
+    for (const transfer of transfers) {
+      totalDiff = totalDiff.add(transfer.amountTransfered);
+    }
+    // for the trx hash, we use the last transaction (order by logIndex)
+    const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
+
+    return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+  });
+
+  // sanity check
+  if (process.env.NODE_ENV === "development") {
+    for (const transfer of transfers) {
+      if (transfer.blockNumber < contractCall.fromBlock || transfer.blockNumber > contractCall.toBlock) {
+        throw new ProgrammerError({
+          msg: "Invalid block number from explorer",
+          data: { transfer, contractCall },
+        });
+      }
+    }
+  }
+  return transfers;
 }

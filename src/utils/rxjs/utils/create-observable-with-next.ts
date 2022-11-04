@@ -31,6 +31,7 @@ export function createObservableWithNext<T>(): {
   });
 
   const next = (value: T) => {
+    console.dir({ msg: "error emited", value });
     if (!subscriber) {
       actionsQueue.push({ what: "next", next: value });
     } else {

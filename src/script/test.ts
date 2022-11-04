@@ -1,9 +1,10 @@
 import { ethers } from "ethers";
-import { max, min } from "lodash";
+import { max, min, uniq } from "lodash";
 import * as Rx from "rxjs";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import { fetchBeefyPPFS$ } from "../protocol/beefy/connector/ppfs";
 import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime";
+import { fetchERC20TransferEventsFromExplorer } from "../protocol/common/connector/erc20-transfers";
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
@@ -109,8 +110,18 @@ async function main(client: DbClient) {
     return;
   }
   const provider = ctx.rpcConfig.etherscan.provider;
+  const limitations = ctx.rpcConfig.etherscan.limitations;
   const address = "0x7828ff4ABA7aAb932D8407C78324B069D24284c9";
+  const events = await fetchERC20TransferEventsFromExplorer(provider, limitations, "bsc", {
+    address,
+    decimals: 18,
+    fromBlock: 10_000_000,
+    toBlock: 22_743_966,
+  });
+  const eventBlocks = uniq(events.map((e) => e.blockNumber));
+  console.dir({ blockmin: min(eventBlocks), blockmax: max(eventBlocks), blockCount: eventBlocks.length, eventCount: events.length }, { depth: null });
 
+  return;
   const contract = new ethers.Contract(address, ERC20Abi, provider);
 
   const eventFilter = contract.filters.Transfer();
@@ -123,8 +134,9 @@ async function main(client: DbClient) {
     toBlock: 22743966,
     topics: eventFilter.topics,
   });*/
-  const logs = await contract.queryFilter(eventFilter, undefined, 22743966);
-  console.dir(logs);
+  const logs = await contract.queryFilter(eventFilter, undefined, 22_743_966);
+  const logBlocks = logs.map((l) => l.blockNumber);
+  console.dir({ min: min(logBlocks), max: max(logBlocks), count: logs.length }, { depth: null });
 }
 
 runMain(withPgClient(main, { appName: "beefy:test_script", readOnly: false, logInfos: { msg: "test" } }));

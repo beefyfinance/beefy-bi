@@ -12,7 +12,7 @@ export interface RpcConfig {
 
   etherscan?: {
     provider: ethers.providers.EtherscanProvider;
-    minDelayBetweenCalls: number;
+    limitations: RpcLimitations;
   };
 }
 

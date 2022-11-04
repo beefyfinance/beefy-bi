@@ -82,7 +82,7 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
         if (isArchiveNodeNeededError(e)) {
           lastError = e;
           logger.warn({
-            msg: "RPC archive node error on an archive node",
+            msg: "RPC archive node error on an archive node, will retry",
             data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
           });
           logger.warn(e);

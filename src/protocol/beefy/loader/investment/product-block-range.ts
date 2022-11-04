@@ -67,6 +67,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     // fetch the vault transfers
     fetchErc20Transfers$({
       ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyStdVaultProduct, number>>,
+      allowFetchingFromEthscan: true,
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {

@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
+import { groupBy } from "lodash";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
@@ -29,22 +30,26 @@ export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes
     formatOutput: options.formatOutput,
     getQuery: options.getQueryParams,
     processBatch: async (provider, params: TParams[]) => {
-      const balancePromises = params.map((param) => {
+      // deduplicate calls to make so we don't ask for the same balance twice
+      const paramsByCalls = groupBy(params, (p) => `${p.contractAddress}-${p.ownerAddress}-${p.blockNumber}`);
+      const calls = Object.values(paramsByCalls).map(async (params) => {
+        const param = params[0];
         const valueMultiplier = new Decimal(10).pow(-param.decimals);
         const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
 
         // aurora RPC return the state before the transaction is applied
+        // todo: patch ethers.js to reflect this behavior
         let blockTag = param.blockNumber;
         if (options.ctx.chain === "aurora") {
           blockTag = param.blockNumber + 1;
         }
 
-        return contract
-          .balanceOf(param.ownerAddress, { blockTag })
-          .then((balance: ethers.BigNumber) => valueMultiplier.mul(balance.toString() ?? "0"))
-          .then((balance: Decimal) => [param, balance]);
+        const rawBalance = await contract.balanceOf(param.ownerAddress, { blockTag });
+        const balance = valueMultiplier.mul(rawBalance.toString() ?? "0");
+        return params.map((p) => [p, balance] as const);
       });
-      return new Map(await Promise.all(balancePromises));
+      const results = await Promise.all(calls);
+      return new Map(results.flat());
     },
   });
 }

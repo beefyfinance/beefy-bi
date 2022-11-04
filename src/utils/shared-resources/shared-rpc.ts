@@ -29,7 +29,7 @@ export async function callLockProtectedRpc<TRes>(
     maxTotalRetryMs: number;
     logInfos: LogInfos;
     chain: Chain;
-    provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider;
+    provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider;
     rpcLimitations: RpcLimitations;
   },
 ) {
@@ -104,7 +104,8 @@ export async function callLockProtectedRpc<TRes>(
   };
 
   // create a loggable string as raw rpc url may contain an api key
-  const publicRpcUrl = removeSecretsFromRpcUrl(options.provider.connection.url);
+  const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
+  const publicRpcUrl = removeSecretsFromRpcUrl(url);
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
   const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${publicRpcUrl}`;
 
