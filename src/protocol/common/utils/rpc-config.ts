@@ -3,7 +3,7 @@ import { sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
-import { RPC_URLS } from "../../../utils/config";
+import { ETHERSCAN_API_KEY, RPC_URLS } from "../../../utils/config";
 
 import {
   addDebugLogsToProvider,
@@ -15,6 +15,7 @@ import {
   monkeyPatchMissingEffectiveGasPriceReceiptFormat,
   monkeyPatchMoonbeamLinearProvider,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
+  MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
 import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
@@ -32,8 +33,15 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
-    limitations: getRpcLimitations(chain, rpcOptions.url),
+    rpcLimitations: getRpcLimitations(chain, rpcOptions.url),
   };
+  if (MultiChainEtherscanProvider.isChainSupported(chain)) {
+    const apiKey = ETHERSCAN_API_KEY[chain];
+    rpcConfig.etherscan = {
+      provider: new MultiChainEtherscanProvider(chain, apiKey || undefined),
+      minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps */ : 1000,
+    };
+  }
 
   // monkey patch providers so they don't call eth_getChainId before every call
   // this effectively divides the number of calls by 2
@@ -66,8 +74,8 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
   }
 
-  const retryDelay = rpcConfig.limitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.limitations.minDelayBetweenCalls;
-  if (rpcConfig.limitations.isArchiveNode) {
+  const retryDelay = rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.rpcLimitations.minDelayBetweenCalls;
+  if (rpcConfig.rpcLimitations.isArchiveNode) {
     monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider, retryDelay);
     monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider, retryDelay);
   }

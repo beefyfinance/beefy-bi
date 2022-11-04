@@ -4,6 +4,7 @@ import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
 import { get } from "lodash";
+import { Chain } from "../types/chain";
 import { sleep } from "./async";
 import { rootLogger } from "./logger";
 import { isArchiveNodeNeededError } from "./rpc/archive-node-needed";
@@ -415,4 +416,38 @@ export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider
     });
     throw lastError;
   };
+}
+
+/**
+ * Idk why but ethers has a hardcoded url for etherscan for eth mainnet only
+ * This class adds support for other networks
+ */
+export class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvider {
+  static isChainSupported(chain: Chain) {
+    return ["bsc", "avax", "fantom", "ethereum", "polygon", "arbitrum", "optimism"].includes(chain);
+  }
+
+  getBaseUrl(): string {
+    switch (this.network ? this.network.name : "invalid") {
+      case "bsc":
+        return "https://api.bscscan.com";
+      case "fantom":
+        return "https://api.ftmscan.com";
+      case "avax":
+        return "https://api.snowtrace.io";
+      case "homestead":
+      case "ethereum":
+        return "https://api.etherscan.io";
+      case "polygon":
+      case "matic":
+        return "https://api.polygonscan.com";
+      case "arbitrum":
+        return "https://api.arbiscan.io";
+      case "optimism":
+        return "https://api-optimistic.etherscan.io";
+      default:
+    }
+
+    return ethers.logger.throwArgumentError("unsupported network", "network", this.network.name);
+  }
 }

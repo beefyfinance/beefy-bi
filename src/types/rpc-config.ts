@@ -8,7 +8,12 @@ export interface RpcConfig {
   // most should use the batch provider
   linearProvider: ethers.providers.JsonRpcProvider;
   batchProvider: ethers.providers.JsonRpcBatchProvider;
-  limitations: RpcLimitations;
+  rpcLimitations: RpcLimitations;
+
+  etherscan?: {
+    provider: ethers.providers.EtherscanProvider;
+    minDelayBetweenCalls: number;
+  };
 }
 
 export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber" | "eth_getTransactionReceipt";

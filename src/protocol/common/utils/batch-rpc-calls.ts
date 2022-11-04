@@ -47,7 +47,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
   const { maxInputObjsPerBatch, canUseBatchProvider } = getBatchConfigFromLimitations({
     maxInputObjsPerBatch: options.ctx.streamConfig.maxInputTake,
     rpcCallsPerInputObj: options.rpcCallsPerInputObj,
-    limitations: options.ctx.rpcConfig.limitations,
+    limitations: options.ctx.rpcConfig.rpcLimitations,
     logInfos: options.logInfos,
   });
 
@@ -88,7 +88,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
         const resultMap = await callLockProtectedRpc(work, {
           chain: options.ctx.chain,
           provider,
-          rpcLimitations: options.ctx.rpcConfig.limitations,
+          rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
           logInfos: options.logInfos,
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
         });

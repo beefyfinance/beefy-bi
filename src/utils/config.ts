@@ -116,7 +116,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
 export const EXPLORER_URLS: { [chain in Chain]: string } = {
   arbitrum: "https://api.arbiscan.io/api",
   aurora: "https://api.aurorascan.dev/api",
-  avax: "https://api.snowtrace.io//api",
+  avax: "https://api.snowtrace.io/api",
   bsc: "https://api.bscscan.com/api",
   celo: "https://explorer.celo.org/",
   cronos: "https://api.cronoscan.com/api",
@@ -134,6 +134,35 @@ export const EXPLORER_URLS: { [chain in Chain]: string } = {
   polygon: "https://api.polygonscan.com/api",
   syscoin: "https://explorer.syscoin.org/api",
 };
+
+function _getExplorerApiKey(chain: Chain) {
+  const apiKey = process.env[`ETHERSCAN_API_KEY_${chain.toLocaleUpperCase()}`];
+  return apiKey || null;
+}
+export const ETHERSCAN_API_KEY: {
+  [chain in Chain]: string | null;
+} = {
+  arbitrum: _getExplorerApiKey("arbitrum"),
+  aurora: _getExplorerApiKey("aurora"),
+  avax: _getExplorerApiKey("avax"),
+  bsc: _getExplorerApiKey("bsc"),
+  celo: _getExplorerApiKey("celo"),
+  cronos: _getExplorerApiKey("cronos"),
+  emerald: _getExplorerApiKey("emerald"),
+  ethereum: _getExplorerApiKey("ethereum"),
+  fantom: _getExplorerApiKey("fantom"),
+  fuse: _getExplorerApiKey("fuse"),
+  harmony: _getExplorerApiKey("harmony"),
+  heco: _getExplorerApiKey("heco"),
+  kava: _getExplorerApiKey("kava"),
+  metis: _getExplorerApiKey("metis"),
+  moonbeam: _getExplorerApiKey("moonbeam"),
+  moonriver: _getExplorerApiKey("moonriver"),
+  optimism: _getExplorerApiKey("optimism"),
+  polygon: _getExplorerApiKey("polygon"),
+  syscoin: _getExplorerApiKey("syscoin"),
+};
+
 export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 10_000;
 
 export const BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS = 1000 * 60 * 60 * 24 * 7 * 4 * 3; // 3 * 4 week (~3 months)

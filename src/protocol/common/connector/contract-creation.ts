@@ -150,7 +150,7 @@ async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain)
     const resp: TResp = await callLockProtectedRpc(() => rpcConfig.linearProvider.send("hmyv2_getTransactionsHistory", params), {
       chain: chain,
       provider: rpcConfig.linearProvider,
-      rpcLimitations: rpcConfig.limitations,
+      rpcLimitations: rpcConfig.rpcLimitations,
       maxTotalRetryMs: 60 * 1000,
       logInfos: { msg: "getHarmonyRpcCreationInfos", data: { contractAddress, chain, params } },
     });

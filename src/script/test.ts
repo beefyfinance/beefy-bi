@@ -10,7 +10,7 @@ import { Chain } from "../types/chain";
 import { sleep } from "../utils/async";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
 import { DbClient, withPgClient } from "../utils/db";
-import { addDebugLogsToProvider } from "../utils/ethers";
+import { addDebugLogsToProvider, MultiChainEtherscanProvider } from "../utils/ethers";
 import { runMain } from "../utils/process";
 import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
@@ -86,7 +86,7 @@ async function main(client: DbClient) {
     //"0x16e678",
     // "0x16e632"
   ];
-
+  /*
   const obs$ = Rx.from(queries).pipe(
     fetchBeefyPPFS$({
       ctx,
@@ -103,12 +103,7 @@ async function main(client: DbClient) {
   );
   const res = await consumeObservable(obs$);
   console.dir(res);
-  return;
-  class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvider {
-    getBaseUrl() {
-      return "https://api.bscscan.com";
-    }
-  }
+  return;*/
 
   const address = "0x7828ff4ABA7aAb932D8407C78324B069D24284c9";
   const provider = new MultiChainEtherscanProvider({

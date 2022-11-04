@@ -26,7 +26,7 @@ export function latestBlockNumber$<TObj, TCtx extends ImportCtx<TObj>, TRes>(opt
         const latestBlockNumber = await callLockProtectedRpc(() => options.ctx.rpcConfig.linearProvider.getBlockNumber(), {
           chain: options.ctx.chain,
           provider: options.ctx.rpcConfig.linearProvider,
-          rpcLimitations: options.ctx.rpcConfig.limitations,
+          rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
           logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
         });
