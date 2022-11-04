@@ -21,8 +21,11 @@ export function normalizeAddress(address: string) {
   return ethers.utils.getAddress(address);
 }
 
-export function addDebugLogsToProvider(provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider) {
-  const safeToLogUrl = removeSecretsFromRpcUrl(provider.connection.url);
+export function addDebugLogsToProvider(
+  provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider,
+) {
+  const url = provider instanceof ethers.providers.EtherscanProvider ? provider.getBaseUrl() : provider.connection.url;
+  const safeToLogUrl = removeSecretsFromRpcUrl(url);
   provider.on(
     "debug",
     (

@@ -2,7 +2,9 @@ import { ethers } from "ethers";
 import { sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
+import { getChainNetworkId } from "../../../utils/addressbook";
 import { RPC_URLS } from "../../../utils/config";
+
 import {
   addDebugLogsToProvider,
   monkeyPatchArchiveNodeRpcProvider,
@@ -21,12 +23,22 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     url: rpcUrl || (sample(RPC_URLS[chain]) as string),
     timeout,
   };
+  const networkish = {
+    name: chain,
+    chainId: getChainNetworkId(chain),
+  };
+
   const rpcConfig: RpcConfig = {
     chain,
-    linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions),
-    batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions),
+    linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions, networkish),
+    batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
     limitations: getRpcLimitations(chain, rpcOptions.url),
   };
+
+  // monkey patch providers so they don't call eth_getChainId before every call
+  // this effectively divides the number of calls by 2
+  rpcConfig.linearProvider.detectNetwork = () => Promise.resolve(networkish);
+  rpcConfig.batchProvider.detectNetwork = () => Promise.resolve(networkish);
 
   addDebugLogsToProvider(rpcConfig.linearProvider);
   addDebugLogsToProvider(rpcConfig.batchProvider);

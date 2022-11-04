@@ -27,7 +27,7 @@ export function latestBlockNumber$<TObj, TCtx extends ImportCtx<TObj>, TRes>(opt
           chain: options.ctx.chain,
           provider: options.ctx.rpcConfig.linearProvider,
           rpcLimitations: options.ctx.rpcConfig.limitations,
-          logInfos: { msg: "latest block number", data: { chain: options.ctx.rpcConfig.chain } },
+          logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
         });
         return { input: obj, output: latestBlockNumber };
@@ -42,11 +42,11 @@ export function latestBlockNumber$<TObj, TCtx extends ImportCtx<TObj>, TRes>(opt
           from block_ts 
           where chain = %L
         `,
-        [options.ctx.rpcConfig.chain],
+        [options.ctx.chain],
         options.ctx.client,
       );
       if (!dbRes) {
-        throw new Error(`No block number found for chain ${options.ctx.rpcConfig.chain}`);
+        throw new Error(`No block number found for chain ${options.ctx.chain}`);
       }
       return { input: obj, output: dbRes.latest_block_number };
     }, options.ctx.streamConfig.workConcurrency),

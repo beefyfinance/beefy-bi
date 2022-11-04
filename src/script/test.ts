@@ -1,12 +1,16 @@
+import { ethers } from "ethers";
 import { max, min } from "lodash";
 import * as Rx from "rxjs";
+import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import { fetchBeefyPPFS$ } from "../protocol/beefy/connector/ppfs";
 import { fetchBlockDatetime$ } from "../protocol/common/connector/block-datetime";
 import { ImportCtx } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
+import { sleep } from "../utils/async";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
 import { DbClient, withPgClient } from "../utils/db";
+import { addDebugLogsToProvider } from "../utils/ethers";
 import { runMain } from "../utils/process";
 import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
@@ -72,14 +76,14 @@ async function main(client: DbClient) {
   console.dir(rangeMerge(ranges), { depth: null });*/
 
   const queries = [
-    // "0x350147",
-    // "0x350146",
-    // "0x350118",
-    // "0x3500be",
-    // "0x350064",
-    // "0x35000a",
-    //"0x34ffb0",
-    "0x16e678",
+    "0x350147",
+    "0x350146",
+    "0x350118",
+    "0x3500be",
+    "0x350064",
+    "0x35000a",
+    "0x34ffb0",
+    //"0x16e678",
     // "0x16e632"
   ];
 
@@ -99,6 +103,34 @@ async function main(client: DbClient) {
   );
   const res = await consumeObservable(obs$);
   console.dir(res);
+  return;
+  class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvider {
+    getBaseUrl() {
+      return "https://api.bscscan.com";
+    }
+  }
+
+  const address = "0x7828ff4ABA7aAb932D8407C78324B069D24284c9";
+  const provider = new MultiChainEtherscanProvider({
+    chainId: 56,
+    name: "bsc",
+  });
+  addDebugLogsToProvider(provider);
+
+  const contract = new ethers.Contract(address, ERC20Abi, provider);
+
+  const eventFilter = contract.filters.Transfer();
+  const fromFilter = contract.filters.Transfer(address, null);
+  const toFilter = contract.filters.Transfer(null, address);
+  console.dir([eventFilter.topics, fromFilter.topics, toFilter.topics], { depth: null });
+  return;
+  await sleep(1000);
+  const logs = await provider.getLogs({
+    address,
+    toBlock: 22743966,
+    topics: eventFilter.topics,
+  });
+  console.dir(logs);
 }
 
 runMain(withPgClient(main, { appName: "beefy:test_script", readOnly: false, logInfos: { msg: "test" } }));

@@ -3,17 +3,13 @@ import { Chain } from "../types/chain";
 import { normalizeAddress } from "./ethers";
 
 function getAddressBookTokensConfig(chain: Chain) {
-  if (chain === "ethereum") {
-    return {
-      WNATIVE: {
-        decimals: 18,
-        symbol: "WETH",
-        address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      },
-    };
-  }
   const addrBookChain = chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
   return addressbook.addressBook[addrBookChain].tokens;
+}
+
+export function getChainNetworkId(chain: Chain): number {
+  const addrBookChain = chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
+  return addressbook.ChainId[addrBookChain];
 }
 
 export function getChainWNativeTokenAddress(chain: Chain): string {

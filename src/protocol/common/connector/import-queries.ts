@@ -1,7 +1,6 @@
 import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { RpcConfig } from "../../../types/rpc-config";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import {
   BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
@@ -9,7 +8,6 @@ import {
   MAX_RANGES_PER_PRODUCT_TO_GENERATE,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
-import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
