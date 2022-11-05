@@ -26,5 +26,8 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://moonriver.api.onfinality.io/public")).toBe("https://moonriver.api.onfinality.io/public");
     expect(removeSecretsFromRpcUrl("https://polygon-rpc.com/")).toBe("https://polygon-rpc.com");
     expect(removeSecretsFromRpcUrl("https://rpc.syscoin.org/")).toBe("https://rpc.syscoin.org");
+    expect(removeSecretsFromRpcUrl("https://bsc-mainnet.nodereal.io/v1/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
+      "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>",
+    );
   });
 });

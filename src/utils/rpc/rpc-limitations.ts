@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { cloneDeep } from "lodash";
+import { cloneDeep, merge } from "lodash";
 import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
 import { CONFIG_DIRECTORY } from "../config";
@@ -20,6 +20,8 @@ const safetyMargin = {
 export const MAX_RPC_BATCHING_SIZE = 500;
 export const MAX_RPC_GETLOGS_SPAN = 10_000;
 export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
+// when detecting limitations, we consider a call failed if it takes more than this constant
+export const RPC_SOFT_TIMEOUT_MS = 30_000;
 
 export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
@@ -37,9 +39,8 @@ export const defaultLimitations: RpcLimitations = {
 };
 
 const findings = (() => {
-  const rawLimitations: { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } = JSON.parse(
-    fs.readFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", "utf8"),
-  );
+  const rawLimitations = readRawLimitations();
+
   // add missing chains
   for (const chain of allChainIds) {
     if (!rawLimitations[chain]) {
@@ -144,10 +145,18 @@ export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations 
 }
 
 export function getAllRpcUrlsForChain(chain: Chain): string[] {
-  const findings = JSON.parse(fs.readFileSync(CONFIG_DIRECTORY + "/rpcs.json", "utf8"));
   const chainRpcs = findings[chain];
   if (!chainRpcs) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
   return Object.keys(chainRpcs).map(addSecretsToRpcUrl);
+}
+
+export function readRawLimitations(): { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } {
+  return JSON.parse(fs.readFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", "utf8"));
+}
+export function updateRawLimitations(limitationDiff: { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } }): void {
+  const rawLimitations = readRawLimitations();
+  const updatedLimitations = merge(rawLimitations, limitationDiff);
+  fs.writeFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", JSON.stringify(updatedLimitations, null, 2));
 }

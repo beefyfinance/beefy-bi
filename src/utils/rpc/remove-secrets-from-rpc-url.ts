@@ -1,4 +1,4 @@
-import { RPC_API_KEY_ALCHEMY, RPC_API_KEY_ANKR, RPC_API_KEY_AURORA, RPC_API_KEY_METIS_OWNER } from "../config";
+import { RPC_API_KEY_ALCHEMY, RPC_API_KEY_ANKR, RPC_API_KEY_AURORA, RPC_API_KEY_METIS_OWNER, RPC_API_KEY_NODEREAL } from "../config";
 import { ProgrammerError } from "../programmer-error";
 
 export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
@@ -25,6 +25,8 @@ export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
     publicRpcUrl += "/?owner=<RPC_API_KEY_METIS_OWNER>";
   } else if (secretRpcUrl.includes("alchemy.com") && pathParts.length === 2 && pathParts[0] === "v2") {
     publicRpcUrl += "/v2/<RPC_API_KEY_ALCHEMY>";
+  } else if (secretRpcUrl.includes("nodereal.io") && pathParts.length === 2 && pathParts[0] === "v1") {
+    publicRpcUrl += "/v1/<RPC_API_KEY_NODEREAL>";
   } else {
     if (pathParts.length > 0) {
       publicRpcUrl += "/" + pathParts.join("/");
@@ -51,6 +53,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ANKR", RPC_API_KEY_ANKR);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_AURORA", RPC_API_KEY_AURORA);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_METIS_OWNER", RPC_API_KEY_METIS_OWNER);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
 
   return url;
 }

@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
-import * as fs from "fs";
-import { cloneDeep, merge, sample, set } from "lodash";
+import { cloneDeep, sample, set } from "lodash";
 import yargs from "yargs";
 import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
@@ -9,7 +8,6 @@ import { allChainIds, Chain } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { sleep } from "../utils/async";
-import { CONFIG_DIRECTORY } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { ProgrammerError } from "../utils/programmer-error";
@@ -22,6 +20,8 @@ import {
   MAX_RPC_BATCHING_SIZE,
   MAX_RPC_GETLOGS_SPAN,
   RpcLimitations,
+  RPC_SOFT_TIMEOUT_MS,
+  updateRawLimitations,
 } from "../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "script", component: "find-out-rpc-limitations" });
@@ -33,7 +33,9 @@ type RpcTests =
   | "eth_blockNumber"
   | "eth_getTransactionReceipt"
   | "maxGetLogsBlockSpan"
-  | "isArchiveNode";
+  | "isArchiveNode"
+  | "minDelayBetweenCalls";
+
 const allRpcTests: RpcTests[] = [
   "eth_call",
   "eth_getLogs",
@@ -42,6 +44,7 @@ const allRpcTests: RpcTests[] = [
   "eth_getTransactionReceipt",
   "maxGetLogsBlockSpan",
   "isArchiveNode",
+  "minDelayBetweenCalls",
 ];
 
 const findings = {} as {
@@ -103,7 +106,6 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
-  const softTimeout = 5_000;
   const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: undefined };
   const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, rpcOptions);
 
@@ -117,6 +119,14 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
       logger.debug({ msg: "Updated findings", data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: key, newValue: n } });
     }
   };
+
+  if (tests.includes("minDelayBetweenCalls")) {
+    // for now, only ankr with an API key is no-limit
+    const publicRpcUrl = removeSecretsFromRpcUrl(rpcUrl);
+    if (publicRpcUrl.includes("ankr.com") && publicRpcUrl.includes("RPC_API_KEY_ANKR")) {
+      findings[chain][removeSecretsFromRpcUrl(rpcUrl)].minDelayBetweenCalls = "no-limit";
+    }
+  }
 
   if (tests.includes("isArchiveNode")) {
     // find out if this is an archive node
@@ -151,6 +161,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
     set(linearProvider, "__disableRetryArchiveNodeErrors", true);
     while (attempts-- > 0) {
       try {
+        // we want to do an eth_call
         const balance = await linearProvider.getBalance(getChainWNativeTokenAddress(chain), wNativeCreationBlock[chain] + 1);
         if (balance) {
           findings[chain][removeSecretsFromRpcUrl(rpcUrl)].isArchiveNode = true;
@@ -179,7 +190,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   if (tests.includes("maxGetLogsBlockSpan")) {
     logger.info({ msg: "Testing batch maxGetLogsBlockSpan limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(
-      softTimeout,
+      RPC_SOFT_TIMEOUT_MS,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_GETLOGS_SPAN,
@@ -226,7 +237,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
       await sleep(waitBeforeNextTest);
     }
     await findTheLimit(
-      softTimeout,
+      RPC_SOFT_TIMEOUT_MS,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
@@ -244,22 +255,29 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   // eth_getLogs
   if (tests.includes("eth_getLogs")) {
     logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-    await findTheLimit(softTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_getLogs"), (i) => {
-      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
-      const eventFilter = contract.filters.Transfer();
-      const promises = Array.from({ length: i }).map((_, i) => {
-        const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
-        const toBlock = latestBlockNumber - i * maxBlocksPerQuery;
-        return contract.queryFilter(eventFilter, fromBlock, toBlock);
-      });
-      return Promise.all(promises);
-    });
+    await findTheLimit(
+      RPC_SOFT_TIMEOUT_MS,
+      chain,
+      rpcLimitations.minDelayBetweenCalls,
+      MAX_RPC_BATCHING_SIZE,
+      createSaveFinding("eth_getLogs"),
+      (i) => {
+        const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
+        const eventFilter = contract.filters.Transfer();
+        const promises = Array.from({ length: i }).map((_, i) => {
+          const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
+          const toBlock = latestBlockNumber - i * maxBlocksPerQuery;
+          return contract.queryFilter(eventFilter, fromBlock, toBlock);
+        });
+        return Promise.all(promises);
+      },
+    );
   }
 
   // eth_call
   if (tests.includes("eth_call")) {
     logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-    await findTheLimit(softTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
+    await findTheLimit(RPC_SOFT_TIMEOUT_MS, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
       const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
       const promises = Array.from({ length: i }).map((_, i) => {
         const blockTag = latestBlockNumber - i * maxBlocksPerQuery;
@@ -273,7 +291,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   if (tests.includes("eth_getBlockByNumber")) {
     logger.info({ msg: "Testing batch eth_getBlockByNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(
-      softTimeout,
+      RPC_SOFT_TIMEOUT_MS,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
@@ -291,19 +309,23 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   // eth_blockNumber
   if (tests.includes("eth_blockNumber")) {
     logger.info({ msg: "Testing batch eth_blockNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-    await findTheLimit(softTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_blockNumber"), (i) => {
-      const promises = Array.from({ length: i }).map((_, i) => {
-        return batchProvider.getBlockNumber();
-      });
-      return Promise.all(promises);
-    });
+    await findTheLimit(
+      RPC_SOFT_TIMEOUT_MS,
+      chain,
+      rpcLimitations.minDelayBetweenCalls,
+      MAX_RPC_BATCHING_SIZE,
+      createSaveFinding("eth_blockNumber"),
+      (i) => {
+        const promises = Array.from({ length: i }).map((_, i) => {
+          return batchProvider.getBlockNumber();
+        });
+        return Promise.all(promises);
+      },
+    );
   }
 
   if (writeToFile) {
-    const findingsFile = CONFIG_DIRECTORY + "/rpc-limitations.json";
-    const originalContent = JSON.parse(fs.readFileSync(findingsFile, "utf-8"));
-    const newContent = JSON.stringify(merge(originalContent, findings), null, 2);
-    fs.writeFileSync(findingsFile, newContent);
+    updateRawLimitations(findings);
   }
   logger.info({
     msg: "Testing done for rpc",
