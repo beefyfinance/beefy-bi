@@ -25,6 +25,10 @@ export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
     publicRpcUrl += "/?owner=<RPC_API_KEY_METIS_OWNER>";
   } else if (secretRpcUrl.includes("alchemy.com") && pathParts.length === 2 && pathParts[0] === "v2") {
     publicRpcUrl += "/v2/<RPC_API_KEY_ALCHEMY>";
+  } else {
+    if (pathParts.length > 0) {
+      publicRpcUrl += "/" + pathParts.join("/");
+    }
   }
   return publicRpcUrl;
 }

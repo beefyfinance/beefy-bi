@@ -4,6 +4,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 2,
@@ -18,6 +20,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -32,6 +36,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 2048,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 286,
@@ -46,6 +52,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -58,6 +66,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 500,
@@ -70,6 +80,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 2000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 2,
@@ -84,6 +96,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -98,6 +112,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 1000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": null,
@@ -112,6 +128,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 100,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 128,
@@ -126,6 +144,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 500,
@@ -140,6 +160,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 1,
@@ -154,6 +176,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 378,
@@ -168,6 +192,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 1024,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 96,
         "eth_call": 317,
@@ -182,6 +208,8 @@
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 28,
         "eth_call": 1,
@@ -196,6 +224,8 @@
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 32,
@@ -210,6 +240,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 5000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 256,
@@ -224,6 +256,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 16,
         "eth_call": 14,
@@ -238,12 +272,28 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": true,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 128,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 64
+      }
+    },
+    "https://moonriver.api.onfinality.io/public": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": true,
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": 64,
+        "eth_getBlockByNumber": null,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
       }
     }
   },
@@ -252,6 +302,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 40,
         "eth_call": 500,
@@ -266,6 +318,8 @@
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 1500,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 500,
@@ -280,6 +334,8 @@
       "isArchiveNode": false,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
       "methods": {
         "eth_getLogs": 32,
         "eth_call": 1,

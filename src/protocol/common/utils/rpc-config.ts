@@ -55,6 +55,8 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
       limitations: {
         isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
         maxGetLogsBlockSpan: 100_000, // unused value
+        disableBatching: true, // etherscan doesn't support batching
+        internalTimeoutMs: null,
         methods: {
           // no batching is supported
           eth_blockNumber: null,

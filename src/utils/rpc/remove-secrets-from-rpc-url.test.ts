@@ -7,7 +7,7 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://mainnet.aurora.dev/xxxxXXXXXXxxxxXXXXXXxxxXXXXXXXXX")).toBe(
       "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>",
     );
-    expect(removeSecretsFromRpcUrl("https://api.avax.network/ext/bc/C/rpc")).toBe("https://api.avax.network");
+    expect(removeSecretsFromRpcUrl("https://api.avax.network/ext/bc/C/rpc")).toBe("https://api.avax.network/ext/bc/C/rpc");
     expect(removeSecretsFromRpcUrl("https://rpc.ankr.com/avalanche/")).toBe("https://rpc.ankr.com/avalanche");
     expect(removeSecretsFromRpcUrl("https://rpc.ankr.com/avalanche")).toBe("https://rpc.ankr.com/avalanche");
     expect(removeSecretsFromRpcUrl("https://rpc.ankr.com/bsc/xxxXXXxXXXXXXxXXXXXXxXXX")).toBe("https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>");
@@ -23,6 +23,7 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://opt-mainnet.g.alchemy.com/v2/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
       "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY>",
     );
+    expect(removeSecretsFromRpcUrl("https://moonriver.api.onfinality.io/public")).toBe("https://moonriver.api.onfinality.io/public");
     expect(removeSecretsFromRpcUrl("https://polygon-rpc.com/")).toBe("https://polygon-rpc.com");
     expect(removeSecretsFromRpcUrl("https://rpc.syscoin.org/")).toBe("https://rpc.syscoin.org");
   });

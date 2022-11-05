@@ -9,20 +9,6 @@ import { addSecretsToRpcUrl } from "./remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
-// virtually lower some numbers to account for internal rpc timeout settings
-const internalTimeoutMs = {
-  "rpc.ankr.com": 10_000,
-  "andromeda.metis.io": 5_000,
-  "moonriver.api.onfinality.io": 10_000,
-  "rpc.api.moonriver.moonbeam.network": 10_000,
-};
-
-// some rpc are just too bad to be used with batching
-const disableBatchingFor = {
-  "moonriver.api.onfinality.io": true,
-  "rpc.api.moonriver.moonbeam.network": true,
-};
-
 // make sure we don't hit limitations exactly, apply % margin to be safe
 const safetyMargin = {
   eth_getLogs: 0.7,
@@ -38,6 +24,8 @@ export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
   minDelayBetweenCalls: 1000,
   maxGetLogsBlockSpan: 3000,
+  internalTimeoutMs: null,
+  disableBatching: false,
   methods: {
     eth_getLogs: null,
     eth_call: null,
@@ -73,26 +61,20 @@ const findings = (() => {
         let newLimit: number | null = oldLimit;
 
         // reduce the limit for those RPCs with a timeout
-        for (const internalTimeoutRpc of Object.keys(internalTimeoutMs)) {
-          const rpcTimeout = internalTimeoutMs[internalTimeoutRpc as keyof typeof internalTimeoutMs];
-          if (rpcUrl.includes(internalTimeoutRpc)) {
-            if (rpcTimeout <= 10_000) {
-              newLimit = Math.min(30, oldLimit);
-              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-            } else if (rpcTimeout <= 5_000) {
-              newLimit = Math.min(10, oldLimit);
-              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-            }
+        if (limitationCopy.internalTimeoutMs) {
+          if (limitationCopy.internalTimeoutMs <= 10_000) {
+            newLimit = Math.min(30, oldLimit);
+            logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+          } else if (limitationCopy.internalTimeoutMs <= 5_000) {
+            newLimit = Math.min(10, oldLimit);
+            logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
           }
         }
 
         // disable batching if required
-        for (const disableBatchingRpc of Object.keys(disableBatchingFor)) {
-          const isBatchingDisabled = disableBatchingFor[disableBatchingRpc as keyof typeof disableBatchingFor];
-          if (isBatchingDisabled && rpcUrl.includes(disableBatchingRpc)) {
-            newLimit = null;
-            logger.trace({ msg: "Disabling batching for RPC", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-          }
+        if (limitationCopy.disableBatching) {
+          newLimit = null;
+          logger.trace({ msg: "Disabling batching for RPC", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
 
         // apply safety margin
@@ -126,6 +108,21 @@ const findings = (() => {
 })();
 
 export interface RpcLimitations {
+  // if true, the RPC is an archive node
+  // we need this information to know if we can retry ArchiveNodeNeeded errors
+  isArchiveNode: boolean;
+  // the minimum delay between calls to this RPC
+  minDelayBetweenCalls: number | "no-limit";
+  // the maximum number of blocks that can be queried with eth_getLogs
+  maxGetLogsBlockSpan: number;
+  // the internal timeout of the RPC, calls that take longer than this will be aborted
+  // we use this information to lower the batch size so that we don't hit the timeout
+  internalTimeoutMs: number | null;
+  // if true, we disable batching for this RPC
+  // used for RPCs that are too slow or unreliable to be used with batching
+  disableBatching: boolean;
+  // maximum batching allowed for each method
+  // null means batching is not allowed
   methods: {
     eth_getLogs: number | null;
     eth_call: number | null;
@@ -133,9 +130,6 @@ export interface RpcLimitations {
     eth_blockNumber: number | null;
     eth_getTransactionReceipt: number | null;
   };
-  minDelayBetweenCalls: number | "no-limit";
-  maxGetLogsBlockSpan: number;
-  isArchiveNode: boolean;
 }
 
 export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
