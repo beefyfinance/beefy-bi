@@ -19,15 +19,15 @@
     "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 10000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": 2,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": 2
+        "eth_getLogs": 500,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     }
   },
@@ -202,6 +202,20 @@
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": null,
         "eth_getTransactionReceipt": 2
+      }
+    },
+    "https://forno.celo.org": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 10000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     }
   },

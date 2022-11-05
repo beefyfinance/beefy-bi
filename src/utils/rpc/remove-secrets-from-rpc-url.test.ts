@@ -29,5 +29,8 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://bsc-mainnet.nodereal.io/v1/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
       "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>",
     );
+    expect(removeSecretsFromRpcUrl("https://celo-mainnet--rpc.datahub.figment.io/apikey/XXXxxXXXXXxxxXXXXXXxxxxxx/")).toBe(
+      "https://celo-mainnet--rpc.datahub.figment.io/apikey/<RPC_API_KEY_FIGMENT>",
+    );
   });
 });

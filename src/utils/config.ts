@@ -41,6 +41,7 @@ export const RPC_API_KEY_ANKR = process.env.RPC_API_KEY_ANKR || null;
 export const RPC_API_KEY_METIS_OWNER = process.env.RPC_API_KEY_METIS_OWNER || null;
 export const RPC_API_KEY_ALCHEMY = process.env.RPC_API_KEY_ALCHEMY || null;
 export const RPC_API_KEY_NODEREAL = process.env.RPC_API_KEY_NODEREAL || null;
+export const RPC_API_KEY_FIGMENT = process.env.RPC_API_KEY_FIGMENT || null;
 
 /*
 export const RPC_URLS: { [chain in Chain]: string[] } = {
