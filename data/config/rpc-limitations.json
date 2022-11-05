@@ -1,8 +1,9 @@
 {
   "arbitrum": {
-    "https://rpc.ankr.com/arbitrum": {
+    "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 2,
@@ -13,9 +14,10 @@
     }
   },
   "aurora": {
-    "https://mainnet.aurora.dev": {
+    "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -26,9 +28,10 @@
     }
   },
   "avax": {
-    "https://rpc.ankr.com/avalanche": {
+    "https://rpc.ankr.com/avalanche/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2048,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 286,
@@ -42,6 +45,7 @@
     "https://bsc-dataseed1.ninicoin.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 2000,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -53,6 +57,7 @@
     "https://bsc-mainnet.nodereal.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 2000,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 500,
@@ -61,9 +66,10 @@
         "eth_getTransactionReceipt": 500
       }
     },
-    "https://rpc.ankr.com/bsc": {
+    "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 2,
@@ -76,7 +82,8 @@
   "celo": {
     "https://celo-mainnet--rpc.datahub.figment.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -90,6 +97,7 @@
     "https://evm-cronos.crypto.org": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 1000,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": null,
@@ -103,6 +111,7 @@
     "https://emerald.oasis.dev": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 100,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 128,
@@ -112,10 +121,25 @@
       }
     }
   },
-  "fantom": {
-    "https://rpc.ankr.com/fantom": {
+  "ethereum": {
+    "https://rpc.ankr.com/eth/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
+  "fantom": {
+    "https://rpc.ankr.com/fantom/<RPC_API_KEY_ANKR>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 1,
@@ -129,6 +153,7 @@
     "https://explorer-node.fuse.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 378,
@@ -139,9 +164,10 @@
     }
   },
   "harmony": {
-    "https://rpc.ankr.com/harmony": {
+    "https://rpc.ankr.com/harmony/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 1024,
       "methods": {
         "eth_getLogs": 96,
         "eth_call": 317,
@@ -155,6 +181,7 @@
     "https://http-mainnet.hecochain.com": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 28,
         "eth_call": 1,
@@ -168,6 +195,7 @@
     "https://evm.kava.io": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 32,
@@ -181,6 +209,7 @@
     "https://andromeda.metis.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 256,
@@ -191,9 +220,10 @@
     }
   },
   "moonbeam": {
-    "https://rpc.ankr.com/moonbeam": {
+    "https://rpc.ankr.com/moonbeam/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 16,
         "eth_call": 14,
@@ -207,6 +237,7 @@
     "https://rpc.api.moonriver.moonbeam.network": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 128,
@@ -217,9 +248,10 @@
     }
   },
   "optimism": {
-    "https://rpc.ankr.com/optimism": {
+    "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 40,
         "eth_call": 500,
@@ -230,9 +262,10 @@
     }
   },
   "polygon": {
-    "https://rpc.ankr.com/polygon": {
+    "https://rpc.ankr.com/polygon/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 1500,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 500,
@@ -243,28 +276,16 @@
     }
   },
   "syscoin": {
-    "https://rpc.ankr.com/syscoin": {
+    "https://rpc.ankr.com/syscoin/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "methods": {
         "eth_getLogs": 32,
         "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": null
-      }
-    }
-  },
-  "ethereum": {
-    "https://rpc.ankr.com/eth": {
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
       }
     }
   }

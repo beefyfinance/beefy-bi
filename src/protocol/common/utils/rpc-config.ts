@@ -3,7 +3,7 @@ import { sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
-import { ETHERSCAN_API_KEY, RPC_URLS } from "../../../utils/config";
+import { ETHERSCAN_API_KEY } from "../../../utils/config";
 
 import {
   addDebugLogsToProvider,
@@ -18,13 +18,13 @@ import {
   MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { getAllRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
 export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }: { url?: string; timeout?: number } = {}): RpcConfig {
   const rpcOptions: ethers.utils.ConnectionInfo = {
-    url: rpcUrl || (sample(RPC_URLS[chain]) as string),
+    url: rpcUrl || (sample(getAllRpcUrlsForChain(chain)) as string),
     timeout,
     // disable exponential backoff since we are doing our own retry logic with the callLockProtectedRpc util
     // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning
@@ -54,6 +54,7 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
       provider: new MultiChainEtherscanProvider(networkish, apiKey || undefined),
       limitations: {
         isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
+        maxGetLogsBlockSpan: 100_000, // unused value
         methods: {
           // no batching is supported
           eth_blockNumber: null,

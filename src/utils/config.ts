@@ -36,6 +36,12 @@ export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
 
+export const RPC_API_KEY_AURORA = process.env.RPC_API_KEY_AURORA || null;
+export const RPC_API_KEY_ANKR = process.env.RPC_API_KEY_ANKR || null;
+export const RPC_API_KEY_METIS_OWNER = process.env.RPC_API_KEY_METIS_OWNER || null;
+export const RPC_API_KEY_ALCHEMY = process.env.RPC_API_KEY_ALCHEMY || null;
+
+/*
 export const RPC_URLS: { [chain in Chain]: string[] } = {
   arbitrum: process.env.ARBITRUM_RPC
     ? [process.env.ARBITRUM_RPC]
@@ -112,7 +118,7 @@ export const RPC_URLS: { [chain in Chain]: string[] } = {
   polygon: process.env.POLYGON_RPC ? [process.env.POLYGON_RPC] : ["https://polygon-rpc.com/"],
   syscoin: process.env.SYSCOIN_RPC ? [process.env.SYSCOIN_RPC] : ["https://rpc.syscoin.org/"],
 };
-
+*/
 export const EXPLORER_URLS: { [chain in Chain]: string } = {
   arbitrum: "https://api.arbiscan.io/api",
   aurora: "https://api.aurorascan.dev/api",
@@ -167,28 +173,6 @@ export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 10_000;
 
 export const BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS = 1000 * 60 * 60 * 24 * 7 * 4 * 3; // 3 * 4 week (~3 months)
 
-export const CHAIN_RPC_MAX_QUERY_BLOCKS: { [chain in Chain]: number } = {
-  arbitrum: 3000,
-  aurora: 3000,
-  avax: 2048, // requested too many blocks from 3052900 to 3055899, maximum is set to 2048
-  bsc: 2000,
-  celo: 3000,
-  cronos: 1000, // 2k for https://evm-cronos.crypto.org
-  emerald: 100, // invalid request: max allowed of rounds in logs query is: 100
-  ethereum: 3000,
-  fantom: 3000,
-  fuse: 3000,
-  harmony: 1024, // GetLogs query must be smaller than size 1024
-  heco: 3000,
-  kava: 3000,
-  metis: 3000,
-  moonbeam: 3000,
-  moonriver: 3000,
-  optimism: 3000,
-  polygon: 1500, // polygon is a bit slower than usual
-  syscoin: 3000,
-};
-
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   arbitrum: 2200,
   aurora: 1000,
@@ -209,45 +193,6 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   optimism: 1500,
   polygon: 2170,
   syscoin: 100000,
-};
-
-// -1 means no delay and no locking
-// 0 means no delay but one call at a time (locking)
-// > 0 is is minimum delay in ms between calls
-function _getDelayFromEnv(chain: Chain, defaultDelay: number = 1000) {
-  const delay = process.env[`MIN_DELAY_BETWEEN_RPC_CALLS_${chain.toLocaleUpperCase()}_MS`];
-  if (delay) {
-    const delayMs = parseInt(delay, 10);
-    if (delayMs < 0) {
-      return "no-limit";
-    } else {
-      return delayMs;
-    }
-  }
-  return defaultDelay;
-}
-export const MIN_DELAY_BETWEEN_RPC_CALLS_MS: {
-  [chain in Chain]: number | "no-limit";
-} = {
-  arbitrum: _getDelayFromEnv("arbitrum"),
-  aurora: _getDelayFromEnv("aurora"),
-  avax: _getDelayFromEnv("avax"),
-  bsc: _getDelayFromEnv("bsc"),
-  celo: _getDelayFromEnv("celo"),
-  cronos: _getDelayFromEnv("cronos"),
-  emerald: _getDelayFromEnv("emerald"),
-  ethereum: _getDelayFromEnv("ethereum"),
-  fantom: _getDelayFromEnv("fantom"),
-  fuse: _getDelayFromEnv("fuse", 2000),
-  harmony: _getDelayFromEnv("harmony"),
-  heco: _getDelayFromEnv("heco"),
-  kava: _getDelayFromEnv("kava"),
-  metis: _getDelayFromEnv("metis"),
-  moonbeam: _getDelayFromEnv("moonbeam"),
-  moonriver: _getDelayFromEnv("moonriver"),
-  optimism: _getDelayFromEnv("optimism"),
-  polygon: _getDelayFromEnv("polygon"),
-  syscoin: _getDelayFromEnv("syscoin"),
 };
 
 export const CONFIG_DIRECTORY = process.env.CONFIG_DIRECTORY || path.join(__dirname, "..", "..", "data", "config");

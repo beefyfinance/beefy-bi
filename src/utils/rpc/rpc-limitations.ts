@@ -2,8 +2,10 @@ import * as fs from "fs";
 import { cloneDeep } from "lodash";
 import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
-import { CONFIG_DIRECTORY, MIN_DELAY_BETWEEN_RPC_CALLS_MS } from "../config";
+import { CONFIG_DIRECTORY } from "../config";
 import { rootLogger } from "../logger";
+import { ProgrammerError } from "../programmer-error";
+import { addSecretsToRpcUrl } from "./remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
@@ -35,6 +37,7 @@ export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
 export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
   minDelayBetweenCalls: 1000,
+  maxGetLogsBlockSpan: 3000,
   methods: {
     eth_getLogs: null,
     eth_call: null,
@@ -131,17 +134,25 @@ export interface RpcLimitations {
     eth_getTransactionReceipt: number | null;
   };
   minDelayBetweenCalls: number | "no-limit";
+  maxGetLogsBlockSpan: number;
   isArchiveNode: boolean;
 }
 
 export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
   for (const [url, content] of Object.entries(findings[chain])) {
     if (rpcUrl.startsWith(url)) {
-      // use the config for the min delay between calls
-      content.minDelayBetweenCalls = MIN_DELAY_BETWEEN_RPC_CALLS_MS[chain];
       return content;
     }
   }
   logger.error({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
   return cloneDeep(defaultLimitations);
+}
+
+export function getAllRpcUrlsForChain(chain: Chain): string[] {
+  const findings = JSON.parse(fs.readFileSync(CONFIG_DIRECTORY + "/rpcs.json", "utf8"));
+  const chainRpcs = findings[chain];
+  if (!chainRpcs) {
+    throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+  }
+  return Object.keys(chainRpcs).map(addSecretsToRpcUrl);
 }

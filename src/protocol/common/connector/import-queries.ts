@@ -2,12 +2,7 @@ import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
-import {
-  BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
-  CHAIN_RPC_MAX_QUERY_BLOCKS,
-  MAX_RANGES_PER_PRODUCT_TO_GENERATE,
-  MS_PER_BLOCK_ESTIMATE,
-} from "../../../utils/config";
+import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS, MAX_RANGES_PER_PRODUCT_TO_GENERATE, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
@@ -45,7 +40,7 @@ export function addLatestBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
     // compute the block range we want to query
     Rx.mergeMap((objGroup) => {
       // fetch the last hour of data
-      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.ctx.chain];
+      const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
       const period = samplingPeriodMs["1hour"];
       const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[options.ctx.chain]);
 
@@ -101,7 +96,7 @@ export function addHistoricalBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRe
 
       let ranges = [fullRange];
 
-      const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.ctx.chain];
+      const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
       ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery);
 
       // apply forced block number
@@ -234,7 +229,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
       // filter ranges based on what was already covered
       Rx.map((item) => {
         const importState = options.getImportState(item.obj);
-        const maxBlocksPerQuery = CHAIN_RPC_MAX_QUERY_BLOCKS[options.chain];
+        const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
         const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.chain];
         const maxTimeStepMs = samplingPeriodMs[options.timeStep];
         const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
