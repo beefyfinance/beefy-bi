@@ -51,14 +51,14 @@
     "https://bsc-dataseed1.ninicoin.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
         "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 98,
+        "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 100
       }
     },
@@ -88,6 +88,104 @@
         "eth_getBlockByNumber": 378,
         "eth_blockNumber": 1,
         "eth_getTransactionReceipt": 500
+      }
+    },
+    "https://bsc-private-dataseed1.nariox.org": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": null,
+        "eth_getBlockByNumber": 256,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 256
+      }
+    },
+    "https://bsc-dataseed.binance.org": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-dataseed1.defibit.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-dataseed2.defibit.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-dataseed3.defibit.io": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-dataseed4.defibit.io": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    },
+    "https://bsc-dataseed1.binance.org": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
       }
     }
   },

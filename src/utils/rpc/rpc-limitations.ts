@@ -17,13 +17,14 @@ const safetyMargin = {
   eth_blockNumber: 0.7,
   eth_getTransactionReceipt: 0.5, // this returns a lot of data so make sure we are way below the actual limit
 };
-export const MAX_RPC_BATCH_SIZE = 500;
+export const MAX_RPC_BATCHING_SIZE = 500;
+export const MAX_RPC_GETLOGS_SPAN = 10_000;
 export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
 
 export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
   minDelayBetweenCalls: 1000,
-  maxGetLogsBlockSpan: 3000,
+  maxGetLogsBlockSpan: 10,
   internalTimeoutMs: null,
   disableBatching: false,
   methods: {
@@ -78,7 +79,7 @@ const findings = (() => {
         }
 
         // apply safety margin
-        if (newLimit !== null && newLimit !== MAX_RPC_BATCH_SIZE) {
+        if (newLimit !== null && newLimit !== MAX_RPC_BATCHING_SIZE) {
           newLimit = Math.floor(newLimit * safetyMargin[method]);
           logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
         }
