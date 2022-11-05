@@ -4,7 +4,9 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { EXPLORER_URLS, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS } from "../../../utils/config";
+import { MultiChainEtherscanProvider } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { createRpcConfig } from "../utils/rpc-config";
@@ -60,6 +62,20 @@ async function getContractCreationInfos(contractAddress: string, chain: Chain): 
       data: { contractAddress, chain },
     });
     return await getHarmonyRpcCreationInfos(contractAddress, chain);
+  } else if (MultiChainEtherscanProvider.isChainSupported(chain)) {
+    // we also use explorers for other things so we want to globally rate limit them
+    const rpcConfig = createRpcConfig(chain);
+    const etherscanConfig = rpcConfig.etherscan;
+    if (!etherscanConfig) {
+      throw new ProgrammerError("Etherscan is not configured for this chain");
+    }
+    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]), {
+      chain,
+      logInfos: { msg: "Fetching contract creation block", data: { contractAddress, chain } },
+      maxTotalRetryMs: 10_000,
+      rpcLimitations: etherscanConfig.limitations,
+      provider: etherscanConfig.provider,
+    });
   } else {
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]);
   }

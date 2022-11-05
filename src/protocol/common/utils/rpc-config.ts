@@ -17,12 +17,23 @@ import {
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
   MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
+import { rootLogger } from "../../../utils/logger";
 import { getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+
+const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
 export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }: { url?: string; timeout?: number } = {}): RpcConfig {
   const rpcOptions: ethers.utils.ConnectionInfo = {
     url: rpcUrl || (sample(RPC_URLS[chain]) as string),
     timeout,
+    // disable exponential backoff since we are doing our own retry logic with the callLockProtectedRpc util
+    // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning
+    // (node:7615) TimeoutOverflowWarning: 2192352000 does not fit into a 32-bit signed integer.
+    // Timeout duration was set to 1.
+    throttleCallback: async (attempt: number, url: string) => {
+      logger.error({ msg: "RPC call throttled (code 429)", data: { attempt, url } });
+      return false;
+    },
   };
   const networkish = {
     name: chain,
