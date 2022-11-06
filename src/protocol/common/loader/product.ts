@@ -5,7 +5,7 @@ import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
 import { BeefyVault } from "../../beefy/connector/vault-list";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "product" });
@@ -44,13 +44,15 @@ export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | D
 
 export type DbProduct = DbBeefyProduct;
 
-export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
-  ctx: TCtx;
+export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getProductData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbProduct) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getProductData,
     logInfos: { msg: "upsert product" },
@@ -91,13 +93,15 @@ export function upsertProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams
   });
 }
 
-export function fetchProduct$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends number>(options: {
-  ctx: TCtx;
+export function fetchProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends number>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getProductId: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, product: DbProduct) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getProductId,
     logInfos: { msg: "fetch product" },

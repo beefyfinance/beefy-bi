@@ -6,7 +6,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -28,8 +28,9 @@ export interface BatchStreamConfig {
   maxTotalRetryMs: number;
 }
 
-export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
-  ctx: ImportCtx<TObj>;
+export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQueryObj, TQueryResp>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getQuery: (obj: TObj) => TQueryObj;
   processBatch: (
     provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider,
@@ -108,7 +109,7 @@ export function batchRpcCalls$<TObj, TRes, TQueryObj, TQueryResp>(options: {
         logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { chain: options.ctx.chain, err } }, options.logInfos));
         logger.error(err);
         for (const obj of objs) {
-          options.ctx.emitErrors(obj);
+          options.emitError(obj);
         }
         return Rx.EMPTY;
       }

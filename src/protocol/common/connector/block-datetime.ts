@@ -1,18 +1,20 @@
 import { keyBy, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlock$, upsertBlock$ } from "../loader/blocks";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "common", component: "block-datetime" });
 
-export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends number>(options: {
-  ctx: TCtx;
+export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends number>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getBlockNumber: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
-}) {
+}): Rx.OperatorFunction<TObj, TRes> {
   const chain = options.ctx.chain;
 
   const fetchFromRPC$ = Rx.pipe(
@@ -21,6 +23,7 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
 
     // fetch block from our RPC
     batchRpcCalls$({
+      emitError: options.emitError,
       ctx: options.ctx,
       rpcCallsPerInputObj: {
         eth_call: 0,
@@ -55,12 +58,16 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
     upsertBlock$({
       ctx: {
         ...options.ctx,
-        emitErrors: () => {
-          throw new Error("Failed to upsert block");
-        },
         // make sure we are aligned with the RPC config so we have an overall consistent behavior
-        dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
-        dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
+        streamConfig: {
+          ...options.ctx.streamConfig,
+          dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
+          dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
+        },
+      },
+      emitError: (obj) => {
+        logger.error({ msg: "Error while saving block", data: { chain, obj } });
+        throw new ProgrammerError("Failed to upsert block");
       },
       getBlockData: (item) => ({
         datetime: item.blockDate,
@@ -84,10 +91,12 @@ export function fetchBlockDatetime$<TObj, TCtx extends ImportCtx<TObj>, TRes, TP
           dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
         },
       },
+      emitError: options.emitError,
       chain: chain,
       getBlockNumber: options.getBlockNumber,
       formatOutput: (obj, dbBlock) => ({ obj, dbBlock }),
     }),
+
     // if we found the block, return it
     // if not, we fetch it from the RPC
     Rx.connect((items$) =>

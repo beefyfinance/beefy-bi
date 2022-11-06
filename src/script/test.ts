@@ -18,12 +18,9 @@ import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 async function main(client: DbClient) {
   const chain: Chain = "bsc";
-  const ctx: ImportCtx<any> = {
+  const ctx = {
     chain,
     client,
-    emitErrors: (item) => {
-      throw new Error("Error for item " + JSON.stringify(item));
-    },
     rpcConfig: createRpcConfig(chain),
     streamConfig: {
       maxInputTake: 500,

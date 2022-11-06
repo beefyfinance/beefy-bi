@@ -1,7 +1,7 @@
 import { keyBy, uniqBy } from "lodash";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 interface DbInvestor {
@@ -10,13 +10,15 @@ interface DbInvestor {
   investorData: {};
 }
 
-export function upsertInvestor$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbInvestor, "investorId">>(options: {
-  ctx: TCtx;
+export function upsertInvestor$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Omit<DbInvestor, "investorId">>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getInvestorData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investorId: number) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getInvestorData,
     logInfos: { msg: "upsert investor" },

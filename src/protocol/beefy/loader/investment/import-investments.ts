@@ -20,10 +20,11 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
     logInfos: { msg: "Importing historical beefy investments", data: { chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
-    generateQueries$: (ctx) =>
+    generateQueries$: (ctx, emitError) =>
       Rx.pipe(
         addHistoricalBlockQuery$({
           ctx,
+          emitError,
           forceCurrentBlockNumber,
           getImport: (item) => item.importState,
           getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
@@ -50,11 +51,9 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
 
         // add this block to our global block list
         upsertBlock$({
-          ctx: {
-            ...ctx,
-            emitErrors: () => {
-              throw new Error("Failed to upsert block");
-            },
+          ctx,
+          emitError: () => {
+            throw new Error("Failed to upsert block");
           },
           getBlockData: (item) => ({
             datetime: item.contractCreationInfo.datetime,
@@ -79,7 +78,8 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
           },
         })),
       ),
-    processImportQuery$: (ctx) => importProductBlockRange$({ ctx, mode: "historical" }),
+    processImportQuery$: (ctx, emitError) =>
+      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError, mode: "historical" }),
   });
 }
 
@@ -91,13 +91,15 @@ export function importChainRecentData$(client: DbClient, chain: Chain, forceCurr
     logInfos: { msg: "Importing recent beefy investments", data: { chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
-    generateQueries$: (ctx, lastImported) =>
+    generateQueries$: (ctx, emitError, lastImported) =>
       addLatestBlockQuery$({
         ctx,
+        emitError,
         forceCurrentBlockNumber,
         getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => ({ ...item, range, latest }),
       }),
-    processImportQuery$: (ctx) => importProductBlockRange$({ ctx, mode: "recent" }),
+    processImportQuery$: (ctx, emitError) =>
+      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError, mode: "recent" }),
   });
 }

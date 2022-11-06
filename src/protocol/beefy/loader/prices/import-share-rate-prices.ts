@@ -11,7 +11,7 @@ import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImp
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
-import { ImportCtx } from "../../../common/types/import-context";
+import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { createHistoricalImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
@@ -31,12 +31,10 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
         // find the first date we are interested in
         // so we need the first creation date of each product
         fetchPriceFeedContractCreationInfos({
-          ctx: {
-            ...ctx,
-            emitErrors: (item) => {
-              logger.error({ msg: "Error while fetching price feed contract creation infos. ", data: item });
-              throw new Error("Error while fetching price feed creation infos. " + item.priceFeedId);
-            },
+          ctx,
+          emitError: (item) => {
+            logger.error({ msg: "Error while fetching price feed contract creation infos. ", data: item });
+            throw new Error("Error while fetching price feed creation infos. " + item.priceFeedId);
           },
           importStateType: "product:investment",
           which: "price-feed-1", // we work on the first applied price
@@ -75,12 +73,10 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
         excludeNullFields$("parentImportState"),
 
         addRegularIntervalBlockRangesQueries({
-          ctx: {
-            ...ctx,
-            emitErrors: (item) => {
-              logger.error({ msg: "Error while adding covering block ranges", data: item });
-              throw new Error("Error while adding covering block ranges");
-            },
+          ctx,
+          emitError: (item) => {
+            logger.error({ msg: "Error while adding covering block ranges", data: item });
+            throw new Error("Error while adding covering block ranges");
           },
           chain: options.chain,
           timeStep: "15min",
@@ -90,26 +86,28 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
         }),
         Rx.concatAll(),
       ),
-    processImportQuery$: (ctx) => processShareRateQuery$({ ctx }),
+    processImportQuery$: (ctx, emitError) => processShareRateQuery$({ ctx, emitError }),
   });
 }
 
 function processShareRateQuery$<
   TObj extends ImportRangeQuery<DbPriceFeed, number> & { importState: DbProductShareRateImportState },
-  TCtx extends ImportCtx<TObj>,
->(options: { ctx: TCtx }): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, number>> {
+  TErr extends ErrorEmitter<TObj>,
+>(options: { ctx: ImportCtx; emitError: TErr }): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, number>> {
   return Rx.pipe(
     // get the midpoint of the range
     Rx.map((item) => ({ ...item, rangeMidpoint: Math.floor((item.range.from + item.range.to) / 2) })),
 
     fetchProduct$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getProductId: (item) => item.importState.importData.productId,
       formatOutput: (item, product) => ({ ...item, product }),
     }),
 
     fetchBeefyPPFS$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getPPFSCallParams: (item) => {
         if (isBeefyBoost(item.product)) {
           throw new ProgrammerError("beefy boost do not have ppfs");
@@ -131,12 +129,14 @@ function processShareRateQuery$<
     // add block datetime
     fetchBlockDatetime$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getBlockNumber: (item) => item.rangeMidpoint,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
 
     upsertPrice$({
       ctx: options.ctx,
+      emitError: (item) => options.emitError(item),
       getPriceData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.rangeMidpoint,

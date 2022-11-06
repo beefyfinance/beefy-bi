@@ -10,7 +10,7 @@ import { createObservableWithNext } from "../../../utils/rxjs/utils/create-obser
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { logObservableLifecycle } from "../../../utils/rxjs/utils/log-observable-lifecycle";
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "./batch-rpc-calls";
 import { createRpcConfig } from "./rpc-config";
@@ -58,40 +58,35 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   logInfos: LogInfos;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
-  createDefaultImportState$: (ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
+  createDefaultImportState$: (ctx: ImportCtx, emitError: ErrorEmitter<TInput>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
   generateQueries$: (
-    ctx: ImportCtx<{ target: TInput }>,
+    ctx: ImportCtx,
+    emitError: ErrorEmitter<{ target: TInput; importState: TImport }>,
   ) => Rx.OperatorFunction<{ target: TInput; importState: TImport }, ImportRangeQuery<TInput, TRange> & { importState: TImport }>;
   processImportQuery$: (
-    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
+    ctx: ImportCtx,
+    emitError: ErrorEmitter<ImportRangeQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport }, ImportRangeResult<TInput, TRange>>;
 }) {
   const streamConfig = options.chain === "moonbeam" ? defaultMoonbeamHistoricalStreamConfig : defaultHistoricalStreamConfig;
-  const { observable: errorObs$, complete: completeErrorObs, next: emitErrors } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
+  const { observable: errorObs$, complete: completeErrorObs, next: emitError } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
 
-  const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
+  const ctx: ImportCtx = {
     chain: options.chain,
     client: options.client,
-    emitErrors,
     rpcConfig: createRpcConfig(options.chain),
     streamConfig,
   };
 
-  const createDefaultImportState$ = options.createDefaultImportState$(ctx);
-  const processImportQuery$ = options.processImportQuery$(ctx);
-  const generateQueries$ = options.generateQueries$({
-    ...ctx,
-    emitErrors: (item) => {
-      logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { chain: ctx.chain, item } }, options.logInfos));
-    },
-  });
-
   return Rx.pipe(
     addMissingImportState$({
       client: options.client,
+
       streamConfig,
       getImportStateKey: options.getImportStateKey,
-      createDefaultImportState$,
+      createDefaultImportState$: options.createDefaultImportState$(ctx, (obj) => {
+        logger.error(mergeLogsInfos({ msg: "Error while creating default import state", data: { obj } }, options.logInfos));
+      }),
       formatOutput: (target, importState) => ({ target, importState }),
     }),
 
@@ -109,7 +104,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     ),
 
     // create the queries
-    generateQueries$,
+    options.generateQueries$(ctx, (item) => {
+      logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+    }),
 
     Rx.tap((item) =>
       logger.info(
@@ -121,7 +118,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     ),
 
     // run the import
-    processImportQuery$,
+    options.processImportQuery$(ctx, emitError),
 
     Rx.pipe(
       // handle the results
@@ -139,11 +136,9 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
 
       // update the import state
       updateImportState$({
-        ctx: {
-          ...ctx,
-          emitErrors: (item) => {
-            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
-          },
+        ctx,
+        emitError: (item) => {
+          logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
         },
         getRange: (item) => item.range,
         isSuccess: (item) => item.success,
@@ -167,35 +162,23 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   generateQueries$: (
-    ctx: ImportCtx<{ target: TInput }>,
+    ctx: ImportCtx,
+    emitError: ErrorEmitter<{ target: TInput }>,
     lastImported: TRange | null,
   ) => Rx.OperatorFunction<{ target: TInput }, ImportRangeQuery<TInput, TRange>>;
   processImportQuery$: (
-    ctx: ImportCtx<ImportRangeQuery<TInput, TRange>>,
+    ctx: ImportCtx,
+    emitError: ErrorEmitter<ImportRangeQuery<TInput, TRange>>,
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange>, ImportRangeResult<TInput, TRange>>;
 }) {
   const streamConfig = defaultRecentStreamConfig;
 
-  const ctx: ImportCtx<ImportRangeQuery<TInput, TRange>> = {
+  const ctx: ImportCtx = {
     chain: options.chain,
     client: options.client,
-    emitErrors: () => {}, // ignore errors since we are doing live data
     rpcConfig: createRpcConfig(options.chain),
     streamConfig,
   };
-
-  const processImportQuery$ = options.processImportQuery$(ctx);
-  const generateQueries$ = options.generateQueries$(
-    {
-      ...ctx,
-      emitErrors: (item) => {
-        logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { chain: ctx.chain, item } }, options.logInfos));
-      },
-    },
-    (recentImportCache[options.cacheKey] ?? null) as TRange | null,
-  );
-
-  // maintain the latest processed range value for each chain so we don't reprocess the same data again and again
 
   return Rx.pipe(
     // only process live items
@@ -205,12 +188,21 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     Rx.map((target) => ({ target })),
 
     // create the import queries
-    generateQueries$,
+    options.generateQueries$(
+      ctx,
+      (obj) => {
+        logger.error(mergeLogsInfos({ msg: "Error while generating import query", data: { obj } }, options.logInfos));
+      },
+      (recentImportCache[options.cacheKey] ?? null) as TRange | null,
+    ),
 
     Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { chain: ctx.chain, range: item.range } }, options.logInfos))),
 
     // run the import
-    processImportQuery$,
+    options.processImportQuery$(ctx, (obj) => {
+      // since we are doing
+      logger.error(mergeLogsInfos({ msg: "Error while processing import query", data: { obj } }, options.logInfos));
+    }),
 
     Rx.pipe(
       // update the last processed cache
@@ -237,11 +229,9 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       }),
       excludeNullFields$("importState"),
       updateImportState$({
-        ctx: {
-          ...ctx,
-          emitErrors: (item) => {
-            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
-          },
+        ctx,
+        emitError: (item) => {
+          logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
         },
         getImportStateKey: (item) => options.getImportStateKey(item.target),
         getRange: (item) => item.range,

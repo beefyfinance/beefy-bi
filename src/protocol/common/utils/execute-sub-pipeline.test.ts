@@ -13,13 +13,14 @@ describe("executeSubPipeline$", () => {
     ]);
 
     const errors: any[] = [];
-    const ctx: any = { emitErrors: (obj: any) => errors.push(obj), streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
+    const ctx: any = { streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
 
     const pipeline$ = input$.pipe(
       executeSubPipeline$({
         ctx,
+        emitError: (obj) => errors.push(obj),
         getObjs: (obj) => obj.targets,
-        pipeline: (ctx) => Rx.pipe(Rx.map((item) => ({ ...item, result: item.target * 2 }))),
+        pipeline: (emitError) => Rx.pipe(Rx.map((item) => ({ ...item, result: item.target * 2 }))),
         formatOutput: (obj, result) => ({ ...obj, result: obj.targets.map((t) => result.get(t)) }),
       }),
       Rx.toArray(),
@@ -41,13 +42,14 @@ describe("executeSubPipeline$", () => {
     ]);
 
     const errors: any[] = [];
-    const ctx: any = { emitErrors: (obj: any) => errors.push(obj), streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
+    const ctx: any = { streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
 
     const pipeline$ = input$.pipe(
       executeSubPipeline$({
         ctx,
+        emitError: (obj) => errors.push(obj),
         getObjs: (obj) => obj.targets,
-        pipeline: (ctx) =>
+        pipeline: (emitError) =>
           Rx.pipe(
             Rx.filter((item) => item.target !== 5),
             Rx.map((item) => ({ ...item, result: item.target * 2 })),
@@ -67,17 +69,18 @@ describe("executeSubPipeline$", () => {
     ]);
 
     const errors: any[] = [];
-    const ctx: any = { emitErrors: (obj: any) => errors.push(obj), streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
+    const ctx: any = { streamConfig: { maxBatchSize: 100, maxInputWaitMs: 100 } };
 
     const pipeline$ = input$.pipe(
       executeSubPipeline$({
         ctx,
+        emitError: (obj) => errors.push(obj),
         getObjs: (obj) => obj.targets,
-        pipeline: (ctx) =>
+        pipeline: (emitError) =>
           Rx.pipe(
             Rx.filter((item) => {
               if (item.target === 5) {
-                ctx.emitErrors(item);
+                emitError(item);
                 return false;
               }
               return true;

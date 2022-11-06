@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { get } from "lodash";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "common", component: "transaction-gas" });
@@ -27,13 +27,15 @@ interface GetTransactionGasCallParams {
   transactionHash: string;
 }
 
-export function fetchTransactionGas$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchTransactionGas$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getQueryParams: (obj: TObj) => GetTransactionGasCallParams;
   formatOutput: (obj: TObj, gas: TransactionGas) => TRes;
 }) {
   return batchRpcCalls$({
     ctx: options.ctx,
+    emitError: options.emitError,
     rpcCallsPerInputObj: {
       eth_call: 0,
       eth_blockNumber: 0,

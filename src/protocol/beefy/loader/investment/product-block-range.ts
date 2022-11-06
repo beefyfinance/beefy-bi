@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import * as Rx from "rxjs";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
+import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range } from "../../../../utils/range";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
@@ -11,7 +12,7 @@ import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
-import { ImportCtx } from "../../../common/types/import-context";
+import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
@@ -26,8 +27,11 @@ import {
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
-export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TCtx extends ImportCtx<TObj>>(options: {
-  ctx: TCtx;
+export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TErr extends ErrorEmitter<TObj>>(options: {
+  ctx: ImportCtx;
+  emitBoostError: <T extends ImportRangeQuery<DbBeefyBoostProduct, number>>(obj: T) => void;
+  emitStdVaultError: <T extends ImportRangeQuery<DbBeefyStdVaultProduct, number>>(obj: T) => void;
+  emitGovVaultError: <T extends ImportRangeQuery<DbBeefyGovVaultProduct, number>>(obj: T) => void;
   mode: "recent" | "historical";
 }) {
   const boostTransfers$ = Rx.pipe(
@@ -35,7 +39,8 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
 
     // fetch latest transfers from and to the boost contract
     fetchERC20TransferToAStakingContract$({
-      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyBoostProduct, number>>,
+      ctx: options.ctx,
+      emitError: options.emitBoostError,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -67,7 +72,8 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
 
     // fetch the vault transfers
     fetchErc20Transfers$({
-      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyStdVaultProduct, number>>,
+      ctx: options.ctx,
+      emitError: options.emitStdVaultError,
       // we only want to fetch from etherscan when fetching historical data
       // for recent data we are better off using rpc batching since we fetch a small amount of data for many addresses
       // whereas for historical data we are able to batch lots of ranges for a single address in one etherscan call
@@ -100,7 +106,8 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     })),
 
     fetchERC20TransferToAStakingContract$({
-      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbBeefyGovVaultProduct, number>>,
+      ctx: options.ctx,
+      emitError: options.emitGovVaultError,
       getQueryParams: (item) => {
         // for gov vaults we don't have a share token so we use the underlying token
         // transfers and filter on those transfer from and to the contract address
@@ -146,7 +153,18 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     }),
 
     executeSubPipeline$({
-      ctx: options.ctx as any,
+      ctx: options.ctx,
+      emitError: (item) => {
+        if (isBeefyBoostProductImportQuery(item)) {
+          options.emitBoostError(item);
+        } else if (isBeefyStandardVaultProductImportQuery(item)) {
+          options.emitStdVaultError(item);
+        } else if (isBeefyGovVaultProductImportQuery(item)) {
+          options.emitGovVaultError(item);
+        } else {
+          throw new ProgrammerError("Unknown product type");
+        }
+      },
       getObjs: (item) =>
         item.transfers
           .map(
@@ -164,7 +182,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
             }
             return !shouldIgnore;
           }),
-      pipeline: (ctx) => loadTransfers$({ ctx }),
+      pipeline: (emitError) => loadTransfers$({ ctx: options.ctx, emitError }),
       formatOutput: (item, _ /* we don't care about the result */) => item,
     }),
 
@@ -181,7 +199,11 @@ export type TransferToLoad<TProduct extends DbBeefyProduct = DbBeefyProduct> = {
 
 export type TransferLoadStatus = { transferCount: number; success: true };
 
-export function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> }>(options: { ctx: ImportCtx<TInput> }) {
+export function loadTransfers$<
+  TObj,
+  TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> },
+  TErr extends ErrorEmitter<TInput>,
+>(options: { ctx: ImportCtx; emitError: TErr }) {
   const govVaultPipeline$ = Rx.pipe(
     // fix typings
     Rx.filter((item: TInput) => isBeefyGovVault(item.target.product)),
@@ -196,6 +218,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // fetch the ppfs
     fetchBeefyPPFS$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getPPFSCallParams: (item) => {
         if (isBeefyBoost(item.target.product)) {
           const boostData = item.target.product.productData.boost;
@@ -232,6 +255,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // we need the balance of each owner
     fetchERC20TokenBalance$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getQueryParams: (item) => ({
         blockNumber: item.target.transfer.blockNumber,
         decimals: item.target.transfer.tokenDecimals,
@@ -244,6 +268,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // we also need the date of each block
     fetchBlockDatetime$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getBlockNumber: (t) => t.target.transfer.blockNumber,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
@@ -251,6 +276,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // fetch the transaction cost in gas so we can calculate the gas cost of the transfer and ROI/APY better
     fetchTransactionGas$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getQueryParams: (item) => ({
         blockNumber: item.target.transfer.blockNumber,
         transactionHash: item.target.transfer.transactionHash,
@@ -265,6 +291,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // insert the investor data
     upsertInvestor$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getInvestorData: (item) => ({
         address: item.target.transfer.ownerAddress,
         investorData: {},
@@ -275,6 +302,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // insert ppfs as a price
     upsertPrice$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getPriceData: (item) => ({
         priceFeedId: item.target.product.priceFeedId1,
         blockNumber: item.target.transfer.blockNumber,
@@ -297,6 +325,7 @@ export function loadTransfers$<TObj, TInput extends { parent: TObj; target: Tran
     // insert the investment data
     upsertInvestment$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getInvestmentData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.target.transfer.blockNumber,

@@ -1,12 +1,13 @@
 import * as Rx from "rxjs";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "db-batch" });
 
-export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryData, TQueryRes>(options: {
-  ctx: TCtx;
+export function dbBatchCall$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQueryData, TQueryRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getData: (obj: TObj) => TQueryData;
   processBatch: (objAndData: { obj: TObj; data: TQueryData }[]) => Promise<Map<TQueryData, TQueryRes>>;
   logInfos: LogInfos;
@@ -34,7 +35,7 @@ export function dbBatchCall$<TObj, TCtx extends ImportCtx<TObj>, TRes, TQueryDat
         logger.error({ msg: "Error inserting batch", data: { objsLen: objs.length, err } });
         logger.error(err);
         for (const obj of objs) {
-          options.ctx.emitErrors(obj);
+          options.emitError(obj);
         }
         return [];
       }

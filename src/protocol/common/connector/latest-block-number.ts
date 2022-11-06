@@ -3,12 +3,13 @@ import { db_query_one } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "latest-block-number" });
 
-export function latestBlockNumber$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   forceCurrentBlockNumber: number | null;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {

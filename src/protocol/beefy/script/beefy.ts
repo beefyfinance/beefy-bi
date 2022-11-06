@@ -136,11 +136,11 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
   const ctx = {
     chain: "bsc" as Chain, // not used here
     client: cmdParams.client,
-    emitErrors: (item: DbProduct) => {
-      throw new Error(`Error fetching price feed for product ${item.productId}`);
-    },
     rpcConfig,
     streamConfig,
+  };
+  const emitError = (item: DbProduct) => {
+    throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
   const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
@@ -148,7 +148,7 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
     // remove products that don't have a ppfs to fetch
     Rx.filter((product) => isBeefyStandardVault(product) || isBeefyBoost(product)),
     // now fetch the price feed we need
-    fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId2, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+    fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId2, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
     // drop those without a price feed yet
     excludeNullFields$("priceFeed"),
     Rx.map(({ priceFeed }) => priceFeed),
@@ -194,11 +194,12 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   const ctx = {
     chain,
     client: cmdParams.client,
-    emitErrors: (item: DbProduct) => {
-      throw new Error(`Error fetching price feed for product ${item.productId}`);
-    },
     rpcConfig,
     streamConfig,
+  };
+
+  const emitError = (item: DbProduct) => {
+    throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
   const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
@@ -207,7 +208,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     // we don't fetch boosts because they would be duplicates anyway
     Rx.filter((product) => isBeefyStandardVault(product)),
     // now fetch the price feed we need
-    fetchPriceFeed$({ ctx, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+    fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
     // drop those without a price feed yet
     excludeNullFields$("priceFeed"),
     Rx.map(({ priceFeed }) => priceFeed),

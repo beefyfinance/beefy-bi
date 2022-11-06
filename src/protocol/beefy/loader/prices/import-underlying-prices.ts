@@ -7,8 +7,9 @@ import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetc
 import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
-import { ImportCtx } from "../../../common/types/import-context";
+import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
+import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
 
@@ -37,11 +38,9 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
         // find the first date we are interested in this price
         // so we need the first creation date of each product
         fetchPriceFeedContractCreationInfos({
-          ctx: {
-            ...ctx,
-            emitErrors: (item) => {
-              throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
-            },
+          ctx,
+          emitError: (item) => {
+            throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
           },
           importStateType: "oracle:price",
           which: "price-feed-2", // we work on the second applied price
@@ -64,7 +63,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
           },
         })),
       ),
-    processImportQuery$: (ctx) => insertPricePipeline$({ ctx }),
+    processImportQuery$: (ctx, emitError) => insertPricePipeline$({ ctx, emitError }),
   });
 }
 
@@ -76,38 +75,25 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }
     logInfos: { msg: "Importing beefy recent underlying prices" },
     getImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
-    generateQueries$: (ctx, lastImported) =>
+    generateQueries$: (ctx, emitError, lastImported) =>
       addLatestDateQuery$({
         getLastImportedDate: () => lastImported,
         formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
       }),
-    processImportQuery$: (ctx) => insertPricePipeline$({ ctx }),
+    processImportQuery$: (ctx, emitError) => insertPricePipeline$({ ctx, emitError }),
   });
 }
 
-function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, TCtx extends ImportCtx<TObj>>(options: {
-  ctx: TCtx;
-}): Rx.OperatorFunction<TObj, ImportRangeResult<DbPriceFeed, Date>> {
-  const insertPrices$ = Rx.pipe(
-    // fix typings
-    Rx.tap((_: ImportRangeQuery<DbPriceFeed, Date> & { price: PriceSnapshot }) => {}),
-
-    upsertPrice$({
-      ctx: options.ctx as unknown as ImportCtx<ImportRangeQuery<DbPriceFeed, Date> & { price: PriceSnapshot }>,
-      getPriceData: (item) => ({
-        datetime: item.price.datetime,
-        blockNumber: Math.floor(item.price.datetime.getTime() / 1000),
-        priceFeedId: item.target.priceFeedId,
-        price: new Decimal(item.price.value),
-        priceData: {},
-      }),
-      formatOutput: (priceData, price) => ({ ...priceData, price }),
-    }),
-  );
-
+function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, TErr extends ErrorEmitter<TObj>>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+}) {
   return Rx.pipe(
+    Rx.tap((_: TObj) => {}),
+
     fetchBeefyDataPrices$({
       ctx: options.ctx,
+      emitError: options.emitError,
       getPriceParams: (item) => ({
         oracleId: item.target.priceFeedData.externalId,
         samplingPeriod: "15min",
@@ -116,18 +102,36 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, 
       formatOutput: (item, prices) => ({ ...item, prices }),
     }),
 
-    // insert prices, passthrough if there is no price so we mark the range as done
-    Rx.mergeMap((item) => {
-      if (item.prices.length <= 0) {
-        return Rx.of({ ...item, success: true });
-      }
-
-      return Rx.from(item.prices).pipe(
-        Rx.map((price) => ({ ...item, price })),
-        insertPrices$,
-        Rx.count(),
-        Rx.map((finalCount) => ({ ...item, success: item.prices.length === finalCount })),
-      );
+    executeSubPipeline$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getObjs: (item) => item.prices,
+      pipeline: (emitError) =>
+        Rx.pipe(
+          upsertPrice$({
+            ctx: options.ctx,
+            emitError,
+            getPriceData: (item) => ({
+              datetime: item.target.datetime,
+              blockNumber: Math.floor(item.target.datetime.getTime() / 1000),
+              priceFeedId: item.parent.target.priceFeedId,
+              price: new Decimal(item.target.value),
+              priceData: {},
+            }),
+            formatOutput: (priceData, price) => ({ ...priceData, result: price }),
+          }),
+        ),
+      formatOutput: (item, prices) => ({ ...item, prices, success: true }),
     }),
+
+    // format output
+    Rx.map(
+      (item): ImportRangeResult<DbPriceFeed, Date> => ({
+        target: item.target,
+        latest: item.latest,
+        range: item.range,
+        success: item.success,
+      }),
+    ),
   );
 }

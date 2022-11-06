@@ -2,7 +2,7 @@ import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
 import { groupBy } from "lodash";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 interface GetBalanceCallParams {
@@ -12,13 +12,15 @@ interface GetBalanceCallParams {
   blockNumber: number;
 }
 
-export function fetchERC20TokenBalance$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends GetBalanceCallParams>(options: {
-  ctx: TCtx;
+export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends GetBalanceCallParams>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getQueryParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, balance: Decimal) => TRes;
 }) {
   return batchRpcCalls$({
     ctx: options.ctx,
+    emitError: options.emitError,
     rpcCallsPerInputObj: {
       eth_call: 1,
       eth_blockNumber: 0,

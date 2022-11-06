@@ -2,7 +2,7 @@ import Decimal from "decimal.js";
 import { groupBy } from "lodash";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "common", component: "investment" });
@@ -17,13 +17,15 @@ export interface DbInvestment {
   investmentData: object;
 }
 
-export function upsertInvestment$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends DbInvestment>(options: {
-  ctx: TCtx;
+export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbInvestment>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getInvestmentData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbInvestment) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },

@@ -3,14 +3,16 @@ import { Chain } from "../../../types/chain";
 import { SamplingPeriod } from "../../../types/sampling";
 import { db_query, db_query_one } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 
 export function fetchChainBlockList$<
   TObj,
+  TErr extends ErrorEmitter<TObj>,
   TRes,
   TListItem extends { datetime: Date; block_number: number | null; interpolated_block_number: number },
 >(options: {
-  ctx: ImportCtx<TObj>;
+  ctx: ImportCtx;
+  emitError: TErr;
   getFirstDate: (obj: TObj) => Date;
   timeStep: SamplingPeriod;
   getChain: (obj: TObj) => Chain;

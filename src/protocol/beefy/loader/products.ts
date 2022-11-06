@@ -27,22 +27,19 @@ export function importBeefyProducts$(options: { client: DbClient }) {
     // and we can affort longer retries
     maxTotalRetryMs: 30_000,
   };
-  const vaultImportCtx = {
+  const ctx = {
     client: options.client,
-    emitErrors: <TObj extends { vault: BeefyVault }>(item: TObj) => {
-      logger.error({ msg: "Error importing beefy vault product", data: { vaultId: item.vault.id } });
-    },
     streamConfig,
     rpcConfig: createRpcConfig("bsc"), // we don't use it here
     chain: "bsc" as Chain, // we don't use it here
   }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
-  const boostImportCtx = {
-    ...vaultImportCtx,
-    emitErrors: <TObj extends { boost: BeefyBoost }>(item: TObj) => {
-      logger.error({ msg: "Error importing beefy boost product", data: { vaultId: item.boost.id } });
-    },
-  }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
+  const emitVaultError = <TObj extends { vault: BeefyVault }>(item: TObj) => {
+    logger.error({ msg: "Error importing beefy vault product", data: { vaultId: item.vault.id } });
+  };
+  const emitBoostError = <TObj extends { boost: BeefyBoost }>(item: TObj) => {
+    logger.error({ msg: "Error importing beefy boost product", data: { vaultId: item.boost.id } });
+  };
 
   return Rx.pipe(
     // fetch vaults from git file history
@@ -61,7 +58,8 @@ export function importBeefyProducts$(options: { client: DbClient }) {
       // - price 1 (ppfs) converts to underlying token
       // - price 2 converts underlying to usd
       upsertPriceFeed$({
-        ctx: vaultImportCtx,
+        ctx,
+        emitError: emitVaultError,
         getFeedData: (item) => {
           const vaultId = normalizeVaultId(item.vault.id);
           return {
@@ -75,7 +73,8 @@ export function importBeefyProducts$(options: { client: DbClient }) {
       }),
 
       upsertPriceFeed$({
-        ctx: vaultImportCtx,
+        ctx,
+        emitError: emitVaultError,
         getFeedData: (item) => {
           return {
             // feed key tells us that this prices comes from beefy's data
@@ -94,7 +93,8 @@ export function importBeefyProducts$(options: { client: DbClient }) {
       }),
 
       upsertProduct$({
-        ctx: vaultImportCtx,
+        ctx,
+        emitError: emitVaultError,
         getProductData: (item) => {
           const vaultId = normalizeVaultId(item.vault.id);
           const isGov = item.vault.is_gov_vault;
@@ -157,7 +157,8 @@ export function importBeefyProducts$(options: { client: DbClient }) {
 
       // insert the boost as a new product
       upsertProduct$({
-        ctx: boostImportCtx,
+        ctx,
+        emitError: emitBoostError,
         getProductData: (item) => {
           return {
             productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,

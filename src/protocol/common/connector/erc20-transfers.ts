@@ -9,7 +9,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { rangeMerge } from "../../../utils/range";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
@@ -40,8 +40,9 @@ interface GetTransferCallParams {
   trackAddress?: string;
 }
 
-export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   allowFetchingFromEthscan: boolean;
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
@@ -78,59 +79,70 @@ export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
 
       // use a concatMap so we are not concurrently fetching data from etherscan
       Rx.concatMap(async ([address, items]) => {
-        const resultMap: Map<TObj, ERC20Transfer[]> = new Map();
-        const decimals = items[0].params.decimals;
-        const itemsRanges = items.map((item) => ({ from: item.params.fromBlock, to: item.params.toBlock }));
-        const mergedRanges = rangeMerge(itemsRanges);
+        try {
+          const resultMap: Map<TObj, ERC20Transfer[]> = new Map();
+          const decimals = items[0].params.decimals;
+          const itemsRanges = items.map((item) => ({ from: item.params.fromBlock, to: item.params.toBlock }));
+          const mergedRanges = rangeMerge(itemsRanges);
 
-        logger.trace({
-          msg: "Fetching transfers from etherscan provider",
-          data: { chain: options.ctx.chain, address, items: items.length, ranges: mergedRanges },
-        });
-
-        let allTransfers: ERC20Transfer[] = [];
-        for (const range of mergedRanges) {
-          const params: GetTransferCallParams = { address, decimals, fromBlock: range.from, toBlock: range.to };
-          const transfers = await fetchERC20TransferEventsFromExplorer(ethscanConfig.provider, ethscanConfig.limitations, options.ctx.chain, params);
-          allTransfers = allTransfers.concat(transfers);
-        }
-
-        if (allTransfers.length > 0) {
-          logger.debug({
-            msg: "Fetched transfers from etherscan provider",
-            data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
-          });
-        } else {
           logger.trace({
-            msg: "No transfers found from etherscan provider",
-            data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
+            msg: "Fetching transfers from etherscan provider",
+            data: { chain: options.ctx.chain, address, items: items.length, ranges: mergedRanges },
           });
-        }
 
-        // reassign the transfers to the input items
-        for (const item of items) {
-          if (resultMap.has(item.obj)) {
-            throw new ProgrammerError({ msg: "duplicate item", data: { item } });
+          let allTransfers: ERC20Transfer[] = [];
+          for (const range of mergedRanges) {
+            const params: GetTransferCallParams = { address, decimals, fromBlock: range.from, toBlock: range.to };
+            const transfers = await fetchERC20TransferEventsFromExplorer(
+              ethscanConfig.provider,
+              ethscanConfig.limitations,
+              options.ctx.chain,
+              params,
+            );
+            allTransfers = allTransfers.concat(transfers);
           }
-          const itemTransfers = allTransfers.filter(
-            (transfer) => transfer.blockNumber >= item.params.fromBlock && transfer.blockNumber <= item.params.toBlock,
-          );
-          resultMap.set(item.obj, itemTransfers);
+
+          if (allTransfers.length > 0) {
+            logger.debug({
+              msg: "Fetched transfers from etherscan provider",
+              data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
+            });
+          } else {
+            logger.trace({
+              msg: "No transfers found from etherscan provider",
+              data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
+            });
+          }
+
+          // reassign the transfers to the input items
+          for (const item of items) {
+            if (resultMap.has(item.obj)) {
+              throw new ProgrammerError({ msg: "duplicate item", data: { item } });
+            }
+            const itemTransfers = allTransfers.filter(
+              (transfer) => transfer.blockNumber >= item.params.fromBlock && transfer.blockNumber <= item.params.toBlock,
+            );
+            resultMap.set(item.obj, itemTransfers);
+          }
+          return Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers));
+        } catch (err) {
+          logger.error({ msg: "Error fetching transfers from etherscan provider", data: { chain: options.ctx.chain, address, err } });
+          for (const item of items) {
+            options.emitError(item.obj);
+          }
+          return Rx.EMPTY;
         }
-        return resultMap;
       }),
 
       // format the output as expected
-      Rx.pipe(
-        Rx.map((resultMap) => Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers))),
-        Rx.concatAll(),
-      ),
+      Rx.concatAll(),
     );
   }
 
   // otherwise, just fetch from the rpc
   return batchRpcCalls$({
     ctx: options.ctx,
+    emitError: options.emitError,
     rpcCallsPerInputObj: {
       eth_call: 0,
       eth_blockNumber: 0,
@@ -147,13 +159,15 @@ export function fetchErc20Transfers$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
 
 // when hitting a staking contract we don't have a token in return
 // so the balance of the amount we send is our positive diff
-export function fetchERC20TransferToAStakingContract$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchERC20TransferToAStakingContract$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
   return fetchErc20Transfers$({
     ctx: options.ctx,
+    emitError: options.emitError,
     getQueryParams: options.getQueryParams,
     allowFetchingFromEthscan: false, // we don't support this for now
     formatOutput: (item, transfers) => {

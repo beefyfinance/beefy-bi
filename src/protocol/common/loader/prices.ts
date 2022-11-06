@@ -1,8 +1,9 @@
 import Decimal from "decimal.js";
 import { groupBy, uniqBy } from "lodash";
+import * as Rx from "rxjs";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "prices" });
@@ -16,13 +17,15 @@ export interface DbPrice {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertPrice$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends DbPrice>(options: {
-  ctx: TCtx;
+export function upsertPrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbPrice>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getPriceData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, price: DbPrice) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getPriceData,
     logInfos: { msg: "upsert price" },

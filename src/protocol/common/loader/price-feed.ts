@@ -3,7 +3,7 @@ import * as Rx from "rxjs";
 import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "price-feed", component: "loader" });
@@ -19,13 +19,15 @@ export interface DbPriceFeed {
   };
 }
 
-export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends Omit<DbPriceFeed, "priceFeedId">>(options: {
-  ctx: TCtx;
+export function upsertPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Omit<DbPriceFeed, "priceFeedId">>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getFeedData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, feed: DbPriceFeed) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getFeedData,
     logInfos: { msg: "upsert price feed" },
@@ -69,13 +71,15 @@ export function upsertPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes, TPara
   });
 }
 
-export function fetchPriceFeed$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getPriceFeedId: (obj: TObj) => number;
   formatOutput: (obj: TObj, priceFeed: DbPriceFeed | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     getData: options.getPriceFeedId,
     formatOutput: options.formatOutput,
     logInfos: { msg: "fetch price feed" },

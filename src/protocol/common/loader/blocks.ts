@@ -2,7 +2,7 @@ import { keyBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
 export interface DbBlock {
@@ -13,13 +13,15 @@ export interface DbBlock {
 }
 
 // upsert the address of all objects and return the id in the specified field
-export function upsertBlock$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends DbBlock>(options: {
-  ctx: TCtx;
+export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbBlock>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getBlockData: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, block: DbBlock) => TRes;
 }) {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getBlockData,
     logInfos: { msg: "upsert block" },
@@ -50,14 +52,16 @@ export function upsertBlock$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams e
   });
 }
 
-export function fetchBlock$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   chain: Chain;
   getBlockNumber: (obj: TObj) => number;
   formatOutput: (obj: TObj, block: DbBlock | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     getData: options.getBlockNumber,
     formatOutput: options.formatOutput,
     logInfos: { msg: "fetch block" },

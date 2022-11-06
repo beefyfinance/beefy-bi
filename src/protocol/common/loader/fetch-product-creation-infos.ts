@@ -2,13 +2,14 @@ import { keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 import { DbImportState } from "./import-state";
 import { DbProduct } from "./product";
 
-export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function fetchPriceFeedContractCreationInfos<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getPriceFeedId: (obj: TObj) => number;
   which: "price-feed-1" | "price-feed-2";
   importStateType: DbImportState["importData"]["type"];
@@ -20,6 +21,7 @@ export function fetchPriceFeedContractCreationInfos<TObj, TCtx extends ImportCtx
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
     ctx: options.ctx,
+    emitError: options.emitError,
     getData: options.getPriceFeedId,
     formatOutput: options.formatOutput,
     logInfos: { msg: "fetchPriceFeedContractCreationInfos", data: { which: options.which } },

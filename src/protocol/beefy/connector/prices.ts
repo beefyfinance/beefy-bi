@@ -5,7 +5,7 @@ import { BEEFY_DATA_URL } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
-import { ImportCtx } from "../../common/types/import-context";
+import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
 
 export interface PriceSnapshot {
   oracleId: string;
@@ -20,8 +20,9 @@ interface BeefyPriceCallParams {
   range: Range<Date>;
 }
 
-export function fetchBeefyDataPrices$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends BeefyPriceCallParams>(options: {
-  ctx: TCtx;
+export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends BeefyPriceCallParams>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getPriceParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, prices: PriceSnapshot[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
@@ -45,7 +46,7 @@ export function fetchBeefyDataPrices$<TObj, TCtx extends ImportCtx<TObj>, TRes, 
       } catch (error) {
         logger.error({ msg: "error fetching prices", data: { ...params, error } });
         logger.error(error);
-        options.ctx.emitErrors(item);
+        options.emitError(item);
         return Rx.EMPTY;
       }
     }),

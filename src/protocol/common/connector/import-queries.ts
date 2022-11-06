@@ -8,7 +8,7 @@ import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, Support
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { latestBlockNumber$ } from "./latest-block-number";
 
 const logger = rootLogger.child({ module: "common", component: "import-queries" });
@@ -17,8 +17,9 @@ const logger = rootLogger.child({ module: "common", component: "import-queries" 
  * Generate a query based on the block
  * used to get last data for the given chain
  */
-export function addLatestBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRes>(options: {
-  ctx: TCtx;
+export function addLatestBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   forceCurrentBlockNumber: number | null;
   getLastImportedBlock: (chain: Chain) => number | null;
   formatOutput: (obj: TObj, latestBlockNumber: number, latestBlockQuery: Range<number>) => TRes;
@@ -32,7 +33,8 @@ export function addLatestBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
 
     // go get the latest block number for this chain
     latestBlockNumber$({
-      ctx: { ...options.ctx, emitErrors: (items) => items.map((item) => options.ctx.emitErrors(item)) },
+      ctx: options.ctx,
+      emitError: (items) => items.map((item) => options.emitError(item)),
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
@@ -64,8 +66,9 @@ export function addLatestBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRes>(o
   );
 }
 
-export function addHistoricalBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRes, TImport extends DbBlockNumberRangeImportState>(options: {
-  ctx: TCtx;
+export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TImport extends DbBlockNumberRangeImportState>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   forceCurrentBlockNumber: number | null;
   getImport: (obj: TObj) => TImport;
   getFirstBlockNumber: (importState: TImport) => number;
@@ -75,6 +78,7 @@ export function addHistoricalBlockQuery$<TObj, TCtx extends ImportCtx<TObj>, TRe
     // go get the latest block number for this chain
     latestBlockNumber$({
       ctx: options.ctx,
+      emitError: options.emitError,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
     }),
@@ -158,8 +162,9 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
   );
 }
 
-export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
-  ctx: ImportCtx<TObj>;
+export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   timeStep: SamplingPeriod;
   getImportState: (item: TObj) => DbBlockNumberRangeImportState;
   forceCurrentBlockNumber: number | null;
@@ -172,6 +177,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
     Rx.pipe(
       fetchChainBlockList$({
         ctx: options.ctx,
+        emitError: options.emitError,
         getChain: () => options.chain,
         timeStep: options.timeStep,
         getFirstDate: (obj) => options.getImportState(obj).importData.contractCreationDate,
@@ -180,7 +186,8 @@ export function addRegularIntervalBlockRangesQueries<TObj, TRes>(options: {
 
       // fetch the last block of this chain
       latestBlockNumber$({
-        ctx: { ...options.ctx, emitErrors: (item) => options.ctx.emitErrors(item.obj) },
+        ctx: options.ctx,
+        emitError: (item) => options.emitError(item.obj),
         forceCurrentBlockNumber: options.forceCurrentBlockNumber,
         formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
       }),

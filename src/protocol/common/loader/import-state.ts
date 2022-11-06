@@ -7,7 +7,7 @@ import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
-import { ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
@@ -146,12 +146,13 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
 
 export function updateImportState$<
   TObj,
-  TCtx extends ImportCtx<TObj>,
+  TErr extends ErrorEmitter<TObj>,
   TRes,
   TImport extends DbImportState,
   TRange extends SupportedRangeTypes,
 >(options: {
-  ctx: TCtx;
+  ctx: ImportCtx;
+  emitError: TErr;
   getRange: (obj: TObj) => Range<TRange>;
   isSuccess: (obj: TObj) => boolean;
   getImportStateKey: (obj: TObj) => string;
@@ -295,7 +296,7 @@ export function updateImportState$<
         if (error instanceof ConnectionTimeoutError) {
           logger.error(mergeLogsInfos({ msg: "Connection timeout error, will not retry, import state not updated", data: { error } }, logInfos));
           for (const item of items) {
-            options.ctx.emitErrors(item);
+            options.emitError(item);
           }
           return [];
         }

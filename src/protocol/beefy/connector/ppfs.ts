@@ -6,7 +6,7 @@ import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/Beef
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { ImportCtx } from "../../common/types/import-context";
+import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
@@ -18,14 +18,16 @@ interface BeefyPPFSCallParams {
   blockNumber: number;
 }
 
-export function fetchBeefyPPFS$<TObj, TCtx extends ImportCtx<TObj>, TRes, TParams extends BeefyPPFSCallParams>(options: {
-  ctx: TCtx;
+export function fetchBeefyPPFS$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends BeefyPPFSCallParams>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
   getPPFSCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, ppfs: Decimal) => TRes;
 }) {
   const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.ctx.chain } };
   return batchRpcCalls$({
     ctx: options.ctx,
+    emitError: options.emitError,
     logInfos,
     rpcCallsPerInputObj: {
       eth_call: 1,
