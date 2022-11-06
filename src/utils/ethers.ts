@@ -3,7 +3,7 @@ import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { backOff } from "exponential-backoff";
-import { get } from "lodash";
+import { get, isString } from "lodash";
 import { Chain } from "../types/chain";
 import { sleep } from "./async";
 import { rootLogger } from "./logger";
@@ -298,7 +298,16 @@ export function monkeyPatchCeloProvider(provider: ethers.providers.JsonRpcProvid
  */
 export function monkeyPatchLayer2ReceiptFormat(provider: ethers.providers.JsonRpcProvider) {
   // Override certain receipt formatting properties that only exist on Optimism
-  const bigNumberFormatter = ethers.providers.Formatter.allowNull(provider.formatter.bigNumber, null);
+  const bigNumberFormatter = ethers.providers.Formatter.allowNull((value: string) => {
+    // this is for metis, where some values can be decimal point strings instead of hex
+    // {"method":"eth_getTransactionReceipt","params":["0x4154d683c5d964963fca3f6d065b501c70bafbb06df009109186fbb6014fe310"],"id":120,"jsonrpc":"2.0"}
+    //   -> "l1FeeScalar": "17.5",
+    // we just truncate the decimal point
+    if (isString(value) && !value.startsWith("0x") && value.includes(".")) {
+      value = value.split(".")[0];
+    }
+    return provider.formatter.bigNumber(value);
+  }, null);
 
   const receiptFormat = provider.formatter.formats.receipt;
   receiptFormat.effectiveGasPrice = () => ethers.BigNumber.from(0); // effective gas price is not provided by Optimism rpc

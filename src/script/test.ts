@@ -17,7 +17,7 @@ import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range"
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 async function main(client: DbClient) {
-  const chain: Chain = "bsc";
+  const chain: Chain = "metis";
   const ctx = {
     chain,
     client,
@@ -31,6 +31,10 @@ async function main(client: DbClient) {
       workConcurrency: 1,
     },
   };
+
+  const res = await ctx.rpcConfig.linearProvider.getTransactionReceipt("0x4154d683c5d964963fca3f6d065b501c70bafbb06df009109186fbb6014fe310");
+  console.log(res);
+  if (1 == 1) return;
   /*
   // get the block list
   const obs$ = Rx.from([
