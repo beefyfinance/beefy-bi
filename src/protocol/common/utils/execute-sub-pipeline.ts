@@ -21,7 +21,10 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
   ) => Rx.OperatorFunction<{ target: TSubTarget; parent: TObj }, { target: TSubTarget; parent: TObj; result: TSubPipelineRes }>;
   formatOutput: (obj: TObj, subPipelineResult: Map<TSubTarget, TSubPipelineRes>) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  // @ts-ignore
+  type ItemOkRes = { target: TSubTarget; parent: TObj; success: true; result: TSubPipelineRes };
+  type ItemKoRes = { target: TSubTarget; parent: TObj; success: false };
+  type ItemRes = ItemOkRes | ItemKoRes;
+
   return Rx.pipe(
     // work by batches of 300 objs
     Rx.pipe(
@@ -38,10 +41,10 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
     ),
 
     Rx.concatMap((items) => {
-      const subPipelineErrors = [];
+      const subPipelineErrors: ItemKoRes[] = [];
 
       const emitError = (item: { target: TSubTarget; parent: TObj }) => {
-        subPipelineErrors.push(item);
+        subPipelineErrors.push({ ...item, success: false });
       };
 
       const inputs = items.flatMap((item) => item.targets.map((target) => ({ target, parent: item.obj })));
@@ -53,11 +56,11 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
         // execute the sub pipeline
         options.pipeline(emitError),
 
-        Rx.map((item) => ({ ...item, success: get(item, "success", true) as boolean })),
-
         // return to product representation
         Rx.toArray(),
-        Rx.map((subItems) => {
+        Rx.map((partialSubItems) => {
+          const subItems = (subPipelineErrors as ItemRes[]).concat(partialSubItems.map((item): ItemOkRes => ({ ...item, success: true })));
+
           logger.trace({ msg: "imported sub-items", data: { itemCount: items.length, subItems: subItems.length } });
           // make sure every sub item is present
           // if not, we consider the whole item as failed
@@ -68,7 +71,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             if (!targetsByParent.has(subItem.parent)) {
               targetsByParent.set(subItem.parent, new Map());
             }
-            const res: MapRes = subItem.result ? { success: true, result: subItem.result } : { success: false };
+            const res: MapRes = subItem.success ? { success: true, result: subItem.result } : { success: false };
             targetsByParent.get(subItem.parent)?.set(subItem.target, res);
           }
 
