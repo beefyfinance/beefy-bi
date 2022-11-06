@@ -13,7 +13,6 @@ import {
   monkeyPatchHarmonyProviderRetryNullResponses,
   monkeyPatchLayer2ReceiptFormat,
   monkeyPatchMissingEffectiveGasPriceReceiptFormat,
-  monkeyPatchMoonbeamLinearProvider,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
   MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
@@ -86,9 +85,6 @@ export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }
     monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.batchProvider);
     monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.linearProvider);
     monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
-  }
-  if (chain === "moonbeam") {
-    monkeyPatchMoonbeamLinearProvider(rpcConfig.linearProvider);
   }
   if (chain === "celo") {
     monkeyPatchCeloProvider(rpcConfig.linearProvider);
