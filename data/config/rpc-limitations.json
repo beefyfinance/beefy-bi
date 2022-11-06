@@ -369,7 +369,7 @@
     "https://rpc.api.moonriver.moonbeam.network": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 2000,
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "methods": {
@@ -383,7 +383,7 @@
     "https://moonriver.api.onfinality.io/public": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 2000,
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "methods": {
