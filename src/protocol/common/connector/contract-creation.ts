@@ -9,7 +9,6 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { createRpcConfig } from "../utils/rpc-config";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 
@@ -35,7 +34,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
     Rx.mergeMap(async (obj: TObj) => {
       const param = options.getCallParams(obj);
       try {
-        const result = await getContractCreationInfos(param.contractAddress, param.chain);
+        const result = await getContractCreationInfos(options.rpcConfig, param.contractAddress, param.chain);
         return options.formatOutput(obj, result);
       } catch (error) {
         logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
@@ -46,7 +45,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   );
 }
 
-async function getContractCreationInfos(contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
+async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
   const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald", "kava"]);
   const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
 
@@ -61,10 +60,9 @@ async function getContractCreationInfos(contractAddress: string, chain: Chain): 
       msg: "Using Harmony RPC method for this chain",
       data: { contractAddress, chain },
     });
-    return await getHarmonyRpcCreationInfos(contractAddress, chain);
+    return await getHarmonyRpcCreationInfos(rpcConfig, contractAddress, chain);
   } else if (MultiChainEtherscanProvider.isChainSupported(chain)) {
     // we also use explorers for other things so we want to globally rate limit them
-    const rpcConfig = createRpcConfig(chain);
     const etherscanConfig = rpcConfig.etherscan;
     if (!etherscanConfig) {
       throw new ProgrammerError("Etherscan is not configured for this chain");
@@ -148,7 +146,7 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
   }
 }
 
-async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain) {
+async function getHarmonyRpcCreationInfos(rpcConfig: RpcConfig, contractAddress: string, chain: Chain) {
   const params = [
     {
       address: contractAddress,
@@ -162,7 +160,6 @@ async function getHarmonyRpcCreationInfos(contractAddress: string, chain: Chain)
   type TResp = { transactions: { blockNumber: number; timestamp: number }[] };
 
   try {
-    const rpcConfig = createRpcConfig(chain);
     const resp: TResp = await callLockProtectedRpc(() => rpcConfig.linearProvider.send("hmyv2_getTransactionsHistory", params), {
       chain: chain,
       provider: rpcConfig.linearProvider,
