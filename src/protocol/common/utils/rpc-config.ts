@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { sample } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
@@ -18,7 +17,7 @@ import {
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
-import { getAllRpcUrlsForChain, getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 

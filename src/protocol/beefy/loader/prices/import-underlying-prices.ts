@@ -11,7 +11,7 @@ import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
-import { fetchBeefyDataPrices$, PriceSnapshot } from "../../connector/prices";
+import { fetchBeefyDataPrices$ } from "../../connector/prices";
 
 const getImportStateKey = (priceFeed: DbPriceFeed) => `price:feed:${priceFeed.priceFeedId}`;
 

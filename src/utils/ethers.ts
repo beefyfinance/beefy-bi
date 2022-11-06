@@ -359,7 +359,7 @@ export class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvi
     return ["bsc", "avax", "fantom", "ethereum", "polygon", "arbitrum", "optimism"].includes(chain);
   }
 
-  getBaseUrl(): string {
+  override getBaseUrl(): string {
     switch (this.network ? this.network.name : "invalid") {
       case "bsc":
         return "https://api.bscscan.com";

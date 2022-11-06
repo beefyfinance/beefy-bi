@@ -1,4 +1,4 @@
-import { get, sum } from "lodash";
+import { sum } from "lodash";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";

@@ -191,7 +191,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   if (tests.includes("maxGetLogsBlockSpan")) {
     logger.info({ msg: "Testing batch maxGetLogsBlockSpan limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(
-      RPC_SOFT_TIMEOUT_MS,
+      rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_GETLOGS_SPAN,
@@ -238,7 +238,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
       await sleep(waitBeforeNextTest);
     }
     await findTheLimit(
-      RPC_SOFT_TIMEOUT_MS,
+      rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
@@ -256,29 +256,22 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   // eth_getLogs
   if (tests.includes("eth_getLogs")) {
     logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-    await findTheLimit(
-      RPC_SOFT_TIMEOUT_MS,
-      chain,
-      rpcLimitations.minDelayBetweenCalls,
-      MAX_RPC_BATCHING_SIZE,
-      createSaveFinding("eth_getLogs"),
-      (i) => {
-        const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
-        const eventFilter = contract.filters.Transfer();
-        const promises = Array.from({ length: i }).map((_, i) => {
-          const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
-          const toBlock = latestBlockNumber - i * maxBlocksPerQuery;
-          return contract.queryFilter(eventFilter, fromBlock, toBlock);
-        });
-        return Promise.all(promises);
-      },
-    );
+    await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_getLogs"), (i) => {
+      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
+      const eventFilter = contract.filters.Transfer();
+      const promises = Array.from({ length: i }).map((_, i) => {
+        const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
+        const toBlock = latestBlockNumber - i * maxBlocksPerQuery;
+        return contract.queryFilter(eventFilter, fromBlock, toBlock);
+      });
+      return Promise.all(promises);
+    });
   }
 
   // eth_call
   if (tests.includes("eth_call")) {
     logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-    await findTheLimit(RPC_SOFT_TIMEOUT_MS, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
+    await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
       const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
       const promises = Array.from({ length: i }).map((_, i) => {
         const blockTag = latestBlockNumber - i * maxBlocksPerQuery;
@@ -292,7 +285,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   if (tests.includes("eth_getBlockByNumber")) {
     logger.info({ msg: "Testing batch eth_getBlockByNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(
-      RPC_SOFT_TIMEOUT_MS,
+      rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
@@ -311,7 +304,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   if (tests.includes("eth_blockNumber")) {
     logger.info({ msg: "Testing batch eth_blockNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(
-      RPC_SOFT_TIMEOUT_MS,
+      rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
