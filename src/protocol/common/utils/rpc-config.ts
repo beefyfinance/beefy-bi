@@ -17,13 +17,21 @@ import {
   MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { getAllRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
+import { getAllRpcUrlsForChain, getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
-export function createRpcConfig(chain: Chain, { url: rpcUrl, timeout = 120_000 }: { url?: string; timeout?: number } = {}): RpcConfig {
+export function createRpcConfig(
+  chain: Chain,
+  { forceRpcUrl, mode = "historical", timeout = 120_000 }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number } = {},
+): RpcConfig {
+  const rpcUrls = getBestRpcUrlsForChain(chain, mode);
+  const rpcUrl = forceRpcUrl || rpcUrls[0];
+  logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+
   const rpcOptions: ethers.utils.ConnectionInfo = {
-    url: rpcUrl || (sample(getAllRpcUrlsForChain(chain)) as string),
+    url: rpcUrl,
     timeout,
     // disable exponential backoff since we are doing our own retry logic with the callLockProtectedRpc util
     // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning

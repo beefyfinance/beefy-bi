@@ -164,25 +164,27 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
   return consumeObservable(pipeline$);
 }
 
-const investmentPipelineByChain = {} as Record<
-  Chain,
-  { historical: Rx.OperatorFunction<DbBeefyProduct, any>; recent: Rx.OperatorFunction<DbBeefyProduct, any> }
->;
-function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams) {
-  if (!investmentPipelineByChain[chain]) {
-    investmentPipelineByChain[chain] = {
-      historical: importChainHistoricalData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber),
-      recent: importChainRecentData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber),
-    };
+const historicalPipelineByChain = {} as Record<Chain, Rx.OperatorFunction<DbBeefyProduct, any>>;
+const recentPipelineByChain = {} as Record<Chain, Rx.OperatorFunction<DbBeefyProduct, any>>;
+function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "historical" | "recent") {
+  if (mode === "historical") {
+    if (!historicalPipelineByChain[chain]) {
+      historicalPipelineByChain[chain] = importChainHistoricalData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber);
+    }
+    return historicalPipelineByChain[chain];
+  } else {
+    if (!recentPipelineByChain[chain]) {
+      recentPipelineByChain[chain] = importChainRecentData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber);
+    }
+    return recentPipelineByChain[chain];
   }
-  return investmentPipelineByChain[chain];
+  throw new ProgrammerError({ msg: "Unknown mode", data: { mode } });
 }
 
 async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
-  const { recent, historical } = getChainInvestmentPipeline(chain, cmdParams);
   const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
     productFilter$(chain, cmdParams),
-    cmdParams.task === "recent" ? recent : historical,
+    cmdParams.task === "recent" ? getChainInvestmentPipeline(chain, cmdParams, "recent") : getChainInvestmentPipeline(chain, cmdParams, "historical"),
   );
   logger.info({ msg: "starting investment data import", data: { ...cmdParams, client: "<redacted>" } });
   return consumeObservable(pipeline$);

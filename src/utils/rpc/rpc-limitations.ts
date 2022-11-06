@@ -5,7 +5,7 @@ import { allRpcCallMethods } from "../../types/rpc-config";
 import { CONFIG_DIRECTORY } from "../config";
 import { rootLogger } from "../logger";
 import { ProgrammerError } from "../programmer-error";
-import { addSecretsToRpcUrl } from "./remove-secrets-from-rpc-url";
+import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "./remove-secrets-from-rpc-url";
 
 const logger = rootLogger.child({ module: "common", component: "rpc-config" });
 
@@ -18,10 +18,10 @@ const safetyMargin = {
   eth_getTransactionReceipt: 0.5, // this returns a lot of data so make sure we are way below the actual limit
 };
 export const MAX_RPC_BATCHING_SIZE = 500;
-export const MAX_RPC_GETLOGS_SPAN = 10_000;
+export const MAX_RPC_GETLOGS_SPAN = 5_000;
 export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
 // when detecting limitations, we consider a call failed if it takes more than this constant
-export const RPC_SOFT_TIMEOUT_MS = 30_000;
+export const RPC_SOFT_TIMEOUT_MS = 15_000;
 
 export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
@@ -135,13 +135,11 @@ export interface RpcLimitations {
 }
 
 export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
-  for (const [url, content] of Object.entries(findings[chain])) {
-    if (rpcUrl.startsWith(url)) {
-      return content;
-    }
+  const limitations = findings[chain][removeSecretsFromRpcUrl(rpcUrl)];
+  if (!limitations) {
+    throw new ProgrammerError({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
   }
-  logger.error({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
-  return cloneDeep(defaultLimitations);
+  return limitations;
 }
 
 export function getAllRpcUrlsForChain(chain: Chain): string[] {
@@ -150,6 +148,52 @@ export function getAllRpcUrlsForChain(chain: Chain): string[] {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
   return Object.keys(chainRpcs).map(addSecretsToRpcUrl);
+}
+
+export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recent"): string[] {
+  const chainRpcs = findings[chain];
+  if (!chainRpcs) {
+    throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+  }
+
+  let rpcConfigs = Object.entries(chainRpcs).map(([rpcUrl, limitations]) => ({
+    rpcUrl,
+    limitations,
+  }));
+
+  if (rpcConfigs.length === 0) {
+    throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+  }
+
+  // shortcut when there's only one RPC
+  if (rpcConfigs.length === 1) {
+    return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
+  }
+
+  if (mode === "historical") {
+    const historicalRpcConfigs = rpcConfigs.filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);
+    if (historicalRpcConfigs.length > 0) {
+      rpcConfigs = historicalRpcConfigs;
+    } else {
+      logger.warn({ msg: "No archive nodes RPC found for chain", data: { chain } });
+    }
+  }
+
+  // order by no-limit nodes first, then by minDelayBetweenCalls, then by the get logs block span
+  rpcConfigs.sort((a, b) => {
+    if (a.limitations.minDelayBetweenCalls === "no-limit") {
+      return -1;
+    }
+    if (b.limitations.minDelayBetweenCalls === "no-limit") {
+      return 1;
+    }
+    if (a.limitations.minDelayBetweenCalls !== b.limitations.minDelayBetweenCalls) {
+      return a.limitations.minDelayBetweenCalls - b.limitations.minDelayBetweenCalls;
+    }
+    return b.limitations.maxGetLogsBlockSpan - a.limitations.maxGetLogsBlockSpan;
+  });
+
+  return rpcConfigs.map((rpcConfig) => addSecretsToRpcUrl(rpcConfig.rpcUrl));
 }
 
 export function readRawLimitations(): { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } {

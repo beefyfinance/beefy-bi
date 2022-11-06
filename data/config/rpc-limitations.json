@@ -48,18 +48,18 @@
     }
   },
   "bsc": {
-    "https://bsc-dataseed1.ninicoin.io": {
-      "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+    "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": null,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     },
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
@@ -76,20 +76,6 @@
         "eth_getTransactionReceipt": 500
       }
     },
-    "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 16,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
     "https://bsc-private-dataseed1.nariox.org": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
@@ -102,6 +88,20 @@
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 4
+      }
+    },
+    "https://bsc-dataseed1.ninicoin.io": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": null,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
       }
     },
     "https://bsc-dataseed.binance.org": {
@@ -190,20 +190,6 @@
     }
   },
   "celo": {
-    "https://celo-mainnet--rpc.datahub.figment.io": {
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 2000,
-      "maxGetLogsBlockSpan": 3000,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 2,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": 2
-      }
-    },
     "https://forno.celo.org": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,

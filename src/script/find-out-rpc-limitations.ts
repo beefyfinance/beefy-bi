@@ -184,6 +184,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
     // disable the baked in retry logic just temporarily
     set(linearProvider, "__disableRetryArchiveNodeErrors", false);
   }
+  const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
 
   // maxGetLogsBlockSpan
   let maxBlocksPerQuery = 1;
