@@ -8,10 +8,10 @@
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 4,
-        "eth_call": 2,
-        "eth_getBlockByNumber": 1,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": null
+        "eth_call": 4,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": 16,
+        "eth_getTransactionReceipt": 8
       }
     }
   },
@@ -19,15 +19,15 @@
     "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 500,
+        "eth_getLogs": 2,
         "eth_call": 500,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 8
       }
     }
   },
@@ -35,15 +35,15 @@
     "https://rpc.ankr.com/avalanche/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 2048,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 286,
+        "eth_getLogs": 10,
+        "eth_call": 128,
         "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 16,
-        "eth_getTransactionReceipt": 500
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 324
       }
     }
   },
@@ -56,8 +56,8 @@
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 16,
+        "eth_call": 24,
+        "eth_getBlockByNumber": 256,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
       }
@@ -65,127 +65,127 @@
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
-        "eth_call": 8,
+        "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 256
       }
     },
     "https://bsc-private-dataseed1.nariox.org": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 500,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 378,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 4
+        "eth_getTransactionReceipt": 64
       }
     },
     "https://bsc-dataseed1.ninicoin.io": {
-      "isArchiveNode": false,
+      "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 8,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     },
     "https://bsc-dataseed.binance.org": {
-      "isArchiveNode": false,
+      "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": 8,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 1,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     },
     "https://bsc-dataseed1.defibit.io": {
-      "isArchiveNode": false,
+      "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": 8,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 1,
+        "eth_getBlockByNumber": 64,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 32
       }
     },
     "https://bsc-dataseed2.defibit.io": {
-      "isArchiveNode": false,
+      "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 2,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
-      }
-    },
-    "https://bsc-dataseed3.defibit.io": {
-      "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 1,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     },
-    "https://bsc-dataseed4.defibit.io": {
-      "isArchiveNode": false,
+    "https://bsc-dataseed3.defibit.io": {
+      "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": 8,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 1,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 128
+      }
+    },
+    "https://bsc-dataseed4.defibit.io": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 128,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 64
       }
     },
     "https://bsc-dataseed1.binance.org": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 10,
+        "eth_getBlockByNumber": 128,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     }
   },
@@ -193,11 +193,11 @@
     "https://forno.celo.org": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 10,
+        "eth_getLogs": 8,
         "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
@@ -209,15 +209,15 @@
     "https://evm-cronos.crypto.org": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 1000,
+      "maxGetLogsBlockSpan": 2000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 1,
-        "eth_call": null,
-        "eth_getBlockByNumber": null,
+        "eth_getLogs": 2,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 2,
         "eth_blockNumber": 2,
-        "eth_getTransactionReceipt": 2
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -229,11 +229,11 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 10,
-        "eth_call": 128,
+        "eth_getLogs": null,
+        "eth_call": 32,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 10
+        "eth_getTransactionReceipt": 8
       }
     }
   },
@@ -245,11 +245,11 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 1,
+        "eth_getLogs": null,
         "eth_call": 500,
-        "eth_getBlockByNumber": 500,
+        "eth_getBlockByNumber": null,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getTransactionReceipt": 8
       }
     }
   },
@@ -262,10 +262,10 @@
       "disableBatching": false,
       "methods": {
         "eth_getLogs": 2,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 1,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 317
+        "eth_getTransactionReceipt": 332
       }
     }
   },
@@ -273,15 +273,15 @@
     "https://explorer-node.fuse.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 4,
-        "eth_call": 378,
+        "eth_getLogs": 2,
+        "eth_call": 256,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 64
+        "eth_getTransactionReceipt": 1
       }
     }
   },
@@ -293,11 +293,11 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 96,
-        "eth_call": 317,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": 256
+        "eth_getLogs": 128,
+        "eth_call": 389,
+        "eth_getBlockByNumber": 8,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 8
       }
     }
   },
@@ -305,15 +305,15 @@
     "https://http-mainnet.hecochain.com": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 28,
+        "eth_getLogs": 32,
         "eth_call": 1,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 378
+        "eth_getTransactionReceipt": 500
       }
     }
   },
@@ -321,14 +321,14 @@
     "https://evm.kava.io": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 256,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 32,
-        "eth_getBlockByNumber": 64,
-        "eth_blockNumber": 32,
+        "eth_getLogs": 56,
+        "eth_call": 128,
+        "eth_getBlockByNumber": 192,
+        "eth_blockNumber": 500,
         "eth_getTransactionReceipt": null
       }
     }
@@ -337,15 +337,15 @@
     "https://andromeda.metis.io": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 4661,
       "internalTimeoutMs": 5000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 8,
-        "eth_call": 256,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 64
+        "eth_getLogs": null,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 2,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -357,11 +357,11 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 16,
-        "eth_call": 14,
-        "eth_getBlockByNumber": null,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": null
+        "eth_getLogs": null,
+        "eth_call": 378,
+        "eth_getBlockByNumber": 128,
+        "eth_blockNumber": 8,
+        "eth_getTransactionReceipt": 96
       }
     }
   },
@@ -369,29 +369,29 @@
     "https://rpc.api.moonriver.moonbeam.network": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "methods": {
-        "eth_getLogs": 20,
-        "eth_call": 128,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 64
+        "eth_getLogs": 2,
+        "eth_call": null,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 32,
+        "eth_getTransactionReceipt": null
       }
     },
     "https://moonriver.api.onfinality.io/public": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "methods": {
-        "eth_getLogs": 4,
-        "eth_call": 64,
-        "eth_getBlockByNumber": null,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_getLogs": null,
+        "eth_call": 2,
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": null
       }
     }
   },
@@ -403,11 +403,11 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 40,
+        "eth_getLogs": 1,
         "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": 160
+        "eth_getBlockByNumber": 378,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 64
       }
     }
   },
@@ -415,15 +415,15 @@
     "https://rpc.ankr.com/polygon/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 1500,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 10,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
+        "eth_getLogs": 1,
+        "eth_call": 64,
+        "eth_getBlockByNumber": 128,
         "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 378
+        "eth_getTransactionReceipt": 500
       }
     }
   },
@@ -431,15 +431,15 @@
     "https://rpc.ankr.com/syscoin/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": false,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 256,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "methods": {
-        "eth_getLogs": 32,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": null
+        "eth_getLogs": 128,
+        "eth_call": 6,
+        "eth_getBlockByNumber": 64,
+        "eth_blockNumber": 32,
+        "eth_getTransactionReceipt": 1
       }
     }
   }

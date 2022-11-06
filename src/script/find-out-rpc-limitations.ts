@@ -76,7 +76,7 @@ async function main() {
       throw new Error("If you specify an rpc url, you must also specify a chain");
     }
     findings[chainFilter] = {};
-    await testRpcLimits(chainFilter, rpcFilter, tests, writeToFile);
+    await testRpcLimits(chainFilter, rpcFilter, tests);
   } else {
     const allParams = allChainIds
       .filter((chain) => chainFilter === null || chain === chainFilter)
@@ -87,7 +87,11 @@ async function main() {
       findings[chain] = {};
     }
 
-    await Promise.all(allParams.map(({ chain, rpcUrl }) => testRpcLimits(chain, rpcUrl, tests, writeToFile)));
+    await Promise.all(allParams.map(({ chain, rpcUrl }) => testRpcLimits(chain, rpcUrl, tests)));
+  }
+
+  if (writeToFile) {
+    updateRawLimitations(findings);
   }
 
   logger.info({ msg: "All done", data: { findings } });
@@ -100,7 +104,7 @@ runMain(main);
  *
  * With this information, generate a config file we can use on execution
  **/
-async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], writeToFile: boolean) {
+async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = cloneDeep(defaultLimitations);
 
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
@@ -108,6 +112,13 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
   const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: undefined };
   const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, rpcOptions);
+
+  // copy manually set limitations
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableBatching = rpcLimitations.disableBatching;
+
+  // set the soft timeout, the delay after which we consider the rpc request to have failed
+  const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
 
   // find out the latest block number
   logger.info({ msg: "fetching latest block number", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
@@ -184,7 +195,6 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
     // disable the baked in retry logic just temporarily
     set(linearProvider, "__disableRetryArchiveNodeErrors", false);
   }
-  const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
 
   // maxGetLogsBlockSpan
   let maxBlocksPerQuery = 1;
@@ -318,9 +328,6 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[], wr
     );
   }
 
-  if (writeToFile) {
-    updateRawLimitations(findings);
-  }
   logger.info({
     msg: "Testing done for rpc",
     data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] },
