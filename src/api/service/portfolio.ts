@@ -1,13 +1,17 @@
 import { allChainIds, Chain } from "../../types/chain";
 import { DbClient, db_query } from "../../utils/db";
+import { rootLogger } from "../../utils/logger";
 import { AsyncCache } from "./cache";
 import { ProductService } from "./product";
+
+const logger = rootLogger.child({ module: "api", component: "portfolio-service" });
 
 export class PortfolioService {
   constructor(private services: { db: DbClient; cache: AsyncCache; product: ProductService }) {}
 
-  getInvestedProducts(investorId: number, chains: Chain[]) {
-    return db_query<{
+  async getInvestedProducts(investorId: number, chains: Chain[]) {
+    logger.debug({ msg: "getInvestedProducts", data: { investorId, chains } });
+    const res = await db_query<{
       product_id: number;
       last_balance: string;
     }>(
@@ -27,19 +31,24 @@ export class PortfolioService {
       [investorId, chains],
       this.services.db,
     );
+    logger.trace({ msg: "getInvestedProducts", data: { investorId, chains, res: res.map((p) => p.product_id) } });
+    return res;
   }
 
   async getInvestorPortfolioValue(investorId: number) {
     const cacheKey = `api:portfolio-service:current-value:${investorId}}`;
     const ttl = 1000 * 60 * 5; // 5 min
     return this.services.cache.wrap(cacheKey, ttl, async () => {
+      logger.debug({ msg: "getInvestorPortfolioValue", data: { investorId } });
       const investedProducts = await this.getInvestedProducts(investorId, allChainIds);
       const productIds = investedProducts.map((p) => p.product_id);
+      logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, productIds } });
       const priceFeedIDs = await this.services.product.getPriceFeedIds(productIds);
       const priceFeed1Ids = priceFeedIDs.map((pfs) => pfs.price_feed_1_id);
       const priceFeed2Ids = priceFeedIDs.map((pfs) => pfs.price_feed_2_id);
+      logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, productIds, priceFeed1Ids, priceFeed2Ids } });
 
-      return db_query<{
+      const res = await db_query<{
         product_id: number;
         product_key: string;
         chain: Chain;
@@ -104,6 +113,9 @@ export class PortfolioService {
         [investorId, productIds, priceFeed1Ids, priceFeed2Ids],
         this.services.db,
       );
+
+      logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, res } });
+      return res;
     });
   }
 

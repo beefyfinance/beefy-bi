@@ -10,6 +10,9 @@ export async function getRedisClient() {
   if (!client) {
     logger.debug({ msg: "Creating redis client" });
     client = new Client(REDIS_URL);
+    client.on("connection", () => {
+      logger.debug({ msg: "Redis client conneted" });
+    });
   }
   return client;
 }

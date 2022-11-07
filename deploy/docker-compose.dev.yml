@@ -4,6 +4,8 @@ version: "3.9" # optional since v1.27.0
 # docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/timescaledb --opt o=bind beefy_timescaledb_data_directory
 # mkdir -p ${PWD}/data/db/grafana && chmod 777 ${PWD}/data/db/grafana
 # docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana --opt o=bind beefy_grafana_data_directory
+# mkdir -p ${PWD}/data/db/grafana_plugins && chmod 777 ${PWD}/data/db/grafana_plugins
+# docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana_plugins --opt o=bind beefy_grafana_plugins_directory
 
 # tune the system: https://docs.timescale.com/timescaledb/latest/how-to-guides/configuration/timescaledb-tune/#timescaledb-tuning-tool
 # docker exec -it beefy_db-timescaledb-1 timescaledb-tune --yes --memory="4GB" --cpus=2 --max-bg-workers=16 --dry-run
@@ -52,8 +54,10 @@ services:
       POSTGRES_USER: grafana_ro
       POSTGRES_PASSWORD: grafana_ro
       POSTGRES_DB: beefy
+      GF_INSTALL_PLUGINS: marcusolsson-json-datasource
     volumes:
       - grafana_data_wtf:/var/lib/grafana
+      - grafana_plugins:/var/lib/grafana/plugins
       - ./db/grafana.ini:/etc/grafana/grafana.ini
       - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
@@ -69,6 +73,9 @@ volumes:
   grafana_data:
     external: true
     name: beefy_grafana_data_directory
+  grafana_plugins:
+    external: true
+    name: beefy_grafana_plugins_directory
 
 networks:
   backend: {}

@@ -4,7 +4,7 @@ import { productKeySchema } from "../schema/product";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
-  const schema = { querystring: S.object().prop("product_key", productKeySchema) };
+  const schema = { querystring: S.object().prop("product_key", productKeySchema).required() };
   type TRoute = { Querystring: { product_key: string } };
   const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 

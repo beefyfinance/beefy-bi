@@ -4,8 +4,8 @@ import { productKeySchema } from "../schema/product";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
-  const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd"]);
-  const schema = { querystring: S.object().prop("product_key", productKeySchema).prop("price_type", priceType) };
+  const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd"]).required();
+  const schema = { querystring: S.object().prop("product_key", productKeySchema.required()).prop("price_type", priceType.required()) };
   type TRoute = { Querystring: { price_type: "share_to_underlying" | "underlying_to_usd"; product_key: string } };
   const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 

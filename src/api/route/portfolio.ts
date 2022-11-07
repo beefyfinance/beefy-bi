@@ -4,7 +4,7 @@ import { addressSchema } from "../schema/address";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
-  const schema = { querystring: S.object().prop("address", addressSchema) };
+  const schema = { querystring: S.object().prop("address", addressSchema).required() };
   type TRoute = { Querystring: { address: string } };
   const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 
