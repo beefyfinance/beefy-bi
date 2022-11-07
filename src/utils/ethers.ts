@@ -340,7 +340,7 @@ export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider
       const result = await originalSend(method, params);
       return result;
     } catch (error: any) {
-      if (get(error, "message", "").includes("underlying network changed")) {
+      if (attemptsRemaining-- > 0 && get(error, "message", "").includes("underlying network changed")) {
         lastError = error;
         logger.warn({
           msg: "Got underlying network changed error, retrying",
@@ -391,4 +391,38 @@ export class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvi
 
     return ethers.logger.throwArgumentError("unsupported network", "network", this.network.name);
   }
+}
+
+/**
+ * Ankr has issues with their RPC, sometimes it returns an error like "we can't execute this request"
+ * It turns out it's just a timeout, so we just retry the request
+ */
+export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+  logger.trace({ msg: "Patching Ankr BSC linear provider" });
+
+  const originalSend = provider.send.bind(provider);
+  let attemptsRemaining = 10;
+  let lastError: Error | undefined = undefined;
+  provider.send = async function send(method: string, params: Array<any>): Promise<any> {
+    try {
+      const result = await originalSend(method, params);
+      return result;
+    } catch (error: any) {
+      if (attemptsRemaining-- > 0 && get(error, "message", "").includes("we can't execute this request")) {
+        lastError = error;
+        logger.warn({
+          msg: "Got we can't execute this request error, retrying",
+          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+        });
+        await sleep(retryDelay);
+      } else {
+        throw error;
+      }
+    }
+    logger.error({
+      msg: "Got we can't execute this request, but no more attempts remaining",
+      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+    });
+    throw lastError;
+  };
 }

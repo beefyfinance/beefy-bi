@@ -6,6 +6,7 @@ import { ETHERSCAN_API_KEY } from "../../../utils/config";
 
 import {
   addDebugLogsToProvider,
+  monkeyPatchAnkrBscLinearProvider,
   monkeyPatchArchiveNodeRpcProvider,
   monkeyPatchCeloProvider,
   monkeyPatchEthersBatchProvider,
@@ -110,6 +111,9 @@ export function createRpcConfig(
   if (rpcConfig.rpcLimitations.isArchiveNode) {
     monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider, retryDelay);
     monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider, retryDelay);
+  }
+  if (chain === "bsc" && rpcUrl.includes("ankr")) {
+    monkeyPatchAnkrBscLinearProvider(rpcConfig.linearProvider, retryDelay);
   }
 
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError(rpcConfig.linearProvider, retryDelay);
