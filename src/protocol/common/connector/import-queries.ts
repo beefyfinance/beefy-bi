@@ -75,12 +75,13 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
   formatOutput: (obj: TObj, latestBlockNumber: number, historicalBlockQueries: Range<number>[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    // go get the latest block number for this chain
-    latestBlockNumber$({
+    // get the recent data query to avoid double fetching it
+    addLatestBlockQuery$({
       ctx: options.ctx,
       emitError: options.emitError,
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
-      formatOutput: (obj, latestBlockNumber) => ({ obj, latestBlockNumber }),
+      getLastImportedBlock: () => null,
+      formatOutput: (obj, latestBlockNumber, latestBlockQuery) => ({ obj, latestBlockNumber, latestBlockQuery }),
     }),
 
     // we can now create the historical block query
@@ -99,6 +100,9 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       logger.trace({ msg: "Full range", data: { fullRange, importStateKey: importState.importKey } });
 
       let ranges = [fullRange];
+
+      // exclude latest block query from the range
+      ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
       ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery);

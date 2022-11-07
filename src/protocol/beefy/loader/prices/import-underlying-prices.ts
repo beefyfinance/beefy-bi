@@ -75,10 +75,10 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }
     logInfos: { msg: "Importing beefy recent underlying prices" },
     getImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
-    generateQueries$: (ctx, emitError, lastImported) =>
+    generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
       addLatestDateQuery$({
         getLastImportedDate: () => lastImported,
-        formatOutput: (item, latestDate, query) => ({ ...item, latest: latestDate, range: query }),
+        formatOutput: (item, latestDate, query) => formatOutput(item, latestDate, [query]),
       }),
     processImportQuery$: (ctx, emitError) => insertPricePipeline$({ ctx, emitError }),
   });

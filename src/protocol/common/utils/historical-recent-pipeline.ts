@@ -5,7 +5,7 @@ import { samplingPeriodMs } from "../../../types/sampling";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
-import { rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
@@ -160,11 +160,12 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   cacheKey: string;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
-  generateQueries$: (
-    ctx: ImportCtx,
-    emitError: ErrorEmitter<{ target: TInput }>,
-    lastImported: TRange | null,
-  ) => Rx.OperatorFunction<{ target: TInput }, ImportRangeQuery<TInput, TRange>>;
+  generateQueries$: <TGQIn extends { target: TInput }, TGQRes extends ImportRangeQuery<TInput, TRange>[]>(options: {
+    ctx: ImportCtx;
+    emitError: ErrorEmitter<TGQIn>;
+    lastImported: TRange | null;
+    formatOutput: (item: TGQIn, latest: TRange, queries: Range<TRange>[]) => TGQRes;
+  }) => Rx.OperatorFunction<TGQIn, TGQRes>;
   processImportQuery$: (
     ctx: ImportCtx,
     emitError: ErrorEmitter<ImportRangeQuery<TInput, TRange>>,
@@ -186,16 +187,42 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
     // make is a query
     Rx.map((target) => ({ target })),
 
-    // create the import queries
-    options.generateQueries$(
-      ctx,
-      (obj) => {
-        logger.error(mergeLogsInfos({ msg: "Error while generating import query", data: { obj } }, options.logInfos));
-      },
-      (recentImportCache[options.cacheKey] ?? null) as TRange | null,
-    ),
+    Rx.pipe(
+      // find the import state if it exists so we can resume from there
+      fetchImportState$({
+        client: ctx.client,
+        streamConfig: ctx.streamConfig,
+        getImportStateKey: (item) => options.getImportStateKey(item.target),
+        formatOutput: (item, importState) => ({ ...item, importState }),
+      }),
 
-    Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { chain: ctx.chain, range: item.range } }, options.logInfos))),
+      // create the import queries
+      options.generateQueries$({
+        ctx,
+        emitError: (obj) => {
+          logger.error(mergeLogsInfos({ msg: "Error while generating import query", data: { obj } }, options.logInfos));
+        },
+        lastImported: (recentImportCache[options.cacheKey] ?? null) as TRange | null,
+        formatOutput: (item, latest, ranges) => ranges.map((range) => ({ ...item, latest, range })),
+      }),
+      Rx.concatAll(),
+      Rx.filter((item) => {
+        if (item.importState === null) {
+          return true;
+        }
+        let range = item.range;
+        let ranges = rangeExcludeMany(range, item.importState.importData.ranges.coveredRanges as Range<TRange>[]);
+        // if we already covered the range, skip it
+        if (ranges.length === 0) {
+          logger.debug({ msg: "skipping import query, already imported", data: { chain: ctx.chain, range, importState: item.importState } });
+          return false;
+        } else {
+          return true;
+        }
+      }),
+
+      Rx.tap((item) => logger.info(mergeLogsInfos({ msg: "processing query", data: { chain: ctx.chain, range: item.range } }, options.logInfos))),
+    ),
 
     // run the import
     options.processImportQuery$(ctx, (obj) => {

@@ -91,13 +91,13 @@ export function importChainRecentData$(client: DbClient, chain: Chain, forceCurr
     logInfos: { msg: "Importing recent beefy investments", data: { chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
-    generateQueries$: (ctx, emitError, lastImported) =>
+    generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
       addLatestBlockQuery$({
         ctx,
         emitError,
         forceCurrentBlockNumber,
         getLastImportedBlock: () => lastImported,
-        formatOutput: (item, latest, range) => ({ ...item, range, latest }),
+        formatOutput: (item, latest, range) => formatOutput(item, latest, [range]),
       }),
     processImportQuery$: (ctx, emitError) =>
       importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError, mode: "recent" }),
