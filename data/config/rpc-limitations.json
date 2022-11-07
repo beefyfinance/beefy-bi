@@ -51,7 +51,7 @@
     "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 1500,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "methods": {
