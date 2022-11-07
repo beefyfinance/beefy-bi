@@ -57,9 +57,9 @@
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 24,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
+        "eth_getBlockByNumber": 150,
+        "eth_blockNumber": 150,
+        "eth_getTransactionReceipt": 150
       }
     },
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
