@@ -140,4 +140,4 @@ async function main(client: DbClient) {
   console.dir({ min: min(logBlocks), max: max(logBlocks), count: logs.length }, { depth: null });
 }
 
-runMain(withPgClient(main, { appName: "beefy:test_script", readOnly: false, logInfos: { msg: "test" } }));
+runMain(withPgClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));

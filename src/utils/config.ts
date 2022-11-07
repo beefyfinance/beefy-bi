@@ -24,7 +24,6 @@ export const API_DISABLE_HTTPS = process.env.API_DISABLE_HTTPS === "true";
 export const API_DOMAIN = process.env.API_DOMAIN || "localhost";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
-export const TIMESCALEDB_RO_URL = process.env.TIMESCALEDB_RO_URL || "psql://api_ro:api_ro@localhost:5432/beefy";
 export const BATCH_DB_INSERT_SIZE = 5000;
 export const BATCH_MAX_WAIT_MS = 5000;
 

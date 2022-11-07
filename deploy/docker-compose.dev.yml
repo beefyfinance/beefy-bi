@@ -62,8 +62,27 @@ services:
       - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
       - timescaledb
+      - public-api
     networks:
       - backend
+
+  public-api:
+    image: beefy-data-importer
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: UTC
+      LOG_LEVEL: trace
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
+      API_LISTEN: "::" # listen on all interfaces inside the container
+      WORK_CMD: "./dist/src/api/api.js"
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - timescaledb
 
 volumes:
   timescaledb_data:

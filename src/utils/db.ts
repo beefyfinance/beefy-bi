@@ -3,7 +3,7 @@ import * as pgcs from "pg-connection-string";
 import pgf from "pg-format";
 import { allChainIds } from "../types/chain";
 import { withTimeout } from "./async";
-import { TIMESCALEDB_RO_URL, TIMESCALEDB_URL } from "./config";
+import { TIMESCALEDB_URL } from "./config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "./logger";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
@@ -30,15 +30,7 @@ export type DbClient = PgClient;
 
 let sharedClient: PgClient | null = null;
 const appNameCounters: Record<string, number> = {};
-export async function getPgClient({
-  appName = "beefy",
-  freshClient = false,
-  readOnly = true,
-}: {
-  appName?: string;
-  freshClient?: boolean;
-  readOnly?: boolean;
-}) {
+export async function getPgClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
   if (!appNameCounters[appName]) {
     appNameCounters[appName] = 0;
   }
@@ -47,16 +39,22 @@ export async function getPgClient({
     appNameCounters[appName] += 1;
     const appNameToUse = appName + ":common:" + appNameCounters[appName];
 
-    const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
+    const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
+    logger.trace({ msg: "Instanciating new pg client", data: { appNameToUse } });
     sharedClient = new PgClient({ ...config, application_name: appNameToUse });
+    sharedClient.on("error", (err: any) => {
+      logger.error({ msg: "Postgres client error", data: { err, appNameToUse } });
+      logger.error(err);
+    });
   }
   if (freshClient) {
     appNameCounters[appName] += 1;
     const appNameToUse = appName + ":fresh:" + appNameCounters[appName];
 
-    const pgUrl = readOnly ? TIMESCALEDB_RO_URL : TIMESCALEDB_URL;
+    const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
+    logger.trace({ msg: "Instanciating new pg client", data: { appNameToUse } });
     return new PgClient({ ...config, application_name: appNameToUse });
   }
 
@@ -66,15 +64,10 @@ export async function getPgClient({
 // inject pg client as first argument
 export function withPgClient<TArgs extends any[], TRes>(
   fn: (client: PgClient, ...args: TArgs) => Promise<TRes>,
-  {
-    appName,
-    connectTimeoutMs = 10_000,
-    readOnly = true,
-    logInfos,
-  }: { appName: string; connectTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
+  { appName, connectTimeoutMs = 10_000, logInfos }: { appName: string; connectTimeoutMs?: number; logInfos: LogInfos },
 ): (...args: TArgs) => Promise<TRes> {
   return async (...args: TArgs) => {
-    const pgClient = await getPgClient({ appName, freshClient: false, readOnly });
+    const pgClient = await getPgClient({ appName, freshClient: false });
     let res: TRes;
     try {
       await withTimeout(() => pgClient.connect(), connectTimeoutMs, logInfos);
@@ -93,9 +86,9 @@ export async function db_transaction<TRes>(
     connectTimeoutMs = 10_000,
     queryTimeoutMs = 10_000,
     logInfos,
-  }: { appName: string; connectTimeoutMs?: number; queryTimeoutMs?: number; readOnly?: boolean; logInfos: LogInfos },
+  }: { appName: string; connectTimeoutMs?: number; queryTimeoutMs?: number; logInfos: LogInfos },
 ) {
-  const pgClient = await getPgClient({ appName, freshClient: true, readOnly: false });
+  const pgClient = await getPgClient({ appName, freshClient: true });
   try {
     await withTimeout(() => pgClient.connect(), connectTimeoutMs, mergeLogsInfos(logInfos, { msg: "connect", data: { connectTimeoutMs } }));
     try {
@@ -116,7 +109,7 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
   logger.trace({ msg: "Executing query", data: { sql, params } });
   let useClient: PgClient | null = client;
   if (useClient === null) {
-    const pool = await getPgClient({ freshClient: false, readOnly: true });
+    const pool = await getPgClient({ freshClient: false });
     useClient = pool;
   }
   const sql_w_params = pgf(sql, ...params);

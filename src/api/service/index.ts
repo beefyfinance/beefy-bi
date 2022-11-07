@@ -1,5 +1,6 @@
 import { diContainer } from "@fastify/awilix";
 import { asClass, asValue, Lifetime } from "awilix";
+import { withTimeout } from "../../utils/async";
 import { getPgClient } from "../../utils/db";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
 import { AsyncCache } from "./cache";
@@ -22,7 +23,8 @@ declare module "@fastify/awilix" {
 }
 
 export async function registerDI() {
-  const pgClient = await getPgClient({ freshClient: true, readOnly: true });
+  const pgClient = await getPgClient({ appName: "public-api" });
+  await withTimeout(() => pgClient.connect(), 10_000, { msg: "public-api pg client connect" });
   const redisClient = await getRedisClient();
   const abcache = AbstractCache({
     useAwait: false,
