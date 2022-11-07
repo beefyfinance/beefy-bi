@@ -98,7 +98,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:9.0.2
+    image: grafana/grafana:9.2.3
     ports:
       - "3000:3000"
     deploy:
