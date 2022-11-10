@@ -17,7 +17,7 @@ export class PortfolioService {
     }>(
       `
       with last_balances as (
-        select p.product_id, last(balance::numeric, b.datetime) as last_balance
+        select p.product_id, last(balance::numeric, b.block_number) as last_balance
         from investment_balance_ts b
         join product p on p.product_id = b.product_id
         where investor_id = %L and chain in (%L)
@@ -63,8 +63,8 @@ export class PortfolioService {
           with share_balance as (
             SELECT
               b.product_id,
-              last(b.balance::numeric, b.datetime) as share_balance,
-              last(b.datetime, b.datetime) as share_last_time
+              last(b.balance::numeric, b.block_number) as share_balance,
+              last(b.datetime, b.block_number) as share_last_time
             FROM
               investment_balance_ts b
             WHERE
@@ -142,7 +142,9 @@ export class PortfolioService {
       }>(
         `
           with investment_diff_raw as (
-            select b.datetime, b.product_id, b.balance, b.balance_diff, last(pr1.price::numeric, pr1.datetime) as price1, last(pr2.price::numeric, pr2.datetime) as price2
+            select b.datetime, b.product_id, b.balance, b.balance_diff, 
+              last(pr1.price::numeric, pr1.datetime) as price1, 
+              last(pr2.price::numeric, pr2.datetime) as price2
             from investment_balance_ts b
             left join product p 
               on b.product_id = p.product_id
