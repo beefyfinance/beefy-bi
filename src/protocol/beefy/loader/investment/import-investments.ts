@@ -38,12 +38,11 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
         // find the contract creation block
         fetchContractCreationInfos$({
           rpcConfig: ctx.rpcConfig,
-          getCallParams: (item) => ({
+          getCallParams: (obj) => ({
             chain: chain,
-            contractAddress:
-              item.productData.type === "beefy:boost" ? item.productData.boost.contract_address : item.productData.vault.contract_address,
+            contractAddress: obj.productData.type === "beefy:boost" ? obj.productData.boost.contract_address : obj.productData.vault.contract_address,
           }),
-          formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
+          formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
         }),
 
         // drop those without a creation info
@@ -57,7 +56,7 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
           },
           getBlockData: (item) => ({
             datetime: item.contractCreationInfo.datetime,
-            chain: item.chain,
+            chain: item.obj.chain,
             blockNumber: item.contractCreationInfo.blockNumber,
             blockData: {},
           }),
@@ -65,16 +64,19 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
         }),
 
         Rx.map((item) => ({
-          type: "product:investment",
-          productId: item.productId,
-          chain: item.chain,
-          chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
-          contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
-          contractCreationDate: item.contractCreationInfo.datetime,
-          ranges: {
-            lastImportDate: new Date(),
-            coveredRanges: [],
-            toRetry: [],
+          obj: item.obj,
+          importData: {
+            type: "product:investment",
+            productId: item.obj.productId,
+            chain: item.obj.chain,
+            chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
+            contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
+            contractCreationDate: item.contractCreationInfo.datetime,
+            ranges: {
+              lastImportDate: new Date(),
+              coveredRanges: [],
+              toRetry: [],
+            },
           },
         })),
       ),

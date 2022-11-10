@@ -28,18 +28,19 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
     isLiveItem: (target) => target.priceFeedData.active,
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
+        Rx.map((obj) => ({ obj })),
         // find the first date we are interested in
         // so we need the first creation date of each product
         fetchPriceFeedContractCreationInfos({
           ctx,
           emitError: (item) => {
             logger.error({ msg: "Error while fetching price feed contract creation infos. ", data: item });
-            throw new Error("Error while fetching price feed creation infos. " + item.priceFeedId);
+            throw new Error("Error while fetching price feed creation infos. " + item.obj.priceFeedId);
           },
-          importStateType: "product:investment",
+          importStateType: "product:investment", // we want to find the contract creation date we already fetched from the investment pipeline
           which: "price-feed-1", // we work on the first applied price
           productType: "beefy:vault",
-          getPriceFeedId: (item) => item.priceFeedId,
+          getPriceFeedId: (item) => item.obj.priceFeedId,
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
 
@@ -47,17 +48,20 @@ export function importBeefyHistoricalShareRatePrices$(options: { client: DbClien
         excludeNullFields$("contractCreationInfo"),
 
         Rx.map((item) => ({
-          type: "product:share-rate",
-          priceFeedId: item.priceFeedId,
-          chain: item.contractCreationInfo.chain,
-          productId: item.contractCreationInfo.productId,
-          chainLatestBlockNumber: 0,
-          contractCreatedAtBlock: item.contractCreationInfo.contractCreatedAtBlock,
-          contractCreationDate: item.contractCreationInfo.contractCreationDate,
-          ranges: {
-            lastImportDate: new Date(),
-            coveredRanges: [],
-            toRetry: [],
+          obj: item.obj,
+          importData: {
+            type: "product:share-rate",
+            priceFeedId: item.obj.priceFeedId,
+            chain: item.contractCreationInfo.chain,
+            productId: item.contractCreationInfo.productId,
+            chainLatestBlockNumber: 0,
+            contractCreatedAtBlock: item.contractCreationInfo.contractCreatedAtBlock,
+            contractCreationDate: item.contractCreationInfo.contractCreationDate,
+            ranges: {
+              lastImportDate: new Date(),
+              coveredRanges: [],
+              toRetry: [],
+            },
           },
         })),
       ),

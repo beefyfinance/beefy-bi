@@ -313,34 +313,9 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
   client: DbClient;
   streamConfig: BatchStreamConfig;
   getImportStateKey: (obj: TInput) => string;
-  createDefaultImportState$: Rx.OperatorFunction<TInput, TImport["importData"]>;
+  createDefaultImportState$: Rx.OperatorFunction<TInput, { obj: TInput; importData: TImport["importData"] }>;
   formatOutput: (obj: TInput, importState: TImport) => TRes;
 }): Rx.OperatorFunction<TInput, TRes> {
-  const addDefaultImportState$ = Rx.pipe(
-    // flatten the input items
-    Rx.map(({ obj }: { obj: TInput }) => obj),
-
-    // get the import state from the user
-    Rx.concatMap((item) =>
-      Rx.of(item).pipe(
-        options.createDefaultImportState$,
-        Rx.map((defaultImportData) => ({ obj: item, defaultImportData })),
-      ),
-    ),
-
-    // create the import state in the database
-    upsertImportState$({
-      client: options.client,
-      streamConfig: options.streamConfig,
-      getImportStateData: (item) =>
-        ({
-          importKey: options.getImportStateKey(item.obj),
-          importData: item.defaultImportData,
-        } as TImport),
-      formatOutput: (item, importState) => ({ obj: item.obj, importState }),
-    }),
-  );
-
   return Rx.pipe(
     // find the current import state for these objects (if already created)
     fetchImportState$({
@@ -350,18 +325,33 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
       formatOutput: (obj, importState) => ({ obj, importState }),
     }),
 
-    Rx.concatMap((item) => {
-      if (item.importState !== null) {
-        return Rx.of(item).pipe(
+    Rx.connect((items$) =>
+      Rx.merge(
+        items$.pipe(
+          Rx.filter(({ importState }) => importState !== null),
           Rx.tap((item) => logger.trace({ msg: "import state present", data: { importKey: options.getImportStateKey(item.obj) } })),
-        );
-      } else {
-        return Rx.of(item).pipe(
+        ),
+        items$.pipe(
+          Rx.filter(({ importState }) => importState === null),
           Rx.tap((item) => logger.debug({ msg: "Missing import state", data: { importKey: options.getImportStateKey(item.obj) } })),
-          addDefaultImportState$,
-        );
-      }
-    }),
+          Rx.map(({ obj }) => obj),
+          // get the import state from the user
+          options.createDefaultImportState$,
+
+          // create the import state in the database
+          upsertImportState$({
+            client: options.client,
+            streamConfig: options.streamConfig,
+            getImportStateData: (item) =>
+              ({
+                importKey: options.getImportStateKey(item.obj),
+                importData: item.importData,
+              } as TImport),
+            formatOutput: (item, importState) => ({ obj: item.obj, importState }),
+          }),
+        ),
+      ),
+    ),
 
     // fix ts typings
     Rx.filter((item): item is { obj: TInput; importState: TImport } => true),

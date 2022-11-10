@@ -33,6 +33,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
       ),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
+        Rx.map((obj) => ({ obj })),
         // initialize the import state
 
         // find the first date we are interested in this price
@@ -40,11 +41,11 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
         fetchPriceFeedContractCreationInfos({
           ctx,
           emitError: (item) => {
-            throw new Error("Error while fetching product creation infos for price feed" + item.priceFeedId);
+            throw new Error("Error while fetching product creation infos for price feed" + item.obj.priceFeedId);
           },
-          importStateType: "oracle:price",
-          which: "price-feed-2", // we work on the second applied price
-          getPriceFeedId: (item) => item.priceFeedId,
+          importStateType: "product:investment", // we want to find the contract creation date we already fetched from the investment pipeline
+          which: "price-feed-2", // we are the feed 2 from the product
+          getPriceFeedId: (item) => item.obj.priceFeedId,
           productType: "beefy:vault",
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
@@ -53,13 +54,16 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
         excludeNullFields$("contractCreationInfo"),
 
         Rx.map((item) => ({
-          type: "oracle:price",
-          priceFeedId: item.priceFeedId,
-          firstDate: item.contractCreationInfo.contractCreationDate,
-          ranges: {
-            lastImportDate: new Date(),
-            coveredRanges: [],
-            toRetry: [],
+          obj: item.obj,
+          importData: {
+            type: "oracle:price",
+            priceFeedId: item.obj.priceFeedId,
+            firstDate: item.contractCreationInfo.contractCreationDate,
+            ranges: {
+              lastImportDate: new Date(),
+              coveredRanges: [],
+              toRetry: [],
+            },
           },
         })),
       ),

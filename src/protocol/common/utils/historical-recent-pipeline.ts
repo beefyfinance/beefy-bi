@@ -57,7 +57,10 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   logInfos: LogInfos;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
-  createDefaultImportState$: (ctx: ImportCtx, emitError: ErrorEmitter<TInput>) => Rx.OperatorFunction<TInput, TImport["importData"]>;
+  createDefaultImportState$: (
+    ctx: ImportCtx,
+    emitError: ErrorEmitter<TInput>,
+  ) => Rx.OperatorFunction<TInput, { obj: TInput; importData: TImport["importData"] }>;
   generateQueries$: (
     ctx: ImportCtx,
     emitError: ErrorEmitter<{ target: TInput; importState: TImport }>,
