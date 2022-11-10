@@ -2,7 +2,7 @@ import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS, DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
@@ -210,6 +210,11 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       }),
       Rx.concatAll(),
       Rx.filter((item) => {
+        // sometimes we want to manually re-import some data
+        if (DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED) {
+          return true;
+        }
+        // is the import state has not been created, we still import the data
         if (item.importState === null) {
           return true;
         }

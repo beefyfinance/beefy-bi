@@ -28,6 +28,8 @@ export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beef
 export const BATCH_DB_INSERT_SIZE = 5000;
 export const BATCH_MAX_WAIT_MS = 5000;
 
+export const DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED = process.env.DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED === "true";
+
 export const MAX_RANGES_PER_PRODUCT_TO_GENERATE = process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE
   ? parseInt(process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE, 10)
   : 100;
