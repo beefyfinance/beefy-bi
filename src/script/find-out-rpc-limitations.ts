@@ -116,6 +116,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   // copy manually set limitations
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableBatching = rpcLimitations.disableBatching;
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableRpc = rpcLimitations.disableRpc;
 
   // set the soft timeout, the delay after which we consider the rpc request to have failed
   const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;

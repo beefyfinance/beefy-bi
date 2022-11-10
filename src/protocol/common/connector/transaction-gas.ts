@@ -61,8 +61,8 @@ export function fetchTransactionGas$<TObj, TErr extends ErrorEmitter<TObj>, TRes
           chain,
           transactionHash: transactionHash,
           cumulativeGasUsed: new Decimal(receipt.cumulativeGasUsed.toString()),
-          effectiveGasPrice: new Decimal(receipt.effectiveGasPrice.toString()),
           gasUsed: new Decimal(receipt.gasUsed.toString()),
+          effectiveGasPrice: new Decimal(receipt.effectiveGasPrice?.toString() || "0"), // this field is not in the spec so many RPC providers don't return it
         };
 
         if (chain === "optimism" || chain === "metis") {

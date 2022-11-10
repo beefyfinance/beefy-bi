@@ -29,6 +29,7 @@ export const defaultLimitations: RpcLimitations = {
   maxGetLogsBlockSpan: 10,
   internalTimeoutMs: null,
   disableBatching: false,
+  disableRpc: false,
   methods: {
     eth_getLogs: null,
     eth_call: null,
@@ -123,6 +124,9 @@ export interface RpcLimitations {
   // if true, we disable batching for this RPC
   // used for RPCs that are too slow or unreliable to be used with batching
   disableBatching: boolean;
+  // sometimes an RPC is so slow or overloaded that we can't even use it
+  // if this is true, we disable all calls to this RPC
+  disableRpc: boolean;
   // maximum batching allowed for each method
   // null means batching is not allowed
   methods: {
@@ -169,6 +173,9 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
   if (rpcConfigs.length === 1) {
     return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
   }
+
+  // remove disabled RPCs
+  rpcConfigs = rpcConfigs.filter((rpcConfig) => !rpcConfig.limitations.disableRpc);
 
   if (mode === "historical") {
     const historicalRpcConfigs = rpcConfigs.filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);

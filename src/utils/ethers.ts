@@ -401,7 +401,7 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
   logger.trace({ msg: "Patching Ankr BSC linear provider" });
 
   const originalSend = provider.send.bind(provider);
-  let attemptsRemaining = 10;
+  let attemptsRemaining = 50;
   let lastError: Error | undefined = undefined;
   provider.send = async function send(method: string, params: Array<any>): Promise<any> {
     try {
@@ -414,7 +414,7 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
           msg: "Got we can't execute this request error, retrying",
           data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
         });
-        await sleep(retryDelay);
+        await sleep(retryDelay + 100);
       } else {
         throw error;
       }
