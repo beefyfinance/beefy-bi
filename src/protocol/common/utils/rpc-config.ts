@@ -23,7 +23,8 @@ import { getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rp
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
 export function getMultipleRpcConfigsForChain(chain: Chain, mode: "recent" | "historical", rpcCount: number): RpcConfig[] {
-  const rpcUrls = getBestRpcUrlsForChain(chain, mode);
+  let rpcUrls = getBestRpcUrlsForChain(chain, mode);
+  rpcUrls = rpcUrls.slice(0, rpcCount);
 
   logger.debug({ msg: "Using RPC URLs", data: { chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
 
