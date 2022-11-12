@@ -52,7 +52,7 @@ export function fetchTransactionGas$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       const resultByHashPromises = transactionHashes.map(async (transactionHash) => {
         const receipt = await provider.getTransactionReceipt(transactionHash);
         // log the address if the receipt is not in the format we expect
-        if (!receipt || !receipt.effectiveGasPrice || !receipt.cumulativeGasUsed || !receipt.gasUsed) {
+        if (!receipt || !receipt.cumulativeGasUsed || !receipt.gasUsed) {
           logger.error({ msg: "Invalid transaction receipt", data: { chain: options.ctx.chain, transactionHash, receipt } });
         }
 
