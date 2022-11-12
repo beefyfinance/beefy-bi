@@ -2,7 +2,7 @@ import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS, DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
+import { DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
@@ -11,7 +11,6 @@ import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
-import { BatchStreamConfig } from "./batch-rpc-calls";
 import { multiplexByRcp } from "./multiplex-by-rpc";
 
 const logger = rootLogger.child({ module: "common", component: "historical-import" });

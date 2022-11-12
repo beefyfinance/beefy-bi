@@ -98,7 +98,7 @@
     },
     "https://bsc-dataseed1.ninicoin.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
