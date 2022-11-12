@@ -113,10 +113,10 @@
     },
     "https://bsc-dataseed.binance.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
@@ -188,10 +188,10 @@
     },
     "https://bsc-dataseed1.binance.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
