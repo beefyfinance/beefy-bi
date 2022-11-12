@@ -175,7 +175,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc -r 5 -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc -r 8 -l 15sec"
 
   importer-investment-historical-small-unfinished:
     <<: *importer
