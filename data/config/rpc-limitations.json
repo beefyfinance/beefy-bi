@@ -52,7 +52,7 @@
   },
   "bsc": {
     "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 1500,
       "internalTimeoutMs": null,
@@ -68,7 +68,7 @@
     },
     "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 30,
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
@@ -87,7 +87,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -102,7 +102,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -117,7 +117,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -132,7 +132,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -147,7 +147,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -162,7 +162,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -177,7 +177,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -192,7 +192,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -207,7 +207,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 10,

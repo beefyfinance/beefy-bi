@@ -1,8 +1,9 @@
+import { get } from "lodash";
 import { Client as PgClient, ClientConfig as PgClientConfig } from "pg";
 import * as pgcs from "pg-connection-string";
 import pgf from "pg-format";
 import { allChainIds } from "../types/chain";
-import { withTimeout } from "./async";
+import { ConnectionTimeoutError, isConnectionTimeoutError, withTimeout } from "./async";
 import { TIMESCALEDB_URL } from "./config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "./logger";
 
@@ -120,8 +121,11 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
     logger.trace({ msg: "Query end", data: { sql, params, total: res?.rowCount } });
     return rows;
   } catch (error) {
-    logger.error({ msg: "Query error", data: { sql, params, error } });
-    logger.error(error);
+    // if the query ended because of a connection timeout, we wrap it in a custom error
+    // so that we can handle it upper in the stack and retry the query/transaction
+    if (isConnectionTimeoutError(error)) {
+      throw new ConnectionTimeoutError("Query timeout", error);
+    }
     throw error;
   }
 }

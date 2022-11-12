@@ -187,7 +187,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora avax ethereum emerald fantom fuse harmony kava metis moonbeam optimism polygon syscoin -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum aurora avax ethereum emerald fantom fuse harmony kava metis moonbeam optimism polygon syscoin -l 15min"
 
   # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
@@ -207,4 +207,4 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c aurora avax ethereum emerald fantom fuse harmony metis optimism polygon syscoin -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c aurora avax ethereum emerald fantom fuse harmony metis optimism polygon syscoin -l 15min"
