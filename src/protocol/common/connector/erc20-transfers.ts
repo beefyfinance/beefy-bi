@@ -6,7 +6,7 @@ import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { rangeMerge } from "../../../utils/range";
+import { Range, rangeMerge } from "../../../utils/range";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -47,6 +47,25 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
+  const fetchERC20FromRPCPipeline$ = batchRpcCalls$({
+    ctx: options.ctx,
+    emitError: options.emitError,
+    rpcCallsPerInputObj: {
+      eth_call: 0,
+      eth_blockNumber: 0,
+      eth_getBlockByNumber: 0,
+      eth_getLogs: 2,
+      eth_getTransactionReceipt: 0,
+    },
+    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
+    getQuery: options.getQueryParams,
+    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
+    formatOutput: options.formatOutput,
+  });
+
+  const isRangeLargeEnoughToUseEthscan = (range: Range<number>) =>
+    range.to - range.from > options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan * 10;
+
   // if possible, fetch a bunch of data from etherscan so we can avoid doing a lot of rpc calls
   // since etherscan can return a list of transfers without having to restrict by a block range
   // we can quickly find out if the vault has any transfers at all for the given range
@@ -74,87 +93,96 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
         logger.trace({ msg: "Fetching transfers from etherscan provider", data: { chain: options.ctx.chain, items: items.length } });
         // merge ranges by address for all the items so we can fetch a bunch of data at once
         const itemsByAddress = groupBy(items, (item) => item.params.address);
-        return Object.entries(itemsByAddress);
+        return Object.entries(itemsByAddress).map(([address, items]) => ({ address, items }));
       }),
 
-      // use a concatMap so we are not concurrently fetching data from etherscan
-      Rx.concatMap(async ([address, items]) => {
-        try {
-          const resultMap: Map<TObj, ERC20Transfer[]> = new Map();
-          const decimals = items[0].params.decimals;
-          const itemsRanges = items.map((item) => ({ from: item.params.fromBlock, to: item.params.toBlock }));
-          const mergedRanges = rangeMerge(itemsRanges);
-
-          logger.trace({
-            msg: "Fetching transfers from etherscan provider",
-            data: { chain: options.ctx.chain, address, items: items.length, ranges: mergedRanges },
-          });
-
-          let allTransfers: ERC20Transfer[] = [];
-          for (const range of mergedRanges) {
-            const params: GetTransferCallParams = { address, decimals, fromBlock: range.from, toBlock: range.to };
-            const transfers = await fetchERC20TransferEventsFromExplorer(
-              ethscanConfig.provider,
-              ethscanConfig.limitations,
-              options.ctx.chain,
-              params,
-            );
-            allTransfers = allTransfers.concat(transfers);
-          }
-
-          if (allTransfers.length > 0) {
-            logger.debug({
-              msg: "Fetched transfers from etherscan provider",
-              data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
-            });
-          } else {
-            logger.trace({
-              msg: "No transfers found from etherscan provider",
-              data: { chain: options.ctx.chain, address, items: items.length, transfers: allTransfers.length },
-            });
-          }
-
-          // reassign the transfers to the input items
-          for (const item of items) {
-            if (resultMap.has(item.obj)) {
-              throw new ProgrammerError({ msg: "duplicate item", data: { item } });
-            }
-            const itemTransfers = allTransfers.filter(
-              (transfer) => transfer.blockNumber >= item.params.fromBlock && transfer.blockNumber <= item.params.toBlock,
-            );
-            resultMap.set(item.obj, itemTransfers);
-          }
-          return Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers));
-        } catch (err) {
-          logger.error({ msg: "Error fetching transfers from etherscan provider", data: { chain: options.ctx.chain, address, err } });
-          for (const item of items) {
-            options.emitError(item.obj);
-          }
-          return Rx.EMPTY;
-        }
+      // merge the input range for all items for the same address
+      Rx.concatMap(({ address, items }) => {
+        const itemsRanges = items.map((item) => ({ from: item.params.fromBlock, to: item.params.toBlock }));
+        const mergedRanges = rangeMerge(itemsRanges);
+        return mergedRanges.map((mergedRange) => ({ address, items, mergedRange }));
       }),
 
-      // format the output as expected
-      Rx.concatAll(),
+      // for each merge range, if the range is large enough, use the explorer to fetch the data
+      // otherwise, use the rpc. We don't want to overload the explorer with too many requests
+      // since we may be running multiple rpc pipelines at the same time and we only have one explorer
+      Rx.connect((items$) =>
+        Rx.merge(
+          // go through rpc if the range is not large enough
+          // this might happens when we retry sparse ranges
+          items$.pipe(
+            Rx.filter((item) => !isRangeLargeEnoughToUseEthscan(item.mergedRange)),
+            Rx.tap((item) =>
+              logger.trace({
+                msg: "Batch too small, fetching transfers from rpc",
+                data: { chain: options.ctx.chain, address: item.address, range: item.mergedRange },
+              }),
+            ),
+            Rx.concatMap((item) => item.items.map((item) => item.obj)),
+            fetchERC20FromRPCPipeline$,
+          ),
+          // if we have a large enough range, use the explorer
+          items$.pipe(
+            Rx.filter((item) => isRangeLargeEnoughToUseEthscan(item.mergedRange)),
+            Rx.tap((item) =>
+              logger.trace({
+                msg: "Batch fetching transfers from rpc",
+                data: { chain: options.ctx.chain, address: item.address, range: item.mergedRange },
+              }),
+            ),
+            Rx.concatMap(async ({ address, items, mergedRange }) => {
+              try {
+                const resultMap: Map<TObj, ERC20Transfer[]> = new Map();
+                const decimals = items[0].params.decimals;
+                const params: GetTransferCallParams = { address, decimals, fromBlock: mergedRange.from, toBlock: mergedRange.to };
+                const transfers = await fetchERC20TransferEventsFromExplorer(
+                  ethscanConfig.provider,
+                  ethscanConfig.limitations,
+                  options.ctx.chain,
+                  params,
+                );
+
+                if (transfers.length > 0) {
+                  logger.debug({
+                    msg: "Fetched transfers from etherscan provider",
+                    data: { chain: options.ctx.chain, address, items: items.length, transfers: transfers.length },
+                  });
+                } else {
+                  logger.trace({
+                    msg: "No transfers found from etherscan provider",
+                    data: { chain: options.ctx.chain, address, items: items.length, transfers: transfers.length },
+                  });
+                }
+
+                // reassign the transfers to the input items
+                for (const item of items) {
+                  if (resultMap.has(item.obj)) {
+                    throw new ProgrammerError({ msg: "duplicate item", data: { item } });
+                  }
+                  const itemTransfers = transfers.filter(
+                    (transfer) => transfer.blockNumber >= item.params.fromBlock && transfer.blockNumber <= item.params.toBlock,
+                  );
+                  resultMap.set(item.obj, itemTransfers);
+                }
+                return Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers));
+              } catch (err) {
+                logger.error({ msg: "Error fetching transfers from etherscan provider", data: { chain: options.ctx.chain, address, err } });
+                for (const item of items) {
+                  options.emitError(item.obj);
+                }
+                return Rx.EMPTY;
+              }
+            }),
+            // format the output as expected
+            Rx.concatAll(),
+          ),
+        ),
+      ),
     );
   }
 
   // otherwise, just fetch from the rpc
-  return batchRpcCalls$({
-    ctx: options.ctx,
-    emitError: options.emitError,
-    rpcCallsPerInputObj: {
-      eth_call: 0,
-      eth_blockNumber: 0,
-      eth_getBlockByNumber: 0,
-      eth_getLogs: 2,
-      eth_getTransactionReceipt: 0,
-    },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
-    getQuery: options.getQueryParams,
-    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
-    formatOutput: options.formatOutput,
-  });
+  return fetchERC20FromRPCPipeline$;
 }
 
 // when hitting a staking contract we don't have a token in return
