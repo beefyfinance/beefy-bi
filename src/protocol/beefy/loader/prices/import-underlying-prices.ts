@@ -18,6 +18,7 @@ const getImportStateKey = (priceFeed: DbPriceFeed) => `price:feed:${priceFeed.pr
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClient }) {
   return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
     client: options.client,
+    rpcCount: 1, // unused
     chain: "bsc", // unused
     logInfos: { msg: "Importing historical underlying prices" },
     getImportStateKey,
@@ -74,6 +75,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
 export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }) {
   return createRecentImportPipeline<DbPriceFeed, Date>({
     client: options.client,
+    rpcCount: 1, // unused
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },

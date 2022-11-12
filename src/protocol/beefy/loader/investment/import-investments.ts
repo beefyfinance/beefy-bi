@@ -13,11 +13,12 @@ import { importProductBlockRange$ } from "./product-block-range";
 
 const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
-export function importChainHistoricalData$(client: DbClient, chain: Chain, forceCurrentBlockNumber: number | null) {
+export function importChainHistoricalData$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null; rpcCount: number }) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
-    client,
-    chain,
-    logInfos: { msg: "Importing historical beefy investments", data: { chain } },
+    client: options.client,
+    chain: options.chain,
+    rpcCount: options.rpcCount,
+    logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
     generateQueries$: (ctx, emitError) =>
@@ -25,7 +26,7 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
         addHistoricalBlockQuery$({
           ctx,
           emitError,
-          forceCurrentBlockNumber,
+          forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImport: (item) => item.importState,
           getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
           formatOutput: (item, latestBlockNumber, blockQueries) => blockQueries.map((range) => ({ ...item, range, latest: latestBlockNumber })),
@@ -39,7 +40,7 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
         fetchContractCreationInfos$({
           rpcConfig: ctx.rpcConfig,
           getCallParams: (obj) => ({
-            chain: chain,
+            chain: ctx.chain,
             contractAddress: obj.productData.type === "beefy:boost" ? obj.productData.boost.contract_address : obj.productData.vault.contract_address,
           }),
           formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
@@ -85,19 +86,20 @@ export function importChainHistoricalData$(client: DbClient, chain: Chain, force
   });
 }
 
-export function importChainRecentData$(client: DbClient, chain: Chain, forceCurrentBlockNumber: number | null) {
+export function importChainRecentData$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null; rpcCount: number }) {
   return createRecentImportPipeline<DbBeefyProduct, number>({
-    client,
-    chain,
+    client: options.client,
+    chain: options.chain,
+    rpcCount: options.rpcCount,
     cacheKey: "beefy:product:investment:recent",
-    logInfos: { msg: "Importing recent beefy investments", data: { chain } },
+    logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
     generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
       addLatestBlockQuery$({
         ctx,
         emitError,
-        forceCurrentBlockNumber,
+        forceCurrentBlockNumber: options.forceCurrentBlockNumber,
         getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => formatOutput(item, latest, [range]),
       }),

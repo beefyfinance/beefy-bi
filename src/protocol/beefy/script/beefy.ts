@@ -10,7 +10,7 @@ import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable"
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
-import { defaultHistoricalStreamConfig } from "../../common/utils/historical-recent-pipeline";
+import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
@@ -22,12 +22,13 @@ const logger = rootLogger.child({ module: "beefy", component: "import-script" })
 
 interface CmdParams {
   client: DbClient;
+  rpcCount: number;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
   filterChains: Chain[];
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
-  repeatEvery: SamplingPeriod | null;
+  loopEvery: SamplingPeriod | null;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -53,7 +54,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           alias: "t",
           describe: "what to run",
         },
-        repeatEvery: { choices: allSamplingPeriods, demand: false, alias: "r", describe: "repeat the task from time to time" },
+        rpcCount: { type: "number", demand: false, default: 1, alias: "r", describe: "how many RPCs to use" },
+        loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
       }),
     handler: (argv): Promise<any> =>
       withPgClient(
@@ -64,12 +66,13 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
           const cmdParams: CmdParams = {
             client,
+            rpcCount: argv.rpcCount,
             task: argv.task as CmdParams["task"],
             includeEol: argv.includeEol,
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
             filterContractAddress: argv.contractAddress || null,
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
-            repeatEvery: argv.repeatEvery || null,
+            loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
             throw new ProgrammerError("Cannot force current block number without a chain filter");
@@ -86,15 +89,15 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
                 logger.info({ msg: "Import task finished" });
 
-                if (cmdParams.repeatEvery !== null) {
-                  const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.repeatEvery];
+                if (cmdParams.loopEvery !== null) {
+                  const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.loopEvery];
                   if (shouldSleepABit) {
-                    const sleepTime = samplingPeriodMs[cmdParams.repeatEvery] - (now - start);
+                    const sleepTime = samplingPeriodMs[cmdParams.loopEvery] - (now - start);
                     logger.info({ msg: "Sleeping after import", data: { sleepTime } });
                     await sleep(sleepTime);
                   }
                 }
-              } while (cmdParams.repeatEvery !== null);
+              } while (cmdParams.loopEvery !== null);
             }),
           );
         },
@@ -169,12 +172,22 @@ const recentPipelineByChain = {} as Record<Chain, Rx.OperatorFunction<DbBeefyPro
 function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "historical" | "recent") {
   if (mode === "historical") {
     if (!historicalPipelineByChain[chain]) {
-      historicalPipelineByChain[chain] = importChainHistoricalData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber);
+      historicalPipelineByChain[chain] = importChainHistoricalData$({
+        client: cmdParams.client,
+        chain,
+        forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+        rpcCount: cmdParams.rpcCount,
+      });
     }
     return historicalPipelineByChain[chain];
   } else {
     if (!recentPipelineByChain[chain]) {
-      recentPipelineByChain[chain] = importChainRecentData$(cmdParams.client, chain, cmdParams.forceCurrentBlockNumber);
+      recentPipelineByChain[chain] = importChainRecentData$({
+        client: cmdParams.client,
+        chain,
+        forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+        rpcCount: cmdParams.rpcCount,
+      });
     }
     return recentPipelineByChain[chain];
   }
@@ -217,7 +230,12 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     // remove duplicates
     Rx.distinct((priceFeed) => priceFeed.priceFeedId),
     // now fetch associated price feeds
-    importBeefyHistoricalShareRatePrices$({ chain: chain, ...cmdParams }),
+    importBeefyHistoricalShareRatePrices$({
+      chain: chain,
+      client: cmdParams.client,
+      forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+      rpcCount: cmdParams.rpcCount,
+    }),
   );
 
   logger.info({ msg: "starting share rate data import", data: { ...cmdParams, client: "<redacted>" } });

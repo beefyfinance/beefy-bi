@@ -22,6 +22,14 @@ import { getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rp
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
+export function getMultipleRpcConfigsForChain(chain: Chain, mode: "recent" | "historical", rpcCount: number): RpcConfig[] {
+  const rpcUrls = getBestRpcUrlsForChain(chain, mode);
+
+  logger.debug({ msg: "Using RPC URLs", data: { chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
+
+  return rpcUrls.map((rpcUrl) => createRpcConfig(chain, { forceRpcUrl: rpcUrl, mode }));
+}
+
 export function createRpcConfig(
   chain: Chain,
   { forceRpcUrl, mode = "historical", timeout = 120_000 }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number } = {},

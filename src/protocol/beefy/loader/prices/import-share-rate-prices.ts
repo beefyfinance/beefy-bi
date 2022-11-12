@@ -19,10 +19,16 @@ import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
-export function importBeefyHistoricalShareRatePrices$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null }) {
+export function importBeefyHistoricalShareRatePrices$(options: {
+  client: DbClient;
+  chain: Chain;
+  forceCurrentBlockNumber: number | null;
+  rpcCount: number;
+}) {
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
     client: options.client,
     chain: options.chain, // unused
+    rpcCount: options.rpcCount,
     logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
     getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
     isLiveItem: (target) => target.priceFeedData.active,
