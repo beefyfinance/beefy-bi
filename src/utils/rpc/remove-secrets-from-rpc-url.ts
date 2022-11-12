@@ -3,6 +3,7 @@ import {
   RPC_API_KEY_ANKR,
   RPC_API_KEY_AURORA,
   RPC_API_KEY_FIGMENT,
+  RPC_API_KEY_GETBLOCK,
   RPC_API_KEY_METIS_OWNER,
   RPC_API_KEY_NODEREAL,
 } from "../config";
@@ -36,6 +37,8 @@ export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
     publicRpcUrl += "/v1/<RPC_API_KEY_NODEREAL>";
   } else if (secretRpcUrl.includes("figment.io") && pathParts.length === 2 && pathParts[0] === "apikey") {
     publicRpcUrl += "/apikey/<RPC_API_KEY_FIGMENT>";
+  } else if (secretRpcUrl.includes("bsc.getblock.io")) {
+    publicRpcUrl += "/<RPC_API_KEY_GETBLOCK>/mainnet";
   } else {
     if (pathParts.length > 0) {
       publicRpcUrl += "/" + pathParts.join("/");
@@ -64,6 +67,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_METIS_OWNER", RPC_API_KEY_METIS_OWNER);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);
 
   return url;
 }

@@ -66,6 +66,21 @@
         "eth_getTransactionReceipt": null
       }
     },
+    "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 200,
+        "eth_getBlockByNumber": 200,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 200
+      }
+    },
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
