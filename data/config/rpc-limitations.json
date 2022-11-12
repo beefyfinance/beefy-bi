@@ -83,10 +83,10 @@
     },
     "https://bsc-private-dataseed1.nariox.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
@@ -98,10 +98,10 @@
     },
     "https://bsc-dataseed1.ninicoin.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
@@ -128,10 +128,10 @@
     },
     "https://bsc-dataseed1.defibit.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
@@ -143,10 +143,10 @@
     },
     "https://bsc-dataseed2.defibit.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
@@ -173,10 +173,10 @@
     },
     "https://bsc-dataseed4.defibit.io": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 2000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
