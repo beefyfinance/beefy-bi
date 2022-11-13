@@ -1,4 +1,5 @@
 import { allChainIds, Chain } from "../../types/chain";
+import { SamplingPeriod, samplingPeriodMs } from "../../types/sampling";
 import { DbClient, db_query } from "../../utils/db";
 import { rootLogger } from "../../utils/logger";
 import { AsyncCache } from "./cache";
@@ -182,6 +183,73 @@ export class PortfolioService {
           order by product_key asc, datetime asc
         `,
         [investorId, productIds],
+        this.services.db,
+      );
+    });
+  }
+
+  async getInvestorProductUsdValueTs(investorId: number, productId: number, timeBucket: SamplingPeriod) {
+    const cacheKey = `api:portfolio-service:investor-product-usd-value:${investorId}-${productId}-${timeBucket}`;
+    const ttl = 1000 * 60 * 5; // 5 min
+    return this.services.cache.wrap(cacheKey, ttl, async () => {
+      const priceFeedIDs = await this.services.product.getPriceFeedIds([productId]);
+      const priceFeed1Ids = priceFeedIDs.map((pfs) => pfs.price_feed_1_id);
+      const priceFeed2Ids = priceFeedIDs.map((pfs) => pfs.price_feed_2_id);
+      const to = new Date();
+      const dataPointCount = 1000;
+      const from = new Date(to.getTime() - dataPointCount * samplingPeriodMs[timeBucket]);
+
+      return db_query<{
+        datetime: string;
+        share_balance: string;
+        underlying_balance: string;
+        usd_balance: string;
+      }>(
+        `
+          with balance_ts as (
+            select * 
+            from narrow_gapfilled_investor_balance(%L::timestamptz, %L::timestamptz, %L::interval, %L, ARRAY[%L]::integer[])
+            where balance is not null
+          ),
+          price_1_ts as (
+            select *
+            from  narrow_gapfilled_price(%L::timestamptz, %L::timestamptz, %L::interval, ARRAY[%L]::integer[])
+            where price is not null
+          ),
+          price_2_ts as (
+            select *
+            from  narrow_gapfilled_price(%L::timestamptz, %L::timestamptz, %L::interval, ARRAY[%L]::integer[])
+            where price is not null
+          )
+          select
+            b.datetime as datetime,
+            b.balance as share_balance,
+            (b.balance * p1.price)::NUMERIC(100, 24) as underlying_balance,
+            (b.balance * p1.price * p2.price)::NUMERIC(100, 24) as "usd_balance"
+          from balance_ts b
+            left join product pr on b.product_id = pr.product_id
+            left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id
+            left join price_2_ts p2 on b.datetime = p2.datetime and pr.price_feed_2_id = p2.price_feed_id
+          order by 1;
+        `,
+        [
+          // balance_ts
+          from.toISOString(),
+          to.toISOString(),
+          timeBucket,
+          investorId,
+          [productId],
+          // price_1_ts
+          from.toISOString(),
+          to.toISOString(),
+          timeBucket,
+          priceFeed1Ids,
+          // price_2_ts
+          from.toISOString(),
+          to.toISOString(),
+          timeBucket,
+          priceFeed2Ids,
+        ],
         this.services.db,
       );
     });

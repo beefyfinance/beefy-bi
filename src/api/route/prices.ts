@@ -2,16 +2,16 @@ import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { SamplingPeriod } from "../../types/sampling";
 import { productKeySchema } from "../schema/product";
+import { timeBucketSchema } from "../schema/time-bucket";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
   const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd"]).required();
-  const timeBucketType = S.string().enum(["15min", "1hour", "4hour", "1day", "1week"]).required();
   const schema = {
     querystring: S.object()
       .prop("product_key", productKeySchema.required())
       .prop("price_type", priceType.required())
-      .prop("time_bucket", timeBucketType.required()),
+      .prop("time_bucket", timeBucketSchema.required()),
   };
   type TRoute = { Querystring: { price_type: "share_to_underlying" | "underlying_to_usd"; product_key: string; time_bucket: SamplingPeriod } };
   const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
