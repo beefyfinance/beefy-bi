@@ -1,0 +1,24 @@
+{
+  "cSpell.words": [
+    "addressbook",
+    "anyelement",
+    "bytea",
+    "datetime",
+    "gapfill",
+    "gapfilled",
+    "hexstr",
+    "hypertable",
+    "locf",
+    "pgcs",
+    "PLPGSQL",
+    "regtype",
+    "SFUNC",
+    "STYPE",
+    "TIMESCALEDB",
+    "timeseries",
+    "timestamptz",
+    "typlen",
+    "typname",
+    "UNNEST"
+  ]
+}

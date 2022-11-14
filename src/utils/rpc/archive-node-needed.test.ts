@@ -80,7 +80,7 @@ describe("test archive node needed error parsing", () => {
     ).toBe(true);
   });
 
-  it("should detect missing errors as matching", () => {
+  it("should detect missing errors as matching (special case from fuse)", () => {
     // this one is not the exact same error, I just replaced the error body
     expect(
       isErrorDueToMissingDataFromNode({

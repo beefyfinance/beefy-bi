@@ -42,7 +42,7 @@ export async function getPgClient({ appName = "beefy", freshClient = false }: { 
 
     const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
-    logger.trace({ msg: "Instanciating new pg client", data: { appNameToUse } });
+    logger.trace({ msg: "Instantiating new pg client", data: { appNameToUse } });
     sharedClient = new PgClient({ ...config, application_name: appNameToUse });
     sharedClient.on("error", (err: any) => {
       logger.error({ msg: "Postgres client error", data: { err, appNameToUse } });
@@ -55,7 +55,7 @@ export async function getPgClient({ appName = "beefy", freshClient = false }: { 
 
     const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
-    logger.trace({ msg: "Instanciating new pg client", data: { appNameToUse } });
+    logger.trace({ msg: "Instantiating new pg client", data: { appNameToUse } });
     return new PgClient({ ...config, application_name: appNameToUse });
   }
 
@@ -386,7 +386,7 @@ export async function db_migrate() {
   `);
 
   // a table to store which data we already imported and which range needs to be retried
-  // we need this because if there is no data on some date range, maybe we already fetched it and there is no datas
+  // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
   await db_query(`
     CREATE TABLE IF NOT EXISTS import_state (
       import_key character varying PRIMARY KEY,
@@ -434,7 +434,7 @@ export async function db_migrate() {
             GROUP BY 1, 2
         ),
         -- generate a full range of timestamps for these products and merge with actual investments
-        -- this step is neccecary to fill gaps with nulls when there is no investments
+        -- this step is necessary to fill gaps with nulls when there is no investments
         investments_ts as (
             select 
                 ts.datetime,
@@ -445,7 +445,7 @@ export async function db_migrate() {
                 cross join (select UNNEST(_product_ids)) as p(product_id)
                 left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id
         ),
-        -- go fetch the invetor balance before the requested range and merge it with the actual investments
+        -- go fetch the investor balance before the requested range and merge it with the actual investments
         balance_with_gaps_ts as (
             select
                 time_bucket(_interval, _time_from - _interval) as datetime,
@@ -494,7 +494,7 @@ export async function db_migrate() {
           GROUP BY 1, 2
       ),
       -- generate a full range of timestamps for these price feeds and merge with prices
-      -- this step is neccecary to fill gaps with nulls when there is no price available at all
+      -- this step is necessary to fill gaps with nulls when there is no price available at all
       price_full_ts as (
           select 
               ts.datetime,
