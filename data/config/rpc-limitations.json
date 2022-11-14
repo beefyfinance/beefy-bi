@@ -83,11 +83,11 @@
     },
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -98,11 +98,11 @@
     },
     "https://bsc-private-dataseed1.nariox.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 2000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -117,7 +117,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -128,11 +128,11 @@
     },
     "https://bsc-dataseed.binance.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 2000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -147,7 +147,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -162,7 +162,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -177,7 +177,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -192,7 +192,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -203,11 +203,11 @@
     },
     "https://bsc-dataseed1.binance.org": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 2000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 10,

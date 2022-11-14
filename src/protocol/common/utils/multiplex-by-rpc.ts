@@ -1,10 +1,15 @@
+import { random } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
+import { rootLogger } from "../../../utils/logger";
+import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
 import { getMultipleRpcConfigsForChain } from "./rpc-config";
+
+const logger = rootLogger.child({ module: "utils", component: "multiplex-by-rpc" });
 
 export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   // since we are doing many historical queries at once, we cannot afford to do many at once
@@ -56,21 +61,44 @@ export function multiplexByRcp<TInput, TRes>(options: {
       ? defaultMoonbeamHistoricalStreamConfig
       : defaultHistoricalStreamConfig;
 
-  const pipelines = rpcConfigs
+  const weightedPipelines = rpcConfigs
     .map((rpcConfig): ImportCtx => ({ chain: options.chain, client: options.client, rpcConfig, streamConfig }))
-    .map(options.createPipeline);
+    .map((ctx) => ({
+      ctx,
+      pipeline: options.createPipeline(ctx),
+      // assign a weight to each pipeline based on the minDelayBetweenCalls
+      // so that we send more requests to the ones that are less likely to be rate limited
+      weight:
+        ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
+          ? 1_000_000
+          : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 900)),
+    }));
+  const totalWeight = weightedPipelines.reduce((acc, p) => acc + p.weight, 0);
 
-  let idx = 1;
+  const minMax: [number, number][] = [];
+  let min = 0;
+  for (const p of weightedPipelines) {
+    minMax.push([min, min + p.weight]);
+    min += p.weight;
+  }
+  const pipelines = weightedPipelines.map((p, idx) => ({ ...p, minMax: minMax[idx] }));
+
   return Rx.pipe(
     // add a unique id to each item
-    Rx.map((obj: TInput) => ({ obj, idx: idx++ })),
+    Rx.map((obj: TInput) => ({ obj, rng: random(0, totalWeight, false) })),
 
     Rx.connect((item$) =>
       Rx.merge(
-        ...pipelines.map((pipeline) =>
+        ...pipelines.map(({ pipeline, minMax, ctx }) =>
           item$.pipe(
-            Rx.filter((item) => item.idx % pipelines.length === pipelines.indexOf(pipeline)),
+            Rx.filter((item) => item.rng >= minMax[0] && item.rng < minMax[1]),
             Rx.map((item) => item.obj),
+            Rx.tap((item) =>
+              logger.debug({
+                msg: "Multiplexed item",
+                data: { item, minMax, rpcUrl: removeSecretsFromRpcUrl(ctx.rpcConfig.linearProvider.connection.url) },
+              }),
+            ),
             pipeline,
           ),
         ),
