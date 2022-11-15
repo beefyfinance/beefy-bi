@@ -120,7 +120,7 @@ async function main(client: DbClient) {
     toBlock: 22_743_966,
   });
   const eventBlocks = uniq(events.map((e) => e.blockNumber));
-  console.dir({ blockmin: min(eventBlocks), blockmax: max(eventBlocks), blockCount: eventBlocks.length, eventCount: events.length }, { depth: null });
+  console.dir({ blockMin: min(eventBlocks), blockMax: max(eventBlocks), blockCount: eventBlocks.length, eventCount: events.length }, { depth: null });
 
   return;
   const contract = new ethers.Contract(address, ERC20Abi, provider);

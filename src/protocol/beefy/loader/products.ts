@@ -24,7 +24,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
     maxInputTake: 500,
     dbMaxInputTake: BATCH_DB_INSERT_SIZE,
     dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
-    // and we can affort longer retries
+    // and we can afford longer retries
     maxTotalRetryMs: 30_000,
   };
   const ctx = {

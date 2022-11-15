@@ -1,7 +1,7 @@
 import axios from "axios";
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
-import { zipWith } from "lodash";
+import { get, zipWith } from "lodash";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
@@ -57,53 +57,44 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     data: { chain, contractCalls: contractCalls.length },
   });
 
-  let ppfsPromises: Promise<[ethers.BigNumber]>[] = [];
+  type PPFSEntry = [TParams, ethers.BigNumber];
+  type MapEntry = [TParams, Decimal];
+  let shareRatePromises: Promise<MapEntry>[] = [];
 
-  // it looks like ethers doesn't yet support harmony's special format or smth
-  // same for heco
-  if (chain === "harmony" || chain === "heco") {
-    for (const contractCall of contractCalls) {
-      const ppfsPromise = fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall);
-      ppfsPromises = ppfsPromises.concat(ppfsPromise);
-    }
-  } else {
-    // fetch all ppfs in one go, this will batch calls using jsonrpc batching
-    for (const contractCall of contractCalls) {
+  // fetch all ppfs in one go, this will batch calls using jsonrpc batching
+  for (const contractCall of contractCalls) {
+    let rawPromise: Promise<[ethers.BigNumber]>;
+
+    // it looks like ethers doesn't yet support harmony's special format or something
+    // same for heco
+    if (chain === "harmony" || chain === "heco") {
+      rawPromise = fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall);
+    } else {
       const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6Abi, provider);
-      const ppfsPromise = contract.functions.getPricePerFullShare({
-        // a block tag to simulate the execution at, which can be used for hypothetical historic analysis;
-        // note that many backends do not support this, or may require paid plans to access as the node
-        // database storage and processing requirements are much higher
-        blockTag: contractCall.blockNumber,
-      });
-      ppfsPromises.push(ppfsPromise);
+      rawPromise = contract.functions.getPricePerFullShare({ blockTag: contractCall.blockNumber });
     }
-  }
 
-  // we use all settled because we have to handle safeMath errors
-  // that happens when the vault is empty
-  const ppfsResults = await Promise.allSettled(ppfsPromises);
-
-  return new Map(
-    zipWith(contractCalls, ppfsResults, (contractCall, ppfsRes) => {
-      let ppfs: ethers.BigNumber;
-      if (ppfsRes.status === "fulfilled") {
-        ppfs = ppfsRes.value[0];
-      } else {
+    const shareRatePromise = rawPromise
+      .then(([ppfs]) => [contractCall, ppfs] as PPFSEntry)
+      .catch((err) => {
         // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
         // this means that the totalSupply is 0 so we set ppfs to zero
-        if (ppfsRes.reason.message.includes("SafeMath: division by zero")) {
-          ppfs = ethers.BigNumber.from("0");
+        if (get(err, "message", "").includes("SafeMath: division by zero")) {
+          return [contractCall, ethers.BigNumber.from(0)] as PPFSEntry;
         } else {
-          // otherwise, we throw the error
-          throw ppfsRes.reason;
+          // otherwise, we pass the error through
+          throw err;
         }
-      }
+      })
+      .then(([contractCall, ppfs]) => {
+        const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
+        return [contractCall, vaultShareRate] as MapEntry;
+      });
 
-      const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
-      return [contractCall, vaultShareRate];
-    }),
-  );
+    shareRatePromises.push(shareRatePromise);
+  }
+
+  return new Map(await Promise.all(shareRatePromises));
 }
 
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance

@@ -2,7 +2,13 @@ import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
-import { BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS, MAX_RANGES_PER_PRODUCT_TO_GENERATE, MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
+import {
+  BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
+  LIMIT_INVESTMENT_QUERIES,
+  LIMIT_PRICE_QUERIES,
+  LIMIT_SHARES_QUERIES,
+  MS_PER_BLOCK_ESTIMATE,
+} from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
@@ -105,7 +111,7 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-      ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery);
+      ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery, LIMIT_INVESTMENT_QUERIES);
 
       // apply forced block number
       if (options.forceCurrentBlockNumber !== null) {
@@ -137,7 +143,7 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
 
       let ranges = [fullRange];
 
-      ranges = restrictRangesWithImportState(ranges, importState, maxMsPerQuery);
+      ranges = restrictRangesWithImportState(ranges, importState, maxMsPerQuery, LIMIT_PRICE_QUERIES);
       return options.formatOutput(item, latestDate, ranges);
     }),
   );
@@ -222,9 +228,10 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
           return { ...item, blockList: [] };
         }
         const importState = options.getImportState(item.obj);
-        const blockNumbrers = item.blockList.map((b) => b.interpolated_block_number);
-        const minDbBlock = min(blockNumbrers) as number;
-        const maxDbBlock = max(blockNumbrers) as number;
+        const blockNumbers = item.blockList.map((b) => b.interpolated_block_number);
+        const minDbBlock = min(blockNumbers) as number;
+        const maxDbBlock = max(blockNumbers) as number;
+
         return {
           ...item,
           blockRanges: [
@@ -245,7 +252,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
         const maxTimeStepMs = samplingPeriodMs[options.timeStep];
         const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
         const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
-        const ranges = restrictRangesWithImportState(item.blockRanges, importState, rangeMaxLength);
+        const ranges = restrictRangesWithImportState(item.blockRanges, importState, rangeMaxLength, LIMIT_SHARES_QUERIES);
         return { ...item, blockRanges: ranges };
       }),
       // transform to query obj
@@ -274,6 +281,7 @@ function restrictRangesWithImportState<T extends SupportedRangeTypes>(
   ranges: Range<T>[],
   importState: DbImportState,
   maxRangeLength: number,
+  limitRangeCount: number,
 ): Range<T>[] {
   // exclude the ranges we already covered
   ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
@@ -281,7 +289,7 @@ function restrictRangesWithImportState<T extends SupportedRangeTypes>(
   // split in ranges no greater than the maximum allowed
   ranges = rangeSplitManyToMaxLength(ranges, maxRangeLength);
 
-  // order by newset first since it's more important and more likely to be available via RPC calls
+  // order by new range first since it's more important and more likely to be available via RPC calls
   ranges = rangeSort(ranges).reverse();
 
   // then add the ranges we had error on at the end
@@ -293,8 +301,8 @@ function restrictRangesWithImportState<T extends SupportedRangeTypes>(
   ranges = ranges.concat(rangesToRetry);
 
   // limit the amount of queries sent
-  if (ranges.length > MAX_RANGES_PER_PRODUCT_TO_GENERATE) {
-    ranges = ranges.slice(0, MAX_RANGES_PER_PRODUCT_TO_GENERATE);
+  if (ranges.length > limitRangeCount) {
+    ranges = ranges.slice(0, limitRangeCount);
   }
   return ranges;
 }

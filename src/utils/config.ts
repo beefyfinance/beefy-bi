@@ -30,9 +30,13 @@ export const BATCH_MAX_WAIT_MS = 5000;
 
 export const DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED = process.env.DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED === "true";
 
-export const MAX_RANGES_PER_PRODUCT_TO_GENERATE = process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE
-  ? parseInt(process.env.MAX_RANGES_PER_PRODUCT_TO_GENERATE, 10)
-  : 100;
+// memory management configs
+// Since there is no backpressure system in rxjs, we need to limit the number of incoming items
+// Fetching investments is a large operation, so we need to limit the number of concurrent requests
+// but other operations are small, so we can allow more items to be streamed into the input queue
+export const LIMIT_INVESTMENT_QUERIES = process.env.LIMIT_INVESTMENT_QUERIES ? parseInt(process.env.LIMIT_INVESTMENT_QUERIES, 10) : 100;
+export const LIMIT_SHARES_QUERIES = process.env.LIMIT_SHARES_QUERIES ? parseInt(process.env.LIMIT_SHARES_QUERIES, 10) : 1000;
+export const LIMIT_PRICE_QUERIES = process.env.LIMIT_PRICE_QUERIES ? parseInt(process.env.LIMIT_PRICE_QUERIES, 10) : 1000;
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 

@@ -19,7 +19,7 @@ export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   maxInputTake: 500,
   dbMaxInputTake: BATCH_DB_INSERT_SIZE,
   dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
-  // and we can affort longer retries
+  // and we can afford longer retries
   maxTotalRetryMs: 30_000,
 };
 export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
@@ -29,7 +29,7 @@ export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
   maxInputTake: 1,
   dbMaxInputTake: 1,
   dbMaxInputWaitMs: 1,
-  // and we can affort longer retries
+  // and we can afford longer retries
   maxTotalRetryMs: 30_000,
 };
 export const defaultRecentStreamConfig: BatchStreamConfig = {
