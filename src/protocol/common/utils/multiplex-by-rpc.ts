@@ -71,7 +71,7 @@ export function multiplexByRcp<TInput, TRes>(options: {
       weight:
         ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
           ? 1_000_000
-          : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 900)),
+          : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 500)),
     }));
   const totalWeight = weightedPipelines.reduce((acc, p) => acc + p.weight, 0);
 

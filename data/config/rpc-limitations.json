@@ -52,18 +52,18 @@
   },
   "bsc": {
     "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
-      "isArchiveNode": false,
+      "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 1500,
+      "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
-      "disableBatching": true,
+      "disableBatching": false,
       "disableRpc": false,
       "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 24,
-        "eth_getBlockByNumber": null,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": null
+        "eth_getLogs": 2,
+        "eth_call": 200,
+        "eth_getBlockByNumber": 200,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 200
       }
     },
     "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {

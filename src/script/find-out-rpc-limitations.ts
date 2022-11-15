@@ -110,8 +110,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
-  const rpcOptions: ethers.utils.ConnectionInfo = { url: rpcUrl, timeout: undefined };
-  const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, rpcOptions);
+  const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, { forceRpcUrl: rpcUrl, timeout: undefined });
 
   // copy manually set limitations
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;
