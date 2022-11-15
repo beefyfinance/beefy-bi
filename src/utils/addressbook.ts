@@ -28,3 +28,11 @@ export function getChainWNativeTokenOracleId(chain: Chain): string {
   const tokens = getAddressBookTokensConfig(chain);
   return tokens.WNATIVE.symbol;
 }
+
+export function getAddressBookTokenDecimals(chain: Chain, token: string): number {
+  const tokens = getAddressBookTokensConfig(chain);
+  if (!tokens[token]) {
+    throw new Error(`Token ${token} not found in addressbook for chain ${chain}`);
+  }
+  return tokens[token].decimals;
+}

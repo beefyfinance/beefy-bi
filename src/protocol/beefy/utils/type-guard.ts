@@ -1,3 +1,5 @@
+import * as Rx from "rxjs";
+import { OverwriteKeyType } from "../../../types/ts";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../common/loader/product";
 import { ImportRangeQuery } from "../../common/types/import-query";
 
@@ -30,4 +32,32 @@ export function isBeefyProductEOL(o: DbBeefyProduct): boolean {
 }
 export function isBeefyProductLive(o: DbBeefyProduct): boolean {
   return !isBeefyProductEOL(o);
+}
+
+export function filterStandardVault$<Input, TKey extends keyof Input>(
+  key: TKey,
+): Rx.OperatorFunction<Input, OverwriteKeyType<Input, { [k in TKey]: DbBeefyStdVaultProduct }>> {
+  // @ts-ignore
+  return Rx.filter((o: Input) => {
+    const product = o[key] as DbBeefyProduct;
+    return isBeefyStandardVault(product);
+  });
+}
+export function filterGovVault$<Input, TKey extends keyof Input>(
+  key: TKey,
+): Rx.OperatorFunction<Input, OverwriteKeyType<Input, { [k in TKey]: DbBeefyGovVaultProduct }>> {
+  // @ts-ignore
+  return Rx.filter((o: Input) => {
+    const product = o[key] as DbBeefyProduct;
+    return isBeefyGovVault(product);
+  });
+}
+export function filterBoost$<Input, TKey extends keyof Input>(
+  key: TKey,
+): Rx.OperatorFunction<Input, OverwriteKeyType<Input, { [k in TKey]: DbBeefyBoostProduct }>> {
+  // @ts-ignore
+  return Rx.filter((o: Input) => {
+    const product = o[key] as DbBeefyProduct;
+    return isBeefyBoost(product);
+  });
 }

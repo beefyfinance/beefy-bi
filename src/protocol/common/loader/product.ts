@@ -19,6 +19,7 @@ interface DbBaseProduct {
 export interface DbBeefyStdVaultProduct extends DbBaseProduct {
   priceFeedId1: number; // ppfs
   priceFeedId2: number; // underlying price
+  pendingRewardsPriceFeedId: null;
   productData: {
     type: "beefy:vault";
     vault: BeefyVault;
@@ -27,6 +28,7 @@ export interface DbBeefyStdVaultProduct extends DbBaseProduct {
 export interface DbBeefyGovVaultProduct extends DbBaseProduct {
   priceFeedId1: number; // no ppfs for gov vaults, but we added one for consistency
   priceFeedId2: number; // underlying price
+  pendingRewardsPriceFeedId: number; // in gas token
   productData: {
     type: "beefy:gov-vault";
     vault: BeefyVault;
@@ -35,6 +37,7 @@ export interface DbBeefyGovVaultProduct extends DbBaseProduct {
 export interface DbBeefyBoostProduct extends DbBaseProduct {
   priceFeedId1: number; // ppfs of vault
   priceFeedId2: number; // underlying price of vault
+  pendingRewardsPriceFeedId: number; // in whatever token the boost is for
   productData: {
     type: "beefy:boost";
     boost: BeefyBoost;
@@ -65,6 +68,7 @@ export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPar
                 product_key = EXCLUDED.product_key,
                 price_feed_1_id = EXCLUDED.price_feed_1_id,
                 price_feed_2_id = EXCLUDED.price_feed_2_id,
+                pending_rewards_price_feed_id = EXCLUDED.pending_rewards_price_feed_id,
                 product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
               RETURNING 
                 product_id as "productId", 
@@ -112,6 +116,7 @@ export function fetchProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPara
             product_key as "productKey", 
             price_feed_1_id as "priceFeedId1", 
             price_feed_2_id as "priceFeedId2", 
+            pending_rewards_price_feed_id as "pendingRewardsPriceFeedId",
             chain, 
             product_data as "productData"
         FROM product 
@@ -146,6 +151,7 @@ export function productList$<TKey extends string>(client: DbClient, keyPrefix: T
         product_key as "productKey",
         price_feed_1_id as "priceFeedId1",
         price_feed_2_id as "priceFeedId2",
+        pending_rewards_price_feed_id as "pendingRewardsPriceFeedId",
         product_data as "productData"
       FROM product
       where product_key like %L || ':%'

@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
+import { getAddressBookTokenDecimals } from "../../../../utils/addressbook";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
@@ -16,6 +17,7 @@ import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
+import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
 import {
   isBeefyBoost,
   isBeefyBoostProductImportQuery,
@@ -205,40 +207,95 @@ export function loadTransfers$<
   TErr extends ErrorEmitter<TInput>,
 >(options: { ctx: ImportCtx; emitError: TErr }) {
   const govVaultPipeline$ = Rx.pipe(
-    // fix typings
     Rx.filter((item: TInput) => isBeefyGovVault(item.target.product)),
-    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults
+    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults after that
     Rx.map((item) => ({ ...item, ppfs: new Decimal(1) })),
+
+    // find out the user rewards at that block
+    fetchBeefyPendingRewards$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getPendingRewardsParams: (item) => {
+        if (!isBeefyGovVault(item.target.product)) {
+          throw new ProgrammerError("Expected gov vault");
+        }
+        const vault = item.target.product;
+        return {
+          blockNumber: item.target.transfer.blockNumber,
+          tokenDecimals: 18, // bifi is not in the addressbook getAddressBookTokenDecimals(vault.chain, "BIFI"),
+          contractAddress: vault.productData.vault.contract_address,
+          ownerAddress: item.target.transfer.ownerAddress,
+        };
+      },
+      formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
+    }),
   );
 
-  const stdVaultOrBoostPipeline$ = Rx.pipe(
-    // fix typings
-    Rx.filter((item: TInput) => isBeefyStandardVault(item.target.product) || isBeefyBoost(item.target.product)),
+  const stdVaultPipeline$ = Rx.pipe(
+    Rx.filter((item: TInput) => isBeefyStandardVault(item.target.product)),
 
     // fetch the ppfs
     fetchBeefyPPFS$({
       ctx: options.ctx,
       emitError: options.emitError,
       getPPFSCallParams: (item) => {
-        if (isBeefyBoost(item.target.product)) {
-          const boostData = item.target.product.productData.boost;
-          return {
-            vaultAddress: boostData.staked_token_address,
-            underlyingDecimals: boostData.vault_want_decimals,
-            vaultDecimals: boostData.staked_token_decimals,
-            blockNumber: item.target.transfer.blockNumber,
-          };
-        } else {
-          const vault = item.target.product;
-          return {
-            vaultAddress: vault.productData.vault.contract_address,
-            underlyingDecimals: vault.productData.vault.want_decimals,
-            vaultDecimals: vault.productData.vault.token_decimals,
-            blockNumber: item.target.transfer.blockNumber,
-          };
+        if (!isBeefyStandardVault(item.target.product)) {
+          throw new ProgrammerError("Expected gov vault");
         }
+        const vault = item.target.product;
+        return {
+          vaultAddress: vault.productData.vault.contract_address,
+          underlyingDecimals: vault.productData.vault.want_decimals,
+          vaultDecimals: vault.productData.vault.token_decimals,
+          blockNumber: item.target.transfer.blockNumber,
+        };
       },
       formatOutput: (item, ppfs) => ({ ...item, ppfs }),
+    }),
+
+    // no rewards for std vaults
+    Rx.map((item) => ({ ...item, pendingRewards: null })),
+  );
+
+  const boostPipeline$ = Rx.pipe(
+    Rx.filter((item: TInput) => isBeefyBoost(item.target.product)),
+
+    // fetch the ppfs
+    fetchBeefyPPFS$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getPPFSCallParams: (item) => {
+        if (!isBeefyBoost(item.target.product)) {
+          throw new ProgrammerError("Expected gov vault");
+        }
+        const boostData = item.target.product.productData.boost;
+        return {
+          vaultAddress: boostData.staked_token_address,
+          underlyingDecimals: boostData.vault_want_decimals,
+          vaultDecimals: boostData.staked_token_decimals,
+          blockNumber: item.target.transfer.blockNumber,
+        };
+      },
+      formatOutput: (item, ppfs) => ({ ...item, ppfs }),
+    }),
+
+    // find out the user rewards at that block
+    fetchBeefyPendingRewards$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getPendingRewardsParams: (item) => {
+        if (!isBeefyBoost(item.target.product)) {
+          throw new ProgrammerError("Expected boost product");
+        }
+        const boost = item.target.product;
+        return {
+          blockNumber: item.target.transfer.blockNumber,
+          tokenDecimals: boost.productData.boost.reward_token_decimals,
+          contractAddress: boost.productData.boost.contract_address,
+          ownerAddress: item.target.transfer.ownerAddress,
+        };
+      },
+      formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
     }),
   );
 
@@ -250,7 +307,7 @@ export function loadTransfers$<
     // ==============================
 
     // fetch the ppfs
-    Rx.connect((items$) => Rx.merge(govVaultPipeline$(items$), stdVaultOrBoostPipeline$(items$))),
+    Rx.connect((items$) => Rx.merge(items$.pipe(govVaultPipeline$), items$.pipe(stdVaultPipeline$), items$.pipe(boostPipeline$))),
 
     // we need the balance of each owner
     fetchERC20TokenBalance$({
@@ -334,6 +391,8 @@ export function loadTransfers$<
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
         balanceDiff: item.target.transfer.amountTransferred,
+        pendingRewards: item.pendingRewards,
+        pendingRewardsDiff: null,
         investmentData: {
           chain: options.ctx.chain,
           balance: item.vaultSharesBalance.toString(),

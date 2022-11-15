@@ -27,6 +27,40 @@ beefy=# select
 
 (1 row)
  */
+
+/**
+ * How to store rewards:
+ *
+ * Whatever the solution there should be
+ * - a snapshot at multiple point in time (cannot use the ppfs trick since rewards are unpredictable)
+ * - an import status per user of the vault per boost/gov
+ * - tracking of pending rewards and individual reward claims
+ *
+ * 1. have an investment_balance master table with all relevant data
+ * - pro: everything is in one place
+ * - pro: not much to change
+ * - con: have to design for all possible scenarios (no rewards, multiple rewards, etc)
+ * - con: have to accommodate both the deposit/withdraws in and out the boost and the many reward snapshots in the same table
+ * - con: would need to complexify the import_state so we can import both withdraw and rewards in the same timeseries
+ *        or have multiple import states for the same time series, one for the boost deposits/withdraws and one for the rewards
+ * => ✅ quicker to implement, simpler data model, not that bad of a solution anyway
+ *
+ * 2. have a separate reward_snapshot table
+ * - pro: no change to existing code, just add a new table
+ * - pro: easy to reason about
+ * - pro: easy to merge into another data structure later on
+ * - con: need to join the two tables to get the current balance
+ * - con: the reward table will look just like the investment_balance_ts table
+ * => ❌ too much separation of concerns
+ *
+ * 3. have multiple balances for each product, extract product_id and investor_id into a balance_feed table so that we can have multiple balances per investor per product
+ * - pro: very flexible
+ * - con: heavy change to existing code to account for a small number of cases
+ * - con: balance data is spread across multiple timeseries
+ * => ❌ too much complexity for too little gain
+ *
+ */
+
 export type DbClient = PgClient;
 
 let sharedClient: PgClient | null = null;
@@ -192,6 +226,16 @@ export async function db_migrate() {
     `);
   }
 
+  if (!(await typeExists("evm_decimal_256_nullable"))) {
+    await db_query(`
+      CREATE DOMAIN evm_decimal_256_nullable 
+        -- 24 is the max decimals in current addressbook, might change in the future
+        -- 100 is the maximum number of digits stored, not the reserved space
+        AS NUMERIC(100, 24)
+        CHECK (VALUE is NULL OR nullif(VALUE, 'NaN') is not null);
+    `);
+  }
+
   // helper function
   await db_query(`
       CREATE OR REPLACE FUNCTION bytea_to_hexstr(bytea) RETURNS character varying 
@@ -316,6 +360,9 @@ export async function db_migrate() {
       -- the successive prices to apply to balance to get to usd
       price_feed_1_id integer null references price_feed(price_feed_id),
       price_feed_2_id integer null references price_feed(price_feed_id),
+
+      -- the reward price feed to apply to the reward balance to get to usd
+      pending_rewards_price_feed_id integer null references price_feed(price_feed_id),
       
       -- all relevant product infos, addresses, type, etc
       product_data jsonb NOT NULL
@@ -341,9 +388,11 @@ export async function db_migrate() {
       product_id integer not null references product(product_id),
       investor_id integer not null references investor(investor_id),
 
-      -- the investment details
-      balance evm_decimal_256 not null, -- with decimals applied
-      balance_diff evm_decimal_256 not null, -- with decimals applied, used to compute P&L
+      -- the investment details, all numbers have decimal applied
+      balance evm_decimal_256 not null, -- balance of the investment after the block was applied
+      balance_diff evm_decimal_256 not null, -- how much the investment changed at this block
+      pending_rewards evm_decimal_256_nullable null, -- how much rewards are pending to be claimed
+      pending_rewards_diff evm_decimal_256_nullable null, -- how much rewards changed at this block
 
       -- some debug info to help us understand how we got this data
       investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc

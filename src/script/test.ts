@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { ethers } from "ethers";
 import { max, min, uniq } from "lodash";
 import * as Rx from "rxjs";
@@ -32,8 +33,11 @@ async function main(client: DbClient) {
     },
   };
 
-  const res = await ctx.rpcConfig.linearProvider.getTransactionReceipt("0x4154d683c5d964963fca3f6d065b501c70bafbb06df009109186fbb6014fe310");
-  console.log(res);
+  const res = ppfsToVaultSharesRate(18, 18, ethers.BigNumber.from("1119244888928311120"));
+  console.log(res.toString());
+
+  //const res = await ctx.rpcConfig.linearProvider.getTransactionReceipt("0x4154d683c5d964963fca3f6d065b501c70bafbb06df009109186fbb6014fe310");
+  //console.log(res);
   if (1 == 1) return;
   /*
   // get the block list
@@ -141,3 +145,19 @@ async function main(client: DbClient) {
 }
 
 runMain(withPgClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));
+
+function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
+  const mooTokenAmount = new Decimal("1.0");
+
+  // go to chain representation
+  const mooChainAmount = mooTokenAmount.mul(new Decimal(10).pow(mooTokenDecimals)).toDecimalPlaces(0);
+
+  // convert to oracle amount in chain representation
+  const oracleChainAmount = mooChainAmount.mul(new Decimal(ppfs.toString()));
+
+  // go to math representation
+  // but we can't return a number with more precision than the oracle precision
+  const oracleAmount = oracleChainAmount.div(new Decimal(10).pow(mooTokenDecimals + depositTokenDecimals)).toDecimalPlaces(mooTokenDecimals);
+
+  return oracleAmount;
+}

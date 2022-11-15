@@ -6,9 +6,11 @@
     "arbitrum",
     "avax",
     "backoff",
+    "BIFI",
     "blockscout",
     "bytea",
     "celo",
+    "complexify",
     "cronos",
     "datetime",
     "ethersproject",
@@ -43,6 +45,7 @@
     "typname",
     "UNNEST",
     "Unretryable",
+    "WNATIVE",
     "wtoken"
   ]
 }

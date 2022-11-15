@@ -231,16 +231,29 @@ on conflict do nothing;
 create table test as
  select  (investment_data->>'balanceDiff')::evm_decimal_256  as v from investment_balance_ts;
 
+
+
 begin;
 alter table investment_balance_ts rename column investment_data to _investment_data;
-alter table investment_balance_ts add column balance_diff NUMERIC(100, 24);
+alter table investment_balance_ts add column pending_rewards NUMERIC(100, 24);
+alter table investment_balance_ts add column pending_rewards_diff NUMERIC(100, 24);
 alter table investment_balance_ts add column investment_data jsonb;
 update investment_balance_ts set investment_data = _investment_data;
 alter table investment_balance_ts alter column investment_data set not null;
 alter table investment_balance_ts drop column _investment_data;
-update investment_balance_ts set balance_diff = (investment_data->>'balanceDiff')::numeric(100,24);
-alter table investment_balance_ts alter column balance_diff set not null;
-alter table investment_balance_ts alter column balance_diff set data type evm_decimal_256;
+--update investment_balance_ts set pending_rewards = 0, pending_rewards_diff = 0;
+--alter table investment_balance_ts alter column pending_rewards set not null;
+--alter table investment_balance_ts alter column pending_rewards set not null;
+alter table investment_balance_ts alter column pending_rewards set data type evm_decimal_256_nullable;
+alter table investment_balance_ts alter column pending_rewards_diff set data type evm_decimal_256_nullable;
+
+
+alter table product rename column product_data to _product_data;
+alter table product add column pending_rewards_price_feed_id integer null references price_feed(price_feed_id);
+alter table product add column product_data jsonb;
+update product set product_data = _product_data;
+alter table product alter column product_data set not null;
+alter table product drop column _product_data;
 commit;
 
 

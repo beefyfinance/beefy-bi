@@ -1,6 +1,7 @@
 import { groupBy, keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
@@ -53,10 +54,11 @@ export function importBeefyProducts$(options: { client: DbClient }) {
 
     // add linked entities to the database
     Rx.pipe(
-      // we have 2 "prices" for each vault
+      // we have 2 or 3 "prices" for each vault
       // - balances are expressed in moo token
       // - price 1 (ppfs) converts to underlying token
       // - price 2 converts underlying to usd
+      // - boosts and vaults have a reward token
       upsertPriceFeed$({
         ctx,
         emitError: emitVaultError,
@@ -92,6 +94,42 @@ export function importBeefyProducts$(options: { client: DbClient }) {
         formatOutput: (item, priceFeed2) => ({ ...item, priceFeed2 }),
       }),
 
+      // add pendingRewardsPriceFeedId field
+      Rx.connect((items$) =>
+        Rx.merge(
+          // standard vaults do not have pending rewards
+          items$.pipe(
+            Rx.filter((item) => !item.vault.is_gov_vault),
+            Rx.map((item) => ({ ...item, pendingRewardsPriceFeed: null })),
+          ),
+          items$.pipe(
+            Rx.filter((item) => item.vault.is_gov_vault),
+
+            upsertPriceFeed$({
+              ctx,
+              emitError: emitVaultError,
+              getFeedData: (item) => {
+                // gov vaults are rewarded in gas token
+                const rewardToken = getChainWNativeTokenSymbol(item.vault.chain);
+                return {
+                  // feed key tells us that this prices comes from beefy's data
+                  // we may have another source of prices for the same asset
+                  feedKey: `beefy-data:${item.vault.chain}:${rewardToken}`,
+
+                  fromAssetKey: `${item.vault.chain}:${rewardToken}`,
+                  toAssetKey: "fiat:USD", // to USD
+                  priceFeedData: {
+                    active: !item.vault.eol,
+                    externalId: rewardToken, // the id that the data api knows
+                  },
+                };
+              },
+              formatOutput: (item, pendingRewardsPriceFeed) => ({ ...item, pendingRewardsPriceFeed }),
+            }),
+          ),
+        ),
+      ),
+
       upsertProduct$({
         ctx,
         emitError: emitVaultError,
@@ -103,6 +141,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
             productKey: `beefy:vault:${item.vault.chain}:${vaultId}`,
             priceFeedId1: item.priceFeed1.priceFeedId,
             priceFeedId2: item.priceFeed2.priceFeedId,
+            pendingRewardsPriceFeedId: item.pendingRewardsPriceFeed?.priceFeedId || null,
             chain: item.vault.chain,
             productData: {
               type: isGov ? "beefy:gov-vault" : "beefy:vault",
@@ -155,6 +194,29 @@ export function importBeefyProducts$(options: { client: DbClient }) {
       }),
       Rx.concatMap((item) => Rx.from(item)), // flatten
 
+      // insert the reward token price feed
+      upsertPriceFeed$({
+        ctx,
+        emitError: emitBoostError,
+        getFeedData: (item) => {
+          // gov vaults are rewarded in gas token
+          const rewardToken = item.boost.reward_token_price_feed_key;
+          return {
+            // feed key tells us that this prices comes from beefy's data
+            // we may have another source of prices for the same asset
+            feedKey: `beefy-data:${item.boost.chain}:${rewardToken}`,
+
+            fromAssetKey: `${item.boost.chain}:${rewardToken}`,
+            toAssetKey: "fiat:USD", // to USD
+            priceFeedData: {
+              active: !item.boost.eol,
+              externalId: rewardToken, // the id that the data api knows
+            },
+          };
+        },
+        formatOutput: (item, pendingRewardsPriceFeed) => ({ ...item, pendingRewardsPriceFeed }),
+      }),
+
       // insert the boost as a new product
       upsertProduct$({
         ctx,
@@ -164,6 +226,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
             productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,
             priceFeedId1: item.priceFeedId1,
             priceFeedId2: item.priceFeedId2,
+            pendingRewardsPriceFeedId: item.pendingRewardsPriceFeed?.priceFeedId || null,
             chain: item.boost.chain,
             productData: {
               type: "beefy:boost",

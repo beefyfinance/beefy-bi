@@ -13,6 +13,8 @@ export interface DbInvestment {
   investorId: number;
   balance: Decimal;
   balanceDiff: Decimal;
+  pendingRewards: Decimal | null;
+  pendingRewardsDiff: Decimal | null;
   investmentData: object;
 }
 
@@ -37,12 +39,16 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
               investor_id,
               balance,
               balance_diff,
+              pending_rewards,
+              pending_rewards_diff,
               investment_data
           ) VALUES %L
               ON CONFLICT (product_id, investor_id, block_number, datetime) 
               DO UPDATE SET 
                 balance = EXCLUDED.balance, 
                 balance_diff = EXCLUDED.balance_diff,
+                pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
+                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
@@ -53,6 +59,8 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             data.investorId,
             data.balance.toString(),
             data.balanceDiff.toString(),
+            data.pendingRewards?.toString() || null,
+            data.pendingRewardsDiff?.toString() || null,
             data.investmentData,
           ]),
         ],
