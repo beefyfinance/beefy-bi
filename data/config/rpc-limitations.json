@@ -57,7 +57,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 200,
