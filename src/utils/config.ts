@@ -108,7 +108,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   celo: 4000,
   cronos: 5840,
   emerald: 10000,
-  ethereum: 10 * 60 * 1000, // 10 minutes
+  ethereum: 10000,
   fantom: 1900,
   fuse: 5000,
   harmony: 3000,
