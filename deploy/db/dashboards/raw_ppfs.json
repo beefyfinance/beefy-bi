@@ -49,6 +49,134 @@
       },
       "fieldConfig": {
         "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "chain"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 87
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "price_feed_1_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 128
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "price_feed_2_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 128
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select product_id, product_key, chain, price_feed_1_id, price_feed_2_id,\n coalesce(product_data->'vault'->>'contract_address', product_data->'boost'->>'contract_address') as contract_address,\n product_data\nfrom product \nwhere price_feed_1_id in(select price_feed_1_id from product where product_key in ($product_key))",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Linked products",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
           "color": {
             "mode": "palette-classic"
           },
@@ -100,10 +228,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 22,
+        "h": 10,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 6
       },
       "id": 2,
       "options": {
@@ -148,7 +276,7 @@
           ]
         }
       ],
-      "title": "Panel Title",
+      "title": "Raw PPFS data",
       "type": "timeseries"
     }
   ],
@@ -160,9 +288,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "fuse",
-          "value": "fuse"
+          "selected": false,
+          "text": "fantom",
+          "value": "fantom"
         },
         "datasource": {
           "type": "postgres",
@@ -178,12 +306,12 @@
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 6,
+        "sort": 5,
         "type": "query"
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "no",
           "value": "no"
         },
@@ -211,8 +339,8 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": ["beefy:boost:fantom:boo-bifi-ftm-bifi"],
+          "value": ["beefy:boost:fantom:boo-bifi-ftm-bifi"]
         },
         "datasource": {
           "type": "postgres",
@@ -228,19 +356,19 @@
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
-        "sort": 6,
+        "sort": 5,
         "type": "query"
       }
     ]
   },
   "time": {
-    "from": "now-6M",
-    "to": "now"
+    "from": "2022-11-03T22:06:10.338Z",
+    "to": "2022-11-17T10:44:14.362Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Raw PPFS",
   "uid": "K1oFpkdVk",
-  "version": 3,
+  "version": 6,
   "weekStart": ""
 }
