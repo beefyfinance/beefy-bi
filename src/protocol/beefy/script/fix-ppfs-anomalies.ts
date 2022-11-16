@@ -118,7 +118,7 @@ function fixPPfsAnomalies$({
                 avg(price) OVER wAvg avg_price, 
                 abs(avg(price) OVER wAvg - price) as dst,
                 %L * avg(price) OVER wAvg as threshold,
-                (abs(avg(price) OVER wAvg - price)) > (*L * avg(price) OVER wAvg) as is_anomaly,
+                (abs(avg(price) OVER wAvg - price)) > (%L * avg(price) OVER wAvg) as is_anomaly,
                 first_value(price) over wSpike as first_spike_value,
                 last_value(price) over wSpike as last_spike_value,
                 price > first_value(price) over wSpike and price > last_value(price) over wSpike as is_above_anomaly,
