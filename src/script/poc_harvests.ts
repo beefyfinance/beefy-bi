@@ -54,7 +54,7 @@ async function main(client: DbClient) {
     Rx.concatMap((item) => item.blockQueries.map((blockQuery) => ({ ...item, blockQuery }))),
 
     fetchErc20Transfers$({
-      allowFetchingFromEthscan: false,
+      allowFetchingFromEtherscan: false,
       ctx,
       emitError,
       getQueryParams: (item) => ({

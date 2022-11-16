@@ -9,6 +9,7 @@
     "celo",
     "cronos",
     "datetime",
+    "feebatch",
     "gapfill",
     "gapfilled",
     "GETBLOCK",
@@ -32,6 +33,7 @@
     "timestamptz",
     "typlen",
     "typname",
-    "UNNEST"
+    "UNNEST",
+    "wtoken"
   ]
 }

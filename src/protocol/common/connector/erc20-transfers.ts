@@ -27,7 +27,7 @@ export interface ERC20Transfer {
   blockNumber: number;
   transactionHash: string;
 
-  amountTransfered: Decimal;
+  amountTransferred: Decimal;
   logIndex: number;
 }
 
@@ -43,7 +43,7 @@ interface GetTransferCallParams {
 export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  allowFetchingFromEthscan: boolean;
+  allowFetchingFromEtherscan: boolean;
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
@@ -63,18 +63,18 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
     formatOutput: options.formatOutput,
   });
 
-  const isRangeLargeEnoughToUseEthscan = (range: Range<number>) =>
+  const isRangeLargeEnoughToUseEtherscan = (range: Range<number>) =>
     range.to - range.from > options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan * 10;
 
   // if possible, fetch a bunch of data from etherscan so we can avoid doing a lot of rpc calls
   // since etherscan can return a list of transfers without having to restrict by a block range
   // we can quickly find out if the vault has any transfers at all for the given range
-  if (options.ctx.rpcConfig.etherscan && options.allowFetchingFromEthscan) {
+  if (options.ctx.rpcConfig.etherscan && options.allowFetchingFromEtherscan) {
     logger.debug({ msg: "Fetching transfers from etherscan provider", data: { chain: options.ctx.chain } });
-    const ethscanConfig = options.ctx.rpcConfig.etherscan;
+    const etherscanConfig = options.ctx.rpcConfig.etherscan;
     return Rx.pipe(
       Rx.pipe(
-        // call getqueryparams on each object
+        // call getQueryParams on each object
         Rx.map((obj: TObj) => ({ obj, params: options.getQueryParams(obj) })),
         // make sure we are using this properly
         Rx.tap((item) => {
@@ -111,7 +111,7 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
           // go through rpc if the range is not large enough
           // this might happens when we retry sparse ranges
           items$.pipe(
-            Rx.filter((item) => !isRangeLargeEnoughToUseEthscan(item.mergedRange)),
+            Rx.filter((item) => !isRangeLargeEnoughToUseEtherscan(item.mergedRange)),
             Rx.tap((item) =>
               logger.trace({
                 msg: "Batch too small, fetching transfers from rpc",
@@ -123,7 +123,7 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
           ),
           // if we have a large enough range, use the explorer
           items$.pipe(
-            Rx.filter((item) => isRangeLargeEnoughToUseEthscan(item.mergedRange)),
+            Rx.filter((item) => isRangeLargeEnoughToUseEtherscan(item.mergedRange)),
             Rx.tap((item) =>
               logger.trace({
                 msg: "Batch fetching transfers from rpc",
@@ -136,8 +136,8 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
                 const decimals = items[0].params.decimals;
                 const params: GetTransferCallParams = { address, decimals, fromBlock: mergedRange.from, toBlock: mergedRange.to };
                 const transfers = await fetchERC20TransferEventsFromExplorer(
-                  ethscanConfig.provider,
-                  ethscanConfig.limitations,
+                  etherscanConfig.provider,
+                  etherscanConfig.limitations,
                   options.ctx.chain,
                   params,
                 );
@@ -197,7 +197,7 @@ export function fetchERC20TransferToAStakingContract$<TObj, TErr extends ErrorEm
     ctx: options.ctx,
     emitError: options.emitError,
     getQueryParams: options.getQueryParams,
-    allowFetchingFromEthscan: false, // we don't support this for now
+    allowFetchingFromEtherscan: false, // we don't support this for now
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);
       const contractAddress = params.trackAddress;
@@ -212,7 +212,7 @@ export function fetchERC20TransferToAStakingContract$<TObj, TErr extends ErrorEm
             // fake a token at the staking contract address
             tokenAddress: contractAddress,
             // amounts are reversed because we are sending token to the vault, but we then have a positive balance
-            amountTransfered: transfer.amountTransfered.negated(),
+            amountTransferred: transfer.amountTransferred.negated(),
           }),
         ),
       );
@@ -379,7 +379,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
           ownerAddress: event.from,
           blockNumber: event.blockNumber,
           transactionHash: event.transactionHash,
-          amountTransfered: event.value.negated(),
+          amountTransferred: event.value.negated(),
           logIndex: event.logIndex,
         },
         {
@@ -389,7 +389,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
           ownerAddress: event.to,
           blockNumber: event.blockNumber,
           transactionHash: event.transactionHash,
-          amountTransfered: event.value,
+          amountTransferred: event.value,
           logIndex: event.logIndex,
         },
       ]),
@@ -404,7 +404,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
     // get the total amount
     let totalDiff = new Decimal(0);
     for (const transfer of transfers) {
-      totalDiff = totalDiff.add(transfer.amountTransfered);
+      totalDiff = totalDiff.add(transfer.amountTransferred);
     }
     // for the trx hash, we use the last transaction (order by logIndex)
     const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;

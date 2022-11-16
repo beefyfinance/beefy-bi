@@ -77,7 +77,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       // we only want to fetch from etherscan when fetching historical data
       // for recent data we are better off using rpc batching since we fetch a small amount of data for many addresses
       // whereas for historical data we are able to batch lots of ranges for a single address in one etherscan call
-      allowFetchingFromEthscan: options.mode === "historical",
+      allowFetchingFromEtherscan: options.mode === "historical",
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {
@@ -333,11 +333,11 @@ export function loadTransfers$<
         investorId: item.investorId,
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
-        balanceDiff: item.target.transfer.amountTransfered,
+        balanceDiff: item.target.transfer.amountTransferred,
         investmentData: {
           chain: options.ctx.chain,
           balance: item.vaultSharesBalance.toString(),
-          balanceDiff: item.target.transfer.amountTransfered.toString(),
+          balanceDiff: item.target.transfer.amountTransferred.toString(),
           trxHash: item.target.transfer.transactionHash,
           sharesRate: item.ppfs.toString(),
           productType:
