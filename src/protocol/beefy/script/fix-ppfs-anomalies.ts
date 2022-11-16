@@ -184,6 +184,8 @@ function fixPPfsAnomalies$({
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),
+
+    Rx.tap((item) => logger.trace({ msg: "fixed anomaly", data: { product: item.product.productKey, anomaly: item.anomaly } })),
   );
 }
 
