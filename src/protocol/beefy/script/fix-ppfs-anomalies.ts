@@ -106,8 +106,8 @@ function fixPPfsAnomalies$({
                 (abs(avg(price) OVER w - price)) > (%L * avg(price) OVER w) as is_anomaly,
                 price_data
             from price_ts 
-            where price_feed_id = %L
             join product p on p.price_feed_1_id = price_ts.price_feed_id
+            where price_feed_id = %L
             window w as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING)
         ) as t
         where is_anomaly = true
