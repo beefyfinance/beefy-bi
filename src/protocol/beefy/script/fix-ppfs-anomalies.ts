@@ -8,7 +8,7 @@ import { rootLogger } from "../../../utils/logger";
 import { runMain } from "../../../utils/process";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPrice$ } from "../../common/loader/prices";
-import { DbBeefyStdVaultProduct, fetchProduct$, productList$ } from "../../common/loader/product";
+import { productList$ } from "../../common/loader/product";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { fetchBeefyPPFS$ } from "../connector/ppfs";
 import { isBeefyStandardVault } from "../utils/type-guard";
@@ -26,20 +26,22 @@ async function main(client: DbClient) {
       default: "all",
       describe: "only import data for this chain",
     },
-    thresholdPercent: { type: "number", demand: false, default: 0.1, describe: "threshold for anomaly detection" },
-    windowHalfSize: { type: "number", demand: false, default: 10, describe: "window size for anomaly detection" },
+    thresholdPercent: { type: "number", demand: false, default: 0.1, alias: "t", describe: "threshold for anomaly detection" },
+    avgWindowHalfSize: { type: "number", demand: false, default: 10, alias: "v", describe: "window size for anomaly detection using averages" },
+    spikeWindowHalfSize: { type: "number", demand: false, default: 1, alias: "s", describe: "window size for anomaly detection using spikes" },
     contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
     currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
   }).argv;
 
   const chain = argv.chain.includes("all") ? allChainIds : (argv.chain as unknown as Chain[]);
   const thresholdPercent = argv.thresholdPercent;
-  const windowHalfSize = argv.windowHalfSize;
+  const avgWindowHalfSize = argv.avgWindowHalfSize;
+  const spikeWindowHalfSize = argv.spikeWindowHalfSize;
   const contractAddress = argv.contractAddress || null;
 
   return Promise.all(
     chain.map(async (chain) => {
-      const pipeline$ = fixPPfsAnomalies$({ chain, client, contractAddress, thresholdPercent, windowHalfSize });
+      const pipeline$ = fixPPfsAnomalies$({ chain, client, contractAddress, thresholdPercent, avgWindowHalfSize, spikeWindowHalfSize });
       return consumeObservable(pipeline$);
     }),
   );
@@ -49,13 +51,15 @@ function fixPPfsAnomalies$({
   chain,
   client,
   thresholdPercent,
-  windowHalfSize,
+  avgWindowHalfSize,
+  spikeWindowHalfSize,
   contractAddress,
 }: {
   chain: Chain;
   client: DbClient;
   thresholdPercent: number;
-  windowHalfSize: number;
+  avgWindowHalfSize: number;
+  spikeWindowHalfSize: number;
   contractAddress: string | null;
 }) {
   const ctx = {
@@ -83,6 +87,10 @@ function fixPPfsAnomalies$({
     dst: string;
     threshold: string;
     is_anomaly: boolean;
+    first_spike_value: string;
+    last_spike_value: string;
+    is_below_anomaly: boolean;
+    is_above_anomaly: boolean;
   };
   return Rx.of(productList$(client, "beefy:vault", chain)).pipe(
     Rx.concatAll(),
@@ -102,20 +110,37 @@ function fixPPfsAnomalies$({
         `
         select *
         from (
-            select price_feed_id, datetime, block_number, price, 
-                avg(price) OVER w avg_price, 
-                abs(avg(price) OVER w - price) as dst,
-                %L * avg(price) OVER w as threshold,
-                (abs(avg(price) OVER w - price)) > (%L * avg(price) OVER w) as is_anomaly,
+            select p.product_id, 
+                price_feed_id, 
+                datetime,
+                block_number,
+                price, 
+                avg(price) OVER wAvg avg_price, 
+                abs(avg(price) OVER wAvg - price) as dst,
+                %L * avg(price) OVER wAvg as threshold,
+                (abs(avg(price) OVER wAvg - price)) > (*L * avg(price) OVER wAvg) as is_anomaly,
+                first_value(price) over wSpike as first_spike_value,
+                last_value(price) over wSpike as last_spike_value,
+                price > first_value(price) over wSpike and price > last_value(price) over wSpike as is_above_anomaly,
+                price < first_value(price) over wSpike and price < last_value(price) over wSpike as is_below_anomaly,
                 price_data
             from price_ts 
             join product p on p.price_feed_1_id = price_ts.price_feed_id
             where price_feed_id = %L
-            window w as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING)
+            window wAvg as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING),
+            wSpike as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING)
         ) as t
-        where is_anomaly = true
+        where is_anomaly = true or is_above_anomaly = true or is_below_anomaly = true
       `,
-        [thresholdPercent, thresholdPercent, item.product.priceFeedId1, windowHalfSize, windowHalfSize],
+        [
+          thresholdPercent,
+          thresholdPercent,
+          item.product.priceFeedId1,
+          avgWindowHalfSize,
+          avgWindowHalfSize,
+          spikeWindowHalfSize,
+          spikeWindowHalfSize,
+        ],
         client,
       );
       return res.map((anomaly) => ({ ...item, anomaly }));
