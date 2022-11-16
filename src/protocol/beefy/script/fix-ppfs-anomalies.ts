@@ -3,6 +3,7 @@ import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient, db_query, withPgClient } from "../../../utils/db";
+import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { runMain } from "../../../utils/process";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
@@ -31,7 +32,7 @@ async function main(client: DbClient) {
     currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
   }).argv;
 
-  const chain = argv.chain === "all" ? allChainIds : ([argv.chain] as Chain[]);
+  const chain = argv.chain.includes("all") ? allChainIds : (argv.chain as unknown as Chain[]);
   const thresholdPercent = argv.thresholdPercent;
   const windowHalfSize = argv.windowHalfSize;
   const contractAddress = argv.contractAddress || null;
@@ -92,7 +93,9 @@ function fixPPfsAnomalies$({
     Rx.map((product) => ({ product })),
 
     // apply contract address filter
-    Rx.filter((item) => !contractAddress || item.product.productData.vault.contract_address === contractAddress),
+    Rx.filter(
+      (item) => contractAddress === null || normalizeAddress(item.product.productData.vault.contract_address) === normalizeAddress(contractAddress),
+    ),
 
     Rx.concatMap(async (item) => {
       const res = await db_query<PPFSAnomaly>(
