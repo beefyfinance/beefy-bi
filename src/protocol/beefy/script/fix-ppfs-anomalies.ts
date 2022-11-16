@@ -143,10 +143,17 @@ function fixPPfsAnomalies$({
         ],
         client,
       );
-      return res.map((anomaly) => ({ ...item, anomaly }));
+      return { ...item, anomalies: res };
     }),
     Rx.pipe(
-      Rx.tap((anomaliesToRetry) => logger.debug({ msg: "found anomalies", data: { count: anomaliesToRetry.length } })),
+      Rx.tap((item) => {
+        if (item.anomalies.length > 0) {
+          logger.debug({ msg: "found anomalies", data: { product: item.product.productKey, count: item.anomalies.length } });
+        } else {
+          logger.debug({ msg: "no anomalies found", data: { product: item.product.productKey } });
+        }
+      }),
+      Rx.map((item) => item.anomalies.map((anomaly) => ({ ...item, anomaly }))),
       Rx.concatAll(),
     ),
 
