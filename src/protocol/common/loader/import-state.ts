@@ -92,7 +92,7 @@ function upsertImportState$<TInput, TRes>(options: {
       return objAndData.map((obj) => {
         const importState = idMap[obj.importStateData.importKey];
         if (!importState) {
-          throw new ProgrammerError({ msg: "Upserted import state not found", data: obj });
+          throw new ProgrammerError({ msg: "import state not found after upsert", data: obj });
         }
         hydrateImportStateRangesFromDb(importState);
         return options.formatOutput(obj.obj, importState);

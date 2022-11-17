@@ -78,7 +78,6 @@ function fixPPfsAnomalies$({
   const emitError = (item: any) => logger.error({ msg: "error fixing anomaly", data: { item } });
 
   type PPFSAnomaly = {
-    product_id: number;
     price_feed_id: number;
     datetime: string;
     block_number: number;
@@ -110,8 +109,7 @@ function fixPPfsAnomalies$({
         `
         select *
         from (
-            select p.product_id, 
-                price_feed_id, 
+            select price_feed_id, 
                 datetime,
                 block_number,
                 price, 
@@ -125,7 +123,6 @@ function fixPPfsAnomalies$({
                 price < first_value(price) over wSpike and price < last_value(price) over wSpike as is_below_anomaly,
                 price_data
             from price_ts 
-            join product p on p.price_feed_1_id = price_ts.price_feed_id
             where price_feed_id = %L
             window wAvg as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING),
             wSpike as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING)

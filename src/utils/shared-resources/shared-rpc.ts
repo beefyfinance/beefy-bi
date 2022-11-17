@@ -103,7 +103,7 @@ export async function callLockProtectedRpc<TRes>(
     },
   };
 
-  // create a loggable string as raw rpc url may contain an api key
+  // create a string we can log as raw rpc url may contain an api key
   const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
   const publicRpcUrl = removeSecretsFromRpcUrl(url);
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
