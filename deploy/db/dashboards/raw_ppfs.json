@@ -256,7 +256,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT \n$__time(datetime), price\n--*, price_data->'trxHash' as fqfsfdqsdf, price_data->'from' as  qfqsdfsd\nFROM\n  price_ts\nWHERE\n  price_feed_id in (\n    select price_feed_1_id from product where product_key in ($product_key)\n  )\n  order by 1 desc\n",
+          "rawSql": "SELECT \n$__time(datetime), price\n--*, price_data->'trxHash' as fqfsfdqsdf, price_data->'from' as  qfqsdfsd\nFROM\n  price_ts\nWHERE\n  price_feed_id in (\n    select price_feed_1_id from product where product_key in ($product_key)\n  )\n  and $__timeFilter(datetime)\n  order by 1 desc\n",
           "refId": "A",
           "select": [
             [
@@ -338,9 +338,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": ["beefy:boost:fantom:boo-bifi-ftm-bifi"],
-          "value": ["beefy:boost:fantom:boo-bifi-ftm-bifi"]
+          "selected": false,
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -362,13 +362,13 @@
     ]
   },
   "time": {
-    "from": "2022-11-03T22:06:10.338Z",
-    "to": "2022-11-17T10:44:14.362Z"
+    "from": "now-90d",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Raw PPFS",
   "uid": "K1oFpkdVk",
-  "version": 6,
+  "version": 7,
   "weekStart": ""
 }

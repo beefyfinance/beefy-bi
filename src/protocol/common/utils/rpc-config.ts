@@ -63,7 +63,7 @@ export function createRpcConfig(
     rpcLimitations: getRpcLimitations(chain, rpcOptions.url),
   };
 
-  // instanciate etherscan provider
+  // instantiate etherscan provider
   if (MultiChainEtherscanProvider.isChainSupported(chain)) {
     const apiKey = ETHERSCAN_API_KEY[chain];
     rpcConfig.etherscan = {

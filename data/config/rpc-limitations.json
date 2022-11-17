@@ -291,7 +291,7 @@
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": 10000,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 2,
