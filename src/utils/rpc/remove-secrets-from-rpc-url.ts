@@ -37,7 +37,7 @@ export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
     publicRpcUrl += "/v1/<RPC_API_KEY_NODEREAL>";
   } else if (secretRpcUrl.includes("figment.io") && pathParts.length === 2 && pathParts[0] === "apikey") {
     publicRpcUrl += "/apikey/<RPC_API_KEY_FIGMENT>";
-  } else if (secretRpcUrl.includes("bsc.getblock.io")) {
+  } else if (secretRpcUrl.includes(".getblock.io")) {
     publicRpcUrl += "/<RPC_API_KEY_GETBLOCK>/mainnet";
   } else {
     if (pathParts.length > 0) {

@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { cloneDeep, merge } from "lodash";
 import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
-import { CONFIG_DIRECTORY } from "../config";
+import { CONFIG_DIRECTORY, USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND } from "../config";
 import { rootLogger } from "../logger";
 import { ProgrammerError } from "../programmer-error";
 import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "./remove-secrets-from-rpc-url";
@@ -141,7 +141,13 @@ export interface RpcLimitations {
 export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
   const limitations = findings[chain][removeSecretsFromRpcUrl(rpcUrl)];
   if (!limitations) {
-    throw new ProgrammerError({ msg: "No rpc limitations found for chain/rpcUrl", data: { chain, rpcUrl } });
+    if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+      return defaultLimitations;
+    }
+    throw new ProgrammerError({
+      msg: "No rpc limitations found for chain/rpcUrl. Set USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND=true to use default limitations",
+      data: { chain, rpcUrl },
+    });
   }
   return limitations;
 }
