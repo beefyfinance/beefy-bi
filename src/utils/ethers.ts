@@ -102,8 +102,20 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
 }
 
 // until this is fixed: https://github.com/ethers-io/ethers.js/issues/2749#issuecomment-1268638214
+// also fix unordered batch requests https://github.com/ethers-io/ethers.js/pull/2657
 export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRpcBatchProvider) {
   logger.trace({ msg: "Patching ethers batch provider" });
+
+  interface RpcResult {
+    jsonrpc: "2.0";
+    id: number;
+    result?: string;
+    error?: {
+      code: number;
+      message: string;
+      data?: any;
+    };
+  }
 
   function fixedBatchSend(this: typeof provider, method: string, params: Array<any>): Promise<any> {
     const request = {
@@ -147,7 +159,7 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
         });
 
         return fetchJson(this.connection, JSON.stringify(request))
-          .then((result) => {
+          .then((result: RpcResult[] | RpcResult) => {
             this.emit("debug", {
               action: "response",
               request: request,
@@ -166,10 +178,15 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
               }
             }
 
+            const resultMap = result.reduce((resultMap, payload) => {
+              resultMap[payload.id] = payload;
+              return resultMap;
+            }, {} as Record<number, RpcResult>);
+
             // For each result, feed it to the correct Promise, depending
             // on whether it was a success or error
             batch.forEach((inflightRequest, index) => {
-              const payload = result[index];
+              const payload = resultMap[inflightRequest.request.id];
               if (payload.error) {
                 const error = new Error(payload.error.message);
                 (error as any).code = payload.error.code;
