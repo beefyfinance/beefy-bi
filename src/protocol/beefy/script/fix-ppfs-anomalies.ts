@@ -31,6 +31,8 @@ async function main(client: DbClient) {
     spikeWindowHalfSize: { type: "number", demand: false, default: 1, alias: "s", describe: "window size for anomaly detection using spikes" },
     contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
     currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+    dateAfter: { type: "string", demand: false, alias: "d", describe: "only import data after this date" },
+    dateBefore: { type: "string", demand: false, alias: "e", describe: "only import data before this date" },
   }).argv;
 
   const chain = argv.chain.includes("all") ? allChainIds : (argv.chain as unknown as Chain[]);
@@ -38,10 +40,21 @@ async function main(client: DbClient) {
   const avgWindowHalfSize = argv.avgWindowHalfSize;
   const spikeWindowHalfSize = argv.spikeWindowHalfSize;
   const contractAddress = argv.contractAddress || null;
+  const dateAfter = argv.dateAfter ? new Date(argv.dateAfter) : null;
+  const dateBefore = argv.dateBefore ? new Date(argv.dateBefore) : null;
 
   return Promise.all(
     chain.map(async (chain) => {
-      const pipeline$ = fixPPfsAnomalies$({ chain, client, contractAddress, thresholdPercent, avgWindowHalfSize, spikeWindowHalfSize });
+      const pipeline$ = fixPPfsAnomalies$({
+        chain,
+        client,
+        contractAddress,
+        thresholdPercent,
+        avgWindowHalfSize,
+        spikeWindowHalfSize,
+        dateAfter,
+        dateBefore,
+      });
       return consumeObservable(pipeline$);
     }),
   );
@@ -54,6 +67,8 @@ function fixPPfsAnomalies$({
   avgWindowHalfSize,
   spikeWindowHalfSize,
   contractAddress,
+  dateAfter,
+  dateBefore,
 }: {
   chain: Chain;
   client: DbClient;
@@ -61,6 +76,8 @@ function fixPPfsAnomalies$({
   avgWindowHalfSize: number;
   spikeWindowHalfSize: number;
   contractAddress: string | null;
+  dateAfter: Date | null;
+  dateBefore: Date | null;
 }) {
   const ctx = {
     chain,
@@ -123,7 +140,9 @@ function fixPPfsAnomalies$({
                 price < first_value(price) over wSpike and price < last_value(price) over wSpike as is_below_anomaly,
                 price_data
             from price_ts 
-            where price_feed_id = %L
+            where price_feed_id = %L 
+              and (%L is null or datetime >= %L)
+              and (%L is null or datetime <= %L)
             window wAvg as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING),
             wSpike as (partition by price_feed_id ORDER BY block_number rows BETWEEN %L PRECEDING AND %L FOLLOWING)
         ) as t
@@ -133,6 +152,10 @@ function fixPPfsAnomalies$({
           thresholdPercent,
           thresholdPercent,
           item.product.priceFeedId1,
+          dateAfter ? dateAfter.toISOString() : null,
+          dateAfter ? dateAfter.toISOString() : null,
+          dateBefore ? dateBefore.toISOString() : null,
+          dateBefore ? dateBefore.toISOString() : null,
           avgWindowHalfSize,
           avgWindowHalfSize,
           spikeWindowHalfSize,
