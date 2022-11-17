@@ -162,22 +162,10 @@ function getBatchConfigFromLimitations(options: {
   }
 
   if (!canUseBatchProvider) {
-    // do some amount of concurrent rpc calls for RPCs without rate limiting but without batch provider active
-    if (options.limitations.minDelayBetweenCalls === "no-limit") {
-      const newMax = Math.max(1, Math.floor(options.maxInputObjsPerBatch / 10));
-      logger.trace(
-        mergeLogsInfos(
-          { msg: "updating maxInputObjsPerBatch since RPC is in no-limit mode", data: { old: maxInputObjsPerBatch, new: newMax } },
-          options.logInfos,
-        ),
-      );
-      maxInputObjsPerBatch = newMax;
-    } else {
-      logger.trace(
-        mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
-      );
-      maxInputObjsPerBatch = 1;
-    }
+    logger.trace(
+      mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
+    );
+    maxInputObjsPerBatch = 1;
   }
   logger.debug(mergeLogsInfos({ msg: "config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos));
 
