@@ -182,7 +182,10 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
           let ranges = rangeExcludeMany(range, item.importState.importData.ranges.coveredRanges as Range<TRange>[]);
           // if we already covered the range, skip it
           if (ranges.length === 0) {
-            logger.debug({ msg: "skipping import query, already imported", data: { chain: ctx.chain, range, importState: item.importState } });
+            logger.debug({
+              msg: "skipping import query, already imported, set DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED=true to import anyway",
+              data: { chain: ctx.chain, range, importState: item.importState },
+            });
             return false;
           } else {
             return true;

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy } from "lodash";
+import { groupBy, isEqual } from "lodash";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -30,15 +30,24 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
-      // add duplicate detection in dev only
-      if (process.env.NODE_ENV === "development") {
-        const duplicates = Object.entries(groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}`)).filter(
-          ([_, v]) => v.length > 1,
-        );
-        if (duplicates.length > 0) {
-          logger.error({ msg: "Duplicate investments", data: duplicates });
-        }
+      const groups = Object.entries(groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}`)).map(
+        ([_, objsAndData]) => {
+          // remove exact duplicates using lodash isEqual (deep comparison)
+          const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
+            // only keep the first occurrence of each object
+            return objsAndData.findIndex((objAndData2) => isEqual(objAndData2.data, objAndData.data)) === index;
+          });
+          return uniqObjsAndData;
+        },
+      );
+
+      const duplicates = groups.filter((objsAndData) => objsAndData.length > 1);
+      if (duplicates.length > 0) {
+        logger.error({ msg: "Duplicate investments", data: duplicates });
+        throw new Error("Duplicate investments");
       }
+
+      const uniqObjsAndData = groups.flat();
 
       await db_query(
         `INSERT INTO investment_balance_ts (
@@ -57,7 +66,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
-          objAndData.map(({ data }) => [
+          uniqObjsAndData.map(({ data }) => [
             data.datetime.toISOString(),
             data.blockNumber,
             data.productId,
