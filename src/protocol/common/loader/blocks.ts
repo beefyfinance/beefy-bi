@@ -38,7 +38,7 @@ export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
               block_data = jsonb_merge(block_ts.block_data, EXCLUDED.block_data)
           `,
         [
-          uniqBy(objAndData, ({ data }) => `${data.blockNumber}-${data.datetime.toISOString()}`).map(({ data }) => [
+          uniqBy(objAndData, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(({ data }) => [
             data.datetime.toISOString(),
             data.chain,
             data.blockNumber,

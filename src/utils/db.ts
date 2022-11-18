@@ -126,6 +126,7 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
     if (isConnectionTimeoutError(error)) {
       throw new ConnectionTimeoutError("Query timeout", error);
     }
+    logger.error({ msg: "Query error", data: { sql, params, error } });
     throw error;
   }
 }
