@@ -18,7 +18,7 @@ import {
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
-import { getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
@@ -31,6 +31,17 @@ export function getMultipleRpcConfigsForChain(chain: Chain, mode: "recent" | "hi
   return rpcUrls.map((rpcUrl) => createRpcConfig(chain, { forceRpcUrl: rpcUrl, mode }));
 }
 
+const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
+  // disable exponential backoff since we are doing our own retry logic with the callLockProtectedRpc util
+  // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning
+  // (node:7615) TimeoutOverflowWarning: 2192352000 does not fit into a 32-bit signed integer.
+  // Timeout duration was set to 1.
+  throttleCallback: async (attempt: number, url: string) => {
+    logger.error({ msg: "RPC call throttled (code 429)", data: { attempt, url } });
+    return false;
+  },
+};
+
 export function createRpcConfig(
   chain: Chain,
   { forceRpcUrl, mode = "historical", timeout = 120_000 }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number } = {},
@@ -39,23 +50,8 @@ export function createRpcConfig(
   const rpcUrl = forceRpcUrl || rpcUrls[0];
   logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
 
-  const rpcOptions: ethers.utils.ConnectionInfo = {
-    url: rpcUrl,
-    timeout,
-    // disable exponential backoff since we are doing our own retry logic with the callLockProtectedRpc util
-    // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning
-    // (node:7615) TimeoutOverflowWarning: 2192352000 does not fit into a 32-bit signed integer.
-    // Timeout duration was set to 1.
-    throttleCallback: async (attempt: number, url: string) => {
-      logger.error({ msg: "RPC call throttled (code 429)", data: { attempt, url } });
-      return false;
-    },
-  };
-  const networkish = {
-    name: chain,
-    chainId: getChainNetworkId(chain),
-  };
-
+  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout };
+  const networkish = { name: chain, chainId: getChainNetworkId(chain) };
   const rpcConfig: RpcConfig = {
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions, networkish),
@@ -88,52 +84,66 @@ export function createRpcConfig(
     addDebugLogsToProvider(rpcConfig.etherscan.provider);
   }
 
-  // monkey patch providers so they don't call eth_getChainId before every call
-  // this effectively divides the number of calls by 2
-  // https://github.com/ethers-io/ethers.js/issues/901#issuecomment-647836318
-  rpcConfig.linearProvider.detectNetwork = () => Promise.resolve(networkish);
-  rpcConfig.batchProvider.detectNetwork = () => Promise.resolve(networkish);
-
-  addDebugLogsToProvider(rpcConfig.linearProvider);
-  addDebugLogsToProvider(rpcConfig.batchProvider);
-  monkeyPatchEthersBatchProvider(rpcConfig.batchProvider);
-
-  if (chain === "harmony") {
-    monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.linearProvider);
-    monkeyPatchHarmonyProviderRetryNullResponses(rpcConfig.batchProvider);
-    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.linearProvider);
-    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
-  }
-  if (chain === "celo") {
-    monkeyPatchCeloProvider(rpcConfig.linearProvider);
-    monkeyPatchCeloProvider(rpcConfig.batchProvider);
-  }
-  if (chain === "optimism" || chain === "metis") {
-    monkeyPatchLayer2ReceiptFormat(rpcConfig.linearProvider);
-    monkeyPatchLayer2ReceiptFormat(rpcConfig.batchProvider);
-  }
-  if (chain === "cronos") {
-    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.linearProvider);
-    monkeyPatchMissingEffectiveGasPriceReceiptFormat(rpcConfig.batchProvider);
-  }
-
-  const retryDelay = rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? 0 : rpcConfig.rpcLimitations.minDelayBetweenCalls;
-  if (rpcConfig.rpcLimitations.isArchiveNode) {
-    monkeyPatchArchiveNodeRpcProvider(rpcConfig.linearProvider, retryDelay);
-    monkeyPatchArchiveNodeRpcProvider(rpcConfig.batchProvider, retryDelay);
-  }
-  if (chain === "bsc" && rpcUrl.includes("ankr")) {
-    monkeyPatchAnkrBscLinearProvider(rpcConfig.linearProvider, retryDelay);
-  }
-
-  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(rpcConfig.linearProvider, retryDelay);
-  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(rpcConfig.batchProvider, retryDelay);
+  monkeyPatchProvider(chain, rpcConfig.linearProvider, rpcConfig.rpcLimitations);
+  monkeyPatchProvider(chain, rpcConfig.batchProvider, rpcConfig.rpcLimitations);
 
   return rpcConfig;
 }
 
 export function cloneBatchProvider(chain: Chain, provider: ethers.providers.JsonRpcBatchProvider): ethers.providers.JsonRpcBatchProvider {
-  // for now just do it this way, but we should probably just make a new provider
-  const newConfig = createRpcConfig(chain, { forceRpcUrl: provider.connection.url });
-  return newConfig.batchProvider;
+  const rpcUrl = provider.connection.url;
+  logger.debug({ msg: "Cloning batch RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+
+  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: provider.connection.timeout };
+  const networkish = { name: chain, chainId: getChainNetworkId(chain) };
+  const limitations = getRpcLimitations(chain, rpcOptions.url);
+
+  const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish);
+  monkeyPatchProvider(chain, batchProvider, limitations);
+
+  return batchProvider;
+}
+
+export function monkeyPatchProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, limitations: RpcLimitations) {
+  const isBatchProvider = provider instanceof ethers.providers.JsonRpcBatchProvider;
+  const networkish = {
+    name: chain,
+    chainId: getChainNetworkId(chain),
+  };
+
+  // monkey patch providers so they don't call eth_getChainId before every call
+  // this effectively divides the number of calls by 2
+  // https://github.com/ethers-io/ethers.js/issues/901#issuecomment-647836318
+  provider.detectNetwork = () => Promise.resolve(networkish);
+
+  addDebugLogsToProvider(provider);
+
+  if (isBatchProvider) {
+    monkeyPatchEthersBatchProvider(provider);
+  }
+
+  if (chain === "harmony") {
+    monkeyPatchHarmonyProviderRetryNullResponses(provider);
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(provider);
+  }
+  if (chain === "celo") {
+    monkeyPatchCeloProvider(provider);
+  }
+  if (chain === "optimism" || chain === "metis") {
+    monkeyPatchLayer2ReceiptFormat(provider);
+  }
+  if (chain === "cronos") {
+    monkeyPatchMissingEffectiveGasPriceReceiptFormat(provider);
+  }
+
+  const retryDelay = limitations.minDelayBetweenCalls === "no-limit" ? 0 : limitations.minDelayBetweenCalls;
+  if (limitations.isArchiveNode) {
+    monkeyPatchArchiveNodeRpcProvider(provider, retryDelay);
+  }
+
+  if (!isBatchProvider && chain === "bsc" && provider.connection.url.includes("ankr")) {
+    monkeyPatchAnkrBscLinearProvider(provider, retryDelay);
+  }
+
+  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider, retryDelay);
 }
