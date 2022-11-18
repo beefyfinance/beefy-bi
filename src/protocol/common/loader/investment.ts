@@ -30,20 +30,20 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
-      const groups = Object.entries(groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}`)).map(
-        ([_, objsAndData]) => {
-          // remove exact duplicates using lodash isEqual (deep comparison)
-          const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
-            // only keep the first occurrence of each object
-            return objsAndData.findIndex((objAndData2) => isEqual(objAndData2.data, objAndData.data)) === index;
-          });
-          return uniqObjsAndData;
-        },
-      );
+      const groups = Object.entries(
+        groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}-${data.datetime.toISOString()}`),
+      ).map(([_, objsAndData]) => {
+        // remove exact duplicates using lodash isEqual (deep comparison)
+        const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
+          // only keep the first occurrence of each object
+          return objsAndData.findIndex((objAndData2) => isEqual(objAndData2.data.investmentData, objAndData.data.investmentData)) === index;
+        });
+        return uniqObjsAndData;
+      });
 
       const duplicates = groups.filter((objsAndData) => objsAndData.length > 1);
       if (duplicates.length > 0) {
-        logger.error({ msg: "Duplicate investments", data: duplicates.map((d) => d.map((d) => d.data)) });
+        logger.error({ msg: "Duplicate investments", data: duplicates.map((d) => d.map((d) => d.data.investmentData)) });
         throw new Error("Duplicate investments");
       }
 
