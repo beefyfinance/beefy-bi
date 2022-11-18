@@ -43,7 +43,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
 
       const duplicates = groups.filter((objsAndData) => objsAndData.length > 1);
       if (duplicates.length > 0) {
-        logger.error({ msg: "Duplicate investments", data: duplicates });
+        logger.error({ msg: "Duplicate investments", data: duplicates.map((d) => d.map((d) => d.data)) });
         throw new Error("Duplicate investments");
       }
 
