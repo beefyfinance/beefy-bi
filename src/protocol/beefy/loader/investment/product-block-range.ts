@@ -344,7 +344,7 @@ export function loadTransfers$<
             item.target.product.productData.type === "beefy:vault"
               ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
               : item.target.product.productData.type,
-          query: { range: item.target.range, latest: item.target.latest, date: new Date().toISOString() },
+          query: { range: item.target.range, latest: item.target.latest },
           gas: {
             cumulativeGasUsed: item.gas.cumulativeGasUsed.toString(),
             effectiveGasPrice: item.gas.effectiveGasPrice.toString(),
@@ -354,6 +354,7 @@ export function loadTransfers$<
             l1GasPrice: item.gas.l1GasPrice?.toString(),
             l1GasUsed: item.gas.l1GasUsed?.toString(),
           },
+          importDate: new Date().toISOString(),
         },
       }),
       formatOutput: (item, investment) => ({ ...item, investment, result: true }),

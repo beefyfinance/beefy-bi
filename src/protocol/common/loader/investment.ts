@@ -44,13 +44,14 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                 {
                   balance: objAndData2.data.balance.toString(),
                   balance_diff: objAndData2.data.balanceDiff.toString(),
-                  investment_data: objAndData2.data.investmentData,
+                  investmentData: { ...objAndData2.data.investmentData, importDate: null },
                 },
 
                 {
                   balance: objAndData.data.balance.toString(),
                   balance_diff: objAndData.data.balanceDiff.toString(),
                   investment_data: objAndData.data.investmentData,
+                  investmentData: { ...objAndData.data.investmentData, importDate: null },
                 },
               ),
             ) === index
