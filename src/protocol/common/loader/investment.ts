@@ -30,44 +30,6 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
-      // @todo: find out why we are getting duplicate data
-
-      const groups = Object.entries(
-        groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}-${data.datetime.toISOString()}`),
-      ).map(([_, objsAndData]) => {
-        if (objsAndData.length > 1) {
-          logger.warn({ msg: "Duplicate investment data", data: objsAndData.map((o) => o.data.investmentData) });
-        }
-        // remove exact duplicates using lodash isEqual (deep comparison)
-        return objsAndData.filter((objAndData, index) => {
-          // only keep the first occurrence of each object, compare on all non key fields
-          return (
-            objsAndData.findIndex((objAndData2) =>
-              isEqual(
-                {
-                  balance: objAndData2.data.balance.toString(),
-                  balance_diff: objAndData2.data.balanceDiff.toString(),
-                  investmentData: { ...objAndData2.data.investmentData, importDate: null },
-                },
-                {
-                  balance: objAndData.data.balance.toString(),
-                  balance_diff: objAndData.data.balanceDiff.toString(),
-                  investmentData: { ...objAndData.data.investmentData, importDate: null },
-                },
-              ),
-            ) === index
-          );
-        });
-      });
-
-      const duplicates = groups.filter((objsAndData) => objsAndData.length > 1);
-      if (duplicates.length > 0) {
-        logger.error({ msg: "Duplicate investments", data: duplicates.map((d) => d.map((d) => d.data.investmentData)) });
-        throw new Error("Duplicate investments");
-      }
-
-      const uniqObjsAndData = groups.flat();
-
       await db_query(
         `INSERT INTO investment_balance_ts (
               datetime,
@@ -85,7 +47,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
           `,
         [
-          uniqObjsAndData.map(({ data }) => [
+          objAndData.map(({ data }) => [
             data.datetime.toISOString(),
             data.blockNumber,
             data.productId,
