@@ -1,6 +1,6 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
-import { flatten, groupBy, zipWith } from "lodash";
+import { flatten, groupBy, uniqBy, zipWith } from "lodash";
 import * as Rx from "rxjs";
 import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
@@ -361,7 +361,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
 
   // we have "from-to" transfers, we need to split them into "from" and "to" transfers
   const allTransfers = flatten(
-    events
+    uniqBy(events, (event) => `${event.transactionHash}-${event.logIndex}`)
       .map(
         (event): TransferEvent => ({
           transactionHash: event.transactionHash,
