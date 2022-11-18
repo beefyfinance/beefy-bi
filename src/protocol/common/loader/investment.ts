@@ -36,7 +36,23 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         // remove exact duplicates using lodash isEqual (deep comparison)
         const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
           // only keep the first occurrence of each object
-          return objsAndData.findIndex((objAndData2) => isEqual(objAndData2.data.investmentData, objAndData.data.investmentData)) === index;
+          return (
+            objsAndData.findIndex((objAndData2) =>
+              isEqual(
+                {
+                  balance: objAndData2.data.balance.toString(),
+                  balance_diff: objAndData2.data.balanceDiff.toString(),
+                  investment_data: objAndData2.data.investmentData,
+                },
+
+                {
+                  balance: objAndData.data.balance.toString(),
+                  balance_diff: objAndData.data.balanceDiff.toString(),
+                  investment_data: objAndData.data.investmentData,
+                },
+              ),
+            ) === index
+          );
         });
         return uniqObjsAndData;
       });
