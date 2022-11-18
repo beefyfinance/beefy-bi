@@ -1,5 +1,4 @@
 import Decimal from "decimal.js";
-import { groupBy, isEqual } from "lodash";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
