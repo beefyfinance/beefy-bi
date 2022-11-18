@@ -102,7 +102,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
           rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
           logInfos: options.logInfos,
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
-          noLockIfNoLimit: canUseBatchProvider,
+          noLockIfNoLimit: canUseBatchProvider, // no lock when using batch provider because we are using a copy of the provider
         });
 
         return objAndCallParams.map(({ obj, query }) => {
