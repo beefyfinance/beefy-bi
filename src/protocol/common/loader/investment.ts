@@ -34,9 +34,9 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
 
       const groups = Object.entries(
         groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}-${data.datetime.toISOString()}`),
-      ).map(([_, objsAndData]) => {
+      ).map(([_, objsAndData]) =>
         // remove exact duplicates using lodash isEqual (deep comparison)
-        const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
+        objsAndData.filter((objAndData, index) => {
           // only keep the first occurrence of each object, compare on all non key fields
           return (
             objsAndData.findIndex((objAndData2) =>
@@ -46,19 +46,16 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                   balance_diff: objAndData2.data.balanceDiff.toString(),
                   investmentData: { ...objAndData2.data.investmentData, importDate: null },
                 },
-
                 {
                   balance: objAndData.data.balance.toString(),
                   balance_diff: objAndData.data.balanceDiff.toString(),
-                  investment_data: objAndData.data.investmentData,
                   investmentData: { ...objAndData.data.investmentData, importDate: null },
                 },
               ),
             ) === index
           );
-        });
-        return uniqObjsAndData;
-      });
+        }),
+      );
 
       const duplicates = groups.filter((objsAndData) => objsAndData.length > 1);
       if (duplicates.length > 0) {
