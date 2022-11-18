@@ -30,12 +30,14 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
+      // @todo: find out why we are getting duplicate data
+
       const groups = Object.entries(
         groupBy(objAndData, ({ data }) => `${data.productId}-${data.investorId}-${data.blockNumber}-${data.datetime.toISOString()}`),
       ).map(([_, objsAndData]) => {
         // remove exact duplicates using lodash isEqual (deep comparison)
         const uniqObjsAndData = objsAndData.filter((objAndData, index) => {
-          // only keep the first occurrence of each object
+          // only keep the first occurrence of each object, compare on all non key fields
           return (
             objsAndData.findIndex((objAndData2) =>
               isEqual(
