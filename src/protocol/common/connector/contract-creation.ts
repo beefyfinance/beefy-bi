@@ -28,7 +28,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   formatOutput: (obj: TObj, blockDate: ContractCreationInfos | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
-    // make sure we don't hit the rate limit of the exploreres
+    // make sure we don't hit the rate limit of the explorers
     rateLimit$(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS),
 
     Rx.mergeMap(async (obj: TObj) => {
@@ -73,6 +73,7 @@ async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: s
       maxTotalRetryMs: 10_000,
       rpcLimitations: etherscanConfig.limitations,
       provider: etherscanConfig.provider,
+      noLockIfNoLimit: true, // etherscan have a rate limit so this has no effect
     });
   } else {
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]);
@@ -166,6 +167,7 @@ async function getHarmonyRpcCreationInfos(rpcConfig: RpcConfig, contractAddress:
       rpcLimitations: rpcConfig.rpcLimitations,
       maxTotalRetryMs: 60 * 1000,
       logInfos: { msg: "getHarmonyRpcCreationInfos", data: { contractAddress, chain, params } },
+      noLockIfNoLimit: true, // we don't use the batching mechanism for this call so yeah, skip locks if possible
     });
 
     // remove nulls

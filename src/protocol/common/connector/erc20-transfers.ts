@@ -313,6 +313,7 @@ export async function fetchERC20TransferEventsFromExplorer(
       maxTotalRetryMs: 1000 * 60 * 5,
       provider: provider,
       rpcLimitations: limitations,
+      noLockIfNoLimit: true, // etherscan is rate limited so this has no effect
     });
 
     // here, we have all the events we can get from etherscan

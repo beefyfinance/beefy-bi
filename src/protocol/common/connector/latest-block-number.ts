@@ -30,6 +30,7 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
           rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
           logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+          noLockIfNoLimit: true, // we use linearProvider, so this has no effect
         });
         return { input: obj, output: latestBlockNumber };
       } catch (err) {

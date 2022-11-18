@@ -7,6 +7,7 @@ import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../.
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { cloneBatchProvider, createRpcConfig } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -51,7 +52,6 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
     limitations: options.ctx.rpcConfig.rpcLimitations,
     logInfos: options.logInfos,
   });
-
   return Rx.pipe(
     // add object TS type
     Rx.tap((_: TObj) => {}),
@@ -65,8 +65,6 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
       const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
-
-      const provider = canUseBatchProvider ? options.ctx.rpcConfig.batchProvider : options.ctx.rpcConfig.linearProvider;
 
       const work = async () => {
         logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.chain } }, options.logInfos));
@@ -85,6 +83,18 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
         }
       };
 
+      let provider: ethers.providers.JsonRpcProvider;
+      if (canUseBatchProvider) {
+        // create a clone of the provider so we can batch without locks
+        if (options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit") {
+          provider = cloneBatchProvider(options.ctx.chain, options.ctx.rpcConfig.batchProvider);
+        } else {
+          provider = options.ctx.rpcConfig.batchProvider;
+        }
+      } else {
+        provider = options.ctx.rpcConfig.linearProvider;
+      }
+
       try {
         const resultMap = await callLockProtectedRpc(work, {
           chain: options.ctx.chain,
@@ -92,6 +102,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
           rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
           logInfos: options.logInfos,
           maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+          noLockIfNoLimit: true,
         });
 
         return objAndCallParams.map(({ obj, query }) => {

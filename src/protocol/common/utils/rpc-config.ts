@@ -131,3 +131,9 @@ export function createRpcConfig(
 
   return rpcConfig;
 }
+
+export function cloneBatchProvider(chain: Chain, provider: ethers.providers.JsonRpcBatchProvider): ethers.providers.JsonRpcBatchProvider {
+  // for now just do it this way, but we should probably just make a new provider
+  const newConfig = createRpcConfig(chain, { forceRpcUrl: provider.connection.url });
+  return newConfig.batchProvider;
+}

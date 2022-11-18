@@ -31,6 +31,11 @@ export async function callLockProtectedRpc<TRes>(
     chain: Chain;
     provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider;
     rpcLimitations: RpcLimitations;
+    // if true, we will not call the work function behind a AsyncLock
+    // it's up to the caller to ensure the work function is properly batched
+    // AsyncLock is used to ensure we are batching only the calls made in the work function
+    // this is a limitation of the batching design of ethersjs which relies on nodejs event loop instead of a proper batch object
+    noLockIfNoLimit: boolean;
   },
 ) {
   const startingDelay = 100;
@@ -110,6 +115,10 @@ export async function callLockProtectedRpc<TRes>(
   const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${publicRpcUrl}`;
 
   async function waitUntilWeCanCallRPCAgain() {
+    if (delayBetweenCalls === "no-limit") {
+      return;
+    }
+
     // find out the last time we called this explorer
     const lastCallStr = await lastCallDateCache.get(lastCallCacheKey);
     const lastCallDate = lastCallStr && lastCallStr !== "" ? new Date(lastCallStr) : new Date(0);
@@ -121,36 +130,42 @@ export async function callLockProtectedRpc<TRes>(
     });
 
     // wait a bit before calling the rpc again if needed
-    if (delayBetweenCalls !== "no-limit") {
-      if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
-        logger.trace(mergeLogsInfos({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
-        await sleep(delayBetweenCalls);
-        logger.trace(mergeLogsInfos({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
-      }
+    if (now.getTime() - lastCallDate.getTime() < delayBetweenCalls) {
+      logger.trace(mergeLogsInfos({ msg: "Last call too close, sleeping a bit", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
+      await sleep(delayBetweenCalls);
+      logger.trace(mergeLogsInfos({ msg: "Resuming call to rpc", data: { publicRpcUrl, resourceId: rpcLockId } }, options.logInfos));
     }
+  }
+
+  async function workAndSetLastCall() {
+    // now we are going to call, so set the last call date
+    await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
+
+    let res: TRes | null = null;
+    try {
+      res = await work();
+    } finally {
+      // reset the last call date if the call succeeded
+      // just in case rate limiting is accounted by explorers at the end of requests
+      await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
+    }
+
+    return res;
   }
 
   async function callRpcAndWaitIfNeeded() {
     // now, we are the only one running this code
     await waitUntilWeCanCallRPCAgain();
 
-    // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
-    // the we are only batching the current request size and not more
-    return chainLock.acquire(options.chain, async () => {
-      // now we are going to call, so set the last call date
-      await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
+    const doWork = delayBetweenCalls === "no-limit" ? work : workAndSetLastCall;
 
-      let res: TRes | null = null;
-      try {
-        res = await work();
-      } finally {
-        // reset the last call date if the call succeeded
-        // just in case rate limiting is accounted by explorers at the end of requests
-        await lastCallDateCache.set(lastCallCacheKey, new Date().toISOString());
-      }
-
-      return res;
-    });
+    if (options.noLockIfNoLimit && delayBetweenCalls === "no-limit") {
+      return work();
+    } else {
+      // acquire a local lock for this chain so in case we do use batch provider, we are guaranteed
+      // the we are only batching the current request size and not more
+      return chainLock.acquire(options.chain, doWork);
+    }
   }
 
   // do multiple tries as well
