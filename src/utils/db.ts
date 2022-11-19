@@ -325,7 +325,7 @@ export async function db_migrate() {
       END; 
       $$ LANGUAGE PLPGSQL IMMUTABLE; 
       
-      CREATE AGGREGATE GapFill(anyelement) ( 
+      CREATE OR REPLACE AGGREGATE GapFill(anyelement) ( 
         SFUNC=GapFillInternal, 
         STYPE=anyelement 
       ); 

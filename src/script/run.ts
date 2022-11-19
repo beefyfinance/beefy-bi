@@ -1,6 +1,6 @@
 import yargs from "yargs";
 import { addBeefyCommands } from "../protocol/beefy/script/beefy";
-import { db_migrate } from "../utils/db";
+import { db_migrate, withPgClient } from "../utils/db";
 import { runMain } from "../utils/process";
 
 async function main() {
@@ -12,7 +12,7 @@ async function main() {
   cmd = yargs.command({
     command: "db:migrate",
     describe: "run db migrations",
-    handler: db_migrate,
+    handler: withPgClient(db_migrate, { appName: "beefy:db:migrate", logInfos: { msg: "db:migrate" }, connectTimeoutMs: 10000 }),
   });
 
   return cmd.demandCommand().help().argv; // this starts the command for some reason
