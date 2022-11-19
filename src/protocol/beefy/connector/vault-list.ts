@@ -1,13 +1,13 @@
-import { Chain } from "../../../types/chain";
 import * as path from "path";
+import prettier from "prettier";
+import * as Rx from "rxjs";
+import { Chain } from "../../../types/chain";
+import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
-import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
-import prettier from "prettier";
 import { rootLogger } from "../../../utils/logger";
-import * as Rx from "rxjs";
-import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
+import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 
@@ -16,6 +16,7 @@ interface RawBeefyVault {
   tokenAddress?: string;
   tokenDecimals: number;
   earnedTokenAddress: string;
+  earnedTokenDecimals: number;
   earnContractAddress: string;
   earnedToken: string;
   isGovVault?: boolean;
@@ -35,9 +36,12 @@ export interface BeefyVault {
   eol: boolean;
   protocol: string;
   protocol_product: string;
-  is_gov_vault: boolean;
   assets: string[];
   want_price_feed_key: string;
+  is_gov_vault: boolean;
+  gov_vault_reward_token_symbol: string | null;
+  gov_vault_reward_token_address: string | null;
+  gov_vault_reward_token_decimals: number | null;
 }
 
 export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVault> {
@@ -167,6 +171,9 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault
     } else if (rawVault.oracleId.startsWith("be")) {
       protocol = "beefy";
       protocol_product = rawVault.oracleId;
+    } else if (rawVault.oracleId === "BIFI") {
+      protocol = "beefy";
+      protocol_product = rawVault.oracleId;
     } else {
       protocol = "unknown";
       protocol_product = rawVault.oracleId;
@@ -180,11 +187,14 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault
       want_address: normalizeAddress(rawVault.tokenAddress || wnative),
       want_decimals: rawVault.tokenDecimals,
       eol: rawVault.status === "eol",
-      is_gov_vault: rawVault.isGovVault || false,
       assets: rawVault.assets || [],
       protocol,
       protocol_product,
       want_price_feed_key: rawVault.oracleId,
+      is_gov_vault: rawVault.isGovVault || false,
+      gov_vault_reward_token_symbol: rawVault.isGovVault ? rawVault.earnedToken : null,
+      gov_vault_reward_token_address: rawVault.isGovVault ? rawVault.earnedTokenAddress : null,
+      gov_vault_reward_token_decimals: rawVault.isGovVault ? rawVault.earnedTokenDecimals : null,
     };
   } catch (error) {
     logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault }, error });

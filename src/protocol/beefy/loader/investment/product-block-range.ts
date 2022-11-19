@@ -220,9 +220,12 @@ export function loadTransfers$<
           throw new ProgrammerError("Expected gov vault");
         }
         const vault = item.target.product;
+        if (!vault.productData.vault.gov_vault_reward_token_decimals) {
+          throw new ProgrammerError("Expected gov vault reward token decimals");
+        }
         return {
           blockNumber: item.target.transfer.blockNumber,
-          tokenDecimals: 18, // bifi is not in the addressbook getAddressBookTokenDecimals(vault.chain, "BIFI"),
+          tokenDecimals: vault.productData.vault.gov_vault_reward_token_decimals,
           contractAddress: vault.productData.vault.contract_address,
           ownerAddress: item.target.transfer.ownerAddress,
         };

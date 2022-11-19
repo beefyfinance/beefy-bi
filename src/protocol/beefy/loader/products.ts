@@ -66,8 +66,8 @@ export function importBeefyProducts$(options: { client: DbClient }) {
           const vaultId = normalizeVaultId(item.vault.id);
           return {
             feedKey: `beefy:${item.vault.chain}:${vaultId}:ppfs`,
-            fromAssetKey: `beefy:${item.vault.chain}:${vaultId}`,
-            toAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
+            fromAssetKey: `beefy:${item.vault.chain}:${vaultId}`, // from the vault
+            toAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // to underlying amount
             priceFeedData: { active: !item.vault.eol, externalId: vaultId },
           };
         },
@@ -82,8 +82,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
             // feed key tells us that this prices comes from beefy's data
             // we may have another source of prices for the same asset
             feedKey: `beefy-data:${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
-
-            fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
+            fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // from underlying amount
             toAssetKey: "fiat:USD", // to USD
             priceFeedData: {
               active: !item.vault.eol,
