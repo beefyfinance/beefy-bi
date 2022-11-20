@@ -42,7 +42,7 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
     client: options.client,
     chain: options.chain, // unused
     rpcCount: options.rpcCount,
-    logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
+    logInfos: { msg: "Importing pending rewards snapshots", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: (target) => !isBeefyProductEOL(target.product),
     createDefaultImportState$: (ctx) =>
@@ -147,7 +147,7 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
           emitError: () => {
             throw new Error("Unable to generate snapshot queries");
           },
-          timeStep: "15min",
+          timeStep: "4hour",
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getEntryAndExitEvents: (item) =>
             item.entriesAndExits.map((row) => ({
