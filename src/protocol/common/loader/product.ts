@@ -61,7 +61,7 @@ export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPar
     logInfos: { msg: "upsert product" },
     processBatch: async (objAndData) => {
       const results = await db_query<DbProduct>(
-        `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, chain, product_data) VALUES %L
+        `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, pending_rewards_price_feed_id, chain, product_data) VALUES %L
               ON CONFLICT (product_key) 
               DO UPDATE SET
                 chain = EXCLUDED.chain,
@@ -77,7 +77,16 @@ export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPar
                 price_feed_2_id as "priceFeedId2", 
                 chain, 
                 product_data as "productData"`,
-        [objAndData.map(({ data }) => [data.productKey, data.priceFeedId1, data.priceFeedId2, data.chain, data.productData])],
+        [
+          objAndData.map(({ data }) => [
+            data.productKey,
+            data.priceFeedId1,
+            data.priceFeedId2,
+            data.pendingRewardsPriceFeedId,
+            data.chain,
+            data.productData,
+          ]),
+        ],
         options.ctx.client,
       );
 

@@ -3,26 +3,32 @@ import * as Rx from "rxjs";
 import { DbClient } from "../../../../utils/db";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
-import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
+import { fetchProductCreationInfos$ } from "../../../common/loader/fetch-product-creation-infos";
 import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
+import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
 import { fetchBeefyDataPrices$ } from "../../connector/prices";
 
-const getImportStateKey = (priceFeed: DbPriceFeed) => `price:feed:${priceFeed.priceFeedId}`;
+type UnderlyingPriceFeedInput = {
+  product: DbBeefyProduct;
+  priceFeed: DbPriceFeed;
+};
+
+const getImportStateKey = (item: UnderlyingPriceFeedInput) => `price:feed:${item.priceFeed.priceFeedId}`;
 
 export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClient }) {
-  return createHistoricalImportPipeline<DbPriceFeed, Date, DbOraclePriceImportState>({
+  return createHistoricalImportPipeline<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
     client: options.client,
     rpcCount: 1, // unused
     chain: "bsc", // unused
     logInfos: { msg: "Importing historical underlying prices" },
     getImportStateKey,
-    isLiveItem: (target) => target.priceFeedData.active,
+    isLiveItem: (target) => target.priceFeed.priceFeedData.active,
     generateQueries$: (ctx) =>
       Rx.pipe(
         addHistoricalDateQuery$({
@@ -38,16 +44,12 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
         // initialize the import state
 
         // find the first date we are interested in this price
-        // so we need the first creation date of each product
-        fetchPriceFeedContractCreationInfos({
+        fetchProductCreationInfos$({
           ctx,
           emitError: (item) => {
-            throw new Error("Error while fetching product creation infos for price feed" + item.obj.priceFeedId);
+            throw new Error("Error while fetching product creation infos for price feed" + item.obj.priceFeed.priceFeedId);
           },
-          importStateType: "product:investment", // we want to find the contract creation date we already fetched from the investment pipeline
-          which: "price-feed-2", // we are the feed 2 from the product
-          getPriceFeedId: (item) => item.obj.priceFeedId,
-          productType: "beefy:vault",
+          getProductId: (item) => item.obj.product.productId,
           formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
         }),
 
@@ -58,7 +60,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
           obj: item.obj,
           importData: {
             type: "oracle:price",
-            priceFeedId: item.obj.priceFeedId,
+            priceFeedId: item.obj.priceFeed.priceFeedId,
             firstDate: item.contractCreationInfo.contractCreationDate,
             ranges: {
               lastImportDate: new Date(),
@@ -73,14 +75,14 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
 }
 
 export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }) {
-  return createRecentImportPipeline<DbPriceFeed, Date>({
+  return createRecentImportPipeline<UnderlyingPriceFeedInput, Date>({
     client: options.client,
     rpcCount: 1, // unused
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },
     getImportStateKey,
-    isLiveItem: (target) => target.priceFeedData.active,
+    isLiveItem: (target) => target.priceFeed.priceFeedData.active,
     generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
       addLatestDateQuery$({
         getLastImportedDate: () => lastImported,
@@ -90,7 +92,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }
   });
 }
 
-function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, TErr extends ErrorEmitter<TObj>>(options: {
+function insertPricePipeline$<TObj extends ImportRangeQuery<UnderlyingPriceFeedInput, Date>, TErr extends ErrorEmitter<TObj>>(options: {
   ctx: ImportCtx;
   emitError: TErr;
 }) {
@@ -101,7 +103,7 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, 
       ctx: options.ctx,
       emitError: options.emitError,
       getPriceParams: (item) => ({
-        oracleId: item.target.priceFeedData.externalId,
+        oracleId: item.target.priceFeed.priceFeedData.externalId,
         samplingPeriod: "15min",
         range: item.range,
       }),
@@ -120,7 +122,7 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, 
             getPriceData: (item) => ({
               datetime: item.target.datetime,
               blockNumber: Math.floor(item.target.datetime.getTime() / 1000),
-              priceFeedId: item.parent.target.priceFeedId,
+              priceFeedId: item.parent.target.priceFeed.priceFeedId,
               price: new Decimal(item.target.value),
               priceData: {},
             }),
@@ -132,7 +134,7 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<DbPriceFeed, Date>, 
 
     // format output
     Rx.map(
-      (item): ImportRangeResult<DbPriceFeed, Date> => ({
+      (item): ImportRangeResult<UnderlyingPriceFeedInput, Date> => ({
         target: item.target,
         latest: item.latest,
         range: item.range,

@@ -47,7 +47,8 @@ export class PortfolioService {
       const priceFeedIDs = await this.services.product.getPriceFeedIds(productIds);
       const priceFeed1Ids = priceFeedIDs.map((pfs) => pfs.price_feed_1_id);
       const priceFeed2Ids = priceFeedIDs.map((pfs) => pfs.price_feed_2_id);
-      logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, productIds, priceFeed1Ids, priceFeed2Ids } });
+      const priceFeedPendingRewardsIds = priceFeedIDs.map((pfs) => pfs.pending_rewards_price_feed_id).filter((a): a is number => !!a);
+      logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, productIds, priceFeed1Ids, priceFeed2Ids, priceFeedPendingRewardsIds } });
 
       const res = await db_query<{
         product_id: number;
@@ -59,12 +60,15 @@ export class PortfolioService {
         share_balance: string;
         underlying_balance: string;
         usd_balance: string;
+        pending_rewards: string;
+        pending_rewards_usd: string;
       }>(
         `
           with share_balance as (
             SELECT
               b.product_id,
               last(b.balance::numeric, b.block_number) as share_balance,
+              last(b.pending_rewards::numeric, b.block_number) as pending_rewards,
               last(b.datetime, b.block_number) as share_last_time
             FROM
               investment_balance_ts b
@@ -94,6 +98,17 @@ export class PortfolioService {
             WHERE
               p2.price_feed_id in (select unnest(ARRAY[%L]::integer[]))
             group by 1
+          ),
+          price_pending_rewards as (
+            SELECT
+              ppr.price_feed_id,
+              last(ppr.price::numeric, ppr.datetime) as price,
+              last(ppr.datetime, ppr.datetime) as last_time
+            FROM
+              price_ts ppr
+            WHERE
+              ppr.price_feed_id in (select unnest(ARRAY[%L]::integer[]))
+            group by 1
           )
           select 
             p.product_id,
@@ -104,14 +119,17 @@ export class PortfolioService {
             p2.price as underlying_to_usd_price,
             b.share_balance::NUMERIC(100, 24), 
             (b.share_balance * p1.price)::NUMERIC(100, 24) as underlying_balance,
-            (b.share_balance * p1.price * p2.price)::NUMERIC(100, 24) as usd_balance
+            (b.share_balance * p1.price * p2.price)::NUMERIC(100, 24) as usd_balance,
+            b.pending_rewards::NUMERIC(100, 24) as pending_rewards,
+            (b.pending_rewards * ppr.price)::NUMERIC(100, 24) as pending_rewards_usd
           from share_balance b
             left join product p on b.product_id = p.product_id
             left join price_1 p1 on p.price_feed_1_id = p1.price_feed_id
             left join price_2 p2 on p.price_feed_2_id = p2.price_feed_id
+            left join price_pending_rewards ppr on p.pending_rewards_price_feed_id = ppr.price_feed_id
           order by 1
         `,
-        [investorId, productIds, priceFeed1Ids, priceFeed2Ids],
+        [investorId, productIds, priceFeed1Ids, priceFeed2Ids, priceFeedPendingRewardsIds],
         this.services.db,
       );
 
@@ -160,6 +178,7 @@ export class PortfolioService {
               and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
             where b.investor_id = %L
               and b.product_id in (select unnest(ARRAY[%L]::integer[]))
+              and b.balance_diff != 0 -- only show changes, not reward snapshots
             group by 1,2,3,4
           ),
           investment_diff as (
@@ -195,6 +214,10 @@ export class PortfolioService {
       const priceFeedIDs = await this.services.product.getPriceFeedIds([productId]);
       const priceFeed1Ids = priceFeedIDs.map((pfs) => pfs.price_feed_1_id);
       const priceFeed2Ids = priceFeedIDs.map((pfs) => pfs.price_feed_2_id);
+      const priceFeedPendingRewardsIds = priceFeedIDs
+        .map((pfs) => pfs.pending_rewards_price_feed_id)
+        .concat([-1]) // make sure it's not empty
+        .filter((id) => !!id);
       const to = new Date();
       const dataPointCount = 1000;
       const from = new Date(to.getTime() - dataPointCount * samplingPeriodMs[timeBucket]);
@@ -204,12 +227,14 @@ export class PortfolioService {
         share_balance: string;
         underlying_balance: string;
         usd_balance: string;
+        pending_rewards: string;
+        pending_rewards_usd: string;
       }>(
         `
           with balance_ts as (
             select * 
             from narrow_gapfilled_investor_balance(%L::timestamptz, %L::timestamptz, %L::interval, %L, ARRAY[%L]::integer[])
-            where balance is not null
+            where balance is not null or pending_rewards is not null
           ),
           price_1_ts as (
             select *
@@ -220,16 +245,24 @@ export class PortfolioService {
             select *
             from  narrow_gapfilled_price(%L::timestamptz, %L::timestamptz, %L::interval, ARRAY[%L]::integer[])
             where price is not null
+          ),
+          price_rewards_ts as (
+            select *
+            from  narrow_gapfilled_price(%L::timestamptz, %L::timestamptz, %L::interval, ARRAY[%L]::integer[])
+            where price is not null
           )
           select
             b.datetime as datetime,
             b.balance as share_balance,
             (b.balance * p1.price)::NUMERIC(100, 24) as underlying_balance,
-            (b.balance * p1.price * p2.price)::NUMERIC(100, 24) as "usd_balance"
+            (b.balance * p1.price * p2.price)::NUMERIC(100, 24) as "usd_balance",
+            (b.pending_rewards)::NUMERIC(100, 24) as "pending_rewards",
+            (b.pending_rewards * ppr.price)::NUMERIC(100, 24) as "pending_rewards_usd"
           from balance_ts b
             left join product pr on b.product_id = pr.product_id
             left join price_1_ts p1 on b.datetime = p1.datetime and pr.price_feed_1_id = p1.price_feed_id
             left join price_2_ts p2 on b.datetime = p2.datetime and pr.price_feed_2_id = p2.price_feed_id
+            left join price_rewards_ts ppr on b.datetime = ppr.datetime and pr.pending_rewards_price_feed_id = ppr.price_feed_id
           order by 1;
         `,
         [
@@ -249,6 +282,11 @@ export class PortfolioService {
           to.toISOString(),
           timeBucket,
           priceFeed2Ids,
+          // price_rewards_ts
+          from.toISOString(),
+          to.toISOString(),
+          timeBucket,
+          priceFeedPendingRewardsIds,
         ],
         this.services.db,
       );

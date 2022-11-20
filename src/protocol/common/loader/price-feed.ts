@@ -74,7 +74,7 @@ export function upsertPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TP
 export function fetchPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getPriceFeedId: (obj: TObj) => number;
+  getPriceFeedId: (obj: TObj) => number | null;
   formatOutput: (obj: TObj, priceFeed: DbPriceFeed | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
@@ -84,22 +84,26 @@ export function fetchPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(opt
     formatOutput: options.formatOutput,
     logInfos: { msg: "fetch price feed" },
     processBatch: async (objAndData) => {
-      const results = await db_query<DbPriceFeed>(
-        `SELECT 
-            price_feed_id as "priceFeedId", 
-            feed_key as "feedKey",
-            from_asset_key as "fromAssetKey",
-            to_asset_key as "toAssetKey",
-            price_feed_data as "priceFeedData"
-          FROM price_feed
-          WHERE price_feed_id IN (%L)`,
-        [objAndData.map((obj) => obj.data)],
-        options.ctx.client,
-      );
+      const priceFeedIds = objAndData.map((obj) => obj.data).filter((id) => id !== null);
+      const results =
+        priceFeedIds.length === 0
+          ? []
+          : await db_query<DbPriceFeed>(
+              `SELECT 
+                price_feed_id as "priceFeedId", 
+                feed_key as "feedKey",
+                from_asset_key as "fromAssetKey",
+                to_asset_key as "toAssetKey",
+                price_feed_data as "priceFeedData"
+              FROM price_feed
+              WHERE price_feed_id IN (%L)`,
+              [priceFeedIds],
+              options.ctx.client,
+            );
 
       // return a map where keys are the original parameters object refs
       const idMap = keyBy(results, "priceFeedId");
-      return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
+      return new Map(objAndData.map(({ data }) => [data, data ? idMap[data] ?? null : null]));
     },
   });
 }

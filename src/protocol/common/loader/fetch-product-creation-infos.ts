@@ -7,6 +7,9 @@ import { dbBatchCall$ } from "../utils/db-batch";
 import { DbImportState } from "./import-state";
 import { DbProduct } from "./product";
 
+/**
+ * @deprecated: use fetchProductCreationInfos$ instead
+ */
 export function fetchPriceFeedContractCreationInfos<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
@@ -50,6 +53,45 @@ export function fetchPriceFeedContractCreationInfos<TObj, TErr extends ErrorEmit
           return res;
         }),
         "priceFeedId",
+      );
+      return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
+    },
+  });
+}
+
+export function fetchProductCreationInfos$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+  getProductId: (obj: TObj) => number;
+  formatOutput: (obj: TObj, contractCreationInfos: { contractCreatedAtBlock: number; contractCreationDate: Date } | null) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    ctx: options.ctx,
+    emitError: options.emitError,
+    getData: options.getProductId,
+    formatOutput: options.formatOutput,
+    logInfos: { msg: "fetchProductCreationInfos" },
+    processBatch: async (objAndData) => {
+      type TRes = { productId: number; contractCreatedAtBlock: number; contractCreationDate: Date };
+      const results = await db_query<TRes>(
+        `SELECT 
+              p.product_id as "productId",
+              (import_data->'contractCreatedAtBlock')::integer as "contractCreatedAtBlock",
+              (import_data->>'contractCreationDate')::timestamptz as "contractCreationDate"
+          FROM import_state i
+            JOIN product p on p.product_id = (i.import_data->'productId')::integer and i.import_data->>'type' = 'product:investment'
+          WHERE p.product_id IN (%L)`,
+        [objAndData.map((obj) => obj.data)],
+        options.ctx.client,
+      );
+
+      // return a map where keys are the original parameters object refs
+      const idMap = keyBy(
+        results.map((res) => {
+          res.contractCreationDate = new Date(res.contractCreationDate);
+          return res;
+        }),
+        "productId",
       );
       return new Map(objAndData.map(({ data }) => [data, idMap[data] ?? null]));
     },

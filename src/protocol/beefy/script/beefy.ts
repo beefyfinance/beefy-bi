@@ -10,7 +10,7 @@ import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable"
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
-import { fetchPriceFeed$ } from "../../common/loader/price-feed";
+import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
 import { createRpcConfig } from "../../common/utils/rpc-config";
@@ -148,21 +148,35 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
     rpcConfig,
     streamConfig,
   };
-  const emitError = (item: DbProduct) => {
-    throw new Error(`Error fetching price feed for product ${item.productId}`);
+  const emitError = (item: { product: DbProduct }) => {
+    throw new Error(`Error fetching price feed for product ${item.product.productId}`);
   };
 
   const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
     productFilter$(null, cmdParams),
-    // remove products that don't have a ppfs to fetch
-    Rx.filter((product) => isBeefyStandardVault(product) || isBeefyBoost(product)),
+
+    Rx.map((product) => ({ product })),
+
     // now fetch the price feed we need
-    fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId2, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
-    // drop those without a price feed yet
-    excludeNullFields$("priceFeed"),
-    Rx.map(({ priceFeed }) => priceFeed),
+    fetchPriceFeed$({
+      ctx,
+      emitError,
+      getPriceFeedId: (item) => item.product.priceFeedId2,
+      formatOutput: (item, priceFeed2) => ({ ...item, priceFeed2 }),
+    }),
+    fetchPriceFeed$({
+      ctx,
+      emitError,
+      getPriceFeedId: (item) => item.product.pendingRewardsPriceFeedId,
+      formatOutput: (item, rewardPriceFeed) => ({ ...item, rewardPriceFeed }),
+    }),
+    Rx.concatMap((item) =>
+      [item.priceFeed2, item.rewardPriceFeed].filter((x): x is DbPriceFeed => !!x).map((priceFeed) => ({ product: item.product, priceFeed })),
+    ),
+
     // remove duplicates
-    Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+    Rx.distinct((item) => item.priceFeed.priceFeedId),
+
     // now import data for those
     cmdParams.task === "recent-prices"
       ? importBeefyRecentUnderlyingPrices$({ client: cmdParams.client })

@@ -6,10 +6,10 @@ export class InvestorService {
 
   async getInvestorId(address: string) {
     const cacheKey = `api:investor-service:${address.toLocaleLowerCase()}`;
-    const ttl = 1000 * 60 * 60 * 24 * 7; // 1 week
+    const ttl = 1000 * 60 * 60 * 24 * 1; // 1 day
     return this.services.cache.wrap(cacheKey, ttl, async () => {
       const res = await db_query_one<{ investor_id: number }>(
-        ` SELECT investor_id 
+        `SELECT investor_id 
         FROM investor 
         WHERE address = hexstr_to_bytea(%L)`,
         [address],
