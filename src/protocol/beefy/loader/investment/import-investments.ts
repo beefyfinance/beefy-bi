@@ -8,10 +8,11 @@ import { upsertBlock$ } from "../../../common/loader/blocks";
 import { DbProductInvestmentImportState } from "../../../common/loader/import-state";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
+import { getProductContractAddress } from "../../utils/contract-accessors";
 import { isBeefyProductLive } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
 
-const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
+export const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
 export function importChainHistoricalData$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null; rpcCount: number }) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
@@ -41,7 +42,7 @@ export function importChainHistoricalData$(options: { client: DbClient; chain: C
           rpcConfig: ctx.rpcConfig,
           getCallParams: (obj) => ({
             chain: ctx.chain,
-            contractAddress: obj.productData.type === "beefy:boost" ? obj.productData.boost.contract_address : obj.productData.vault.contract_address,
+            contractAddress: getProductContractAddress(obj),
           }),
           formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
         }),

@@ -49,8 +49,20 @@ export interface DbProductShareRateImportState extends DbBaseImportState {
     ranges: ImportRanges<number>;
   };
 }
+export interface DbPendingRewardsImportState extends DbBaseImportState {
+  importData: {
+    type: "rewards:snapshots";
+    productId: number;
+    investorId: number;
+    chain: Chain;
+    contractCreatedAtBlock: number;
+    contractCreationDate: Date;
+    chainLatestBlockNumber: number;
+    ranges: ImportRanges<number>;
+  };
+}
 
-export type DbBlockNumberRangeImportState = DbProductInvestmentImportState | DbProductShareRateImportState;
+export type DbBlockNumberRangeImportState = DbProductInvestmentImportState | DbProductShareRateImportState | DbPendingRewardsImportState;
 export type DbDateRangeImportState = DbOraclePriceImportState;
 export type DbImportState = DbBlockNumberRangeImportState | DbDateRangeImportState;
 
@@ -62,6 +74,9 @@ export function isOraclePriceImportState(o: DbImportState): o is DbOraclePriceIm
 }
 export function isProductShareRateImportState(o: DbImportState): o is DbProductShareRateImportState {
   return o.importData.type === "product:share-rate";
+}
+export function isPendingRewardsImportState(o: DbImportState): o is DbPendingRewardsImportState {
+  return o.importData.type === "rewards:snapshots";
 }
 
 function upsertImportState$<TInput, TRes>(options: {
@@ -163,7 +178,8 @@ export function updateImportState$<
     if (
       (isProductInvestmentImportState(importState) && !isNumberRange(range)) ||
       (isOraclePriceImportState(importState) && !isDateRange(range)) ||
-      (isProductShareRateImportState(importState) && !isNumberRange(range))
+      (isProductShareRateImportState(importState) && !isNumberRange(range)) ||
+      (isPendingRewardsImportState(importState) && !isNumberRange(range))
     ) {
       throw new ProgrammerError({
         msg: "Import state is for product investment but item is not",
@@ -187,7 +203,11 @@ export function updateImportState$<
     (newImportState.importData.ranges as ImportRanges<TRange>) = newRanges;
 
     // update the latest block number we know about
-    if (isProductInvestmentImportState(newImportState) || isProductShareRateImportState(newImportState)) {
+    if (
+      isProductInvestmentImportState(newImportState) ||
+      isProductShareRateImportState(newImportState) ||
+      isPendingRewardsImportState(newImportState)
+    ) {
       newImportState.importData.chainLatestBlockNumber =
         rangeValueMax(
           (items as ImportRangeResult<TObj, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
@@ -363,15 +383,18 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
 function hydrateImportStateRangesFromDb(importState: DbImportState) {
   const type = importState.importData.type;
   // hydrate dates properly
-  if (type === "product:investment") {
+  if (isProductInvestmentImportState(importState)) {
     importState.importData.contractCreationDate = new Date(importState.importData.contractCreationDate);
     hydrateNumberImportRangesFromDb(importState.importData.ranges);
-  } else if (type === "product:share-rate") {
+  } else if (isProductShareRateImportState(importState)) {
     importState.importData.contractCreationDate = new Date(importState.importData.contractCreationDate);
     hydrateNumberImportRangesFromDb(importState.importData.ranges);
-  } else if (type === "oracle:price") {
+  } else if (isOraclePriceImportState(importState)) {
     importState.importData.firstDate = new Date(importState.importData.firstDate);
     hydrateDateImportRangesFromDb(importState.importData.ranges);
+  } else if (isPendingRewardsImportState(importState)) {
+    importState.importData.contractCreationDate = new Date(importState.importData.contractCreationDate);
+    hydrateNumberImportRangesFromDb(importState.importData.ranges);
   } else {
     throw new ProgrammerError(`Unknown import state type ${type}`);
   }

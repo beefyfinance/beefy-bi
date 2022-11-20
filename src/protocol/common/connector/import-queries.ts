@@ -7,6 +7,7 @@ import {
   LIMIT_INVESTMENT_QUERIES,
   LIMIT_PRICE_QUERIES,
   LIMIT_SHARES_QUERIES,
+  LIMIT_SNAPSHOT_QUERIES,
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
@@ -275,6 +276,71 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
     stdTTLSec: 5 * 60 /* 5 min */,
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
   });
+}
+
+export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+  forceCurrentBlockNumber: number | null;
+  timeStep: SamplingPeriod;
+  getImportState: (item: TObj) => DbBlockNumberRangeImportState;
+  getEntryAndExitEvents: (item: TObj) => { block_number: number; is_entry: boolean }[];
+  formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return Rx.pipe(
+    Rx.map((obj) => ({ obj })),
+    // get the latest block number
+
+    // first, we need the latest block number
+    latestBlockNumber$({
+      ctx: options.ctx,
+      emitError: (item) => options.emitError(item.obj),
+      forceCurrentBlockNumber: options.forceCurrentBlockNumber,
+      formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
+    }),
+
+    // resolve entry and exit into investment ranges
+    Rx.map((item) => {
+      const investedRanges: Range<number>[] = [];
+      let currentEntry: number | null = null;
+      const sortedActions = sortBy(options.getEntryAndExitEvents(item.obj), (action) => action.block_number);
+
+      for (const entryOrExit of sortedActions) {
+        if (entryOrExit.is_entry && currentEntry === null) {
+          currentEntry = entryOrExit.block_number;
+        } else if (!entryOrExit.is_entry && currentEntry !== null) {
+          investedRanges.push({ from: currentEntry, to: entryOrExit.block_number });
+          currentEntry = null;
+        }
+        // if we have an exit without an entry, we ignore it
+        // if we have an entry without an exit, we ignore it
+      }
+
+      // don't forget the latest block number
+      if (currentEntry !== null) {
+        investedRanges.push({ from: currentEntry, to: item.latestBlockNumber });
+      }
+      return { ...item, investedRanges };
+    }),
+
+    // filter out ranges that are already covered
+    Rx.map((item) => {
+      const importState = options.getImportState(item.obj);
+      const investedRanges = item.investedRanges;
+
+      const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
+      const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.ctx.chain];
+      const maxTimeStepMs = samplingPeriodMs[options.timeStep];
+      const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
+      const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
+
+      const ranges = restrictRangesWithImportState(investedRanges, importState, rangeMaxLength, LIMIT_SNAPSHOT_QUERIES);
+      return { ...item, investedRanges: ranges };
+    }),
+
+    // format output
+    Rx.map((item) => options.formatOutput(item.obj, item.latestBlockNumber, item.investedRanges)),
+  );
 }
 
 function restrictRangesWithImportState<T extends SupportedRangeTypes>(

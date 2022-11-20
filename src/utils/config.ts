@@ -37,6 +37,7 @@ export const USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND = process.env.USE_DEFAULT_LIMI
 // but other operations are small, so we can allow more items to be streamed into the input queue
 export const LIMIT_INVESTMENT_QUERIES = process.env.LIMIT_INVESTMENT_QUERIES ? parseInt(process.env.LIMIT_INVESTMENT_QUERIES, 10) : 100;
 export const LIMIT_SHARES_QUERIES = process.env.LIMIT_SHARES_QUERIES ? parseInt(process.env.LIMIT_SHARES_QUERIES, 10) : 1000;
+export const LIMIT_SNAPSHOT_QUERIES = process.env.LIMIT_SNAPSHOT_QUERIES ? parseInt(process.env.LIMIT_SNAPSHOT_QUERIES, 10) : 1000;
 export const LIMIT_PRICE_QUERIES = process.env.LIMIT_PRICE_QUERIES ? parseInt(process.env.LIMIT_PRICE_QUERIES, 10) : 1000;
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";

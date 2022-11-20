@@ -8,22 +8,26 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { fetchAllInvestorIds$ } from "../../common/loader/investment";
+import { fetchInvestor$ } from "../../common/loader/investor";
 import { fetchPriceFeed$ } from "../../common/loader/price-feed";
-import { DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
+import { importBeefyHistoricalPendingRewardsSnapshots$ } from "../loader/investment/import-pending-rewards-snapshots";
 import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
 import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
 import { importBeefyProducts$ } from "../loader/products";
-import { isBeefyBoost, isBeefyProductLive, isBeefyStandardVault } from "../utils/type-guard";
+import { getProductContractAddress } from "../utils/contract-accessors";
+import { isBeefyBoost, isBeefyGovVault, isBeefyProductLive, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
 interface CmdParams {
   client: DbClient;
   rpcCount: number;
-  task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate";
+  task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate" | "reward-snapshots";
   filterChains: Chain[];
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
@@ -49,7 +53,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
         includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
-          choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate"],
+          choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate", "reward-snapshots"],
           demand: true,
           alias: "t",
           describe: "what to run",
@@ -122,6 +126,8 @@ function getTasksToRun(cmdParams: CmdParams) {
       return [() => importBeefyDataPrices(cmdParams)];
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
+    case "reward-snapshots":
+      return cmdParams.filterChains.map((chain) => () => importBeefyRewardSnapshots(chain, cmdParams));
     default:
       throw new ProgrammerError(`Unknown importer: ${cmdParams.task}`);
   }
@@ -242,6 +248,56 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   return consumeObservable(pipeline$);
 }
 
+function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
+  const rpcConfig = createRpcConfig(chain);
+  const streamConfig = defaultHistoricalStreamConfig;
+  const ctx = {
+    chain,
+    client: cmdParams.client,
+    rpcConfig,
+    streamConfig,
+  };
+
+  const emitError = (item: DbProduct) => {
+    throw new Error(`Error fetching rewards for product ${item.productId}`);
+  };
+
+  const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+    productFilter$(chain, cmdParams),
+    // Rewards only exists for boosts and governance vaults
+    Rx.filter((product): product is DbBeefyBoostProduct | DbBeefyGovVaultProduct => isBeefyBoost(product) || isBeefyGovVault(product)),
+    // fetch all investors of this product
+    fetchAllInvestorIds$({
+      ctx,
+      emitError,
+      getProductId: (product) => product.productId,
+      formatOutput: (product, investorIds) => ({ product, investorIds }),
+    }),
+    // flatten the result
+    Rx.concatMap(({ product, investorIds }) => investorIds.map((investorId) => ({ product, investorId }))),
+    // fetch investor rows
+    fetchInvestor$({
+      ctx,
+      emitError: (item) => {
+        throw new Error(`Error fetching investor ${item.investorId} for product ${item.product.productId}`);
+      },
+      getInvestorId: (item) => item.investorId,
+      formatOutput: (item, investor) => ({ ...item, investor }),
+    }),
+
+    // now fetch associated price feeds
+    importBeefyHistoricalPendingRewardsSnapshots$({
+      chain: chain,
+      client: cmdParams.client,
+      forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+      rpcCount: cmdParams.rpcCount,
+    }),
+  );
+
+  logger.info({ msg: "starting pending rewards import", data: { ...cmdParams, client: "<redacted>" } });
+  return consumeObservable(pipeline$);
+}
+
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
   return Rx.pipe(
     Rx.filter((product: DbProduct) => {
@@ -262,8 +318,7 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
     Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
     Rx.concatAll(),
     Rx.filter((product) => {
-      const contractAddress =
-        product.productData.type === "beefy:boost" ? product.productData.boost.contract_address : product.productData.vault.contract_address;
+      const contractAddress = getProductContractAddress(product);
       return cmdParams.filterContractAddress === null || contractAddress.toLocaleLowerCase() === cmdParams.filterContractAddress.toLocaleLowerCase();
     }),
   );
