@@ -1,0 +1,674 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 42,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 7,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with chain_blocks as materialized (\n  select \n    chain,\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    interpolate(first(block_number, datetime)) as block_number\n  from block_ts\n  where chain in ($chain)\n  and datetime between ('$_min_datetime'::timestamptz - 2*('$interval'::interval)) and now() + 2*('$interval'::interval)\n  group by 1,2\n),\nlast_blocks as materialized (\n    select chain, last(block_number, datetime) max_block\n    from block_ts\n    where chain in ($chain)\n    group by chain\n),\nimport_state_scope as materialized (\n  select i.*, (i.import_data->>'productId')::integer as product_id, \n    jsonb_build_array(jsonb_build_object(\n      'from', (i.import_data->>'contractCreatedAtBlock')::integer,\n      'to', (lb.max_block)\n    )) as full_ranges,\n    i.import_data->'ranges'->'coveredRanges' as covered_ranges,\n    i.import_data->'ranges'->'toRetry' as error_ranges\n  from import_state i\n    left join product pr on i.import_key = 'product:investment:' || pr.product_id\n    left join last_blocks as lb on lb.chain = pr.chain\n  where i.import_key in (\n    select 'product:investment:' || product_id\n    from unnest(ARRAY[$_product_ids]) as t(product_id)\n  )\n),\nimport_state_ranges as (\n  select product_id, jsonb_array_elements(full_ranges) as range, 0 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(covered_ranges) as range, 1 as range_result\n  from import_state_scope\n  UNION ALL\n  select product_id, jsonb_array_elements(error_ranges) as range, 2 as range_result\n  from import_state_scope\n),\nproduct_import_result_ts as (\n  select product_id, datetime, max(range_result) as range_result\n  from chain_blocks b\n  left join import_state_ranges r on b.block_number between (range->>'from')::integer and (range->>'to')::integer\n  group by 1,2\n)\nselect\n  r.datetime as time,\n  p.product_key,\n  range_result as \" \"\nfrom product_import_result_ts r\njoin product p on r.product_id = p.product_id\norder by datetime\n  ",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Product Import state",
+      "transformations": [
+        {
+          "id": "prepareTimeSeries",
+          "options": {
+            "format": "many"
+          }
+        }
+      ],
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*) from (\n\n  select bytea_to_hexstr(i.address) as address, sum(last_balance) total_balance\n  from (\n    SELECT investor_id, last(balance, datetime) as last_balance\n    FROM investment_balance_ts\n    where product_id in ($_product_ids)\n    group by investor_id\n  ) as b\n  left join investor i on b.investor_id = i.investor_id\n  group by 1\n  having sum(last_balance) > $min_balance\n  ) as t\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Holder count",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 4,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "bucketOffset": 0,
+        "bucketSize": 5,
+        "combine": false,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select bytea_to_hexstr(i.address) as address, sum(last_balance) total_balance\nfrom (\n  SELECT investor_id, last(balance, datetime) as last_balance\n  FROM investment_balance_ts\n  where product_id in ($_product_ids)\n  group by investor_id\n) as b\nleft join investor i on b.investor_id = i.investor_id\ngroup by 1\nhaving sum(last_balance) > $min_balance\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Holder size",
+      "type": "histogram"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "bucketOffset": 0,
+        "bucketSize": 0.05,
+        "combine": false,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select bytea_to_hexstr(i.address) as address, log(sum(last_balance)) total_balance\nfrom (\n  SELECT investor_id, last(balance, datetime) as last_balance\n  FROM investment_balance_ts\n  where product_id in ($_product_ids)\n  group by investor_id\n) as b\nleft join investor i on b.investor_id = i.investor_id\ngroup by 1\nhaving sum(last_balance) > $min_balance\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "log Holder size",
+      "type": "histogram"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 2,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "total_balance"
+          }
+        ]
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select bytea_to_hexstr(i.address) as address, sum(last_balance) total_balance\nfrom (\n  SELECT investor_id, last(balance, datetime) as last_balance\n  FROM investment_balance_ts\n  where product_id in ($_product_ids)\n  group by investor_id\n) as b\nleft join investor i on b.investor_id = i.investor_id\ngroup by 1\nhaving sum(last_balance) > $min_balance\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Holder list",
+      "type": "table"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": ["bsc", "optimism", "polygon"],
+          "value": ["bsc", "optimism", "polygon"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select distinct chain from product",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from product",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["beefy:vault:bsc:bifi-maxi", "beefy:vault:optimism:optimism-bifi-maxi", "beefy:vault:polygon:polygon-bifi-maxi"],
+          "value": ["beefy:vault:bsc:bifi-maxi", "beefy:vault:optimism:optimism-bifi-maxi", "beefy:vault:polygon:polygon-bifi-maxi"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_key from product where chain in ($chain)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_keys",
+        "options": [],
+        "query": "select product_key from product where chain in ($chain)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "0.1",
+          "value": "0.1"
+        },
+        "hide": 0,
+        "name": "min_balance",
+        "options": [
+          {
+            "selected": true,
+            "text": "0.1",
+            "value": "0.1"
+          }
+        ],
+        "query": "0.1",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_id from product where product_key in ($product_keys)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_product_ids",
+        "options": [],
+        "query": "select product_id from product where product_key in ($product_keys)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "2021-05-19T19:01:09Z",
+          "value": "2021-05-19T19:01:09Z"
+        },
+        "definition": "  select TO_CHAR(min((i.import_data->>'contractCreationDate')::timestamptz), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')\n  from import_state i\n  left join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  where p.product_id in ($_product_ids)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "_min_datetime",
+        "options": [],
+        "query": "  select TO_CHAR(min((i.import_data->>'contractCreationDate')::timestamptz), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')\n  from import_state i\n  left join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  where p.product_id in ($_product_ids)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "1h",
+          "value": "1h"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": true,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      }
+    ]
+  },
+  "time": {
+    "from": "2021-06-11T00:00:00.000Z",
+    "to": "2022-11-03T00:00:00.000Z"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Investor list with min balance",
+  "uid": "lRLUVbOVz",
+  "version": 9,
+  "weekStart": ""
+}
