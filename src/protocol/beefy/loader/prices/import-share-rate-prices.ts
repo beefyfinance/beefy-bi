@@ -24,11 +24,13 @@ export function importBeefyHistoricalShareRatePrices$(options: {
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   rpcCount: number;
+  forceRpcUrl: string | null;
 }) {
   return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
     client: options.client,
     chain: options.chain, // unused
     rpcCount: options.rpcCount,
+    forceRpcUrl: options.forceRpcUrl,
     logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
     getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
     isLiveItem: (target) => target.priceFeedData.active,

@@ -14,11 +14,18 @@ import { importProductBlockRange$ } from "./product-block-range";
 
 export const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
-export function importChainHistoricalData$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null; rpcCount: number }) {
+export function importChainHistoricalData$(options: {
+  client: DbClient;
+  chain: Chain;
+  forceCurrentBlockNumber: number | null;
+  rpcCount: number;
+  forceRpcUrl: string | null;
+}) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
     client: options.client,
     chain: options.chain,
     rpcCount: options.rpcCount,
+    forceRpcUrl: options.forceRpcUrl,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
@@ -87,11 +94,18 @@ export function importChainHistoricalData$(options: { client: DbClient; chain: C
   });
 }
 
-export function importChainRecentData$(options: { client: DbClient; chain: Chain; forceCurrentBlockNumber: number | null; rpcCount: number }) {
+export function importChainRecentData$(options: {
+  client: DbClient;
+  chain: Chain;
+  forceCurrentBlockNumber: number | null;
+  rpcCount: number;
+  forceRpcUrl: string | null;
+}) {
   return createRecentImportPipeline<DbBeefyProduct, number>({
     client: options.client,
     chain: options.chain,
     rpcCount: options.rpcCount,
+    forceRpcUrl: options.forceRpcUrl,
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
     getImportStateKey,

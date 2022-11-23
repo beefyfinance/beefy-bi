@@ -7,7 +7,7 @@ import { rootLogger } from "../../../utils/logger";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
-import { getMultipleRpcConfigsForChain } from "./rpc-config";
+import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "multiplex-by-rpc" });
 
@@ -50,10 +50,13 @@ export function multiplexByRcp<TInput, TRes>(options: {
   chain: Chain;
   client: DbClient;
   rpcCount: number;
+  forceRpcUrl: string | null;
   mode: "recent" | "historical";
   createPipeline: (ctx: ImportCtx) => Rx.OperatorFunction<TInput, TRes>;
 }): Rx.OperatorFunction<TInput, TRes> {
-  const rpcConfigs = getMultipleRpcConfigsForChain(options.chain, options.mode, options.rpcCount);
+  const rpcConfigs = options.forceRpcUrl
+    ? [createRpcConfig(options.chain, { forceRpcUrl: options.forceRpcUrl, mode: options.mode })]
+    : getMultipleRpcConfigsForChain(options.chain, options.mode, options.rpcCount);
   const streamConfig =
     options.mode === "recent"
       ? defaultRecentStreamConfig

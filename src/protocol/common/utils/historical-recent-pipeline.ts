@@ -20,6 +20,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   chain: Chain;
   rpcCount: number;
   logInfos: LogInfos;
+  forceRpcUrl: string | null;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   createDefaultImportState$: (
@@ -120,6 +121,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       client: options.client,
       mode: "historical",
       rpcCount: options.rpcCount,
+      forceRpcUrl: options.forceRpcUrl,
       createPipeline,
     }),
   );
@@ -130,6 +132,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   client: DbClient;
   chain: Chain;
   rpcCount: number;
+  forceRpcUrl: string | null;
   logInfos: LogInfos;
   cacheKey: string;
   getImportStateKey: (input: TInput) => string;
@@ -249,6 +252,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       client: options.client,
       mode: "recent",
       rpcCount: options.rpcCount,
+      forceRpcUrl: options.forceRpcUrl,
       createPipeline,
     }),
   );

@@ -27,6 +27,7 @@ const logger = rootLogger.child({ module: "beefy", component: "import-script" })
 interface CmdParams {
   client: DbClient;
   rpcCount: number;
+  forceRpcUrl: string | null;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate" | "reward-snapshots";
   filterChains: Chain[];
   includeEol: boolean;
@@ -51,6 +52,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         },
         contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+        forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
         includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
           choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate", "reward-snapshots"],
@@ -76,10 +78,20 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
             filterContractAddress: argv.contractAddress || null,
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
+            forceRpcUrl: argv.forceRpcUrl || null,
             loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
             throw new ProgrammerError("Cannot force current block number without a chain filter");
+          }
+          if (cmdParams.forceRpcUrl !== null && cmdParams.filterChains.length > 1) {
+            throw new ProgrammerError("Cannot force RPC URL without a chain filter");
+          }
+          if (cmdParams.forceRpcUrl !== null && cmdParams.rpcCount !== 1) {
+            throw new ProgrammerError("Cannot force RPC URL with multiple RPCs");
+          }
+          if (cmdParams.filterContractAddress !== null && cmdParams.filterChains.length > 1) {
+            throw new ProgrammerError("Cannot filter contract address without a chain filter");
           }
 
           const tasks = getTasksToRun(cmdParams);
@@ -196,6 +208,7 @@ function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "h
         client: cmdParams.client,
         chain,
         forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+        forceRpcUrl: cmdParams.forceRpcUrl,
         rpcCount: cmdParams.rpcCount,
       });
     }
@@ -206,6 +219,7 @@ function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "h
         client: cmdParams.client,
         chain,
         forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+        forceRpcUrl: cmdParams.forceRpcUrl,
         rpcCount: cmdParams.rpcCount,
       });
     }
@@ -254,6 +268,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
       chain: chain,
       client: cmdParams.client,
       forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+      forceRpcUrl: cmdParams.forceRpcUrl,
       rpcCount: cmdParams.rpcCount,
     }),
   );
@@ -304,6 +319,7 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
       chain: chain,
       client: cmdParams.client,
       forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+      forceRpcUrl: cmdParams.forceRpcUrl,
       rpcCount: cmdParams.rpcCount,
     }),
   );
