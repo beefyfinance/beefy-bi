@@ -28,6 +28,7 @@ interface CmdParams {
   client: DbClient;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate" | "reward-snapshots";
   filterChains: Chain[];
   includeEol: boolean;
@@ -53,6 +54,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
         currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
         forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
+        forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
         includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
           choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate", "reward-snapshots"],
@@ -79,6 +81,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             filterContractAddress: argv.contractAddress || null,
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
             forceRpcUrl: argv.forceRpcUrl || null,
+            forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
             loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
@@ -209,6 +212,7 @@ function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "h
         chain,
         forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
         forceRpcUrl: cmdParams.forceRpcUrl,
+        forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
         rpcCount: cmdParams.rpcCount,
       });
     }
@@ -220,6 +224,7 @@ function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "h
         chain,
         forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
         forceRpcUrl: cmdParams.forceRpcUrl,
+        forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
         rpcCount: cmdParams.rpcCount,
       });
     }
@@ -269,6 +274,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
       client: cmdParams.client,
       forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
       forceRpcUrl: cmdParams.forceRpcUrl,
+      forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
       rpcCount: cmdParams.rpcCount,
     }),
   );
@@ -320,6 +326,7 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
       client: cmdParams.client,
       forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
       forceRpcUrl: cmdParams.forceRpcUrl,
+      forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
       rpcCount: cmdParams.rpcCount,
     }),
   );

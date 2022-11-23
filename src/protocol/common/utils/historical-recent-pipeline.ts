@@ -21,6 +21,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   rpcCount: number;
   logInfos: LogInfos;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   createDefaultImportState$: (
@@ -122,6 +123,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       mode: "historical",
       rpcCount: options.rpcCount,
       forceRpcUrl: options.forceRpcUrl,
+      forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
       createPipeline,
     }),
   );
@@ -133,6 +135,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
   chain: Chain;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
   logInfos: LogInfos;
   cacheKey: string;
   getImportStateKey: (input: TInput) => string;
@@ -253,6 +256,7 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       mode: "recent",
       rpcCount: options.rpcCount,
       forceRpcUrl: options.forceRpcUrl,
+      forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
       createPipeline,
     }),
   );

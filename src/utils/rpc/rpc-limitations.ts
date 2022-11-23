@@ -138,16 +138,20 @@ export interface RpcLimitations {
   };
 }
 
-export function getRpcLimitations(chain: Chain, rpcUrl: string): RpcLimitations {
-  const limitations = findings[chain][removeSecretsFromRpcUrl(rpcUrl)];
+export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBlockSpan?: number | null): RpcLimitations {
+  let limitations = findings[chain][removeSecretsFromRpcUrl(rpcUrl)];
   if (!limitations) {
     if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
-      return defaultLimitations;
+      limitations = defaultLimitations;
     }
     throw new ProgrammerError({
       msg: "No rpc limitations found for chain/rpcUrl. Set USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND=true to use default limitations",
       data: { chain, rpcUrl },
     });
+  }
+  if (forceGetLogsBlockSpan !== undefined && forceGetLogsBlockSpan !== null) {
+    limitations = cloneDeep(limitations);
+    limitations.maxGetLogsBlockSpan = forceGetLogsBlockSpan;
   }
   return limitations;
 }

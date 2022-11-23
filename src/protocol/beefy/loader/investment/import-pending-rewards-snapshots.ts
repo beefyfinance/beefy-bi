@@ -38,12 +38,14 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
   forceCurrentBlockNumber: number | null;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
 }) {
   return createHistoricalImportPipeline<PendingRewardSnapshotInput, number, DbPendingRewardsImportState>({
     client: options.client,
     chain: options.chain, // unused
     rpcCount: options.rpcCount,
     forceRpcUrl: options.forceRpcUrl,
+    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
     logInfos: { msg: "Importing pending rewards snapshots", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: (target) => !isBeefyProductEOL(target.product),

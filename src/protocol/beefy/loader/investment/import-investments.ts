@@ -20,12 +20,14 @@ export function importChainHistoricalData$(options: {
   forceCurrentBlockNumber: number | null;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
 }) {
   return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
     client: options.client,
     chain: options.chain,
     rpcCount: options.rpcCount,
     forceRpcUrl: options.forceRpcUrl,
+    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
@@ -100,12 +102,14 @@ export function importChainRecentData$(options: {
   forceCurrentBlockNumber: number | null;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
 }) {
   return createRecentImportPipeline<DbBeefyProduct, number>({
     client: options.client,
     chain: options.chain,
     rpcCount: options.rpcCount,
     forceRpcUrl: options.forceRpcUrl,
+    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
     getImportStateKey,

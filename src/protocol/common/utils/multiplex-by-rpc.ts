@@ -51,12 +51,18 @@ export function multiplexByRcp<TInput, TRes>(options: {
   client: DbClient;
   rpcCount: number;
   forceRpcUrl: string | null;
+  forceGetLogsBlockSpan: number | null;
   mode: "recent" | "historical";
   createPipeline: (ctx: ImportCtx) => Rx.OperatorFunction<TInput, TRes>;
 }): Rx.OperatorFunction<TInput, TRes> {
   const rpcConfigs = options.forceRpcUrl
-    ? [createRpcConfig(options.chain, { forceRpcUrl: options.forceRpcUrl, mode: options.mode })]
-    : getMultipleRpcConfigsForChain(options.chain, options.mode, options.rpcCount);
+    ? [createRpcConfig(options.chain, { forceRpcUrl: options.forceRpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan })]
+    : getMultipleRpcConfigsForChain({
+        chain: options.chain,
+        mode: options.mode,
+        rpcCount: options.rpcCount,
+        forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+      });
   const streamConfig =
     options.mode === "recent"
       ? defaultRecentStreamConfig

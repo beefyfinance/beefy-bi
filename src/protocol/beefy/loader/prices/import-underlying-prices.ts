@@ -26,6 +26,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
     client: options.client,
     rpcCount: 1, // unused
     forceRpcUrl: null, // unused
+    forceGetLogsBlockSpan: null, // unused
     chain: "bsc", // unused
     logInfos: { msg: "Importing historical underlying prices" },
     getImportStateKey,
@@ -80,6 +81,7 @@ export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }
     client: options.client,
     rpcCount: 1, // unused
     forceRpcUrl: null, // unused
+    forceGetLogsBlockSpan: null, // unused
     chain: "bsc", // unused
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },

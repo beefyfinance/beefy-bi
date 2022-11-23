@@ -22,13 +22,20 @@ import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../..
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
-export function getMultipleRpcConfigsForChain(chain: Chain, mode: "recent" | "historical", rpcCount: number): RpcConfig[] {
-  let rpcUrls = getBestRpcUrlsForChain(chain, mode);
-  rpcUrls = rpcUrls.slice(0, rpcCount);
+export function getMultipleRpcConfigsForChain(options: {
+  chain: Chain;
+  mode: "recent" | "historical";
+  rpcCount: number;
+  forceGetLogsBlockSpan: number | null;
+}): RpcConfig[] {
+  let rpcUrls = getBestRpcUrlsForChain(options.chain, options.mode);
+  rpcUrls = rpcUrls.slice(0, options.rpcCount);
 
-  logger.debug({ msg: "Using RPC URLs", data: { chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
+  logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
 
-  return rpcUrls.map((rpcUrl) => createRpcConfig(chain, { forceRpcUrl: rpcUrl, mode }));
+  return rpcUrls.map((rpcUrl) =>
+    createRpcConfig(options.chain, { forceRpcUrl: rpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan }),
+  );
 }
 
 const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
@@ -44,7 +51,12 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
 
 export function createRpcConfig(
   chain: Chain,
-  { forceRpcUrl, mode = "historical", timeout = 120_000 }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number } = {},
+  {
+    forceRpcUrl,
+    mode = "historical",
+    timeout = 120_000,
+    forceGetLogsBlockSpan = null,
+  }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number; forceGetLogsBlockSpan?: number | null } = {},
 ): RpcConfig {
   const rpcUrls = getBestRpcUrlsForChain(chain, mode);
   const rpcUrl = forceRpcUrl || rpcUrls[0];
@@ -56,7 +68,7 @@ export function createRpcConfig(
     chain,
     linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
-    rpcLimitations: getRpcLimitations(chain, rpcOptions.url),
+    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, forceGetLogsBlockSpan),
   };
 
   // instantiate etherscan provider
