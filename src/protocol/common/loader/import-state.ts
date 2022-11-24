@@ -195,7 +195,7 @@ export function updateImportState$<
     if (coveredRanges.some((r1) => coveredRanges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)))) {
       throw new ProgrammerError({
         msg: "Import state ranges are not exclusive",
-        data: { importState, items, coveredRanges },
+        data: { importState, coveredRanges, items },
       });
     }
 
@@ -207,7 +207,7 @@ export function updateImportState$<
     if (hasOverlap) {
       throw new ProgrammerError({
         msg: "Import state success and error ranges are not exclusive",
-        data: { importState, items, successRanges, errorRanges },
+        data: { importState, successRanges, errorRanges, items },
       });
     }
 
