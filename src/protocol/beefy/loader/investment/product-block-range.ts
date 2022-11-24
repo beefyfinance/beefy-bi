@@ -417,6 +417,7 @@ export function loadTransfers$<
             l1GasUsed: item.gas.l1GasUsed?.toString(),
           },
           importDate: new Date().toISOString(),
+          lineage: { log: item.target.transfer.logLineage },
         },
       }),
       formatOutput: (item, investment) => ({ ...item, investment, result: true }),

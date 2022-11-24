@@ -6,7 +6,7 @@ export interface ImportRanges<T extends SupportedRangeTypes> {
   lastImportDate: Date;
   // already imported once range
   coveredRanges: Range<T>[];
-  // ranges where an error occured
+  // ranges where an error occurred
   toRetry: Range<T>[];
 }
 

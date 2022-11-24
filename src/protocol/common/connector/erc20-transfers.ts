@@ -29,6 +29,7 @@ export interface ERC20Transfer {
 
   amountTransferred: Decimal;
   logIndex: number;
+  logLineage: "etherscan" | "rpc";
 }
 
 interface GetTransferCallParams {
@@ -271,7 +272,7 @@ async function fetchERC20TransferEventsFromRpc(
 
   return new Map(
     zipWith(contractCalls, eventsRes, (contractCall, events) => {
-      const transfers = eventsToTransfers(chain, contractCall, events);
+      const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
       return [contractCall, transfers];
     }),
   );
@@ -336,7 +337,7 @@ export async function fetchERC20TransferEventsFromExplorer(
       data: { chain, eventCount, contractCall },
     });
   }
-  const transfers = eventsToTransfers(chain, contractCall, allEvents);
+  const transfers = eventsToTransfers(chain, contractCall, allEvents, "etherscan");
   return transfers;
 }
 
@@ -347,7 +348,12 @@ export async function fetchERC20TransferEventsFromExplorer(
  * We may also have multiple log transfers inside the same block for the same user
  * We want to merge those into a single transfer by summing the amounts
  */
-function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, events: ethers.Event[]): ERC20Transfer[] {
+function eventsToTransfers(
+  chain: Chain,
+  contractCall: GetTransferCallParams,
+  events: ethers.Event[],
+  logLineage: "etherscan" | "rpc",
+): ERC20Transfer[] {
   // intermediate format
   interface TransferEvent {
     transactionHash: string;
@@ -382,6 +388,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
           transactionHash: event.transactionHash,
           amountTransferred: event.value.negated(),
           logIndex: event.logIndex,
+          logLineage,
         },
         {
           chain: chain,
@@ -392,6 +399,7 @@ function eventsToTransfers(chain: Chain, contractCall: GetTransferCallParams, ev
           transactionHash: event.transactionHash,
           amountTransferred: event.value,
           logIndex: event.logIndex,
+          logLineage,
         },
       ]),
   );

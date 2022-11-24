@@ -35,6 +35,7 @@
     "retryable",
     "Rpcs",
     "SFUNC",
+    "strat",
     "STYPE",
     "syscoin",
     "TIMESCALEDB",
