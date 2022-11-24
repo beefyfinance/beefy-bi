@@ -4,7 +4,7 @@ export class ProgrammerError extends Error {
   constructor(logInfos: any) {
     super(logInfos?.msg || "Programmer Error");
     // use console log as the result is easier to read
-    console.dir(logInfos, { showHidden: false, depth: 6, colors: true });
+    console.dir(logInfos, { showHidden: false, depth: 50, colors: true });
   }
 }
 

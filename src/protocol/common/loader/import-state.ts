@@ -6,7 +6,7 @@ import { ConnectionTimeoutError } from "../../../utils/async";
 import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { isDateRange, isNumberRange, Range, rangeMerge, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import { isDateRange, isNumberRange, Range, rangeMerge, rangeOverlap, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
@@ -191,8 +191,8 @@ export function updateImportState$<
 
     // update the import rages
     const coveredRanges = items.map((item) => options.getRange(item));
-    // covered ranges should be exclusive
-    if (coveredRanges.length !== rangeMerge(coveredRanges).length) {
+    // covered ranges should not be overlapping
+    if (coveredRanges.some((r1) => coveredRanges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)))) {
       throw new ProgrammerError({
         msg: "Import state ranges are not exclusive",
         data: { importState, items, coveredRanges },
@@ -246,7 +246,7 @@ export function updateImportState$<
     Rx.filter((items) => items.length > 0),
 
     // update multiple import states at once
-    Rx.mergeMap(async (items) => {
+    Rx.concatMap(async (items) => {
       const logInfos: LogInfos = {
         msg: "import-state update transaction",
         data: { chain: options.ctx.chain, importKeys: uniq(items.map((item) => options.getImportStateKey(item))) },
@@ -339,7 +339,7 @@ export function updateImportState$<
         }
         throw error;
       }
-    }, options.ctx.streamConfig.workConcurrency),
+    }),
 
     // flatten the items
     Rx.concatAll(),

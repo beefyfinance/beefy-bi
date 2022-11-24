@@ -66,6 +66,17 @@ export function isInRange<T extends SupportedRangeTypes>(range: Range<T>, value:
   return strat.compare(range.from, value) <= 0 && strat.compare(value, range.to) <= 0;
 }
 
+export function rangeOverlap<T extends SupportedRangeTypes>(a: Range<T>, b: Range<T>, strategy?: RangeStrategy<T>): boolean {
+  const strat = strategy || getRangeStrategy(a);
+  if (strat.compare(a.from, b.to) > 0) {
+    return false;
+  }
+  if (strat.compare(b.from, a.to) > 0) {
+    return false;
+  }
+  return true;
+}
+
 export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {
   if (values.length <= 0) {
     return undefined;
