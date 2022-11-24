@@ -193,6 +193,7 @@ export function updateImportState$<
     const coveredRanges = items.map((item) => options.getRange(item));
     // covered ranges should not be overlapping
     if (coveredRanges.some((r1) => coveredRanges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)))) {
+      logger.error({ msg: "covered ranges should not be overlapping", data: { importState, coveredRanges, items } });
       throw new ProgrammerError({
         msg: "Import state ranges are not exclusive",
         data: { importState, coveredRanges, items },
@@ -205,6 +206,7 @@ export function updateImportState$<
     // success and error ranges should be exclusive
     const hasOverlap = successRanges.some((successRange) => errorRanges.some((errorRange) => rangeOverlap(successRange, errorRange)));
     if (hasOverlap) {
+      logger.error({ msg: "Import state ranges are not exclusive", data: { importState, successRanges, errorRanges, items } });
       throw new ProgrammerError({
         msg: "Import state success and error ranges are not exclusive",
         data: { importState, successRanges, errorRanges, items },
