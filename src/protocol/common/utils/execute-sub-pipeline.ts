@@ -72,7 +72,15 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
               targetsByParent.set(subItem.parent, new Map());
             }
             const res: MapRes = subItem.success ? { success: true, result: subItem.result } : { success: false };
-            targetsByParent.get(subItem.parent)?.set(subItem.target, res);
+
+            // if the same subitem is already present, we consider it as failed as this should never happen
+            const subItemInMap = targetsByParent.get(subItem.parent)?.get(subItem.target);
+            if (subItemInMap) {
+              logger.error({ msg: "sub item has been returned multiple times. marking it as an error", data: { subItem, subItemInMap } });
+              targetsByParent.get(subItem.parent)?.set(subItem.target, { success: false });
+            } else {
+              targetsByParent.get(subItem.parent)?.set(subItem.target, res);
+            }
           }
 
           // now we re-map original items to their result
