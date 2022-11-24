@@ -1,0 +1,39 @@
+
+optimism,0x5929cc4d10b6a1acc5bf5d221889f10251c628a1,1.48888914546612,2.014806293728602801000000
+optimism,0x5a4859fb80daf61136f914cc74deeb07f9461163,20.8918563011435,21.873125794444823202000000
+optimism,0xab9f4d19f6f22b152153a1d701a1492255d79387,30.6695171603789,80.292471184667678314000000
+optimism,0xbe7cf0a21e0d7b9431351f4ca28e819cf7edebdd,NULL,0.155499202009125546000000
+-> POLYGON IS OKAY
+bsc,0x23b88a2399741df81c85b26216257a81033b85a7
+bsc,0x38083e2fc384a102bc44694729ebc2d359c09fc9
+bsc,0x424dc6a1f3874bb3d71707ef46e009b5e7af5243
+bsc,0x4790010f38cf84e094b76f1edb16dced011135ce
+bsc,0x49208d4679787136fa9449ca37874b8cc543a508
+bsc,0xac9ac50d7b4f2e5b51c2406fdca1fdd5a56b8de7
+bsc,0xc8f9c074cbd381a46d7363009ddd09e76ef6f025
++ many missing addresses for bsc
+
+
+
+contract_addresses
+optimism: 0xe200cD5ef01B52Bb968402F63E3933897CfF367b  https://optimistic.etherscan.io/token/0xe200cd5ef01b52bb968402f63e3933897cff367b?a=0x5929cc4d10b6a1acc5bf5d221889f10251c628a1
+polygon: 0xfEcf784F48125ccb7d8855cdda7C5ED6b5024Cb3 https://polygonscan.com/token/0xfEcf784F48125ccb7d8855cdda7C5ED6b5024Cb3?a=0x1f2acc83db25fd2bba287bf4365ee479334354be
+bsc: 0x7828ff4ABA7aAb932D8407C78324B069D24284c9
+
+select * from investor where lower('0x5929cc4d10b6a1acc5bf5d221889f10251c628a1') = lower(bytea_to_hexstr(address));
+
+select * from import_state where import_key in (select 'product:investment:'||product_id from product where chain in ('bsc', 'polygon', 'optimism') and product_key ~* 'maxi');
+product:investment:1854 | {"type": "product:investment", "chain": "optimism", "ranges": {"toRetry": [], "coveredRanges": [{"to": 41524578, "from": 23014637}, {"to": 41528987, "from": 41526587}, {"to": 41534285, "from": 41531885}, {"to": 41541417, "from": 41539017}, {"to": 41547927, "from": 41545527}, {"to": 41552261, "from": 41549861}, {"to": 41556735, "from": 41554335}, {"to": 41561056, "from": 41558656}, {"to": 41566260, "from": 41563860}, {"to": 41571678, "from": 41569278}, {"to": 41576908, "from": 41574508}, {"to": 41584205, "from": 41581805}, {"to": 41589344, "from": 41586944}, {"to": 41596008, "from": 41593608}, {"to": 41602184, "from": 41599784}, {"to": 41607779, "from": 41605379}, {"to": 41614902, "from": 41612502}, {"to": 41621557, "from": 41619157}, {"to": 41627695, "from": 41625295}, {"to": 41633445, "from": 41631045}, {"to": 41639236, "from": 41636836}, {"to": 41645042, "from": 41642642}, {"to": 41653354, "from": 41650954}, {"to": 41660204, "from": 41657804}, {"to": 41666872, "from": 41664472}, {"to": 41674427, "from": 41672027}, {"to": 41681551, "from": 41679151}], "lastImportDate": "2022-11-24T09:39:15.274Z"}, "productId": 1854, "contractCreationDate": "2022-09-13T17:51:18.000Z", "chainLatestBlockNumber": 41681556, "contractCreatedAtBlock": 23014637}
+product:investment:1919 | {"type": "product:investment", "chain": "polygon", "ranges": {"toRetry": [], "coveredRanges": [{"to": 36002870, "from": 14692985}], "lastImportDate": "2022-11-24T09:39:15.473Z"}, "productId": 1919, "contractCreationDate": "2021-05-19T19:01:09.000Z", "chainLatestBlockNumber": 36002875, "contractCreatedAtBlock": 14692985}
+product:investment:288  | {"type": "product:investment", "chain": "bsc", "ranges": {"toRetry": [], "coveredRanges": [{"to": 23311370, "from": 16454705}, {"to": 23315599, "from": 23314218}, {"to": 23317808, "from": 23316817}, {"to": 23320741, "from": 23318499}, {"to": 23323182, "from": 23321233}, {"to": 23324315, "from": 23323324}, {"to": 23326763, "from": 23324684}, {"to": 23328295, "from": 23327304}], "lastImportDate": "2022-11-24T09:23:37.898Z"}, "productId": 288, "contractCreationDate": "2022-03-28T14:17:50.000Z", "chainLatestBlockNumber": 23328300, "contractCreatedAtBlock": 16454705}
+
+
+select * from product where chain in ('bsc', 'polygon', 'optimism') and product_key ~* 'maxi';
+;
+ product_id |               product_key               |  chain   | price_feed_1_id | price_feed_2_id | pending_rewards_price_feed_id |                                                                                                                                                                                                                                                                           product_data                                                                                                                                                                                                                                                                           
+------------+-----------------------------------------+----------+-----------------+-----------------+-------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        288 | beefy:vault:bsc:bifi-maxi               | bsc      |             982 |            1776 |                               | {"type": "beefy:vault", "vault": {"id": "bifi-maxi", "eol": false, "chain": "bsc", "assets": ["BIFI"], "protocol": "beefy", "token_name": "mooBIFIV2", "is_gov_vault": false, "want_address": "0xCa3F508B8e4Dd382eE878A314789373D80A5190A", "want_decimals": 18, "token_decimals": 18, "contract_address": "0x7828ff4ABA7aAb932D8407C78324B069D24284c9", "protocol_product": "BIFI", "want_price_feed_key": "BIFI", "gov_vault_reward_token_symbol": null, "gov_vault_reward_token_address": null, "gov_vault_reward_token_decimals": null}}
+       1854 | beefy:vault:optimism:optimism-bifi-maxi | optimism |            4013 |            4503 |                               | {"type": "beefy:vault", "vault": {"id": "optimism-bifi-maxi", "eol": false, "chain": "optimism", "assets": ["BIFI"], "protocol": "beefy", "token_name": "mooOptimismBIFI", "is_gov_vault": false, "want_address": "0x4E720DD3Ac5CFe1e1fbDE4935f386Bb1C66F4642", "want_decimals": 18, "token_decimals": 18, "contract_address": "0xe200cD5ef01B52Bb968402F63E3933897CfF367b", "protocol_product": "BIFI", "want_price_feed_key": "BIFI", "gov_vault_reward_token_symbol": null, "gov_vault_reward_token_address": null, "gov_vault_reward_token_decimals": null}}
+       1919 | beefy:vault:polygon:polygon-bifi-maxi   | polygon  |            4079 |            4568 |                               | {"type": "beefy:vault", "vault": {"id": "polygon-bifi-maxi", "eol": false, "chain": "polygon", "assets": ["BIFI"], "protocol": "beefy", "token_name": "mooPolygonBIFI", "is_gov_vault": false, "want_address": "0xFbdd194376de19a88118e84E279b977f165d01b8", "want_decimals": 18, "token_decimals": 18, "contract_address": "0xfEcf784F48125ccb7d8855cdda7C5ED6b5024Cb3", "protocol_product": "BIFI", "want_price_feed_key": "BIFI", "gov_vault_reward_token_symbol": null, "gov_vault_reward_token_address": null, "gov_vault_reward_token_decimals": null}}
+(3 rows)
+
