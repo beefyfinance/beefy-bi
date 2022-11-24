@@ -131,7 +131,6 @@ describe("executeSubPipeline$", () => {
     );
 
     const result = await consumeObservable(pipeline$);
-    console.dir({ result, errors });
     expect(result).toEqual([
       { id: 1, targets: [1, 2, 3], result: [2, 4, 6] },
       { id: 3, targets: [7, 8, 9], result: [14, 16, 18] },
@@ -177,7 +176,6 @@ describe("executeSubPipeline$", () => {
     );
 
     const result = await consumeObservable(pipeline$);
-    console.dir({ result, errors });
     expect(result).toEqual([
       { id: 1, targets: [1, 2, 3], result: [2, 4, 6] },
       { id: 3, targets: [7, 8, 9], result: [14, 16, 18] },
