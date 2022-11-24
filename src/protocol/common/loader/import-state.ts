@@ -191,8 +191,25 @@ export function updateImportState$<
 
     // update the import rages
     const coveredRanges = items.map((item) => options.getRange(item));
+    // covered ranges should be exclusive
+    if (coveredRanges.length !== rangeMerge(coveredRanges).length) {
+      throw new ProgrammerError({
+        msg: "Import state ranges are not exclusive",
+        data: { importState, items, coveredRanges },
+      });
+    }
+
     const successRanges = rangeMerge(items.filter((item) => options.isSuccess(item)).map((item) => options.getRange(item)));
     const errorRanges = rangeMerge(items.filter((item) => !options.isSuccess(item)).map((item) => options.getRange(item)));
+
+    // success and error ranges should be exclusive
+    if (successRanges.length + errorRanges.length !== rangeMerge([...successRanges, ...errorRanges]).length) {
+      throw new ProgrammerError({
+        msg: "Import state success and error ranges are not exclusive",
+        data: { importState, items, successRanges, errorRanges },
+      });
+    }
+
     const lastImportDate = new Date();
     const newRanges = updateImportRanges<TRange>(newImportState.importData.ranges as ImportRanges<TRange>, {
       coveredRanges,
