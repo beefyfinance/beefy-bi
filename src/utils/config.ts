@@ -30,6 +30,7 @@ export const BATCH_MAX_WAIT_MS = 5000;
 
 export const DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED = process.env.DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED === "true";
 export const USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND = process.env.USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true";
+export const DISABLE_PROGRAMMER_ERROR_DUMP = process.env.DISABLE_PROGRAMMER_ERROR_DUMP === "true";
 
 // memory management configs
 // Since there is no backpressure system in rxjs, we need to limit the number of incoming items
