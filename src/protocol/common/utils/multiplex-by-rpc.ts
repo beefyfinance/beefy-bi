@@ -4,6 +4,8 @@ import { Chain } from "../../../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
+import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
@@ -63,6 +65,10 @@ export function multiplexByRcp<TInput, TRes>(options: {
         rpcCount: options.rpcCount,
         forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
       });
+  if (rpcConfigs.length <= 0) {
+    throw new ProgrammerError({ msg: "No RPC configs found for chain", chain: options.chain });
+  }
+
   const streamConfig =
     options.mode === "recent"
       ? defaultRecentStreamConfig
@@ -70,44 +76,66 @@ export function multiplexByRcp<TInput, TRes>(options: {
       ? defaultMoonbeamHistoricalStreamConfig
       : defaultHistoricalStreamConfig;
 
-  const weightedPipelines = rpcConfigs
-    .map((rpcConfig): ImportCtx => ({ chain: options.chain, client: options.client, rpcConfig, streamConfig }))
-    .map((ctx) => ({
-      ctx,
-      pipeline: options.createPipeline(ctx),
-      // assign a weight to each pipeline based on the minDelayBetweenCalls
-      // so that we send more requests to the ones that are less likely to be rate limited
-      weight:
-        ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
-          ? 1_000_000
-          : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 500)),
-    }));
-  const totalWeight = weightedPipelines.reduce((acc, p) => acc + p.weight, 0);
+  return weightedMultiplex(
+    rpcConfigs.map((rpcConfig) => {
+      const ctx = { chain: options.chain, client: options.client, rpcConfig, streamConfig };
+      return {
+        weight:
+          ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
+            ? 1_000_000
+            : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 500)),
+        pipeline: options.createPipeline(ctx),
+      };
+    }),
+  );
+}
+
+export function weightedMultiplex<TInput, TRes>(
+  branches: { pipeline: Rx.OperatorFunction<TInput, TRes>; weight: number }[],
+  rng: typeof random = random,
+): Rx.OperatorFunction<TInput, TRes> {
+  for (const branch of branches) {
+    if (branch.weight < 1) {
+      throw new ProgrammerError({ msg: "Branch weight must be positive", branch });
+    }
+  }
+
+  const totalWeight = branches.reduce((acc, p) => acc + p.weight, 0);
 
   const minMax: [number, number][] = [];
-  let min = 0;
-  for (const p of weightedPipelines) {
-    minMax.push([min, min + p.weight]);
+  let min = 1;
+  for (let idx = 0; idx < branches.length; idx++) {
+    const p = branches[idx];
+    minMax.push([min, min + p.weight - 1]);
     min += p.weight;
   }
-  const pipelines = weightedPipelines.map((p, idx) => ({ ...p, minMax: minMax[idx] }));
+  const pipelines = branches.map((p, idx) => ({ ...p, minMax: minMax[idx] }));
+
+  // test if our minMax is correct
+  const ranges = pipelines.map((p) => ({ from: p.minMax[0], to: p.minMax[1] }));
+  const hasOverlap = ranges.some((r1) => ranges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)));
+  if (hasOverlap) {
+    throw new ProgrammerError({ msg: "Branches have overlapping ranges", ranges });
+  }
+  const isContiguous = rangeMerge(ranges).length === 1;
+  if (!isContiguous) {
+    throw new ProgrammerError({ msg: "Branches are not contiguous", ranges });
+  }
+  const isCovering = Math.min(...ranges.map((r) => r.from)) === 1 && Math.max(...ranges.map((r) => r.to)) === totalWeight;
+  if (!isCovering) {
+    throw new ProgrammerError({ msg: "Branches are not covering", ranges, totalWeight });
+  }
 
   return Rx.pipe(
     // add a unique id to each item
-    Rx.map((obj: TInput) => ({ obj, rng: random(0, totalWeight, false) })),
+    Rx.map((obj: TInput) => ({ obj, rng: rng(1, totalWeight, false) })),
 
     Rx.connect((item$) =>
       Rx.merge(
-        ...pipelines.map(({ pipeline, minMax, ctx }) =>
+        ...pipelines.map(({ pipeline, minMax }) =>
           item$.pipe(
-            Rx.filter((item) => item.rng >= minMax[0] && item.rng < minMax[1]),
+            Rx.filter((item) => item.rng >= minMax[0] && item.rng <= minMax[1]),
             Rx.map((item) => item.obj),
-            Rx.tap((item) =>
-              logger.debug({
-                msg: "Multiplexed item",
-                data: { item, minMax, rpcUrl: removeSecretsFromRpcUrl(ctx.rpcConfig.linearProvider.connection.url) },
-              }),
-            ),
             pipeline,
           ),
         ),
