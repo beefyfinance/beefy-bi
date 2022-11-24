@@ -203,7 +203,8 @@ export function updateImportState$<
     const errorRanges = rangeMerge(items.filter((item) => !options.isSuccess(item)).map((item) => options.getRange(item)));
 
     // success and error ranges should be exclusive
-    if (successRanges.length + errorRanges.length !== rangeMerge([...successRanges, ...errorRanges]).length) {
+    const hasOverlap = successRanges.some((successRange) => errorRanges.some((errorRange) => rangeOverlap(successRange, errorRange)));
+    if (hasOverlap) {
       throw new ProgrammerError({
         msg: "Import state success and error ranges are not exclusive",
         data: { importState, items, successRanges, errorRanges },
