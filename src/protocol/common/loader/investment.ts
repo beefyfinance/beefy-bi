@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy, merge } from "lodash";
+import { groupBy, keyBy, merge } from "lodash";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -73,7 +73,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         }
       }
 
-      await db_query(
+      const results = await db_query<{ product_id: number; investor_id: number; block_number: number }>(
         `INSERT INTO investment_balance_ts (
               datetime,
               block_number,
@@ -92,9 +92,10 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                 pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
                 pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
                 investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
+          RETURNING product_id, investor_id, block_number
           `,
         [
-          objAndData.map(({ data }) => [
+          investments.map(({ data }) => [
             data.datetime.toISOString(),
             data.blockNumber,
             data.productId,
@@ -108,7 +109,18 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         ],
         options.ctx.client,
       );
-      return new Map(objAndData.map(({ data }) => [data, data]));
+
+      const idMap = keyBy(results, (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
+      return new Map(
+        objAndData.map(({ data }) => {
+          const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
+          const result = idMap[key];
+          if (!result) {
+            throw new ProgrammerError({ msg: "Upserted investment not found", data });
+          }
+          return [data, data];
+        }),
+      );
     },
   });
 }
