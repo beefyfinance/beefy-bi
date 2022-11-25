@@ -1,9 +1,18 @@
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { DbClient } from "../../../utils/db";
+import { LogInfos } from "../../../utils/logger";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 
-export type ErrorEmitter<T> = (obj: T) => void;
+type Throwable = Error | string;
+
+export type ErrorReport = {
+  previousError?: ErrorReport;
+  error?: Throwable;
+  infos: LogInfos;
+};
+
+export type ErrorEmitter<T> = (obj: T, report: ErrorReport) => void;
 
 export interface ImportCtx {
   client: DbClient;

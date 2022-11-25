@@ -1,7 +1,7 @@
 {
   "name": "beefy-bi",
   "scripts": {
-    "test": "jest",
+    "test": "TZ=UTC jest",
     "build": "tsc",
     "infra:start": "cd ./deploy && docker compose -p dev -f docker-compose.dev.yml up",
     "grafana:open": "open http://localhost:3000",

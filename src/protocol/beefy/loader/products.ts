@@ -4,10 +4,11 @@ import { Chain } from "../../../types/chain";
 import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
+import { ErrorReport } from "../../common/types/import-context";
 import { BatchStreamConfig } from "../../common/utils/batch-rpc-calls";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { BeefyBoost, beefyBoostsFromGitHistory$ } from "../connector/boost-list";
@@ -35,11 +36,13 @@ export function importBeefyProducts$(options: { client: DbClient }) {
     chain: "bsc" as Chain, // we don't use it here
   }; //satisfies { vault: BeefyVault }; // to activate when TS 4.9 is out?
 
-  const emitVaultError = <TObj extends { vault: BeefyVault }>(item: TObj) => {
-    logger.error({ msg: "Error importing beefy vault product", data: { vaultId: item.vault.id } });
+  const emitVaultError = <TObj extends { vault: BeefyVault }>(item: TObj, report: ErrorReport) => {
+    logger.error(mergeLogsInfos({ msg: "Error importing beefy vault product", data: { vaultId: item.vault.id } }, report.infos));
+    logger.error(report);
   };
-  const emitBoostError = <TObj extends { boost: BeefyBoost }>(item: TObj) => {
-    logger.error({ msg: "Error importing beefy boost product", data: { vaultId: item.boost.id } });
+  const emitBoostError = <TObj extends { boost: BeefyBoost }>(item: TObj, report: ErrorReport) => {
+    logger.error(mergeLogsInfos({ msg: "Error importing beefy boost product", data: { vaultId: item.boost.id } }, report.infos));
+    logger.error(report);
   };
 
   return Rx.pipe(

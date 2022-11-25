@@ -1,6 +1,6 @@
 import { keyBy, uniq } from "lodash";
 import * as Rx from "rxjs";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlock$, upsertBlock$ } from "../loader/blocks";
@@ -65,8 +65,9 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
           dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
         },
       },
-      emitError: (obj) => {
-        logger.error({ msg: "Error while saving block", data: { chain, obj } });
+      emitError: (obj, report) => {
+        logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { chain, obj } }, report.infos));
+        logger.error(report.error);
         throw new ProgrammerError("Failed to upsert block");
       },
       getBlockData: (item) => ({

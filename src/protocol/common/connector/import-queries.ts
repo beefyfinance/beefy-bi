@@ -41,7 +41,7 @@ export function addLatestBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes
     // go get the latest block number for this chain
     latestBlockNumber$({
       ctx: options.ctx,
-      emitError: (items) => items.map((item) => options.emitError(item)),
+      emitError: (items, report) => items.map((item) => options.emitError(item, report)),
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (objs, latestBlockNumber) => ({ objs, latestBlockNumber }),
     }),
@@ -198,7 +198,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
       // fetch the last block of this chain
       latestBlockNumber$({
         ctx: options.ctx,
-        emitError: (item) => options.emitError(item.obj),
+        emitError: (item, report) => options.emitError(item.obj, report),
         forceCurrentBlockNumber: options.forceCurrentBlockNumber,
         formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
       }),
@@ -294,7 +294,7 @@ export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends Err
     // first, we need the latest block number
     latestBlockNumber$({
       ctx: options.ctx,
-      emitError: (item) => options.emitError(item.obj),
+      emitError: (item, report) => options.emitError(item.obj, report),
       forceCurrentBlockNumber: options.forceCurrentBlockNumber,
       formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
     }),

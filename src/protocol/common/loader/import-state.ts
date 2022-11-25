@@ -334,9 +334,21 @@ export function updateImportState$<
         });
       } catch (error) {
         if (error instanceof ConnectionTimeoutError) {
-          logger.error(mergeLogsInfos({ msg: "Connection timeout error, will not retry, import state not updated", data: { error } }, logInfos));
+          const report = {
+            error,
+            infos: mergeLogsInfos(
+              {
+                msg: "Connection timeout error, will not retry, import state not updated",
+                data: {},
+              },
+              logInfos,
+            ),
+          };
+          logger.debug(report.infos);
+          logger.debug(report.error);
           for (const item of items) {
-            options.emitError(item);
+            report.infos.data = { ...report.infos.data, item };
+            options.emitError(item, report);
           }
           return [];
         }

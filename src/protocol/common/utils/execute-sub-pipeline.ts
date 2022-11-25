@@ -2,14 +2,14 @@ import { sum } from "lodash";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "execute-sub-pipeline" });
 
 /**
- * An rjxs operator that executes a sub pipeline.
+ * An rxjs operator that executes a sub pipeline.
  * Each value can yield an array that get passed to the sub pipeline.
- * If any error is yielded from any value of the sub pipeline, the current value is consided as failed.
+ * If any error is yielded from any value of the sub pipeline, the current value is considered as failed.
  * Do cross value batching as much as possible
  */
 export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TSubTarget, TSubPipelineRes>(options: {
@@ -22,7 +22,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
   formatOutput: (obj: TObj, subPipelineResult: Map<TSubTarget, TSubPipelineRes>) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   type ItemOkRes = { target: TSubTarget; parent: TObj; success: true; result: TSubPipelineRes };
-  type ItemKoRes = { target: TSubTarget; parent: TObj; success: false };
+  type ItemKoRes = { target: TSubTarget; parent: TObj; success: false; report: ErrorReport };
   type ItemRes = ItemOkRes | ItemKoRes;
 
   return Rx.pipe(
@@ -43,8 +43,8 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
     Rx.concatMap((items) => {
       const subPipelineErrors: ItemKoRes[] = [];
 
-      const emitError = (item: { target: TSubTarget; parent: TObj }) => {
-        subPipelineErrors.push({ ...item, success: false });
+      const emitError = (item: { target: TSubTarget; parent: TObj }, report: ErrorReport) => {
+        subPipelineErrors.push({ ...item, success: false, report });
       };
 
       const inputs = items.flatMap((item) => item.targets.map((target) => ({ target, parent: item.obj })));
@@ -65,19 +65,19 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
           // make sure every sub item is present
           // if not, we consider the whole item as failed
           // this is to make sure we don't miss any error
-          type MapRes = { success: true; result: TSubPipelineRes } | { success: false };
+          type MapRes = { success: true; result: TSubPipelineRes } | { success: false; report: ErrorReport };
           const targetsByParent = new Map<TObj, Map<TSubTarget, MapRes>>();
           for (const subItem of subItems) {
             if (!targetsByParent.has(subItem.parent)) {
               targetsByParent.set(subItem.parent, new Map());
             }
-            const res: MapRes = subItem.success ? { success: true, result: subItem.result } : { success: false };
+            const res: MapRes = subItem.success ? { success: true, result: subItem.result } : { success: false, report: subItem.report };
 
             // if the same subitem is already present, we consider it as failed as this should never happen
             const subItemInMap = targetsByParent.get(subItem.parent)?.get(subItem.target);
             if (subItemInMap) {
               logger.error({ msg: "sub item has been returned multiple times. marking it as an error", data: { subItem, subItemInMap } });
-              targetsByParent.get(subItem.parent)?.set(subItem.target, { success: false });
+              throw new ProgrammerError("sub item has been returned multiple times");
             } else {
               targetsByParent.get(subItem.parent)?.set(subItem.target, res);
             }
@@ -100,14 +100,18 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             // make sure the sub pipeline returned at least one result for this target
             const targetResults = new Map();
             let hasError = false;
+            const errorReport = {
+              error: "Sub item failed",
+              infos: { msg: "Sub item failed", data: { item, reports: [] as { subItem: TSubTarget; report: ErrorReport }[] } },
+            };
             for (const target of targets) {
-              if (!targetMap.has(target)) {
+              const targetRes = targetMap.get(target);
+              if (!targetRes) {
                 logger.error({ msg: "Missing sub item target", data: { item, target, targetsByParent } });
                 throw new ProgrammerError("Missing sub item target");
-              }
-              const targetRes = targetMap.get(target);
-              if (!targetRes || !targetRes.success) {
+              } else if (!targetRes.success) {
                 logger.debug({ msg: "Sub item failed", data: { item, targets, targetsByParent } });
+                errorReport.infos.data.reports.push({ subItem: target, report: targetRes.report });
                 hasError = true;
               } else {
                 targetResults.set(target, targetRes.result);
@@ -116,7 +120,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             if (!hasError) {
               okItems.push(options.formatOutput(item.obj, targetResults));
             } else {
-              options.emitError(item.obj);
+              options.emitError(item.obj, errorReport);
             }
           }
 

@@ -4,7 +4,7 @@ import { allChainIds, Chain } from "../../../types/chain";
 import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
 import { DbClient, withPgClient } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
@@ -12,6 +12,7 @@ import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { ErrorReport } from "../../common/types/import-context";
 import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
@@ -163,7 +164,9 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
     rpcConfig,
     streamConfig,
   };
-  const emitError = (item: { product: DbProduct }) => {
+  const emitError = (item: { product: DbProduct }, report: ErrorReport) => {
+    logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
+    logger.error(report.error);
     throw new Error(`Error fetching price feed for product ${item.product.productId}`);
   };
 
@@ -252,7 +255,9 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     streamConfig,
   };
 
-  const emitError = (item: DbProduct) => {
+  const emitError = (item: DbProduct, report: ErrorReport) => {
+    logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
+    logger.error(report.error);
     throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
@@ -293,7 +298,9 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
     streamConfig,
   };
 
-  const emitError = (item: DbProduct) => {
+  const emitError = (item: DbProduct, report: ErrorReport) => {
+    logger.error(mergeLogsInfos({ msg: "Error fetching rewards for product", data: { ...item } }, report.infos));
+    logger.error(report.error);
     throw new Error(`Error fetching rewards for product ${item.productId}`);
   };
 

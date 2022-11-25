@@ -6,7 +6,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 import { cloneBatchProvider, createRpcConfig } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
@@ -115,12 +115,17 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
           const res = resultMap.get(query) as TQueryResp;
           return options.formatOutput(obj, res);
         });
-      } catch (err) {
+      } catch (error: any) {
         // here, none of the retrying worked, so we emit all the objects as in error
-        logger.error(mergeLogsInfos({ msg: "Error doing batch rpc work", data: { chain: options.ctx.chain, err } }, options.logInfos));
-        logger.error(err);
+        const report: ErrorReport = {
+          error,
+          infos: mergeLogsInfos({ msg: "Error doing batch rpc work", data: { chain: options.ctx.chain, err: error } }, options.logInfos),
+        };
+        logger.debug(report.infos);
+        logger.debug(report.error);
         for (const obj of objs) {
-          options.emitError(obj);
+          report.infos.data = { ...report.infos.data, obj };
+          options.emitError(obj, report);
         }
         return Rx.EMPTY;
       }

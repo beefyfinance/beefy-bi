@@ -29,7 +29,7 @@ async function main(client: DbClient) {
   const wtokenDecimals = 18;
   const feebatchCreationBlock = 15897027;
   const feebatchCreationDate = new Date("2022-11-04T15:43:59");
-  const emitError = (item: any) => console.error(item);
+  const emitError = (item: any, report: any) => console.error({ item, report });
 
   const obs$ = Rx.from([{}]).pipe(
     addHistoricalBlockQuery$({

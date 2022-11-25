@@ -5,7 +5,7 @@ import { BEEFY_DATA_URL } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
-import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 
 export interface PriceSnapshot {
   oracleId: string;
@@ -43,10 +43,11 @@ export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRe
         logger.debug({ msg: "got prices", data: { ...params, priceCount: prices.length } });
 
         return Rx.of(options.formatOutput(item, prices));
-      } catch (error) {
-        logger.error({ msg: "error fetching prices", data: { ...params, error } });
-        logger.error(error);
-        options.emitError(item);
+      } catch (error: any) {
+        const report: ErrorReport = { error, infos: { msg: "error fetching prices", data: { ...params } } };
+        logger.debug(report.infos);
+        logger.debug(report.error);
+        options.emitError(item, report);
         return Rx.EMPTY;
       }
     }),

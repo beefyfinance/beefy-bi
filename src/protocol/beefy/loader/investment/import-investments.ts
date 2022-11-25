@@ -1,6 +1,7 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { DbClient } from "../../../../utils/db";
+import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/connector/import-queries";
@@ -11,6 +12,8 @@ import { createHistoricalImportPipeline, createRecentImportPipeline } from "../.
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { isBeefyProductLive } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
+
+const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
 
 export const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
@@ -62,7 +65,9 @@ export function importChainHistoricalData$(options: {
         // add this block to our global block list
         upsertBlock$({
           ctx,
-          emitError: () => {
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { item } }, report.infos));
+            logger.error(report.error);
             throw new Error("Failed to upsert block");
           },
           getBlockData: (item) => ({

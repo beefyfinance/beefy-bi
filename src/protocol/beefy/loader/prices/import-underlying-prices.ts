@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
 import { DbClient } from "../../../../utils/db";
+import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";
 import { fetchProductCreationInfos$ } from "../../../common/loader/fetch-product-creation-infos";
@@ -18,6 +19,8 @@ type UnderlyingPriceFeedInput = {
   product: DbBeefyProduct;
   priceFeed: DbPriceFeed;
 };
+
+const logger = rootLogger.child({ module: "beefy", component: "import-underlying-prices" });
 
 const getImportStateKey = (item: UnderlyingPriceFeedInput) => `price:feed:${item.priceFeed.priceFeedId}`;
 
@@ -48,7 +51,9 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
         // find the first date we are interested in this price
         fetchProductCreationInfos$({
           ctx,
-          emitError: (item) => {
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Failed to fetch product creation info", data: { item } }, report.infos));
+            logger.error(report.error);
             throw new Error("Error while fetching product creation infos for price feed" + item.obj.priceFeed.priceFeedId);
           },
           getProductId: (item) => item.obj.product.productId,

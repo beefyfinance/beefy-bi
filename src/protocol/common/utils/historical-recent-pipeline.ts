@@ -9,7 +9,7 @@ import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
-import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
 import { multiplexByRcp } from "./multiplex-by-rpc";
 
@@ -38,7 +38,11 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
   ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport }, ImportRangeResult<TInput, TRange>>;
 }) {
   const createPipeline = (ctx: ImportCtx) => {
-    const { observable: errorObs$, complete: completeErrorObs, next: emitError } = createObservableWithNext<ImportRangeQuery<TInput, TRange>>();
+    const {
+      observable: errorObs$,
+      complete: completeErrorObs,
+      next: emitError,
+    } = createObservableWithNext<{ item: ImportRangeQuery<TInput, TRange>; report: ErrorReport }>();
 
     return Rx.pipe(
       addMissingImportState$({
@@ -79,7 +83,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       ),
 
       // run the import
-      options.processImportQuery$(ctx, emitError),
+      options.processImportQuery$(ctx, (item, report) => emitError({ item, report })),
 
       Rx.pipe(
         // handle the results
@@ -92,14 +96,27 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
           // make sure we close the errors observable when we are done
           Rx.finalize(() => setTimeout(completeErrorObs)),
           // merge the errors back in, all items here should have been successfully treated
-          Rx.mergeWith(errorObs$.pipe(Rx.map((item) => ({ ...item, success: false })))),
+          Rx.mergeWith(
+            errorObs$.pipe(
+              Rx.map(({ item, report }) => {
+                logger.error(
+                  mergeLogsInfos(mergeLogsInfos({ msg: "Error processing historical query", data: { item } }, report.infos), options.logInfos),
+                );
+                logger.error(report.error);
+                return { ...item, success: false };
+              }),
+            ),
+          ),
         ),
 
         // update the import state
         updateImportState$({
           ctx,
-          emitError: (item) => {
-            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
+          emitError: (item, report) => {
+            logger.error(
+              mergeLogsInfos(mergeLogsInfos({ msg: "Error while updating import state", data: { item } }, report.infos), options.logInfos),
+            );
+            logger.error(report.error);
           },
           getRange: (item) => item.range,
           isSuccess: (item) => item.success,
@@ -168,8 +185,11 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
         // create the import queries
         options.generateQueries$({
           ctx,
-          emitError: (obj) => {
-            logger.error(mergeLogsInfos({ msg: "Error while generating import query", data: { obj } }, options.logInfos));
+          emitError: (obj, report) => {
+            logger.error(
+              mergeLogsInfos(mergeLogsInfos({ msg: "Error while generating import query", data: { obj } }, report.infos), options.logInfos),
+            );
+            logger.error(report.error);
           },
           lastImported: (recentImportCache[options.cacheKey] ?? null) as TRange | null,
           formatOutput: (item, latest, ranges) => ranges.map((range) => ({ ...item, latest, range })),
@@ -233,8 +253,11 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
         excludeNullFields$("importState"),
         updateImportState$({
           ctx,
-          emitError: (item) => {
-            logger.error(mergeLogsInfos({ msg: "error while updating import state", data: item }, options.logInfos));
+          emitError: (item, report) => {
+            logger.error(
+              mergeLogsInfos(mergeLogsInfos({ msg: "Error while updating import state", data: { item } }, report.infos), options.logInfos),
+            );
+            logger.error(report.error);
           },
           getImportStateKey: (item) => options.getImportStateKey(item.target),
           getRange: (item) => item.range,

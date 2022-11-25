@@ -166,10 +166,18 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
                   resultMap.set(item.obj, itemTransfers);
                 }
                 return Array.from(resultMap.entries()).map(([obj, transfers]) => options.formatOutput(obj, transfers));
-              } catch (err) {
-                logger.error({ msg: "Error fetching transfers from etherscan provider", data: { chain: options.ctx.chain, address, err } });
+              } catch (error: any) {
+                logger.debug({ msg: "Error fetching transfers from etherscan provider", data: { chain: options.ctx.chain, address, error } });
+                logger.debug(error);
                 for (const item of items) {
-                  options.emitError(item.obj);
+                  const report = {
+                    error,
+                    infos: {
+                      msg: "Error fetching transfers from etherscan provider",
+                      data: { chain: options.ctx.chain, address, params: options.getQueryParams(item.obj) },
+                    },
+                  };
+                  options.emitError(item.obj, report);
                 }
                 return Rx.EMPTY;
               }

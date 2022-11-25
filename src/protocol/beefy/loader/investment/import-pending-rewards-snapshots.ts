@@ -3,7 +3,7 @@ import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { DbClient, db_query } from "../../../../utils/db";
-import { rootLogger } from "../../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
@@ -91,7 +91,9 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
         // find all entries and exits of the investor to fill in the gaps
         dbBatchCall$({
           ctx,
-          emitError: () => {
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Failed to fetch entries and exits", data: { item } }, report.infos));
+            logger.error(report.error);
             throw new Error("Unable to fetch entries and exits");
           },
           logInfos: { msg: "Fetching pending rewards entry and exits", data: { chain: ctx.chain } },
@@ -148,7 +150,9 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
 
         generateSnapshotQueriesFromEntryAndExits$({
           ctx,
-          emitError: () => {
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Unable to generate snapshot queries", data: { item } }, report.infos));
+            logger.error(report.error);
             throw new Error("Unable to generate snapshot queries");
           },
           timeStep: "4hour",

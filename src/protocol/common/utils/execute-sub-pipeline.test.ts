@@ -80,7 +80,7 @@ describe("executeSubPipeline$", () => {
           Rx.pipe(
             Rx.filter((item) => {
               if (item.target === 5) {
-                emitError(item);
+                emitError(item, { infos: { msg: "error" } });
                 return false;
               }
               return true;
@@ -119,7 +119,7 @@ describe("executeSubPipeline$", () => {
           Rx.pipe(
             Rx.filter((item) => {
               if (item.target === 5) {
-                emitError(item);
+                emitError(item, { infos: { msg: "error" } });
               }
               return true;
             }),

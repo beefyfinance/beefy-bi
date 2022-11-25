@@ -1,7 +1,7 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { DbClient } from "../../../../utils/db";
-import { rootLogger } from "../../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
@@ -43,8 +43,9 @@ export function importBeefyHistoricalShareRatePrices$(options: {
         // so we need the first creation date of each product
         fetchPriceFeedContractCreationInfos({
           ctx,
-          emitError: (item) => {
-            logger.error({ msg: "Error while fetching price feed contract creation infos. ", data: item });
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Error while fetching price feed contract creation infos. ", data: item }, report.infos));
+            logger.error(report.error);
             throw new Error("Error while fetching price feed creation infos. " + item.obj.priceFeedId);
           },
           importStateType: "product:investment", // we want to find the contract creation date we already fetched from the investment pipeline
@@ -88,8 +89,9 @@ export function importBeefyHistoricalShareRatePrices$(options: {
 
         addRegularIntervalBlockRangesQueries({
           ctx,
-          emitError: (item) => {
-            logger.error({ msg: "Error while adding covering block ranges", data: item });
+          emitError: (item, report) => {
+            logger.error(mergeLogsInfos({ msg: "Error while adding covering block ranges", data: item }, report.infos));
+            logger.error(report.error);
             throw new Error("Error while adding covering block ranges");
           },
           chain: options.chain,
@@ -150,7 +152,7 @@ function processShareRateQuery$<
 
     upsertPrice$({
       ctx: options.ctx,
-      emitError: (item) => options.emitError(item),
+      emitError: options.emitError,
       getPriceData: (item) => ({
         datetime: item.blockDatetime,
         blockNumber: item.rangeMidpoint,

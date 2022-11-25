@@ -13,7 +13,7 @@ import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../../common/loader/product";
-import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
@@ -31,9 +31,9 @@ const logger = rootLogger.child({ module: "beefy", component: "import-product-bl
 
 export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TErr extends ErrorEmitter<TObj>>(options: {
   ctx: ImportCtx;
-  emitBoostError: <T extends ImportRangeQuery<DbBeefyBoostProduct, number>>(obj: T) => void;
-  emitStdVaultError: <T extends ImportRangeQuery<DbBeefyStdVaultProduct, number>>(obj: T) => void;
-  emitGovVaultError: <T extends ImportRangeQuery<DbBeefyGovVaultProduct, number>>(obj: T) => void;
+  emitBoostError: <T extends ImportRangeQuery<DbBeefyBoostProduct, number>>(obj: T, report: ErrorReport) => void;
+  emitStdVaultError: <T extends ImportRangeQuery<DbBeefyStdVaultProduct, number>>(obj: T, report: ErrorReport) => void;
+  emitGovVaultError: <T extends ImportRangeQuery<DbBeefyGovVaultProduct, number>>(obj: T, report: ErrorReport) => void;
   mode: "recent" | "historical";
 }) {
   const boostTransfers$ = Rx.pipe(
@@ -156,13 +156,13 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
 
     executeSubPipeline$({
       ctx: options.ctx,
-      emitError: (item) => {
+      emitError: (item, report) => {
         if (isBeefyBoostProductImportQuery(item)) {
-          options.emitBoostError(item);
+          options.emitBoostError(item, report);
         } else if (isBeefyStandardVaultProductImportQuery(item)) {
-          options.emitStdVaultError(item);
+          options.emitStdVaultError(item, report);
         } else if (isBeefyGovVaultProductImportQuery(item)) {
-          options.emitGovVaultError(item);
+          options.emitGovVaultError(item, report);
         } else {
           throw new ProgrammerError("Unknown product type");
         }
