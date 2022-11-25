@@ -1,7 +1,8 @@
 import Decimal from "decimal.js";
-import { groupBy } from "lodash";
+import { groupBy, merge } from "lodash";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
@@ -32,6 +33,46 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
+      // merge investments before inserting
+      const groups = groupBy(objAndData, (objAndData) => `${objAndData.data.productId}:${objAndData.data.investorId}:${objAndData.data.blockNumber}`);
+      const investments: typeof objAndData = [];
+      for (const group of Object.values(groups)) {
+        if (group.length === 1) {
+          investments.push(group[0]);
+          continue;
+        }
+
+        // if all balances are equal, just merge them
+        const balance = group[0].data.balance;
+        const balanceDiff = group[0].data.balanceDiff;
+        const pendingRewards = group[0].data.pendingRewards;
+        const pendingRewardsDiff = group[0].data.pendingRewardsDiff;
+        const isAllInvestmentTheSame = group.every(
+          (objAndData) =>
+            objAndData.data.balance.eq(balance) &&
+            objAndData.data.balanceDiff.eq(balanceDiff) &&
+            (pendingRewards
+              ? objAndData.data.pendingRewards && objAndData.data.pendingRewards.eq(pendingRewards)
+              : !objAndData.data.pendingRewards) &&
+            (pendingRewardsDiff
+              ? objAndData.data.pendingRewardsDiff && objAndData.data.pendingRewardsDiff.eq(pendingRewardsDiff)
+              : !objAndData.data.pendingRewardsDiff),
+        );
+        if (isAllInvestmentTheSame) {
+          logger.debug({ msg: "upsertInvestment: all investments are the same, merging them", data: group });
+          investments.push({
+            obj: group[0].obj,
+            data: {
+              ...group[0].data,
+              investmentData: group.reduce((acc, objAndData) => merge(acc, objAndData.data.investmentData), {}),
+            },
+          });
+        } else {
+          logger.error({ msg: "upsertInvestment: all investments are not the same, not merging them", data: group });
+          throw new ProgrammerError("upsertInvestment: all investments are not the same, cannot merge them");
+        }
+      }
+
       await db_query(
         `INSERT INTO investment_balance_ts (
               datetime,
