@@ -37,7 +37,10 @@ export function dbBatchCall$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQuery
         for (const obj of objs) {
           const report: ErrorReport = {
             error,
-            infos: { msg: "Error inserting db batch", data: { batchSize: objs.length, data: options.getData(obj) } },
+            infos: mergeLogsInfos(
+              { msg: "Error inserting db batch", data: { batchSize: objs.length, data: options.getData(obj) } },
+              options.logInfos,
+            ),
           };
           options.emitError(obj, report);
         }
