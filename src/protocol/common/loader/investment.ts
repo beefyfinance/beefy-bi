@@ -33,6 +33,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestment" },
     processBatch: async (objAndData) => {
+      // @todo: this is a temporary fix to avoid duplicate investments, we shouldn't have duplicates in the first place
       // merge investments before inserting
       const groups = groupBy(objAndData, (objAndData) => `${objAndData.data.productId}:${objAndData.data.investorId}:${objAndData.data.blockNumber}`);
       const investments: typeof objAndData = [];

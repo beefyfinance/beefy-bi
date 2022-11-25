@@ -49,8 +49,13 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
         client: options.client,
         streamConfig: ctx.streamConfig,
         getImportStateKey: options.getImportStateKey,
-        createDefaultImportState$: options.createDefaultImportState$(ctx, (obj) => {
-          logger.error(mergeLogsInfos({ msg: "Error while creating default import state", data: { obj } }, options.logInfos));
+        createDefaultImportState$: options.createDefaultImportState$(ctx, (obj, report) => {
+          logger.error(
+            mergeLogsInfos(
+              mergeLogsInfos({ msg: "Error while creating default import state", data: { obj, error: report.error } }, report.infos),
+              options.logInfos,
+            ),
+          );
         }),
         formatOutput: (target, importState) => ({ target, importState }),
       }),
@@ -69,8 +74,13 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
       ),
 
       // create the queries
-      options.generateQueries$(ctx, (item) => {
-        logger.error(mergeLogsInfos({ msg: "Error while generating queries", data: { item } }, options.logInfos));
+      options.generateQueries$(ctx, (item, report) => {
+        logger.error(
+          mergeLogsInfos(
+            mergeLogsInfos({ msg: "Error while generating queries", data: { ...item, error: report.error } }, report.infos),
+            options.logInfos,
+          ),
+        );
       }),
 
       Rx.tap((item) =>
@@ -222,9 +232,9 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       ),
 
       // run the import
-      options.processImportQuery$(ctx, (obj) => {
+      options.processImportQuery$(ctx, (obj, report) => {
         // since we are doing
-        logger.error(mergeLogsInfos({ msg: "Error while processing import query", data: { obj } }, options.logInfos));
+        logger.error(mergeLogsInfos({ msg: "Error while processing import query", data: { obj, report } }, options.logInfos));
       }),
 
       Rx.pipe(

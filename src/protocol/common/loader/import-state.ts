@@ -6,7 +6,17 @@ import { ConnectionTimeoutError } from "../../../utils/async";
 import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { isDateRange, isNumberRange, Range, rangeMerge, rangeOverlap, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import {
+  isDateRange,
+  isNumberRange,
+  Range,
+  rangeArrayExclude,
+  rangeExcludeMany,
+  rangeMerge,
+  rangeOverlap,
+  rangeValueMax,
+  SupportedRangeTypes,
+} from "../../../utils/range";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeResult } from "../types/import-query";
 import { BatchStreamConfig } from "../utils/batch-rpc-calls";
@@ -190,27 +200,24 @@ export function updateImportState$<
     const newImportState = cloneDeep(importState);
 
     // update the import rages
-    const coveredRanges = items.map((item) => options.getRange(item));
+    let coveredRanges = items.map((item) => options.getRange(item));
     // covered ranges should not be overlapping
     if (coveredRanges.some((r1) => coveredRanges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)))) {
+      // this should never happen, seeing this in the logs means there is something duplicating input queries
       logger.error({ msg: "covered ranges should not be overlapping", data: { importState, coveredRanges, items } });
-      throw new ProgrammerError({
-        msg: "Import state ranges are not exclusive",
-        data: { importState, coveredRanges, items },
-      });
+      coveredRanges = rangeMerge(coveredRanges);
     }
 
-    const successRanges = rangeMerge(items.filter((item) => options.isSuccess(item)).map((item) => options.getRange(item)));
+    let successRanges = rangeMerge(items.filter((item) => options.isSuccess(item)).map((item) => options.getRange(item)));
     const errorRanges = rangeMerge(items.filter((item) => !options.isSuccess(item)).map((item) => options.getRange(item)));
 
     // success and error ranges should be exclusive
     const hasOverlap = successRanges.some((successRange) => errorRanges.some((errorRange) => rangeOverlap(successRange, errorRange)));
     if (hasOverlap) {
-      logger.error({ msg: "Import state ranges are not exclusive", data: { importState, successRanges, errorRanges, items } });
-      throw new ProgrammerError({
-        msg: "Import state success and error ranges are not exclusive",
-        data: { importState, successRanges, errorRanges, items },
-      });
+      logger.error({ msg: "Import state ranges are not exclusive", data: { importState, successRanges, errorRanges } });
+      // todo: this should not happen, but it does
+      // exclude errors from success ranges
+      successRanges = rangeArrayExclude(successRanges, errorRanges);
     }
 
     const lastImportDate = new Date();
