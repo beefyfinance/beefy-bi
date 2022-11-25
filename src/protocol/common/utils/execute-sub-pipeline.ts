@@ -1,4 +1,4 @@
-import { sum } from "lodash";
+import { merge, sum } from "lodash";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -100,9 +100,10 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             // make sure the sub pipeline returned at least one result for this target
             const targetResults = new Map();
             let hasError = false;
-            const errorReport = {
+            const subItemReports: { subItem: TSubTarget; report: ErrorReport }[] = [];
+            const errorReport: ErrorReport = {
               error: "Sub item failed",
-              infos: { msg: "Sub item failed", data: { item, reports: [] as { subItem: TSubTarget; report: ErrorReport }[] } },
+              infos: { msg: "Sub item failed", data: { item } },
             };
             for (const target of targets) {
               const targetRes = targetMap.get(target);
@@ -111,7 +112,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
                 throw new ProgrammerError("Missing sub item target");
               } else if (!targetRes.success) {
                 logger.debug({ msg: "Sub item failed", data: { item, targets, targetsByParent } });
-                errorReport.infos.data.reports.push({ subItem: target, report: targetRes.report });
+                subItemReports.push({ subItem: target, report: targetRes.report });
                 hasError = true;
               } else {
                 targetResults.set(target, targetRes.result);
@@ -120,7 +121,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             if (!hasError) {
               okItems.push(options.formatOutput(item.obj, targetResults));
             } else {
-              options.emitError(item.obj, errorReport);
+              options.emitError(item.obj, merge(errorReport, { infos: { data: { subItemReports } } }));
             }
           }
 
