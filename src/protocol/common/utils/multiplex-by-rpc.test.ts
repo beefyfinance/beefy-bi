@@ -1,7 +1,8 @@
 import * as Rx from "rxjs";
+import { RpcConfig } from "../../../types/rpc-config";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { weightedMultiplex } from "./multiplex-by-rpc";
+import { getWeight, weightedMultiplex } from "./multiplex-by-rpc";
 
 describe("multiplexByRcp$", () => {
   it("should pass all items when only one RPC is available", async () => {
@@ -83,5 +84,19 @@ describe("multiplexByRcp$", () => {
       [1, 11, false],
       [1, 11, false],
     ]);
+  });
+
+  it("should compute weight according to the limitations", () => {
+    const getConfig = (delay: number | "no-limit"): RpcConfig =>
+      ({
+        rpcLimitations: {
+          minDelayBetweenCalls: delay,
+        },
+      } as any);
+
+    expect(getWeight(getConfig("no-limit"))).toEqual(10_000);
+    expect(getWeight(getConfig(1000))).toEqual(1_000);
+    expect(getWeight(getConfig(100))).toEqual(2_000);
+    expect(getWeight(getConfig(10))).toEqual(2_000);
   });
 });

@@ -1,6 +1,7 @@
 import { random } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { RpcConfig } from "../../../types/rpc-config";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
@@ -80,14 +81,17 @@ export function multiplexByRcp<TInput, TRes>(options: {
     rpcConfigs.map((rpcConfig) => {
       const ctx = { chain: options.chain, client: options.client, rpcConfig, streamConfig };
       return {
-        weight:
-          ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
-            ? 1_000_000
-            : Math.round(1_000_000 / Math.max(ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls, 500)),
+        weight: getWeight(rpcConfig),
         pipeline: options.createPipeline(ctx),
       };
     }),
   );
+}
+
+export function getWeight(rpcConfig: RpcConfig): number {
+  return rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit"
+    ? 10_000
+    : Math.round(1_000_000 / Math.max(rpcConfig.rpcLimitations.minDelayBetweenCalls, 500));
 }
 
 export function weightedMultiplex<TInput, TRes>(
