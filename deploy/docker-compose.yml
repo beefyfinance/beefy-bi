@@ -187,13 +187,13 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum -r 2 -l 15sec"
 
   importer-investment-historical-optimism-unfinished:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c optimism -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c optimism -r 2 -l 15sec"
 
   importer-investment-historical-moon-unfinished:
     <<: *importer

@@ -35,5 +35,11 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://bsc.getblock.io/XXXxxXXXXXxxxXXXXXXxxxxxx/mainnet/")).toBe(
       "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet",
     );
+    expect(removeSecretsFromRpcUrl("https://optimism-mainnet.infura.io/v3/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
+      "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>",
+    );
+    expect(removeSecretsFromRpcUrl("https://arbitrum-mainnet.infura.io/v3/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
+      "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>",
+    );
   });
 });

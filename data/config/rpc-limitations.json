@@ -14,6 +14,21 @@
         "eth_blockNumber": 16,
         "eth_getTransactionReceipt": 8
       }
+    },
+    "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "methods": {
+        "eth_getLogs": 18,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
     }
   },
   "aurora": {
@@ -450,6 +465,21 @@
         "eth_getBlockByNumber": 378,
         "eth_blockNumber": 2,
         "eth_getTransactionReceipt": 64
+      }
+    },
+    "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "methods": {
+        "eth_getLogs": 84,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
       }
     }
   },
