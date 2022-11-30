@@ -17,7 +17,7 @@
     },
     "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
@@ -469,7 +469,7 @@
     },
     "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
