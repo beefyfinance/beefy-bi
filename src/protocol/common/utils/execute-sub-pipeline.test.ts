@@ -130,12 +130,7 @@ describe("executeSubPipeline$", () => {
       Rx.toArray(),
     );
 
-    const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([
-      { id: 1, targets: [1, 2, 3], result: [2, 4, 6] },
-      { id: 3, targets: [7, 8, 9], result: [14, 16, 18] },
-    ]);
-    expect(errors).toEqual([{ id: 2, targets: [4, 5, 6] }]);
+    await expect(() => consumeObservable(pipeline$)).rejects.toThrow(ProgrammerError);
   });
 
   it("should detect when sub-pipeline returns a sub-item multiple times", async () => {
@@ -175,11 +170,6 @@ describe("executeSubPipeline$", () => {
       Rx.toArray(),
     );
 
-    const result = await consumeObservable(pipeline$);
-    expect(result).toEqual([
-      { id: 1, targets: [1, 2, 3], result: [2, 4, 6] },
-      { id: 3, targets: [7, 8, 9], result: [14, 16, 18] },
-    ]);
-    expect(errors).toEqual([{ id: 2, targets: [4, 5, 6] }]);
+    await expect(() => consumeObservable(pipeline$)).rejects.toThrow(ProgrammerError);
   });
 });
