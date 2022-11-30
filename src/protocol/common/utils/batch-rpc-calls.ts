@@ -7,7 +7,7 @@ import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../.
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
-import { cloneBatchProvider, createRpcConfig } from "./rpc-config";
+import { cloneBatchProvider } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -142,7 +142,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
   );
 }
 
-function getBatchConfigFromLimitations(options: {
+export function getBatchConfigFromLimitations(options: {
   maxInputObjsPerBatch: number;
   rpcCallsPerInputObj: {
     [method in RpcCallMethod]: number;
@@ -167,7 +167,7 @@ function getBatchConfigFromLimitations(options: {
       logger.trace(mergeLogsInfos({ msg: "disabling batch provider since limitation is null", data: { method } }, options.logInfos));
       break;
     }
-    const newMax = Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count));
+    const newMax = Math.max(1, Math.min(maxInputObjsPerBatch, Math.floor(maxCount / count)));
     logger.trace(
       mergeLogsInfos(
         { msg: "updating maxInputObjsPerBatch with provided count per item", data: { old: maxInputObjsPerBatch, new: newMax } },
@@ -182,6 +182,8 @@ function getBatchConfigFromLimitations(options: {
       mergeLogsInfos({ msg: "setting maxInputObjsPerBatch to 1 since we disabled batching", data: { maxInputObjsPerBatch } }, options.logInfos),
     );
     maxInputObjsPerBatch = 1;
+  } else if (maxInputObjsPerBatch <= 1) {
+    canUseBatchProvider = false;
   }
   logger.debug(mergeLogsInfos({ msg: "config", data: { maxInputObjsPerBatch, canUseBatchProvider, methodLimitations } }, options.logInfos));
 
