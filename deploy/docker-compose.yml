@@ -16,7 +16,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-investment-recent importer-prices-historical importer-prices-recent importer-reward-snapshots importer-investment-historical-bsc-unfinished importer-investment-historical-arbitrum-unfinished importer-investment-historical-optimism-unfinished importer-investment-historical-moon-unfinished importer-investment-historical-small-unfinished importer-investment-historical-fully-loaded importer-share-rates-historical-bsc-unfinished importer-share-rates-historical-small-unfinished importer-share-rates-historical-fully-loaded"
+# export TASK_LIST="importer-products importer-investment-recent importer-prices-historical importer-prices-recent importer-reward-snapshots importer-investment-historical-bsc-unfinished importer-investment-historical-arbitrum-unfinished importer-investment-historical-small-unfinished importer-investment-historical-fully-loaded importer-share-rates-historical-bsc-unfinished importer-share-rates-historical-small-unfinished importer-share-rates-historical-fully-loaded"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -155,7 +155,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c all -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c all -l 15sec"
 
   importer-prices-historical:
     <<: *importer
@@ -189,29 +189,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c arbitrum -r 2 -l 15sec"
 
-  importer-investment-historical-optimism-unfinished:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c optimism -r 2 -l 15sec"
-
-  importer-investment-historical-moon-unfinished:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c moonbeam moonriver -l 15sec"
-
   importer-investment-historical-small-unfinished:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo cronos emerald fuse metis heco -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c celo cronos heco moonbeam moonriver -l 15sec"
 
   importer-investment-historical-fully-loaded:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c aurora avax ethereum fantom harmony kava polygon syscoin -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c aurora avax emerald ethereum fantom fuse harmony kava metis polygon syscoin -l 15min"
 
   # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
@@ -225,10 +213,10 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c arbitrum avax celo cronos emerald fantom harmony heco kava metis moonbeam moonriver optimism polygon syscoin -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c arbitrum celo cronos harmony heco kava metis moonbeam moonriver -l 15sec"
 
   importer-share-rates-historical-fully-loaded:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c aurora ethereum fuse -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-share-rate -c aurora avax emerald ethereum fantom fuse optimism polygon syscoin -l 15min"
