@@ -4,7 +4,7 @@ import { addHistoricalBlockQuery$ } from "../protocol/common/connector/import-qu
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
-import { DbClient, withPgClient } from "../utils/db";
+import { DbClient, withDbClient } from "../utils/db";
 import { runMain } from "../utils/process";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
@@ -74,4 +74,4 @@ async function main(client: DbClient) {
   console.log(res);
 }
 
-runMain(withPgClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));
+runMain(withDbClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));

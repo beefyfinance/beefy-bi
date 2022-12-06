@@ -61,11 +61,16 @@ beefy=# select
  *
  */
 
-export type DbClient = PgClient;
+export type DbClient = {
+  connect: PgClient["connect"];
+  query: PgClient["query"];
+  end: PgClient["end"];
+  on: PgClient["on"];
+};
 
-let sharedClient: PgClient | null = null;
+let sharedClient: DbClient | null = null;
 const appNameCounters: Record<string, number> = {};
-export async function getPgClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
+export async function getDbClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
   if (!appNameCounters[appName]) {
     appNameCounters[appName] = 0;
   }
@@ -97,12 +102,12 @@ export async function getPgClient({ appName = "beefy", freshClient = false }: { 
 }
 
 // inject pg client as first argument
-export function withPgClient<TArgs extends any[], TRes>(
-  fn: (client: PgClient, ...args: TArgs) => Promise<TRes>,
+export function withDbClient<TArgs extends any[], TRes>(
+  fn: (client: DbClient, ...args: TArgs) => Promise<TRes>,
   { appName, connectTimeoutMs = 10_000, logInfos }: { appName: string; connectTimeoutMs?: number; logInfos: LogInfos },
 ): (...args: TArgs) => Promise<TRes> {
   return async (...args: TArgs) => {
-    const pgClient = await getPgClient({ appName, freshClient: false });
+    const pgClient = await getDbClient({ appName, freshClient: false });
     let res: TRes;
     try {
       await withTimeout(() => pgClient.connect(), connectTimeoutMs, logInfos);
@@ -115,7 +120,7 @@ export function withPgClient<TArgs extends any[], TRes>(
 }
 
 export async function db_transaction<TRes>(
-  fn: (client: PgClient) => Promise<TRes>,
+  fn: (client: DbClient) => Promise<TRes>,
   {
     appName,
     connectTimeoutMs = 10_000,
@@ -123,7 +128,7 @@ export async function db_transaction<TRes>(
     logInfos,
   }: { appName: string; connectTimeoutMs?: number; queryTimeoutMs?: number; logInfos: LogInfos },
 ) {
-  const pgClient = await getPgClient({ appName, freshClient: true });
+  const pgClient = await getDbClient({ appName, freshClient: true });
   try {
     await withTimeout(() => pgClient.connect(), connectTimeoutMs, mergeLogsInfos(logInfos, { msg: "connect", data: { connectTimeoutMs } }));
     try {
@@ -140,11 +145,11 @@ export async function db_transaction<TRes>(
   }
 }
 
-export async function db_query<RowType>(sql: string, params: any[] = [], client: PgClient | null = null): Promise<RowType[]> {
+export async function db_query<RowType>(sql: string, params: any[] = [], client: DbClient | null = null): Promise<RowType[]> {
   logger.trace({ msg: "Executing query", data: { sql, params } });
-  let useClient: PgClient | null = client;
+  let useClient: DbClient | null = client;
   if (useClient === null) {
-    const pool = await getPgClient({ freshClient: false });
+    const pool = await getDbClient({ freshClient: false });
     useClient = pool;
   }
   const sql_w_params = pgf(sql, ...params);
@@ -165,7 +170,7 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
   }
 }
 
-export async function db_query_one<RowType>(sql: string, params: any[] = [], client: PgClient | null = null): Promise<RowType | null> {
+export async function db_query_one<RowType>(sql: string, params: any[] = [], client: DbClient | null = null): Promise<RowType | null> {
   const rows = await db_query<RowType>(sql, params, client);
   if (rows.length === 0) {
     return null;

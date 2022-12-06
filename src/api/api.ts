@@ -21,7 +21,7 @@ const server = fastify({
 
 // register anything that connects to redis (caching mostly)
 server.register(async (instance, opts, done) => {
-  await registerDI();
+  await registerDI(instance);
   const redisClient = await getRedisClient();
   const AbstractCache: any = require("abstract-cache"); // todo: add or install types
   const abcache = AbstractCache({

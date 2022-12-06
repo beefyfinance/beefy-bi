@@ -3,7 +3,7 @@ import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
 import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { DbClient, withPgClient } from "../../../utils/db";
+import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
@@ -67,7 +67,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
       }),
     handler: (argv): Promise<any> =>
-      withPgClient(
+      withDbClient(
         async (client) => {
           //await db_migrate();
 

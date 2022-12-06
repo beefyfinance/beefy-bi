@@ -11,7 +11,7 @@ import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
 import { sleep } from "../utils/async";
 import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../utils/config";
-import { DbClient, withPgClient } from "../utils/db";
+import { DbClient, withDbClient } from "../utils/db";
 import { addDebugLogsToProvider, MultiChainEtherscanProvider } from "../utils/ethers";
 import { runMain } from "../utils/process";
 import { rangeArrayExclude, rangeExcludeMany, rangeMerge } from "../utils/range";
@@ -144,7 +144,7 @@ async function main(client: DbClient) {
   console.dir({ min: min(logBlocks), max: max(logBlocks), count: logs.length }, { depth: null });
 }
 
-runMain(withPgClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));
+runMain(withDbClient(main, { appName: "beefy:test_script", logInfos: { msg: "test" } }));
 
 function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
   const mooTokenAmount = new Decimal("1.0");
