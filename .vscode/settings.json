@@ -30,6 +30,7 @@
     "PLPGSQL",
     "ppfs",
     "psql",
+    "quiknode",
     "Redlock",
     "regtype",
     "retryable",

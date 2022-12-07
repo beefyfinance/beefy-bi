@@ -81,6 +81,21 @@
         "eth_getTransactionReceipt": 200
       }
     },
+    "https://compatible-greatest-wish.bsc.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": null,
+        "eth_getBlockByNumber": 34,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 32
+      }
+    },
     "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 30,

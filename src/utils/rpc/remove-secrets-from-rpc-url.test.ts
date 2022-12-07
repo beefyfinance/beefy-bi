@@ -41,5 +41,9 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://arbitrum-mainnet.infura.io/v3/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
       "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>",
     );
+
+    expect(removeSecretsFromRpcUrl("https://some-rpc-name.bsc.discover.quiknode.pro/XXXxxXXXXXxxxXXXXXXxxxxxx/")).toBe(
+      "https://some-rpc-name.bsc.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>",
+    );
   });
 });
