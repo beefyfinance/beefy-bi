@@ -106,6 +106,10 @@ LOG_LEVEL=debug node -r ts-node/register ./src/script/find-out-rpc-limitations.t
 
 You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts` and `src/utils/rpc/remove-secrets-from-rpc-url.test.ts` to avoid committing any secret.
 
+### Update a grafana dashboard
+
+Grafana dashboards are stored in the `deploy/db/dashboards` folder. To update a dashboard, import it in grafana, make the changes you want, then export it and replace the existing dashboard file.
+
 ## Contributing
 
 If you would like to contribute to the project, please fork this repository and make any desired changes. Then, submit a pull request and we will review your changes.
