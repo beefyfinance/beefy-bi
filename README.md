@@ -51,6 +51,8 @@ npm run db:migrate
 
 ## Usage
 
+### Indexer
+
 Finally, run an import command:
 
 ```bash
@@ -62,6 +64,22 @@ More command and option doc available:
 ```bash
 node -r ts-node/register ./src/script/run.ts --help
 node -r ts-node/register ./src/script/run.ts beefy:run --help
+```
+
+### API
+
+Start the API:
+
+```bash
+LOG_LEVEL=trace npx ts-node ./src/api/api.ts
+```
+
+Then, you can access the API at http://localhost:3001.
+
+Since the API is heavily using redis as a cache, you might want to clear redis cache before running the api again.
+
+```bash
+npm run redis:clear; LOG_LEVEL=trace npx ts-node ./src/api/api.ts
 ```
 
 ## Common actions
