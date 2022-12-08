@@ -121,6 +121,12 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 
 Grafana dashboards are stored in the `deploy/db/dashboards` folder. To update a dashboard, import it in grafana, make the changes you want, then export it and replace the existing dashboard file.
 
+### Build the docker image locally
+
+```bash
+docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
+```
+
 ## Contributing
 
 If you would like to contribute to the project, please fork this repository and make any desired changes. Then, submit a pull request and we will review your changes.
