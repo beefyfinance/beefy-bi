@@ -37,6 +37,17 @@ cp .env.sample .env
 
 Then, fill in the `.env` file with the appropriate values. Plz find the configuration details in the src/utils/config.ts file.
 
+Map local volumes to docker volumes
+
+```bash
+mkdir -p ${PWD}/data/db/timescaledb
+docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/timescaledb --opt o=bind beefy_timescaledb_data_directory
+mkdir -p ${PWD}/data/db/grafana
+docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana --opt o=bind beefy_grafana_data_directory
+mkdir -p ${PWD}/data/db/grafana_plugins
+docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana_plugins --opt o=bind beefy_grafana_plugins_directory
+```
+
 Start the docker containers (db, redis, etc):
 
 ```bash
