@@ -62,7 +62,7 @@ services:
       - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
     depends_on:
       - timescaledb
-      - public-api
+      #- public-api
     networks:
       - backend
 
