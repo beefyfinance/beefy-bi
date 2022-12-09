@@ -48,6 +48,14 @@ mkdir -p ${PWD}/data/db/grafana_plugins
 docker volume create --driver local --opt type=none --opt device=${PWD}/data/db/grafana_plugins --opt o=bind beefy_grafana_plugins_directory
 ```
 
+Depending on your docker setup, you might need to set the right permissions on those folders:
+
+```bash
+chmod <permission> ${PWD}/data/db/timescaledb
+chmod <permission> ${PWD}/data/db/grafana
+chmod <permission> ${PWD}/data/db/grafana_plugins
+```
+
 Start the docker containers (db, redis, etc):
 
 ```bash
@@ -59,6 +67,8 @@ Finally, apply db migrations:
 ```bash
 npm run db:migrate
 ```
+
+Database migrations refer to the process of managing and transforming the structure and/or data of a database. This is often done as part of the development process for a software application, where changes to the underlying database are required to accommodate new features or to fix bugs. Migrations typically involve writing code to modify the structure of the database, such as by adding new tables or columns, and to move or transform data from one format to another. The goal of database migrations is to ensure that the database is kept in a consistent and correct state, and that changes to the database are managed in a way that is safe and reversible.
 
 ## Usage
 
