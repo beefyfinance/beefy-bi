@@ -181,7 +181,7 @@ Operations
 
 ```mermaid
 
-flowchart LR
+flowchart TB
 
     subgraph DataStore
         Product
@@ -198,9 +198,9 @@ flowchart LR
 
     subgraph RPC
         ERC20TransferEventHistoryRPC("ERC20TransferEventHistory")
-        PPFSHistory
         InvestorBalance
-        ...
+        PPFSHistory
+        ETC2("...")
     end
     subgraph Explorers
         ERC20TransferEventHistoryEXP("ERC20TransferEventHistory")
@@ -208,25 +208,20 @@ flowchart LR
     subgraph ExternalAPI
         PriceHistory
     end
-    subgraph Github
-        ProductList
-    end
 
     subgraph Indexer
         direction BT
-        HistoricalPoller
 
-        HistoricalPoller -->|polls| ERC20TransferEventHistoryRPC
-        HistoricalPoller -->|polls| ERC20TransferEventHistoryEXP
-        HistoricalPoller -->|polls| PPFSHistory
-        HistoricalPoller -->|polls| PriceHistory
-        HistoricalPoller -->|polls| InvestorBalance
-        HistoricalPoller -->|polls| ProductList
+        Worker1 -->|polls| ERC20TransferEventHistoryRPC
+        Worker1 -->|polls| ERC20TransferEventHistoryEXP
+        Worker1 -->|polls| InvestorBalance
+        Worker2 -->|polls| PPFSHistory
+        Worker3 -->|polls| PriceHistory
 
-
+        ETC1("...")
     end
 
-    HistoricalPoller-->|Feeds|DataStore
+    Indexer-->|Feeds|DataStore
 
 ```
 
