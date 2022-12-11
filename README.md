@@ -1,9 +1,28 @@
-# Presentation
+## Presentation
 
-Multi-chain blockchain data importer.
-Download blockchain data from rate limited rpcs locally to be analyzed further.
+Beefy Dashboard is an opinionated multi-chain blockchain data importer that tracks user investment value over time.
 
-## Requirements
+### Functional features:
+
+- imports all beefy products data
+- auto-discover new products are they are added
+- exposes historical data through an api
+- optimized for low manual maintenance and low hardware requirements
+- aim is to deliver raw historical data, not a full analysis
+
+### Technical features:
+
+- low level, reusable building blocks
+- fine grained request batching
+- fine grained RPC limits handling (to configure batching)
+- support for multiple RPC endpoint per chain
+- remembers already imported ranges with no data
+- retries failed requests automatically
+- ability to add new projects as needed or products
+
+## Installation
+
+### Requirements
 
 To install and use this project, you will need to have the following software installed on your computer:
 
@@ -11,11 +30,7 @@ To install and use this project, you will need to have the following software in
 - [npm](https://www.npmjs.com)
 - [Docker](https://www.docker.com)
 
-## Installation
-
-To install and use this project, you will need to have [Node.js](https://nodejs.org) and [npm](https://www.npmjs.com) installed on your computer.
-
-Once you have Node.js and npm installed, clone this repository to your local machine and navigate to the project directory.
+### Steps
 
 Switch to the proper node version:
 
@@ -127,6 +142,12 @@ LOG_LEVEL=debug node -r ts-node/register ./src/script/find-out-rpc-limitations.t
 
 You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts` and `src/utils/rpc/remove-secrets-from-rpc-url.test.ts` to avoid committing any secret.
 
+### How to add a new chain?
+
+- Add the new enum to the database
+- Update the chain enum in the `src/types/chain.ts` file
+- Run `npm run build` and solve any typescript error
+
 ### Update a grafana dashboard
 
 Grafana dashboards are stored in the `deploy/db/dashboards` folder. To update a dashboard, import it in grafana, make the changes you want, then export it and replace the existing dashboard file.
@@ -136,6 +157,100 @@ Grafana dashboards are stored in the `deploy/db/dashboards` folder. To update a 
 ```bash
 docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 ```
+
+## Internals
+
+### Moving parts
+
+Import/indexing:
+
+- [redis](https://redis.io/) import cache
+- [timescaledb](https://www.timescale.com/) database
+- import workers (src)
+
+User facing
+
+- [redis](https://redis.io/): provides a cache for the api
+- [fastify](https://www.fastify.io/) api
+
+Operations
+
+- [grafana](https://grafana.com/): ingestion monitoring, quick prototyping
+
+### Indexing overview
+
+```mermaid
+
+flowchart LR
+
+    subgraph DataStore
+        Product
+        Price
+        Investor
+        InvestmentBalance
+        Product-->|price 1|Price
+        Product-->|price 2|Price
+        InvestmentBalance-->|investor|Investor
+        InvestmentBalance-->|product|Product
+
+        ImportState
+    end
+
+    subgraph RPC
+        ERC20TransferEventHistoryRPC("ERC20TransferEventHistory")
+        PPFSHistory
+        InvestorBalance
+        ...
+    end
+    subgraph Explorers
+        ERC20TransferEventHistoryEXP("ERC20TransferEventHistory")
+    end
+    subgraph ExternalAPI
+        PriceHistory
+    end
+    subgraph Github
+        ProductList
+    end
+
+    subgraph Indexer
+        direction BT
+        HistoricalPoller
+
+        HistoricalPoller -->|polls| ERC20TransferEventHistoryRPC
+        HistoricalPoller -->|polls| ERC20TransferEventHistoryEXP
+        HistoricalPoller -->|polls| PPFSHistory
+        HistoricalPoller -->|polls| PriceHistory
+        HistoricalPoller -->|polls| InvestorBalance
+        HistoricalPoller -->|polls| ProductList
+
+
+    end
+
+    HistoricalPoller-->|Feeds|DataStore
+
+```
+
+### FAQ
+
+#### Why is this using typescript?
+
+- Types definitions are our first layer of tests
+- More difficult to read/write, but less stupid mistakes
+
+#### Why is this using rxjs?
+
+- It's a tradeoff, the code is more complex but it makes creating reusable building blocks way easier. And we can fine tune batching, throttling, etc.
+- Think of rxjs as a stream++ lib (it's not, but it's easier to think of it that way)
+
+#### Where are db migrations?
+
+- Not implemented yet
+
+#### Why timescaledb?
+
+- It's a time series database, it's made for this kind of data
+- Since we are optimizing for cost (running and maintenance) it's a good fit compared to vendor specific solutions
+- It's postgresql based, so we're in a familiar territory
 
 ## Contributing
 
