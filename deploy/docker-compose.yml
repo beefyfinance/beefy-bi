@@ -16,7 +16,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-investment-recent importer-prices-historical importer-prices-recent importer-reward-snapshots importer-investment-historical-bsc-unfinished importer-investment-historical-arbitrum-unfinished importer-investment-historical-small-unfinished importer-investment-historical-fully-loaded importer-share-rates-historical-bsc-unfinished importer-share-rates-historical-small-unfinished importer-share-rates-historical-fully-loaded"
+# export TASK_LIST="importer-products importer-investment-recent importer-prices-historical importer-prices-recent importer-reward-snapshots importer-investment-historical-bsc-unfinished importer-investment-historical-bsc-before-2022 importer-investment-historical-arbitrum-unfinished importer-investment-historical-small-unfinished importer-investment-historical-fully-loaded importer-share-rates-historical-bsc-unfinished importer-share-rates-historical-small-unfinished importer-share-rates-historical-fully-loaded"
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -182,6 +182,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc -r 8 -l 15sec"
+
+  importer-investment-historical-bsc-before-2022:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc --forceRpcUrl https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2> --currentBlockNumber 13970228 -l 15sec"
 
   importer-investment-historical-arbitrum-unfinished:
     <<: *importer

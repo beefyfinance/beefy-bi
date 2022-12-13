@@ -7,6 +7,7 @@ import {
   RPC_API_KEY_INFURA,
   RPC_API_KEY_METIS_OWNER,
   RPC_API_KEY_NODEREAL,
+  RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_QUIKNODE,
 } from "../config";
 import { ProgrammerError } from "../programmer-error";
@@ -71,6 +72,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ANKR", RPC_API_KEY_ANKR);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_AURORA", RPC_API_KEY_AURORA);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_METIS_OWNER", RPC_API_KEY_METIS_OWNER);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL_2", RPC_API_KEY_NODEREAL_2);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);

@@ -6,6 +6,7 @@ import { sleep } from "../../../utils/async";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { addSecretsToRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchAllInvestorIds$ } from "../../common/loader/investment";
@@ -81,7 +82,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
             filterContractAddress: argv.contractAddress || null,
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
-            forceRpcUrl: argv.forceRpcUrl || null,
+            forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
             forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
             loopEvery: argv.loopEvery || null,
           };

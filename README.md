@@ -136,8 +136,8 @@ Making a new RPC available for the importer means we add it to the rpc-limitatio
 
 ```bash
 export USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND=true
-LOG_LEVEL=debug node -r ts-node/register ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w
-LOG_LEVEL=debug node -r ts-node/register ./src/script/find-out-rpc-limitations.ts --help
+LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w
+LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts --help
 ```
 
 You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts` and `src/utils/rpc/remove-secrets-from-rpc-url.test.ts` to avoid committing any secret.
