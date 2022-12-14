@@ -103,6 +103,7 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
         from: options.getFirstBlockNumber(importState),
         to: item.latestBlockNumber - waitForBlockPropagation,
       };
+
       // this can happen when we force the block number in the past and we are treating a recent product
       if (fullRange.from > fullRange.to) {
         if (options.forceCurrentBlockNumber !== null) {
@@ -113,7 +114,9 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
         } else {
           logger.error({ msg: "Full range is invalid", data: { fullRange, importStateKey: importState.importKey } });
         }
-        return options.formatOutput(item.obj, item.latestBlockNumber, []);
+
+        // we still need to return something to make the pipeline update the last import date and not loop forever importing the same data again
+        return options.formatOutput(item.obj, item.latestBlockNumber, [{ from: fullRange.to, to: fullRange.to }]);
       }
 
       logger.trace({ msg: "Full range", data: { fullRange, importStateKey: importState.importKey } });
