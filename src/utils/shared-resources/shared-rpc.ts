@@ -1,6 +1,7 @@
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
 import { backOff, IBackOffOptions } from "exponential-backoff";
+import { createHash } from "node:crypto";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../utils/logger";
@@ -36,6 +37,16 @@ type CallLockProtectedRpcOptions = {
   noLockIfNoLimit: boolean;
 };
 
+const rpcPublicUniqueIds = new Map<string, string>();
+function getRpcPublicUniqueId(rpcUrl: string): string {
+  if (!rpcPublicUniqueIds.has(rpcUrl)) {
+    const publicRpcUrl = removeSecretsFromRpcUrl(rpcUrl);
+    const hash = createHash("md5").update(rpcUrl).digest("hex");
+    rpcPublicUniqueIds.set(rpcUrl, `${publicRpcUrl}:${hash}`);
+  }
+  return rpcPublicUniqueIds.get(rpcUrl)!;
+}
+
 export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, options: CallLockProtectedRpcOptions) {
   if (options.rpcLimitations.minDelayBetweenCalls === "no-limit") {
     return callNoLimitRpc(work, options);
@@ -48,8 +59,8 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
   // create a string we can log as raw rpc url may contain an api key
   const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
   const publicRpcUrl = removeSecretsFromRpcUrl(url);
-  const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
-  const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${publicRpcUrl}`;
+  const rpcLockId = `${options.chain}:rpc:lock:${getRpcPublicUniqueId(url)}`;
+  const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${getRpcPublicUniqueId(url)}`;
 
   async function waitUntilWeCanCallRPCAgain() {
     // find out the last time we called this explorer
