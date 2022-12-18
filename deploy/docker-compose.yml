@@ -187,7 +187,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc --forceRpcUrl https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2> --currentBlockNumber 13970228 -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical -c bsc --forceRpcUrl https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2> -l 15sec"
 
   importer-investment-historical-arbitrum-unfinished:
     <<: *importer

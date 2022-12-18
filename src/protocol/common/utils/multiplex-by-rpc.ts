@@ -7,7 +7,6 @@ import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rangeMerge, rangeOverlap } from "../../../utils/range";
-import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
