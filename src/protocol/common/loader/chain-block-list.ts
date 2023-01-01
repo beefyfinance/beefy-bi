@@ -22,17 +22,26 @@ export function fetchChainBlockList$<
     Rx.map((obj: TObj) => ({ obj })),
     // fetch the first date for this chain
     Rx.concatMap(async (item) => {
+      // fetching product ids first allows the planner to use the index
+      const productIds = await db_query<{ product_id: number }>(
+        ` select product_id
+          from product
+          where chain = %L `,
+        [options.getChain(item.obj)],
+        options.ctx.client,
+      );
+
+      if (productIds.length === 0) {
+        return { ...item, firstChainDate: new Date() };
+      }
+
       const firstChainDate = await db_query_one<{ first_date: Date | null }>(
         `
           select min(datetime) as first_date
           from investment_balance_ts
-          where product_id in (
-                select product_id
-                from product
-                where chain = %L
-            )
+          where product_id in (%L)
       `,
-        [options.getChain(item.obj)],
+        [productIds.map((p) => p.product_id)],
         options.ctx.client,
       );
       return { ...item, firstChainDate: firstChainDate?.first_date || new Date() };
