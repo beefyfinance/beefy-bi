@@ -29,8 +29,14 @@ export function cacheOperatorResult$<TObj, TRes, TOutput>(options: {
           options.operator$,
           Rx.tap(({ input, output }) => {
             const cacheKey = options.getCacheKey(input);
-            cache.set(cacheKey, output);
-            logger.trace(mergeLogsInfos({ msg: "cache set", data: { cacheKey } }, options.logInfos));
+            // find out if some other concurrent call already set the cache
+            // so we avoid serializing the same result multiple times
+            if (!cache.has(cacheKey)) {
+              cache.set(cacheKey, output);
+              logger.trace(mergeLogsInfos({ msg: "cache set", data: { cacheKey } }, options.logInfos));
+            } else {
+              logger.trace(mergeLogsInfos({ msg: "cache already set", data: { cacheKey } }, options.logInfos));
+            }
           }),
           Rx.map(({ input, output }) => options.formatOutput(input, output)),
         ),

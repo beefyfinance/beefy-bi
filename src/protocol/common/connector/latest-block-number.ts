@@ -13,45 +13,54 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
   forceCurrentBlockNumber: number | null;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  return cacheOperatorResult$({
-    stdTTLSec: 60 /* 1min */,
-    getCacheKey: () => options.ctx.chain,
-    logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
-    operator$: Rx.mergeMap(async (obj) => {
-      if (options.forceCurrentBlockNumber) {
-        logger.info({ msg: "Using forced block number", data: { blockNumber: options.forceCurrentBlockNumber, chain: options.ctx.chain } });
-        return { input: obj, output: options.forceCurrentBlockNumber };
-      }
+  return Rx.pipe(
+    // take a batch of items
+    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, options.ctx.streamConfig.maxInputTake),
+    Rx.filter((objs) => objs.length > 0),
 
-      try {
-        const latestBlockNumber = await callLockProtectedRpc(() => options.ctx.rpcConfig.linearProvider.getBlockNumber(), {
-          chain: options.ctx.chain,
-          provider: options.ctx.rpcConfig.linearProvider,
-          rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
-          logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
-          maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
-          noLockIfNoLimit: true, // we use linearProvider, so this has no effect
-        });
-        return { input: obj, output: latestBlockNumber };
-      } catch (err) {
-        logger.error({ msg: "Error while fetching latest block number", data: { chain: options.ctx.chain, err } });
-      }
-      logger.info({ msg: "Using last block number from database", data: { chain: options.ctx.chain } });
+    cacheOperatorResult$({
+      stdTTLSec: 60 /* 1min */,
+      getCacheKey: () => options.ctx.chain,
+      logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
+      operator$: Rx.mergeMap(async (objs) => {
+        if (options.forceCurrentBlockNumber) {
+          logger.info({ msg: "Using forced block number", data: { blockNumber: options.forceCurrentBlockNumber, chain: options.ctx.chain } });
+          return { input: objs, output: options.forceCurrentBlockNumber };
+        }
 
-      const dbRes = await db_query_one<{ latest_block_number: number }>(
-        `
+        try {
+          const latestBlockNumber = await callLockProtectedRpc(() => options.ctx.rpcConfig.linearProvider.getBlockNumber(), {
+            chain: options.ctx.chain,
+            provider: options.ctx.rpcConfig.linearProvider,
+            rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
+            logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
+            maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+            noLockIfNoLimit: true, // we use linearProvider, so this has no effect
+          });
+          return { input: objs, output: latestBlockNumber };
+        } catch (err) {
+          logger.error({ msg: "Error while fetching latest block number", data: { chain: options.ctx.chain, err } });
+        }
+        logger.info({ msg: "Using last block number from database", data: { chain: options.ctx.chain } });
+
+        const dbRes = await db_query_one<{ latest_block_number: number }>(
+          `
           select last(block_number, datetime) as latest_block_number 
           from block_ts 
           where chain = %L
         `,
-        [options.ctx.chain],
-        options.ctx.client,
-      );
-      if (!dbRes) {
-        throw new Error(`No block number found for chain ${options.ctx.chain}`);
-      }
-      return { input: obj, output: dbRes.latest_block_number };
-    }, options.ctx.streamConfig.workConcurrency),
-    formatOutput: options.formatOutput,
-  });
+          [options.ctx.chain],
+          options.ctx.client,
+        );
+        if (!dbRes) {
+          throw new Error(`No block number found for chain ${options.ctx.chain}`);
+        }
+        return { input: objs, output: dbRes.latest_block_number };
+      }, options.ctx.streamConfig.workConcurrency),
+      formatOutput: (objs, latestBlockNumber: number) => ({ objs, latestBlockNumber }),
+    }),
+
+    // flatten objects
+    Rx.concatMap(({ objs, latestBlockNumber }) => Rx.from(objs).pipe(Rx.map((obj) => options.formatOutput(obj, latestBlockNumber)))),
+  );
 }

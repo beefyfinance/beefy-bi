@@ -1,9 +1,11 @@
+import { groupBy, keyBy, min, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod } from "../../../types/sampling";
 import { db_query, db_query_one } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { dbBatchCall$ } from "../utils/db-batch";
 import { chainProductIds$ } from "./product";
 
 export function fetchChainBlockList$<
@@ -22,58 +24,61 @@ export function fetchChainBlockList$<
   const operator$ = Rx.pipe(
     Rx.map((obj: TObj) => ({ obj })),
 
-    chainProductIds$({
+    // fetch the first date for this chain
+    dbBatchCall$({
       ctx: options.ctx,
       emitError: (item, report) => options.emitError(item.obj, report),
-      getChain: (item) => options.getChain(item.obj),
-      formatOutput: (item, productIds) => ({ ...item, productIds }),
-    }),
-    // fetch the first date for this chain
-    Rx.concatMap(async (item) => {
-      if (item.productIds.length === 0) {
-        return { ...item, firstChainDate: new Date() };
-      }
-
-      const firstChainDate = await db_query_one<{ first_date: Date | null }>(
-        `
-          select min(datetime) as first_date
-          from investment_balance_ts
-          where product_id in (%L)
-      `,
-        [item.productIds],
-        options.ctx.client,
-      );
-      return { ...item, firstChainDate: firstChainDate?.first_date || new Date() };
-    }),
-
-    // fetch a decent first list of blocks from investments of this chain
-    Rx.concatMap(async (item) => {
-      if (item.productIds.length === 0) {
-        return { input: item.obj, output: [] as TListItem[] };
-      }
-
-      const blockList = await db_query<TListItem>(
-        `
-            with blocks as (
-              select 
-                  time_bucket_gapfill(%L, datetime) as datetime,
-                  last(block_number, datetime) as block_number,
-                  interpolate(last(block_number, datetime)) as interpolated_block_number
-              from investment_balance_ts
-              where 
-                  datetime between (%L::timestamptz - %L::interval) and (now() - %L::interval)
-                  and product_id in (%L)
-              group by 1
-            ) 
-            select * 
-            from blocks
-            where interpolated_block_number is not null;
+      getData: (item) => options.getChain(item.obj),
+      logInfos: { msg: "fetchChainBlockList$.minDate" },
+      processBatch: async (objAndData) => {
+        const firstDateResults = await db_query<{ chain: Chain; first_date: Date }>(
+          `
+            select chain, min(datetime) as first_date
+            from block_ts
+            where chain in (%L)
+            group by 1
         `,
-        [options.timeStep, item.firstChainDate.toISOString(), options.timeStep, options.timeStep, item.productIds],
-        options.ctx.client,
-      );
-      return { input: item.obj, output: blockList };
+          [uniq(objAndData.map(({ data }) => data))],
+          options.ctx.client,
+        );
+        const firstDateIdMap = keyBy(firstDateResults, "chain");
+
+        const blockList = await db_query<TListItem>(
+          `
+              with blocks as (
+                select 
+                    chain,
+                    time_bucket_gapfill(%L, datetime) as datetime,
+                    last(block_number, datetime) as block_number,
+                    interpolate(last(block_number, datetime)) as interpolated_block_number
+                from block_ts
+                where 
+                    datetime between (%L::timestamptz - %L::interval) and (now() - %L::interval)
+                    and chain in (%L)
+                group by 1, 2
+              ) 
+              select * 
+              from blocks
+              where interpolated_block_number is not null;
+          `,
+          [
+            options.timeStep,
+            min(objAndData.map(({ data }) => firstDateIdMap[data]?.first_date ?? new Date()))?.toISOString(),
+            options.timeStep,
+            options.timeStep,
+            uniq(objAndData.map(({ data }) => data)),
+          ],
+          options.ctx.client,
+        );
+        const blockListMap = groupBy(blockList, "chain");
+
+        return new Map(objAndData.map(({ data }) => [data, blockListMap[data] ?? []]));
+      },
+      formatOutput: (item, blockList) => ({ ...item, blockList }),
     }),
+
+    // format for caching
+    Rx.map((item) => ({ input: item.obj, output: item.blockList })),
   );
 
   return Rx.pipe(
