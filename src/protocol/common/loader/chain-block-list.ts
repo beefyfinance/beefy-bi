@@ -6,7 +6,6 @@ import { db_query, db_query_one } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
-import { chainProductIds$ } from "./product";
 
 export function fetchChainBlockList$<
   TObj,
@@ -84,7 +83,7 @@ export function fetchChainBlockList$<
   return Rx.pipe(
     cacheOperatorResult$({
       operator$,
-      getCacheKey: (item) => `chain-block-list:${options.getChain(item)}`,
+      getCacheKey: (item) => `chain-block-list:${options.getChain(item)}:${options.timeStep}`,
       logInfos: { msg: "fetchChainBlockList$" },
       stdTTLSec: 5 * 60 /* 5min */,
       formatOutput: (obj, blockList) => ({ obj, blockList }),
