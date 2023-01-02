@@ -4,6 +4,7 @@ import { SamplingPeriod } from "../../../types/sampling";
 import { db_query, db_query_one } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { chainProductIds$ } from "./product";
 
 export function fetchChainBlockList$<
   TObj,
@@ -20,18 +21,16 @@ export function fetchChainBlockList$<
 }) {
   const operator$ = Rx.pipe(
     Rx.map((obj: TObj) => ({ obj })),
+
+    chainProductIds$({
+      ctx: options.ctx,
+      emitError: (item, report) => options.emitError(item.obj, report),
+      getChain: (item) => options.getChain(item.obj),
+      formatOutput: (item, productIds) => ({ ...item, productIds }),
+    }),
     // fetch the first date for this chain
     Rx.concatMap(async (item) => {
-      // fetching product ids first allows the planner to use the index
-      const productIds = await db_query<{ product_id: number }>(
-        ` select product_id
-          from product
-          where chain = %L `,
-        [options.getChain(item.obj)],
-        options.ctx.client,
-      );
-
-      if (productIds.length === 0) {
+      if (item.productIds.length === 0) {
         return { ...item, firstChainDate: new Date() };
       }
 
@@ -41,7 +40,7 @@ export function fetchChainBlockList$<
           from investment_balance_ts
           where product_id in (%L)
       `,
-        [productIds.map((p) => p.product_id)],
+        [item.productIds],
         options.ctx.client,
       );
       return { ...item, firstChainDate: firstChainDate?.first_date || new Date() };
@@ -49,6 +48,10 @@ export function fetchChainBlockList$<
 
     // fetch a decent first list of blocks from investments of this chain
     Rx.concatMap(async (item) => {
+      if (item.productIds.length === 0) {
+        return { input: item.obj, output: [] as TListItem[] };
+      }
+
       const blockList = await db_query<TListItem>(
         `
             with blocks as (
@@ -59,18 +62,14 @@ export function fetchChainBlockList$<
               from investment_balance_ts
               where 
                   datetime between (%L::timestamptz - %L::interval) and (now() - %L::interval)
-                  and product_id in (
-                      select product_id
-                      from product
-                      where chain = %L
-                  )
+                  and product_id in (%L)
               group by 1
             ) 
             select * 
             from blocks
             where interpolated_block_number is not null;
         `,
-        [options.timeStep, item.firstChainDate.toISOString(), options.timeStep, options.timeStep, options.getChain(item.obj)],
+        [options.timeStep, item.firstChainDate.toISOString(), options.timeStep, options.timeStep, item.productIds],
         options.ctx.client,
       );
       return { input: item.obj, output: blockList };
@@ -80,7 +79,7 @@ export function fetchChainBlockList$<
   return Rx.pipe(
     cacheOperatorResult$({
       operator$,
-      getCacheKey: (item) => `${options.getChain(item)}`,
+      getCacheKey: (item) => `chain-block-list:${options.getChain(item)}`,
       logInfos: { msg: "fetchChainBlockList$" },
       stdTTLSec: 5 * 60 /* 5min */,
       formatOutput: (obj, blockList) => ({ obj, blockList }),

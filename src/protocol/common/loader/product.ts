@@ -1,8 +1,9 @@
-import { keyBy, uniq } from "lodash";
+import { groupBy, keyBy, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { allChainIds, Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
 import { BeefyVault } from "../../beefy/connector/vault-list";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -175,4 +176,49 @@ export function productList$<TKey extends string>(client: DbClient, keyPrefix: T
 
     Rx.concatMap((products) => Rx.from(products)), // flatten
   );
+}
+
+export function chainProductIds$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Chain>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+  getChain: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, productIds: number[]) => TRes;
+}) {
+  const operator$ = dbBatchCall$({
+    ctx: options.ctx,
+    emitError: options.emitError,
+    formatOutput: (item, productIds: number[]) => ({ input: item, output: productIds }),
+    getData: options.getChain,
+    logInfos: { msg: "fetch chain products" },
+    processBatch: async (objAndData) => {
+      const results = await db_query<{ chain: Chain; product_id: number }>(
+        `select chain, product_id
+        from product
+        where chain in (%L)`,
+        [uniq(objAndData.map(({ data }) => data))],
+        options.ctx.client,
+      );
+
+      // return a map where keys are the original parameters object refs
+      const idMap = groupBy(results, "chain");
+
+      return new Map(
+        objAndData.map(({ data }) => {
+          const res = idMap[data];
+          if (!res) {
+            throw new Error("Could not find products for this chain");
+          }
+          return [data, res.map((r) => r.product_id)];
+        }),
+      );
+    },
+  });
+
+  return cacheOperatorResult$({
+    operator$,
+    getCacheKey: (item) => `chain-products-${options.getChain(item)}`,
+    logInfos: { msg: "product id list for chain", data: {} },
+    stdTTLSec: 30 * 60 /* 30 min */,
+    formatOutput: (item, productIds: number[]) => options.formatOutput(item, productIds),
+  });
 }
