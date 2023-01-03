@@ -4,15 +4,39 @@ import { LogInfos, mergeLogsInfos, rootLogger } from "../../logger";
 
 const logger = rootLogger.child({ module: "rxjs-utils", component: "cache-operator-result" });
 
-export function cacheOperatorResult$<TObj, TRes, TOutput>(options: {
+interface LocalCacheConfig {
+  type: "local";
   stdTTLSec: number;
+  useClones: boolean;
+}
+interface GlobalCacheConfig {
+  type: "global";
+  globalKey: string;
+  stdTTLSec: number;
+  useClones: boolean;
+}
+type CacheConfig = LocalCacheConfig | GlobalCacheConfig;
+
+const globalCacheMap: Map<string, NodeCache> = new Map();
+const getGlobalCache = (config: GlobalCacheConfig) => {
+  if (!globalCacheMap.has(config.globalKey)) {
+    globalCacheMap.set(config.globalKey, new NodeCache({ stdTTL: config.stdTTLSec, useClones: config.useClones }));
+  }
+  return globalCacheMap.get(config.globalKey)!;
+};
+
+export function cacheOperatorResult$<TObj, TRes, TOutput>(options: {
+  cacheConfig: CacheConfig;
   getCacheKey: (input: TObj) => string;
-  useClones?: boolean; // default to true for safety
   logInfos: LogInfos;
   operator$: Rx.OperatorFunction<TObj, { input: TObj; output: TOutput }>;
   formatOutput: (input: TObj, output: TOutput) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  const cache = new NodeCache({ stdTTL: options.stdTTLSec, useClones: options.useClones ?? true });
+  const cache =
+    options.cacheConfig.type === "local"
+      ? new NodeCache({ stdTTL: options.cacheConfig.stdTTLSec, useClones: options.cacheConfig.useClones })
+      : getGlobalCache(options.cacheConfig);
+
   return Rx.pipe(
     Rx.map((item) => ({ obj: item, cacheKey: options.getCacheKey(item) })),
     Rx.connect((item$) =>

@@ -19,7 +19,12 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
     Rx.filter((objs) => objs.length > 0),
 
     cacheOperatorResult$({
-      stdTTLSec: 60 /* 1min */,
+      cacheConfig: {
+        type: "global",
+        globalKey: "latest-block-number",
+        stdTTLSec: 60 /* 1min */,
+        useClones: false,
+      },
       getCacheKey: () => options.ctx.chain,
       logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
       operator$: Rx.mergeMap(async (objs) => {

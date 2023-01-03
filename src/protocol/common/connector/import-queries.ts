@@ -286,9 +286,14 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
 
   return cacheOperatorResult$({
     operator$,
-    getCacheKey: (item) => `blockList-${options.chain}-${options.getImportState(item).importKey}`,
+    getCacheKey: (item) => `blockList-${options.chain}-${options.getImportState(item).importKey}-${options.timeStep}`,
     logInfos: { msg: "block list for chain", data: { chain: options.chain } },
-    stdTTLSec: 5 * 60 /* 5 min */,
+    cacheConfig: {
+      type: "global",
+      stdTTLSec: 5 * 60 /* 5 min */,
+      globalKey: "interpolated-product-block-list",
+      useClones: false,
+    },
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
   });
 }

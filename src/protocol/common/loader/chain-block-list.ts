@@ -83,10 +83,14 @@ export function fetchChainBlockList$<
   return Rx.pipe(
     cacheOperatorResult$({
       operator$,
+      cacheConfig: {
+        type: "global",
+        globalKey: "chain-block-list",
+        stdTTLSec: 5 * 60 /* 5min */,
+        useClones: false, // we can't afford to clone the block list and we know it's immutable
+      },
       getCacheKey: (item) => `chain-block-list:${options.getChain(item)}:${options.timeStep}`,
       logInfos: { msg: "fetchChainBlockList$" },
-      stdTTLSec: 5 * 60 /* 5min */,
-      useClones: false, // we can't afford to clone the block list and we know it's immutable
       formatOutput: (obj, blockList) => ({ obj, blockList }),
     }),
 

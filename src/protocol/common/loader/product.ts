@@ -216,9 +216,14 @@ export function chainProductIds$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TP
 
   return cacheOperatorResult$({
     operator$,
+    cacheConfig: {
+      type: "global",
+      globalKey: "chain-product-ids",
+      stdTTLSec: 30 * 60 /* 30 min */,
+      useClones: false,
+    },
     getCacheKey: (item) => `chain-products-${options.getChain(item)}`,
     logInfos: { msg: "product id list for chain", data: {} },
-    stdTTLSec: 30 * 60 /* 30 min */,
     formatOutput: (item, productIds: number[]) => options.formatOutput(item, productIds),
   });
 }
