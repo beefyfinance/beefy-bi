@@ -7,11 +7,12 @@ const logger = rootLogger.child({ module: "rxjs-utils", component: "cache-operat
 export function cacheOperatorResult$<TObj, TRes, TOutput>(options: {
   stdTTLSec: number;
   getCacheKey: (input: TObj) => string;
+  useClones?: boolean; // default to true for safety
   logInfos: LogInfos;
   operator$: Rx.OperatorFunction<TObj, { input: TObj; output: TOutput }>;
   formatOutput: (input: TObj, output: TOutput) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
-  const cache = new NodeCache({ stdTTL: options.stdTTLSec });
+  const cache = new NodeCache({ stdTTL: options.stdTTLSec, useClones: options.useClones ?? true });
   return Rx.pipe(
     Rx.map((item) => ({ obj: item, cacheKey: options.getCacheKey(item) })),
     Rx.connect((item$) =>
