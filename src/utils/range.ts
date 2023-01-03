@@ -94,6 +94,34 @@ export function rangeArrayExclude<T extends SupportedRangeTypes>(ranges: Range<T
   return ranges.flatMap((range) => rangeExcludeMany(range, exclude, strat));
 }
 
+/**
+ * should be faster than rangeArrayExclude if we can sort the ranges
+ */
+export function rangeSortedArrayExclude<T extends SupportedRangeTypes>(ranges: Range<T>[], exclude: Range<T>[], strategy?: RangeStrategy<T>) {
+  const strat = strategy || (ranges.length > 0 ? getRangeStrategy(ranges[0]) : undefined);
+  // sometimes, sorting would be slower than just iterating over the ranges
+  // this can happen on small ranges only, for now we just sort
+  ranges = rangeMerge(ranges); // rangeMerge already does clone and sort
+  exclude = rangeMerge(exclude); // rangeMerge already does clone and sort
+
+  const result: Range<T>[] = [];
+  for (const range of ranges) {
+    // only exclude ranges that overlap with the current range
+    let concernedExclude: Range<T>[] = [];
+    for (const ex of exclude) {
+      if (rangeOverlap(range, ex, strat)) {
+        concernedExclude.push(ex);
+      } else {
+        // we can break here because the exclude ranges are sorted
+        break;
+      }
+    }
+    const exclusionRes = rangeExcludeMany(range, exclude, strat);
+    result.push(...exclusionRes);
+  }
+  return result;
+}
+
 export function rangeExcludeMany<T extends SupportedRangeTypes>(range: Range<T>, exclude: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   const strat = strategy || getRangeStrategy(range);
   checkRange(range, strat);

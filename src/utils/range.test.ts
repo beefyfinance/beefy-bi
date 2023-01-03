@@ -8,6 +8,7 @@ import {
   rangeMerge,
   rangeOverlap,
   rangeSlitToMaxLength,
+  rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
   rangeSplitManyToMaxLength,
   rangeValueMax,
@@ -91,6 +92,45 @@ describe("range utils: numbers", () => {
 
     expect(
       rangeArrayExclude(
+        [
+          { from: 1, to: 10 },
+          { from: 15, to: 35 },
+        ],
+        [
+          { from: 0, to: 13 },
+          { from: 17, to: 20 },
+          { from: 23, to: 25 },
+        ],
+      ),
+    ).toEqual([
+      { from: 15, to: 16 },
+      { from: 21, to: 22 },
+      { from: 26, to: 35 },
+    ]);
+  });
+
+  it("should compute range array exclusions properly (but with a faster method)", () => {
+    expect(
+      rangeSortedArrayExclude(
+        [
+          { from: 1, to: 10 },
+          { from: 15, to: 35 },
+        ],
+        [
+          { from: 50, to: 60 },
+          { from: 4, to: 5 },
+          { from: 20, to: 21 },
+        ],
+      ),
+    ).toEqual([
+      { from: 1, to: 3 },
+      { from: 6, to: 10 },
+      { from: 15, to: 19 },
+      { from: 22, to: 35 },
+    ]);
+
+    expect(
+      rangeSortedArrayExclude(
         [
           { from: 1, to: 10 },
           { from: 15, to: 35 },
@@ -431,6 +471,45 @@ describe("range utils: dates", () => {
 
     expect(
       rangeArrayExclude(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+          { from: new Date("2000-01-05"), to: new Date("2000-01-05T23:59:59.999Z") },
+        ],
+        [
+          { from: new Date("1999-01-01"), to: new Date("2000-01-02") },
+          { from: new Date("2000-01-05T08:00:00"), to: new Date("2000-01-05T08:59:59.999Z") },
+          { from: new Date("2000-01-05T15:00:00"), to: new Date("2000-01-05T15:59:59.999Z") },
+        ],
+      ),
+    ).toEqual([
+      { from: new Date("2000-01-05"), to: new Date("2000-01-05T07:59:59.999Z") },
+      { from: new Date("2000-01-05T09:00:00"), to: new Date("2000-01-05T14:59:59.999Z") },
+      { from: new Date("2000-01-05T16:00:00"), to: new Date("2000-01-05T23:59:59.999Z") },
+    ]);
+  });
+
+  it("should compute range array exclusions properly", () => {
+    expect(
+      rangeSortedArrayExclude(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+          { from: new Date("2000-01-05"), to: new Date("2000-01-05T23:59:59.999Z") },
+        ],
+        [
+          { from: new Date("2010-01-01"), to: new Date("2020-01-01") },
+          { from: new Date("2000-01-01T12:00:00"), to: new Date("2000-01-01T12:59:59.999Z") },
+          { from: new Date("2000-01-05T12:00:00"), to: new Date("2000-01-05T12:59:59.999Z") },
+        ],
+      ),
+    ).toEqual([
+      { from: new Date("2000-01-01"), to: new Date("2000-01-01T11:59:59.999Z") },
+      { from: new Date("2000-01-01T13:00:00.000Z"), to: new Date("2000-01-01T23:59:59.999Z") },
+      { from: new Date("2000-01-05"), to: new Date("2000-01-05T11:59:59.999Z") },
+      { from: new Date("2000-01-05T13:00:00.000Z"), to: new Date("2000-01-05T23:59:59.999Z") },
+    ]);
+
+    expect(
+      rangeSortedArrayExclude(
         [
           { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
           { from: new Date("2000-01-05"), to: new Date("2000-01-05T23:59:59.999Z") },

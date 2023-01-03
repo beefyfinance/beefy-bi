@@ -14,9 +14,8 @@ import { rootLogger } from "../../../utils/logger";
 import {
   Range,
   rangeArrayExclude,
-  rangeSort,
+  rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
-  rangeSplitManyToMaxLength,
   SupportedRangeTypes,
 } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
@@ -377,7 +376,7 @@ export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(
   limitRangeCount: number,
 ): Range<T>[] {
   // exclude the ranges we already covered
-  ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
+  ranges = rangeSortedArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
 
   // split in ranges no greater than the maximum allowed
   // order by new range first since it's more important and more likely to be available via RPC calls

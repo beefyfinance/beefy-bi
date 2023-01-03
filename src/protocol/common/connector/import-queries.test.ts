@@ -80,8 +80,8 @@ describe("import-queries", () => {
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
     const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
-      { from: 501, to: 899 },
-      { from: 1, to: 500 },
+      { from: 400, to: 899 },
+      { from: 1, to: 399 },
       { from: 901, to: 909 },
     ]);
   });
