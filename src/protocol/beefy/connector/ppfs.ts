@@ -1,7 +1,7 @@
 import axios from "axios";
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
-import { get, zipWith } from "lodash";
+import { get } from "lodash";
 import BeefyVaultV6Abi from "../../../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
@@ -61,6 +61,9 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   type MapEntry = [TParams, Decimal];
   let shareRatePromises: Promise<MapEntry>[] = [];
 
+  // restrain ABI to only the getPricePerFullShare function to avoid making ethers.js parse the whole thing
+  const abi = BeefyVaultV6Abi.filter((abi) => abi.name === "getPricePerFullShare");
+
   // fetch all ppfs in one go, this will batch calls using jsonrpc batching
   for (const contractCall of contractCalls) {
     let rawPromise: Promise<[ethers.BigNumber]>;
@@ -70,7 +73,7 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     if (chain === "harmony" || chain === "heco") {
       rawPromise = fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall);
     } else {
-      const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6Abi, provider);
+      const contract = new ethers.Contract(contractCall.vaultAddress, abi, provider);
       rawPromise = contract.functions.getPricePerFullShare({ blockTag: contractCall.blockNumber });
     }
 
