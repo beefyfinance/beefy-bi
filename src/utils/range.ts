@@ -13,6 +13,7 @@ interface RangeStrategy<T extends SupportedRangeTypes> {
   previousValue: (value: T) => T;
   compare: (a: T, b: T) => number;
   max: (a: T, b: T) => T;
+  min: (a: T, b: T) => T;
   diff: (a: T, b: T) => T;
   add: (a: T, b: number) => T;
 }
@@ -22,6 +23,7 @@ const rangeStrategies = {
     previousValue: (value: number) => value - 1,
     compare: (a: number, b: number) => a - b,
     max: (a: number, b: number) => Math.max(a, b),
+    min: (a: number, b: number) => Math.min(a, b),
     diff: (a: number, b: number) => a - b,
     add: (a: number, b: number) => a + b,
   } as RangeStrategy<number>,
@@ -30,6 +32,7 @@ const rangeStrategies = {
     previousValue: (value: Date) => new Date(value.getTime() - 1),
     compare: (a: Date, b: Date) => a.getTime() - b.getTime(),
     max: (a: Date, b: Date) => (a.getTime() > b.getTime() ? a : b),
+    min: (a: Date, b: Date) => (a.getTime() > b.getTime() ? b : a),
     diff: (a: Date, b: Date) => new Date(a.getTime() - b.getTime()),
     add: (a: Date, b: number) => new Date(a.getTime() + b),
   } as RangeStrategy<Date>,
@@ -237,4 +240,114 @@ export function rangeSplitManyToMaxLength<T extends SupportedRangeTypes>(
 ): Range<T>[] {
   const strat = strategy || (ranges.length > 0 ? getRangeStrategy(ranges[0]) : undefined);
   return ranges.flatMap((range) => rangeSlitToMaxLength(range, maxLength, strat));
+}
+
+/**
+ * In one single operation
+ * - sort ranges
+ * - make sure they are merged if needed
+ * - make sure they are split if needed
+ * - only take the first `take` ranges
+ *
+ * Hopefully it's faster than doing it in multiple steps
+ */
+export function rangeSortedSplitManyToMaxLengthAndTakeSome<T extends SupportedRangeTypes>(
+  ranges: Range<T>[],
+  maxLength: number,
+  take: number,
+  sort: "asc" | "desc" = "asc",
+  strategy?: RangeStrategy<T>,
+): Range<T>[] {
+  if (ranges.length <= 0 || take <= 0 || maxLength <= 0) {
+    return [];
+  }
+  const strat = strategy || getRangeStrategy(ranges[0]);
+
+  ranges = cloneDeep(ranges);
+  const result: Range<T>[] = [];
+
+  // helper methods
+  const isTooBig = (range: Range<T>) => strat.nextValue(strat.diff(range.to, range.from)) > maxLength;
+  const enough = () => result.length >= take;
+  const addToResult = (range: Range<T>) => {
+    // some temporary checks until we are sure this is working
+    // it's ok to miss some ranges, but we should never have overlapping or invalid ranges
+    checkRange(range, strat);
+    if (result.length > 0 && rangeOverlap(result[result.length - 1], range, strat)) {
+      throw new Error("Range overlap with previous value");
+    }
+    result.push(range);
+  };
+
+  // reverse sort so we can pop the last elements first
+  ranges = sort === "asc" ? rangeSort(ranges, strat).reverse() : rangeSort(ranges, strat);
+
+  while (!enough() && ranges.length > 0) {
+    const mergedRange = ranges.pop()!;
+
+    // split this range if needed
+    if (isTooBig(mergedRange)) {
+      // faster version of rangeSlitToMaxLength that only takes the first `take` ranges
+      // tricky because we need to keep the ranges sorted
+      let currentRange: Range<T> = clone(mergedRange);
+      while (!enough() && isTooBig(currentRange)) {
+        if (sort === "desc") {
+          addToResult({ from: strat.add(currentRange.to, 1 - maxLength), to: currentRange.to });
+          currentRange.to = strat.previousValue(strat.add(currentRange.to, 1 - maxLength));
+        } else {
+          addToResult({ from: currentRange.from, to: strat.previousValue(strat.add(currentRange.from, maxLength)) });
+          currentRange.from = strat.add(currentRange.from, maxLength);
+        }
+      }
+      // don't forget to put the rest back in the queue
+      ranges.push(currentRange);
+      continue;
+    }
+
+    // consume ranges until we either have reached maxLength or we can't merge it anymore
+    // we don't need the merge function because we know the ranges are sorted by "from"
+    let currentRange: Range<T> = clone(mergedRange);
+    while (!enough() && !isTooBig(currentRange)) {
+      const nextRange = ranges.pop()!;
+      // there is no next range, we can stop here
+      if (!nextRange) {
+        addToResult(currentRange);
+        break;
+      }
+
+      // current range is too far away, put it back in the queue and stop there
+      if (!rangeOverlap(currentRange, nextRange)) {
+        addToResult(currentRange);
+        ranges.push(nextRange);
+        break;
+      }
+
+      // current range is now close enough for a merge
+
+      // if we would reach maxLength by merging, only merge the part that we can merge
+      // and stop there
+
+      if (sort === "desc") {
+        if (isTooBig({ from: nextRange.from, to: currentRange.to })) {
+          currentRange.from = strat.add(currentRange.to, 1 - maxLength);
+          addToResult(currentRange);
+          ranges.push({ from: nextRange.from, to: strat.previousValue(currentRange.from) });
+          break;
+        } else {
+          currentRange.from = strat.min(currentRange.from, nextRange.from);
+        }
+      } else {
+        if (isTooBig({ from: currentRange.from, to: nextRange.to })) {
+          currentRange.to = strat.previousValue(strat.add(currentRange.from, maxLength));
+          addToResult(currentRange);
+          ranges.push({ from: strat.nextValue(currentRange.to), to: nextRange.to });
+          break;
+        } else {
+          currentRange.to = strat.max(currentRange.to, nextRange.to);
+        }
+      }
+    }
+  }
+
+  return result;
 }

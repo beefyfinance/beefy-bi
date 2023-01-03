@@ -11,7 +11,14 @@ import {
   MS_PER_BLOCK_ESTIMATE,
 } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { Range, rangeArrayExclude, rangeSort, rangeSplitManyToMaxLength, SupportedRangeTypes } from "../../../utils/range";
+import {
+  Range,
+  rangeArrayExclude,
+  rangeSort,
+  rangeSortedSplitManyToMaxLengthAndTakeSome,
+  rangeSplitManyToMaxLength,
+  SupportedRangeTypes,
+} from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
@@ -127,7 +134,7 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-      ranges = restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery, LIMIT_INVESTMENT_QUERIES);
+      ranges = _restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery, LIMIT_INVESTMENT_QUERIES);
 
       // apply forced block number
       if (options.forceCurrentBlockNumber !== null) {
@@ -159,7 +166,7 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
 
       let ranges = [fullRange];
 
-      ranges = restrictRangesWithImportState(ranges, importState, maxMsPerQuery, LIMIT_PRICE_QUERIES);
+      ranges = _restrictRangesWithImportState(ranges, importState, maxMsPerQuery, LIMIT_PRICE_QUERIES);
       return options.formatOutput(item, latestDate, ranges);
     }),
   );
@@ -268,7 +275,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
         const maxTimeStepMs = samplingPeriodMs[options.timeStep];
         const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
         const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
-        const ranges = restrictRangesWithImportState(item.blockRanges, importState, rangeMaxLength, LIMIT_SHARES_QUERIES);
+        const ranges = _restrictRangesWithImportState(item.blockRanges, importState, rangeMaxLength, LIMIT_SHARES_QUERIES);
         return { ...item, blockRanges: ranges };
       }),
       // transform to query obj
@@ -354,7 +361,7 @@ export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends Err
       const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
       const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
 
-      const ranges = restrictRangesWithImportState(investedRanges, importState, rangeMaxLength, LIMIT_SNAPSHOT_QUERIES);
+      const ranges = _restrictRangesWithImportState(investedRanges, importState, rangeMaxLength, LIMIT_SNAPSHOT_QUERIES);
       return { ...item, investedRanges: ranges };
     }),
 
@@ -363,7 +370,7 @@ export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends Err
   );
 }
 
-function restrictRangesWithImportState<T extends SupportedRangeTypes>(
+export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(
   ranges: Range<T>[],
   importState: DbImportState,
   maxRangeLength: number,
@@ -373,19 +380,17 @@ function restrictRangesWithImportState<T extends SupportedRangeTypes>(
   ranges = rangeArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
 
   // split in ranges no greater than the maximum allowed
-  ranges = rangeSplitManyToMaxLength(ranges, maxRangeLength);
-
   // order by new range first since it's more important and more likely to be available via RPC calls
-  ranges = rangeSort(ranges).reverse();
+  ranges = rangeSortedSplitManyToMaxLengthAndTakeSome(ranges, maxRangeLength, limitRangeCount, "desc");
 
-  // then add the ranges we had error on at the end
-  let rangesToRetry = rangeSplitManyToMaxLength(importState.importData.ranges.toRetry as Range<T>[], maxRangeLength);
-  // retry oldest first
-  rangesToRetry = rangeSort(rangesToRetry).reverse();
+  // if there is room, add the ranges that failed to be imported
+  if (ranges.length < limitRangeCount) {
+    let rangesToRetry = importState.importData.ranges.toRetry as Range<T>[];
+    rangesToRetry = rangeSortedSplitManyToMaxLengthAndTakeSome(rangesToRetry, maxRangeLength, limitRangeCount - ranges.length, "desc");
 
-  // put retries last
-  ranges = ranges.concat(rangesToRetry);
-
+    // put retries last
+    ranges = ranges.concat(rangesToRetry);
+  }
   // limit the amount of queries sent
   if (ranges.length > limitRangeCount) {
     ranges = ranges.slice(0, limitRangeCount);

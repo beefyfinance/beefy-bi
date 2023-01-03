@@ -8,6 +8,7 @@ import {
   rangeMerge,
   rangeOverlap,
   rangeSlitToMaxLength,
+  rangeSortedSplitManyToMaxLengthAndTakeSome,
   rangeSplitManyToMaxLength,
   rangeValueMax,
 } from "./range";
@@ -220,6 +221,76 @@ describe("range utils: numbers", () => {
     expect(rangeOverlap({ from: 1, to: 10 }, { from: 0, to: 11 })).toBe(true);
     expect(rangeOverlap({ from: 1, to: 10 }, { from: 11, to: 12 })).toBe(false);
     expect(rangeOverlap({ from: 1, to: 10 }, { from: -1, to: 0 })).toBe(false);
+  });
+
+  it("should provide a fast method to do sort+split+merge+take", () => {
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 10 }], 5, 1)).toEqual([{ from: 1, to: 5 }]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 100 }], 5, 5, "desc")).toEqual([
+      { from: 96, to: 100 },
+      { from: 91, to: 95 },
+      { from: 86, to: 90 },
+      { from: 81, to: 85 },
+      { from: 76, to: 80 },
+    ]);
+
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 100 }], 5, 5, "asc")).toEqual([
+      { from: 1, to: 5 },
+      { from: 6, to: 10 },
+      { from: 11, to: 15 },
+      { from: 16, to: 20 },
+      { from: 21, to: 25 },
+    ]);
+
+    // should be able to merge ranges when needed
+    expect(
+      rangeSortedSplitManyToMaxLengthAndTakeSome(
+        [
+          { from: 1, to: 3 },
+          { from: 2, to: 4 },
+          { from: 3, to: 9 },
+          { from: 50, to: 100 },
+        ],
+        5,
+        5,
+        "asc",
+      ),
+    ).toEqual([
+      { from: 1, to: 5 },
+      { from: 6, to: 9 },
+      { from: 50, to: 54 },
+      { from: 55, to: 59 },
+      { from: 60, to: 64 },
+    ]);
+
+    // should be able to merge ranges when needed
+    expect(
+      rangeSortedSplitManyToMaxLengthAndTakeSome(
+        [
+          { from: 1, to: 50 },
+          { from: 91, to: 95 },
+          { from: 96, to: 97 },
+          { from: 97, to: 100 },
+        ],
+        5,
+        5,
+        "desc",
+      ),
+    ).toEqual([
+      { from: 96, to: 100 },
+      { from: 91, to: 95 },
+      { from: 46, to: 50 },
+      { from: 41, to: 45 },
+      { from: 36, to: 40 },
+    ]);
+
+    // it can handle weird cases
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([], 5, 5, "desc")).toEqual([]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 1 }], 0, 5, "desc")).toEqual([]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 1 }], 5, 0, "desc")).toEqual([]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 1 }], 5, 5, "desc")).toEqual([{ from: 1, to: 1 }]);
+
+    // hopefully it's really fast
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 10000 }], 1, 10000, "desc")).toHaveLength(10000);
   });
 });
 
@@ -516,5 +587,77 @@ describe("range utils: dates", () => {
         { from: new Date("2000-01-02T00:00:00.001Z"), to: new Date("2000-01-03") },
       ),
     ).toBe(false);
+  });
+
+  it("should provide a fast method to do sort+split+merge+take", () => {
+    const oneHourMs = 60 * 60 * 1000;
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: new Date("2000-01-01"), to: new Date("2000-01-02") }], oneHourMs, 1)).toEqual([
+      { from: new Date("2000-01-01"), to: new Date("2000-01-01T00:59:59.999Z") },
+    ]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: new Date("2000-01-01"), to: new Date("2000-01-02") }], oneHourMs, 5, "desc")).toEqual([
+      { from: new Date("2000-01-01T23:00:00.001Z"), to: new Date("2000-01-02") },
+      { from: new Date("2000-01-01T22:00:00.001Z"), to: new Date("2000-01-01T23:00:00") },
+      { from: new Date("2000-01-01T21:00:00.001Z"), to: new Date("2000-01-01T22:00:00") },
+      { from: new Date("2000-01-01T20:00:00.001Z"), to: new Date("2000-01-01T21:00:00") },
+      { from: new Date("2000-01-01T19:00:00.001Z"), to: new Date("2000-01-01T20:00:00") },
+    ]);
+
+    expect(
+      rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: new Date("2000-01-01"), to: new Date("2000-01-02") }], oneHourMs * 2, 5, "asc"),
+    ).toEqual([
+      { from: new Date("2000-01-01T00:00:00.000Z"), to: new Date("2000-01-01T01:59:59.999Z") },
+      { from: new Date("2000-01-01T02:00:00.000Z"), to: new Date("2000-01-01T03:59:59.999Z") },
+      { from: new Date("2000-01-01T04:00:00.000Z"), to: new Date("2000-01-01T05:59:59.999Z") },
+      { from: new Date("2000-01-01T06:00:00.000Z"), to: new Date("2000-01-01T07:59:59.999Z") },
+      { from: new Date("2000-01-01T08:00:00.000Z"), to: new Date("2000-01-01T09:59:59.999Z") },
+    ]);
+
+    expect(
+      rangeSortedSplitManyToMaxLengthAndTakeSome(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+          { from: new Date("2000-01-05"), to: new Date("2000-01-06") },
+        ],
+        oneHourMs,
+        5,
+        "desc",
+      ),
+    ).toEqual([
+      { from: new Date("2000-01-05T23:00:00.001Z"), to: new Date("2000-01-06") },
+      { from: new Date("2000-01-05T22:00:00.001Z"), to: new Date("2000-01-05T23:00:00") },
+      { from: new Date("2000-01-05T21:00:00.001Z"), to: new Date("2000-01-05T22:00:00") },
+      { from: new Date("2000-01-05T20:00:00.001Z"), to: new Date("2000-01-05T21:00:00") },
+      { from: new Date("2000-01-05T19:00:00.001Z"), to: new Date("2000-01-05T20:00:00") },
+    ]);
+
+    // should be able to merge ranges when needed
+    expect(
+      rangeSortedSplitManyToMaxLengthAndTakeSome(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+          { from: new Date("2000-01-02"), to: new Date("2000-01-03") },
+        ],
+        oneHourMs * 12,
+        5,
+        "desc",
+      ),
+    ).toEqual([
+      { from: new Date("2000-01-02T12:00:00.001Z"), to: new Date("2000-01-03") },
+      { from: new Date("2000-01-02T00:00:00.001Z"), to: new Date("2000-01-02T12:00:00") },
+      { from: new Date("2000-01-01T12:00:00.001Z"), to: new Date("2000-01-02T00:00:00") },
+      { from: new Date("2000-01-01T00:00:00.001Z"), to: new Date("2000-01-01T12:00:00") },
+      { from: new Date("2000-01-01T00:00:00.000Z"), to: new Date("2000-01-01T00:00:00") },
+    ]);
+
+    // it can handle weird cases
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([], 5, 5, "desc")).toEqual([]);
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: new Date("2000-01-01"), to: new Date("2000-01-01") }], oneHourMs, 5, "desc")).toEqual([
+      { from: new Date("2000-01-01"), to: new Date("2000-01-01") },
+    ]);
+
+    // hopefully it's really fast
+    expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: new Date("2000-01-01"), to: new Date("2035-01-01") }], 1, 10000, "desc")).toHaveLength(
+      10000,
+    );
   });
 });
