@@ -109,10 +109,11 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
           Rx.mergeWith(
             errorObs$.pipe(
               Rx.map(({ item, report }) => {
-                logger.error(
+                // errors should have been logged already
+                logger.debug(
                   mergeLogsInfos(mergeLogsInfos({ msg: "Error processing historical query", data: { item } }, report.infos), options.logInfos),
                 );
-                logger.error(report.error);
+                logger.debug(report.error);
                 return { ...item, success: false };
               }),
             ),
