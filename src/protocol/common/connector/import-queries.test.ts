@@ -85,4 +85,24 @@ describe("import-queries", () => {
       { from: 901, to: 909 },
     ]);
   });
+
+  it("should put retry ranges at the end", async () => {
+    const ranges = [{ from: 500, to: 1000 }];
+    const coveredRanges = [{ from: 900, to: 1000 }];
+    const toRetry = [{ from: 850, to: 860 }];
+    const maxRangeLength = 100;
+    const limitRangeCount = 6;
+
+    const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
+    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    expect(res).toEqual([
+      { from: 861, to: 899 },
+      { from: 750, to: 849 },
+      { from: 650, to: 749 },
+      { from: 550, to: 649 },
+      { from: 500, to: 549 },
+      // then, retry failed imports
+      { from: 850, to: 860 },
+    ]);
+  });
 });

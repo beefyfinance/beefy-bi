@@ -375,8 +375,11 @@ export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(
   maxRangeLength: number,
   limitRangeCount: number,
 ): Range<T>[] {
+  // exclude covered ranges and retry ranges
+  const toExclude = [...(importState.importData.ranges.coveredRanges as Range<T>[]), ...(importState.importData.ranges.toRetry as Range<T>[])];
+
   // exclude the ranges we already covered
-  ranges = rangeSortedArrayExclude(ranges, importState.importData.ranges.coveredRanges as Range<T>[]);
+  ranges = rangeSortedArrayExclude(ranges, toExclude);
 
   // split in ranges no greater than the maximum allowed
   // order by new range first since it's more important and more likely to be available via RPC calls
