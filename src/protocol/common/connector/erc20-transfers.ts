@@ -2,8 +2,8 @@ import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
 import { flatten, groupBy, zipWith } from "lodash";
 import * as Rx from "rxjs";
-import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
 import { Chain } from "../../../types/chain";
+import { ERC20AbiInterface } from "../../../utils/abi";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { Range, rangeMerge } from "../../../utils/range";
@@ -249,7 +249,7 @@ async function fetchERC20TransferEventsFromRpc(
 
   const eventsPromises: Promise<ethers.Event[]>[] = [];
   for (const contractCall of contractCalls) {
-    const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
+    const contract = new ethers.Contract(contractCall.address, ERC20AbiInterface, provider);
 
     let fromPromise: Promise<ethers.Event[]>;
     let toPromise: Promise<ethers.Event[]>;
@@ -301,7 +301,7 @@ export async function fetchERC20TransferEventsFromExplorer(
     data: { chain, contractCall },
   });
 
-  const contract = new ethers.Contract(contractCall.address, ERC20Abi, provider);
+  const contract = new ethers.Contract(contractCall.address, ERC20AbiInterface, provider);
 
   if (contractCall.trackAddress) {
     throw new ProgrammerError({ msg: "Tracking not implemented for etherscan", contractCall });

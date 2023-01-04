@@ -1,11 +1,10 @@
 import { ethers } from "ethers";
 import { cloneDeep, sample, set } from "lodash";
 import yargs from "yargs";
-import BeefyVaultV6Abi from "../../data/interfaces/beefy/BeefyVaultV6/BeefyVaultV6.json";
-import ERC20Abi from "../../data/interfaces/standard/ERC20.json";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
+import { BeefyVaultV6AbiInterface, ERC20AbiInterface } from "../utils/abi";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { sleep } from "../utils/async";
 import { rootLogger } from "../utils/logger";
@@ -227,7 +226,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
       (i) => {
         // use an event that never happens so we can get the exact block span limit for this RPC
         // so we target the wgas contract with an event that doesn't exist
-        const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), BeefyVaultV6Abi, batchProvider);
+        const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), BeefyVaultV6AbiInterface, batchProvider);
         const eventFilter = contract.filters.OwnershipTransferred();
         return contract.queryFilter(eventFilter, latestBlockNumber - i, latestBlockNumber);
       },
@@ -267,7 +266,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   if (tests.includes("eth_getLogs")) {
     logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_getLogs"), (i) => {
-      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
+      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
       const eventFilter = contract.filters.Transfer();
       const promises = Array.from({ length: i }).map((_, i) => {
         const fromBlock = latestBlockNumber - (i + 1) * maxBlocksPerQuery;
@@ -282,7 +281,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   if (tests.includes("eth_call")) {
     logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
     await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
-      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20Abi, batchProvider);
+      const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
       const promises = Array.from({ length: i }).map((_, i) => {
         const blockTag = latestBlockNumber - i * maxBlocksPerQuery;
         return contract.balanceOf(getChainWNativeTokenAddress(chain), { blockTag });

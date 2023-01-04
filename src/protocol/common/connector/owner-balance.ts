@@ -1,7 +1,7 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
 import { groupBy } from "lodash";
-import ERC20Abi from "../../../../data/interfaces/standard/ERC20.json";
+import { ERC20AbiInterface } from "../../../utils/abi";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
@@ -37,7 +37,7 @@ export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, T
       const calls = Object.values(paramsByCalls).map(async (params) => {
         const param = params[0];
         const valueMultiplier = new Decimal(10).pow(-param.decimals);
-        const contract = new ethers.Contract(param.contractAddress, ERC20Abi, provider);
+        const contract = new ethers.Contract(param.contractAddress, ERC20AbiInterface, provider);
 
         // aurora RPC return the state before the transaction is applied
         // todo: patch ethers.js to reflect this behavior
