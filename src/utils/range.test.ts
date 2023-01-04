@@ -1,3 +1,4 @@
+import { cloneDeep } from "lodash";
 import { ProgrammerError } from "./programmer-error";
 import {
   isInRange,
@@ -331,6 +332,17 @@ describe("range utils: numbers", () => {
 
     // hopefully it's really fast
     expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 10000 }], 1, 10000, "desc")).toHaveLength(10000);
+
+    // and it doesn't mutate the input
+    const input = [
+      { from: 1, to: 50 },
+      { from: 91, to: 95 },
+      { from: 96, to: 97 },
+      { from: 97, to: 100 },
+    ];
+    const expectedInput = cloneDeep(input);
+    rangeSortedSplitManyToMaxLengthAndTakeSome(input, 5, 5, "desc");
+    expect(input).toEqual(expectedInput);
   });
 });
 

@@ -105,4 +105,19 @@ describe("import-queries", () => {
       { from: 850, to: 860 },
     ]);
   });
+
+  it("should not update any input object", async () => {
+    const ranges = [{ from: 500, to: 1000 }];
+    const coveredRanges = [{ from: 900, to: 1000 }];
+    const toRetry = [{ from: 850, to: 860 }];
+    const maxRangeLength = 100;
+    const limitRangeCount = 6;
+
+    const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
+    _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+
+    expect(ranges).toEqual([{ from: 500, to: 1000 }]);
+    expect(coveredRanges).toEqual([{ from: 900, to: 1000 }]);
+    expect(toRetry).toEqual([{ from: 850, to: 860 }]);
+  });
 });
