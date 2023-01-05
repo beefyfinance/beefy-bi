@@ -76,6 +76,11 @@ export function multiplexByRcp<TInput, TRes>(options: {
       ? defaultMoonbeamHistoricalStreamConfig
       : defaultHistoricalStreamConfig;
 
+  if (rpcConfigs.length === 1) {
+    const ctx = { chain: options.chain, client: options.client, rpcConfig: rpcConfigs[0], streamConfig };
+    return options.createPipeline(ctx);
+  }
+
   return weightedMultiplex(
     rpcConfigs.map((rpcConfig) => {
       const ctx = { chain: options.chain, client: options.client, rpcConfig, streamConfig };
