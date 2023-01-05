@@ -1,4 +1,4 @@
-import { clone, cloneDeep, isDate, isNumber } from "lodash";
+import { isDate, isNumber } from "lodash";
 import { ProgrammerError } from "./programmer-error";
 
 export type SupportedRangeTypes = number | Date;
@@ -16,6 +16,7 @@ interface RangeStrategy<T extends SupportedRangeTypes> {
   min: (a: T, b: T) => T;
   diff: (a: T, b: T) => T;
   add: (a: T, b: number) => T;
+  clone: (value: T) => T;
 }
 const rangeStrategies = {
   number: {
@@ -26,6 +27,7 @@ const rangeStrategies = {
     min: (a: number, b: number) => Math.min(a, b),
     diff: (a: number, b: number) => a - b,
     add: (a: number, b: number) => a + b,
+    clone: (value: number) => value,
   } as RangeStrategy<number>,
   date: {
     nextValue: (value: Date) => new Date(value.getTime() + 1),
@@ -35,8 +37,22 @@ const rangeStrategies = {
     min: (a: Date, b: Date) => (a.getTime() > b.getTime() ? b : a),
     diff: (a: Date, b: Date) => new Date(a.getTime() - b.getTime()),
     add: (a: Date, b: number) => new Date(a.getTime() + b),
+    clone: (value: Date) => new Date(value.getTime()),
   } as RangeStrategy<Date>,
 };
+
+function rangeClone<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): Range<T> {
+  const strat = strategy || getRangeStrategy(range);
+  return { from: strat.clone(range.from), to: strat.clone(range.to) };
+}
+
+function rangeArrayClone<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
+  if (ranges.length <= 0) {
+    return [];
+  }
+  const strat = strategy || getRangeStrategy(ranges[0]);
+  return ranges.map((range) => ({ from: strat.clone(range.from), to: strat.clone(range.to) }));
+}
 
 // some type guards
 export function isDateRange(range: Range<any>): range is Range<Date> {
@@ -78,6 +94,50 @@ export function rangeOverlap<T extends SupportedRangeTypes>(a: Range<T>, b: Rang
     return false;
   }
   return true;
+}
+
+export function rangeArrayOverlap<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): boolean {
+  if (ranges.length <= 1) {
+    return false;
+  }
+  const strat = strategy || getRangeStrategy(ranges[0]);
+
+  // sort to make only one pass
+  ranges = rangeSort(ranges, strat);
+  for (let i = 1; i < ranges.length; i++) {
+    if (rangeOverlap(ranges[i - 1], ranges[i], strat)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function rangeManyOverlap<T extends SupportedRangeTypes>(ranges: Range<T>[], other: Range<T>[], strategy?: RangeStrategy<T>): boolean {
+  if (ranges.length <= 0) {
+    return false;
+  }
+  const strat = strategy || getRangeStrategy(ranges[0]);
+
+  // sort to make only one pass
+  ranges = rangeSort(ranges, strat);
+  other = rangeSort(other, strat);
+
+  let i = 0;
+  let j = 0;
+
+  while (i < ranges.length && j < other.length) {
+    if (rangeOverlap(ranges[i], other[j])) {
+      return true;
+    }
+
+    if (strat.compare(ranges[i].to, other[j].from) < 0) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+
+  return false;
 }
 
 export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {
@@ -164,10 +224,10 @@ export function rangeExclude<T extends SupportedRangeTypes>(range: Range<T>, exc
 
   // ranges are exclusives
   if (range.to < exclude.from) {
-    return [clone(range)];
+    return [rangeClone(range)];
   }
   if (range.from > exclude.to) {
-    return [clone(range)];
+    return [rangeClone(range)];
   }
 
   // exclusion fully contains the range
@@ -206,7 +266,7 @@ export function rangeSort<T extends SupportedRangeTypes>(ranges: Range<T>[], str
 
 export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   if (ranges.length <= 1) {
-    return cloneDeep(ranges);
+    return rangeArrayClone(ranges);
   }
   const strat = strategy || getRangeStrategy(ranges[0]);
   const sortedRanges = ranges.sort((a, b) => strat.compare(a.from, b.from));
@@ -217,7 +277,7 @@ export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], st
     checkRange(range, strat);
 
     if (!currentMergedRange) {
-      currentMergedRange = clone(range);
+      currentMergedRange = rangeClone(range);
       continue;
     }
 
@@ -233,7 +293,7 @@ export function rangeMerge<T extends SupportedRangeTypes>(ranges: Range<T>[], st
 
     if (currentMergedRange) {
       mergedRanges.push(currentMergedRange);
-      currentMergedRange = clone(range);
+      currentMergedRange = rangeClone(range);
     }
   }
 
@@ -249,7 +309,7 @@ export function rangeSlitToMaxLength<T extends SupportedRangeTypes>(range: Range
   checkRange(range, strat);
 
   const ranges: Range<T>[] = [];
-  let currentRange: Range<T> = clone(range);
+  let currentRange: Range<T> = rangeClone(range);
 
   while (strat.nextValue(strat.diff(currentRange.to, currentRange.from)) > maxLength) {
     ranges.push({ from: currentRange.from, to: strat.previousValue(strat.add(currentRange.from, maxLength)) });
@@ -291,7 +351,7 @@ export function rangeSortedSplitManyToMaxLengthAndTakeSome<T extends SupportedRa
   }
   const strat = strategy || getRangeStrategy(ranges[0]);
 
-  ranges = cloneDeep(ranges);
+  ranges = rangeArrayClone(ranges, strat);
   const result: Range<T>[] = [];
 
   // helper methods
@@ -317,7 +377,7 @@ export function rangeSortedSplitManyToMaxLengthAndTakeSome<T extends SupportedRa
     if (isTooBig(mergedRange)) {
       // faster version of rangeSlitToMaxLength that only takes the first `take` ranges
       // tricky because we need to keep the ranges sorted
-      let currentRange: Range<T> = clone(mergedRange);
+      let currentRange: Range<T> = rangeClone(mergedRange);
       while (!enough() && isTooBig(currentRange)) {
         if (sort === "desc") {
           addToResult({ from: strat.add(currentRange.to, 1 - maxLength), to: currentRange.to });
@@ -334,7 +394,7 @@ export function rangeSortedSplitManyToMaxLengthAndTakeSome<T extends SupportedRa
 
     // consume ranges until we either have reached maxLength or we can't merge it anymore
     // we don't need the merge function because we know the ranges are sorted by "from"
-    let currentRange: Range<T> = clone(mergedRange);
+    let currentRange: Range<T> = rangeClone(mergedRange);
     while (!enough() && !isTooBig(currentRange)) {
       const nextRange = ranges.pop()!;
       // there is no next range, we can stop here

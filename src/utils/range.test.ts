@@ -3,9 +3,11 @@ import { ProgrammerError } from "./programmer-error";
 import {
   isInRange,
   rangeArrayExclude,
+  rangeArrayOverlap,
   rangeEqual,
   rangeExclude,
   rangeExcludeMany,
+  rangeManyOverlap,
   rangeMerge,
   rangeOverlap,
   rangeSlitToMaxLength,
@@ -262,6 +264,162 @@ describe("range utils: numbers", () => {
     expect(rangeOverlap({ from: 1, to: 10 }, { from: 0, to: 11 })).toBe(true);
     expect(rangeOverlap({ from: 1, to: 10 }, { from: 11, to: 12 })).toBe(false);
     expect(rangeOverlap({ from: 1, to: 10 }, { from: -1, to: 0 })).toBe(false);
+  });
+
+  it("should test for range array overlap", () => {
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 1, to: 10 },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 1, to: 9 },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 2, to: 10 },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 2, to: 9 },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 0, to: 11 },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: 11, to: 12 },
+      ]),
+    ).toBe(false);
+    expect(
+      rangeArrayOverlap([
+        { from: 1, to: 10 },
+        { from: -1, to: 0 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("should be able to detect overlaps in 2 range arrays", () => {
+    expect(rangeManyOverlap([{ from: 1, to: 100 }], [{ from: 1, to: 10 }])).toBe(true);
+    expect(rangeManyOverlap([{ from: 1, to: 100 }], [{ from: 1, to: 9 }])).toBe(true);
+    expect(rangeManyOverlap([{ from: 1, to: 100 }], [{ from: 2, to: 10 }])).toBe(true);
+
+    // thanks chatgpt
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+        ],
+        [
+          { from: 2, to: 6 },
+          { from: 8, to: 9 },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+        ],
+        [
+          { from: 5, to: 8 },
+          { from: 11, to: 12 },
+        ],
+      ),
+    ).toBe(true);
+    expect(rangeManyOverlap([{ from: 1, to: 5 }], [{ from: 5, to: 10 }])).toBe(true);
+    expect(rangeManyOverlap([{ from: 1, to: 5 }], [{ from: 3, to: 4 }])).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 6, to: 10 },
+        ],
+        [{ from: 5, to: 7 }],
+      ),
+    ).toBe(true);
+    expect(rangeManyOverlap([], [])).toBe(false);
+    expect(rangeManyOverlap([], [{ from: 1, to: 5 }])).toBe(false);
+    expect(rangeManyOverlap([{ from: 1, to: 5 }], [])).toBe(false);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 6, to: 10 },
+        ],
+        [{ from: 11, to: 12 }],
+      ),
+    ).toBe(false);
+    expect(rangeManyOverlap([{ from: -5, to: -1 }], [{ from: -4, to: 0 }])).toBe(true);
+    expect(rangeManyOverlap([{ from: 0, to: 0 }], [{ from: 0, to: 0 }])).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+          { from: 11, to: 15 },
+        ],
+        [
+          { from: 2, to: 6 },
+          { from: 8, to: 9 },
+          { from: 14, to: 16 },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+          { from: 11, to: 15 },
+        ],
+        [
+          { from: 6, to: 8 },
+          { from: 16, to: 18 },
+          { from: 20, to: 25 },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+        ],
+        [
+          { from: 11, to: 15 },
+          { from: 16, to: 20 },
+        ],
+      ),
+    ).toBe(false);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: 1, to: 5 },
+          { from: 7, to: 10 },
+          { from: 11, to: 15 },
+        ],
+        [
+          { from: 16, to: 20 },
+          { from: 21, to: 25 },
+        ],
+      ),
+    ).toBe(false);
+    expect(rangeManyOverlap([{ from: 1, to: 5 }], [{ from: 6, to: 10 }])).toBe(false);
   });
 
   it("should provide a fast method to do sort+split+merge+take", () => {
@@ -677,6 +835,100 @@ describe("range utils: dates", () => {
         { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
         { from: new Date("2000-01-02T00:00:00.001Z"), to: new Date("2000-01-03") },
       ),
+    ).toBe(false);
+  });
+
+  it("should test for range array overlap", () => {
+    expect(
+      rangeArrayOverlap([
+        { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+        { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-01T10:00:00.000Z"), to: new Date("2000-01-01T12:00:00.000Z") },
+      ]),
+    ).toBe(true);
+
+    expect(
+      rangeArrayOverlap([
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("1999-01-01"), to: new Date("2022-01-01") },
+      ]),
+    ).toBe(true);
+    expect(
+      rangeArrayOverlap([
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-03"), to: new Date("2000-01-04") },
+      ]),
+    ).toBe(false);
+    expect(
+      rangeArrayOverlap([
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-02T00:00:00.001Z"), to: new Date("2000-01-03") },
+      ]),
+    ).toBe(false);
+  });
+
+  it("should test for range array many overlap", () => {
+    expect(
+      rangeManyOverlap(
+        [
+          { from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) },
+          { from: new Date(2020, 1, 7), to: new Date(2020, 1, 10) },
+        ],
+        [
+          { from: new Date(2020, 1, 2), to: new Date(2020, 1, 6) },
+          { from: new Date(2020, 1, 8), to: new Date(2020, 1, 9) },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) },
+          { from: new Date(2020, 1, 7), to: new Date(2020, 1, 10) },
+        ],
+        [
+          { from: new Date(2020, 1, 5), to: new Date(2020, 1, 8) },
+          { from: new Date(2020, 1, 11), to: new Date(2020, 1, 12) },
+        ],
+      ),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap([{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }], [{ from: new Date(2020, 1, 5), to: new Date(2020, 1, 10) }]),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap([{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }], [{ from: new Date(2020, 1, 3), to: new Date(2020, 1, 4) }]),
+    ).toBe(true);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) },
+          { from: new Date(2020, 1, 6), to: new Date(2020, 1, 10) },
+        ],
+        [{ from: new Date(2020, 1, 5), to: new Date(2020, 1, 7) }],
+      ),
+    ).toBe(true);
+    expect(rangeManyOverlap([], [])).toBe(false);
+    expect(rangeManyOverlap([], [{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }])).toBe(false);
+    expect(rangeManyOverlap([{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }], [])).toBe(false);
+    expect(
+      rangeManyOverlap(
+        [
+          { from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) },
+          { from: new Date(2020, 1, 7), to: new Date(2020, 1, 10) },
+        ],
+        [
+          { from: new Date(2020, 1, 11), to: new Date(2020, 1, 15) },
+          { from: new Date(2020, 1, 16), to: new Date(2020, 1, 20) },
+        ],
+      ),
+    ).toBe(false);
+    expect(
+      rangeManyOverlap([{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }], [{ from: new Date(2020, 1, 6), to: new Date(2020, 1, 10) }]),
     ).toBe(false);
   });
 
