@@ -1326,7 +1326,7 @@
             "h": 11,
             "w": 10,
             "x": 0,
-            "y": 9
+            "y": 1
           },
           "id": 18,
           "options": {
@@ -1406,7 +1406,7 @@
             "h": 11,
             "w": 14,
             "x": 10,
-            "y": 9
+            "y": 1
           },
           "id": 22,
           "options": {
@@ -1490,7 +1490,7 @@
             "h": 9,
             "w": 4,
             "x": 0,
-            "y": 10
+            "y": 2
           },
           "id": 36,
           "options": {
@@ -1568,7 +1568,7 @@
             "h": 9,
             "w": 4,
             "x": 4,
-            "y": 10
+            "y": 2
           },
           "id": 37,
           "options": {
@@ -1674,7 +1674,7 @@
             "h": 9,
             "w": 4,
             "x": 8,
-            "y": 10
+            "y": 2
           },
           "id": 38,
           "options": {
@@ -1788,7 +1788,7 @@
             "h": 15,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 4
           },
           "id": 10,
           "options": {
@@ -1870,7 +1870,7 @@
             "h": 5,
             "w": 4,
             "x": 12,
-            "y": 12
+            "y": 4
           },
           "id": 26,
           "options": {
@@ -1977,7 +1977,7 @@
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 19
           },
           "id": 48,
           "options": {
@@ -2054,7 +2054,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2116,7 +2117,7 @@
             "h": 5,
             "w": 12,
             "x": 0,
-            "y": 68
+            "y": 5
           },
           "id": 52,
           "options": {
@@ -2237,7 +2238,7 @@
             "h": 10,
             "w": 4,
             "x": 12,
-            "y": 68
+            "y": 5
           },
           "id": 54,
           "options": {
@@ -2307,7 +2308,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "#EAB839",
@@ -2326,7 +2328,7 @@
             "h": 4,
             "w": 3,
             "x": 16,
-            "y": 68
+            "y": 5
           },
           "id": 55,
           "options": {
@@ -2448,7 +2450,7 @@
             "h": 6,
             "w": 3,
             "x": 16,
-            "y": 72
+            "y": 9
           },
           "id": 56,
           "options": {
@@ -2519,7 +2521,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2581,7 +2584,7 @@
             "h": 5,
             "w": 12,
             "x": 0,
-            "y": 73
+            "y": 10
           },
           "id": 53,
           "options": {
@@ -2663,7 +2666,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -2721,7 +2725,7 @@
             "h": 15,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 15
           },
           "id": 57,
           "options": {
@@ -2786,32 +2790,20 @@
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
+                "mode": "thresholds"
               },
               "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "axisSoftMin": 0,
-                "fillOpacity": 80,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineWidth": 1,
-                "scaleDistribution": {
-                  "type": "linear"
-                }
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
               },
               "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -2869,7 +2861,144 @@
             "h": 15,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 15
+          },
+          "id": 66,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  ((sum(blocks_to_retry) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as to_retry_percent,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  (((sum(blocks_covered)::double precision - sum(blocks_to_retry)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as success_percent,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet,\n  (((sum(total_blocks_to_cover)::double precision - sum(blocks_covered)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as not_covered_yet_percent\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Block coverage status",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 12,
+            "x": 0,
+            "y": 30
           },
           "id": 58,
           "options": {
@@ -2971,7 +3100,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -2982,7 +3112,7 @@
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 93
+            "y": 45
           },
           "id": 59,
           "options": {
@@ -3050,7 +3180,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -3112,7 +3243,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 97
+            "y": 49
           },
           "id": 60,
           "options": {
@@ -3223,7 +3354,7 @@
             "h": 15,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 46
           },
           "id": 63,
           "options": {
@@ -3305,7 +3436,7 @@
             "h": 5,
             "w": 4,
             "x": 12,
-            "y": 54
+            "y": 46
           },
           "id": 29,
           "options": {
@@ -3412,7 +3543,7 @@
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 69
+            "y": 61
           },
           "id": 64,
           "options": {
@@ -3546,7 +3677,7 @@
             "h": 10,
             "w": 4,
             "x": 0,
-            "y": 70
+            "y": 62
           },
           "id": 27,
           "options": {
@@ -3616,8 +3747,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "blue",
-                    "value": null
+                    "color": "blue"
                   },
                   {
                     "color": "#EAB839",
@@ -3636,7 +3766,7 @@
             "h": 5,
             "w": 5,
             "x": 4,
-            "y": 70
+            "y": 62
           },
           "id": 31,
           "options": {
@@ -3705,8 +3835,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -3732,7 +3861,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 80
+            "y": 72
           },
           "id": 30,
           "options": {
@@ -3796,7 +3925,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -3819,7 +3948,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "no",
           "value": "no"
         },
@@ -3846,7 +3975,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -3869,7 +3998,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -3893,8 +4022,8 @@
       {
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -3916,13 +4045,13 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 71,
+  "version": 72,
   "weekStart": ""
 }
