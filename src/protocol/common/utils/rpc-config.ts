@@ -25,11 +25,13 @@ const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" }
 export function getMultipleRpcConfigsForChain(options: {
   chain: Chain;
   mode: "recent" | "historical";
-  rpcCount: number;
+  rpcCount: number | "all";
   forceGetLogsBlockSpan: number | null;
 }): RpcConfig[] {
   let rpcUrls = getBestRpcUrlsForChain(options.chain, options.mode);
-  rpcUrls = rpcUrls.slice(0, options.rpcCount);
+  if (options.rpcCount !== "all") {
+    rpcUrls = rpcUrls.slice(0, options.rpcCount);
+  }
 
   logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
 

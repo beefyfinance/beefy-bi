@@ -4,6 +4,7 @@ import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -11,21 +12,57 @@ import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { ImportCtx } from "../types/import-context";
-import { defaultHistoricalStreamConfig, defaultMoonbeamHistoricalStreamConfig, defaultRecentStreamConfig } from "./multiplex-by-rpc";
+import { BatchStreamConfig } from "./batch-rpc-calls";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" });
 
+export const defaultHistoricalStreamConfig: BatchStreamConfig = {
+  // since we are doing many historical queries at once, we cannot afford to do many at once
+  workConcurrency: 1,
+  // But we can afford to wait a bit longer before processing the next batch to be more efficient
+  maxInputWaitMs: 30 * 1000,
+  maxInputTake: 500,
+  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
+  // and we can afford longer retries
+  maxTotalRetryMs: 30_000,
+};
+export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
+  // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
+  workConcurrency: 1,
+  maxInputWaitMs: 1000,
+  maxInputTake: 1,
+  dbMaxInputTake: 1,
+  dbMaxInputWaitMs: 1,
+  // and we can afford longer retries
+  maxTotalRetryMs: 30_000,
+};
+export const defaultRecentStreamConfig: BatchStreamConfig = {
+  // since we are doing live data on a small amount of queries (one per vault)
+  // we can afford some amount of concurrency
+  workConcurrency: 10,
+  // But we can not afford to wait before processing the next batch
+  maxInputWaitMs: 5_000,
+  maxInputTake: 500,
+
+  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
+  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
+  // and we cannot afford too long of a retry per product
+  maxTotalRetryMs: 10_000,
+};
+
 export interface ChainRunnerConfig<TInput> {
   chain: Chain;
   client: DbClient;
-  rpcCount: number;
+  rpcCount: number | "all";
   mode: "historical" | "recent";
   forceGetLogsBlockSpan: number | null;
   forceRpcUrl: string | null;
   getInputs: () => Promise<TInput[]>;
   inputPollInterval: SamplingPeriod;
   minWorkInterval: SamplingPeriod | null;
+  repeat: boolean;
 }
 
 export interface NoRpcRunnerConfig<TInput> {
@@ -34,9 +71,10 @@ export interface NoRpcRunnerConfig<TInput> {
   getInputs: () => Promise<TInput[]>;
   inputPollInterval: SamplingPeriod;
   minWorkInterval: SamplingPeriod | null;
+  repeat: boolean;
 }
 
-type RunnerConfig<TInput> = ChainRunnerConfig<TInput> | NoRpcRunnerConfig<TInput>;
+export type RunnerConfig<TInput> = ChainRunnerConfig<TInput> | NoRpcRunnerConfig<TInput>;
 
 function isChainRunnerConfig<TInput>(o: RunnerConfig<TInput>): o is ChainRunnerConfig<TInput> {
   return get(o, ["chain"]) !== undefined;
@@ -75,6 +113,8 @@ export function createChainRunner<TInput>(
         forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
       });
 
+  logger.debug({ msg: "splitting inputs between rpcs", data: { rpcCount: rpcConfigs.length } });
+
   const streamConfig =
     options.mode === "recent"
       ? defaultRecentStreamConfig
@@ -93,7 +133,7 @@ export function createChainRunner<TInput>(
         streamConfig,
       }),
     }),
-    weight: getRpcWeight(rpcConfig),
+    weight: _getRpcWeight(rpcConfig),
   }));
 
   const updateInputs = async () => {
@@ -101,7 +141,7 @@ export function createChainRunner<TInput>(
     inputs = await options.getInputs();
 
     // distribute those amongst runners based on their weight
-    const inputSplit = weightedDistribute(inputs, workers);
+    const inputSplit = _weightedDistribute(inputs, workers);
 
     // update the runners with the new distribution
     for (const worker of workers) {
@@ -129,12 +169,12 @@ export function createChainRunner<TInput>(
   return { run, stop };
 }
 
-function getRpcWeight(rpcConfig: RpcConfig): number {
+export function _getRpcWeight(rpcConfig: RpcConfig): number {
   const minDelayBetweenCalls = rpcConfig.rpcLimitations.minDelayBetweenCalls;
   return minDelayBetweenCalls === "no-limit" ? 10_000 : Math.round(1_000_000 / Math.max(minDelayBetweenCalls, 500));
 }
 
-function weightedDistribute<TInput, TBranch extends { weight: number }>(
+export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
   items: TInput[],
   branches: TBranch[],
   rng: typeof random = random,
@@ -197,16 +237,17 @@ function createRpcRunner<TInput>(options: {
   minWorkInterval: SamplingPeriod | null;
   pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */>;
 }) {
+  const logData = { chain: options.rpcConfig.chain, rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.linearProvider.connection.url) };
   let inputList: TInput[] = [];
   let stop: boolean = false;
 
   function updateInputs(inputs: TInput[]) {
+    logger.debug({ msg: "Updating inputs ", data: { ...logData, count: inputs.length } });
     inputList = inputs;
   }
 
   async function run() {
     while (!stop) {
-      const logData = { chain: options.rpcConfig.chain, rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.linearProvider.connection.url) };
       logger.debug({ msg: "Starting rpc work unit", data: logData });
       const work = Rx.from(inputList).pipe(options.pipeline$);
 

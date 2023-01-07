@@ -1,3 +1,4 @@
+import { isEmpty } from "lodash";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
@@ -13,8 +14,7 @@ import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport } from "../../common/types/import-context";
-import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
-import { NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
+import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { importBeefyHistoricalPendingRewardsSnapshots$ } from "../loader/investment/import-pending-rewards-snapshots";
@@ -28,7 +28,7 @@ const logger = rootLogger.child({ module: "beefy", component: "import-script" })
 
 interface CmdParams {
   client: DbClient;
-  rpcCount: number;
+  rpcCount: number | "all";
   forceRpcUrl: string | null;
   forceGetLogsBlockSpan: number | null;
   task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate" | "reward-snapshots";
@@ -65,7 +65,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           alias: "t",
           describe: "what to run",
         },
-        rpcCount: { type: "number", demand: false, default: 1, alias: "r", describe: "how many RPCs to use" },
+        rpcCount: { type: "number", demand: false, alias: "r", describe: "how many RPCs to use" },
         productRefreshInterval: {
           choices: allSamplingPeriods,
           demand: false,
@@ -84,7 +84,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
           const cmdParams: CmdParams = {
             client,
-            rpcCount: argv.rpcCount,
+            rpcCount: isEmpty(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
             task: argv.task as CmdParams["task"],
             includeEol: argv.includeEol,
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
@@ -205,6 +205,7 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
     getInputs,
     inputPollInterval: cmdParams.productRefreshInterval,
     minWorkInterval: cmdParams.loopEvery,
+    repeat: cmdParams.loopEvery !== null,
   };
 
   const runner =
@@ -241,6 +242,7 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
     forceRpcUrl: cmdParams.forceRpcUrl,
     forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
     rpcCount: cmdParams.rpcCount,
+    repeat: cmdParams.loopEvery !== null,
   };
 
   const runner =
@@ -310,6 +312,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     forceRpcUrl: cmdParams.forceRpcUrl,
     forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
     rpcCount: cmdParams.rpcCount,
+    repeat: cmdParams.loopEvery !== null,
   };
 
   const runner = importBeefyHistoricalShareRatePrices$({
@@ -383,6 +386,7 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
     forceRpcUrl: cmdParams.forceRpcUrl,
     forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
     rpcCount: cmdParams.rpcCount,
+    repeat: cmdParams.loopEvery !== null,
   };
 
   const runner = importBeefyHistoricalPendingRewardsSnapshots$({
