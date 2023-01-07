@@ -58,6 +58,7 @@ const findings = (() => {
       if (isNumber(rawLimits.weight)) {
         countWithWeight++;
       } else {
+        rawLimits.weight = null;
         countWithoutWeight++;
       }
 

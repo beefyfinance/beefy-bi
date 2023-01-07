@@ -211,7 +211,7 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
   const ranges = pipelines.map((p) => ({ from: p.minMax[0], to: p.minMax[1] }));
   const hasOverlap = ranges.some((r1) => ranges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)));
   if (hasOverlap) {
-    throw new ProgrammerError({ msg: "Branches have overlapping ranges", ranges });
+    throw new ProgrammerError({ msg: "Branches have overlapping ranges", ranges, pipelines });
   }
   const isContiguous = rangeMerge(ranges).length === 1;
   if (!isContiguous) {
