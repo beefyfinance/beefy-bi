@@ -15,6 +15,7 @@ import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport } from "../../common/types/import-context";
 import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
+import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { importBeefyHistoricalPendingRewardsSnapshots$ } from "../loader/investment/import-pending-rewards-snapshots";
@@ -157,6 +158,51 @@ async function importProducts(cmdParams: CmdParams) {
 }
 
 function importBeefyDataPrices(cmdParams: CmdParams) {
+
+  async function getInputs() {
+    const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
+      productFilter$(null, cmdParams),
+  
+      Rx.map((product) => ({ product })),
+  
+      // now fetch the price feed we need
+      fetchPriceFeed$({
+        ctx,
+        emitError,
+        getPriceFeedId: (item) => item.product.priceFeedId2,
+        formatOutput: (item, priceFeed2) => ({ ...item, priceFeed2 }),
+      }),
+      fetchPriceFeed$({
+        ctx,
+        emitError,
+        getPriceFeedId: (item) => item.product.pendingRewardsPriceFeedId,
+        formatOutput: (item, rewardPriceFeed) => ({ ...item, rewardPriceFeed }),
+      }),
+      Rx.concatMap((item) =>
+        [item.priceFeed2, item.rewardPriceFeed].filter((x): x is DbPriceFeed => !!x).map((priceFeed) => ({ product: item.product, priceFeed })),
+      ),
+  
+      // remove duplicates
+      Rx.distinct((item) => item.priceFeed.priceFeedId),
+    );
+
+    return consumeObservable(pipeline$);
+  }
+  // now import data for those
+  const runnerConfig = {
+
+  client: cmdParams.client;
+  mode: cmdParams.task === "recent-prices" ?  "recent": "historical",
+  getInputs,
+  inputPollInterval: SamplingPeriod;
+  minWorkInterval: SamplingPeriod | null;
+}
+  };
+  const runner = 
+    cmdParams.task === "recent-prices"
+      ? importBeefyRecentUnderlyingPrices$({ client: cmdParams.client })
+      : importBeefyHistoricalUnderlyingPrices$({ client: cmdParams.client });
+
   const rpcConfig = createRpcConfig("bsc"); // never used
   const streamConfig = defaultHistoricalStreamConfig;
   const ctx = {

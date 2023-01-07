@@ -1,9 +1,7 @@
 import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
-import { Chain } from "../../../types/chain";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
-import { DbClient } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
@@ -11,17 +9,13 @@ import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field
 import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
-import { multiplexByRcp } from "./multiplex-by-rpc";
+import { createChainRunner, RunnerConfig } from "./rpc-chain-runner";
 
 const logger = rootLogger.child({ module: "common", component: "historical-import" });
 
-export function createHistoricalImportPipeline<TInput, TRange extends SupportedRangeTypes, TImport extends DbImportState>(options: {
-  client: DbClient;
-  chain: Chain;
-  rpcCount: number;
+export function createHistoricalImportRunner<TInput, TRange extends SupportedRangeTypes, TImport extends DbImportState>(options: {
   logInfos: LogInfos;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+  runnerConfig: RunnerConfig<TInput>;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
   createDefaultImportState$: (
@@ -46,7 +40,7 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
 
     return Rx.pipe(
       addMissingImportState$({
-        client: options.client,
+        client: options.runnerConfig.client,
         streamConfig: ctx.streamConfig,
         getImportStateKey: options.getImportStateKey,
         createDefaultImportState$: options.createDefaultImportState$(ctx, (obj, report) => {
@@ -142,29 +136,13 @@ export function createHistoricalImportPipeline<TInput, TRange extends SupportedR
     );
   };
 
-  return Rx.pipe(
-    // only process live items
-    Rx.filter((item: TInput) => options.isLiveItem(item)),
-    multiplexByRcp({
-      chain: options.chain,
-      client: options.client,
-      mode: "historical",
-      rpcCount: options.rpcCount,
-      forceRpcUrl: options.forceRpcUrl,
-      forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
-      createPipeline,
-    }),
-  );
+  return createChainRunner(options.runnerConfig, createPipeline);
 }
 
 const recentImportCache: Record<string, SupportedRangeTypes> = {};
-export function createRecentImportPipeline<TInput, TRange extends SupportedRangeTypes>(options: {
-  client: DbClient;
-  chain: Chain;
-  rpcCount: number;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+export function createRecentImportRunner<TInput, TRange extends SupportedRangeTypes>(options: {
   logInfos: LogInfos;
+  runnerConfig: RunnerConfig<TInput>;
   cacheKey: string;
   getImportStateKey: (input: TInput) => string;
   isLiveItem: (input: TInput) => boolean;
@@ -181,6 +159,8 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
 }) {
   const createPipeline = (ctx: ImportCtx) =>
     Rx.pipe(
+      Rx.filter((item: TInput) => options.isLiveItem(item)),
+
       // set ts typings
       Rx.map((item: TInput) => ({ target: item })),
 
@@ -281,17 +261,5 @@ export function createRecentImportPipeline<TInput, TRange extends SupportedRange
       ),
     );
 
-  return Rx.pipe(
-    // only process live items
-    Rx.filter((item: TInput) => options.isLiveItem(item)),
-    multiplexByRcp({
-      chain: options.chain,
-      client: options.client,
-      mode: "recent",
-      rpcCount: options.rpcCount,
-      forceRpcUrl: options.forceRpcUrl,
-      forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
-      createPipeline,
-    }),
-  );
+  return createChainRunner(options.runnerConfig, createPipeline);
 }

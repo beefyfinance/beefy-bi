@@ -2,7 +2,7 @@ import Decimal from "decimal.js";
 import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { DbClient, db_query } from "../../../../utils/db";
+import { db_query } from "../../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -16,7 +16,8 @@ import { DbBeefyBoostProduct, DbBeefyGovVaultProduct } from "../../../common/loa
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
-import { createHistoricalImportPipeline } from "../../../common/utils/historical-recent-pipeline";
+import { createHistoricalImportRunner } from "../../../common/utils/historical-recent-pipeline";
+import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { isBeefyBoost, isBeefyProductEOL } from "../../utils/type-guard";
@@ -33,19 +34,12 @@ const getImportStateKey = (item: PendingRewardSnapshotInput) =>
   `product:investment:pending-reward:${item.product.productId}:${item.investor.investorId}`;
 
 export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
-  client: DbClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
-  rpcCount: number;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+  runnerConfig: ChainRunnerConfig<PendingRewardSnapshotInput>;
 }) {
-  return createHistoricalImportPipeline<PendingRewardSnapshotInput, number, DbPendingRewardsImportState>({
-    client: options.client,
-    chain: options.chain, // unused
-    rpcCount: options.rpcCount,
-    forceRpcUrl: options.forceRpcUrl,
-    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+  return createHistoricalImportRunner<PendingRewardSnapshotInput, number, DbPendingRewardsImportState>({
+    runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing pending rewards snapshots", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: (target) => !isBeefyProductEOL(target.product),

@@ -1,6 +1,5 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { DbClient } from "../../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -13,26 +12,20 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
-import { createHistoricalImportPipeline } from "../../../common/utils/historical-recent-pipeline";
+import { createHistoricalImportRunner } from "../../../common/utils/historical-recent-pipeline";
+import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
 export function importBeefyHistoricalShareRatePrices$(options: {
-  client: DbClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
-  rpcCount: number;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+  runnerConfig: ChainRunnerConfig<DbPriceFeed>;
 }) {
-  return createHistoricalImportPipeline<DbPriceFeed, number, DbProductShareRateImportState>({
-    client: options.client,
-    chain: options.chain, // unused
-    rpcCount: options.rpcCount,
-    forceRpcUrl: options.forceRpcUrl,
-    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+  return createHistoricalImportRunner<DbPriceFeed, number, DbProductShareRateImportState>({
+    runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
     getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
     isLiveItem: (target) => target.priceFeedData.active,

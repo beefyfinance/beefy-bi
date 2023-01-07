@@ -12,7 +12,8 @@ import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
-import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
+import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
+import { NoRpcRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyDataPrices$ } from "../../connector/prices";
 
 type UnderlyingPriceFeedInput = {
@@ -24,13 +25,9 @@ const logger = rootLogger.child({ module: "beefy", component: "import-underlying
 
 const getImportStateKey = (item: UnderlyingPriceFeedInput) => `price:feed:${item.priceFeed.priceFeedId}`;
 
-export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClient }) {
-  return createHistoricalImportPipeline<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
-    client: options.client,
-    rpcCount: 1, // unused
-    forceRpcUrl: null, // unused
-    forceGetLogsBlockSpan: null, // unused
-    chain: "bsc", // unused
+export function importBeefyHistoricalUnderlyingPrices$(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
+  return createHistoricalImportRunner<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
+    runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical underlying prices" },
     getImportStateKey,
     isLiveItem: (target) => target.priceFeed.priceFeedData.active,
@@ -81,18 +78,14 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { client: DbClie
   });
 }
 
-export function importBeefyRecentUnderlyingPrices$(options: { client: DbClient }) {
-  return createRecentImportPipeline<UnderlyingPriceFeedInput, Date>({
-    client: options.client,
-    rpcCount: 1, // unused
-    forceRpcUrl: null, // unused
-    forceGetLogsBlockSpan: null, // unused
-    chain: "bsc", // unused
+export function importBeefyRecentUnderlyingPrices$(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
+  return createRecentImportRunner<UnderlyingPriceFeedInput, Date>({
+    runnerConfig: options.runnerConfig,
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },
     getImportStateKey,
     isLiveItem: (target) => target.priceFeed.priceFeedData.active,
-    generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
+    generateQueries$: ({ lastImported, formatOutput }) =>
       addLatestDateQuery$({
         getLastImportedDate: () => lastImported,
         formatOutput: (item, latestDate, query) => formatOutput(item, latestDate, [query]),

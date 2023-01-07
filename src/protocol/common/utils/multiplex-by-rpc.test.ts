@@ -2,7 +2,7 @@ import * as Rx from "rxjs";
 import { RpcConfig } from "../../../types/rpc-config";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
-import { getWeight, weightedMultiplex } from "./multiplex-by-rpc";
+import { getWeight, weightedDistribute, weightedMultiplex } from "./multiplex-by-rpc";
 
 describe("multiplexByRcp$", () => {
   it("should pass all items when only one RPC is available", async () => {
@@ -98,5 +98,19 @@ describe("multiplexByRcp$", () => {
     expect(getWeight(getConfig(1000))).toEqual(1_000);
     expect(getWeight(getConfig(100))).toEqual(2_000);
     expect(getWeight(getConfig(10))).toEqual(2_000);
+  });
+
+  it("should distribute according to weight and limitations", async () => {
+    const input = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+    const randomMock = jest.fn();
+    randomMock.mockReturnValueOnce(1).mockReturnValueOnce(2).mockReturnValueOnce(1).mockReturnValueOnce(11);
+    const weights = [{ weight: 1 }, { weight: 10 }];
+    const res = weightedDistribute(input, weights, randomMock);
+    expect(res).toEqual(
+      new Map([
+        [weights[0], [input[0], input[2]]],
+        [weights[1], [input[1], input[3]]],
+      ]),
+    );
   });
 });

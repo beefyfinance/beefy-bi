@@ -1,6 +1,5 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { DbClient } from "../../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
@@ -8,7 +7,8 @@ import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/
 import { upsertBlock$ } from "../../../common/loader/blocks";
 import { DbProductInvestmentImportState } from "../../../common/loader/import-state";
 import { DbBeefyProduct } from "../../../common/loader/product";
-import { createHistoricalImportPipeline, createRecentImportPipeline } from "../../../common/utils/historical-recent-pipeline";
+import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
+import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { isBeefyProductLive } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
@@ -18,19 +18,12 @@ const logger = rootLogger.child({ module: "beefy", component: "investment-import
 export const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
 export function importChainHistoricalData$(options: {
-  client: DbClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
-  rpcCount: number;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+  runnerConfig: ChainRunnerConfig<DbBeefyProduct>;
 }) {
-  return createHistoricalImportPipeline<DbBeefyProduct, number, DbProductInvestmentImportState>({
-    client: options.client,
-    chain: options.chain,
-    rpcCount: options.rpcCount,
-    forceRpcUrl: options.forceRpcUrl,
-    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+  return createHistoricalImportRunner<DbBeefyProduct, number, DbProductInvestmentImportState>({
+    runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     getImportStateKey,
     isLiveItem: isBeefyProductLive,
@@ -102,19 +95,12 @@ export function importChainHistoricalData$(options: {
 }
 
 export function importChainRecentData$(options: {
-  client: DbClient;
   chain: Chain;
   forceCurrentBlockNumber: number | null;
-  rpcCount: number;
-  forceRpcUrl: string | null;
-  forceGetLogsBlockSpan: number | null;
+  runnerConfig: ChainRunnerConfig<DbBeefyProduct>;
 }) {
-  return createRecentImportPipeline<DbBeefyProduct, number>({
-    client: options.client,
-    chain: options.chain,
-    rpcCount: options.rpcCount,
-    forceRpcUrl: options.forceRpcUrl,
-    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+  return createRecentImportRunner<DbBeefyProduct, number>({
+    runnerConfig: options.runnerConfig,
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
     getImportStateKey,

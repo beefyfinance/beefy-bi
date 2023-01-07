@@ -151,3 +151,57 @@ export function weightedMultiplex<TInput, TRes>(
     ),
   );
 }
+
+export function weightedDistribute<TInput, TBranch extends { weight: number }>(
+  items: TInput[],
+  branches: TBranch[],
+  rng: typeof random = random,
+): Map<TBranch, TInput[]> {
+  for (const branch of branches) {
+    if (branch.weight < 1) {
+      throw new ProgrammerError({ msg: "Branch weight must be positive", branch });
+    }
+  }
+
+  const totalWeight = branches.reduce((acc, p) => acc + p.weight, 0);
+
+  const minMax: [number, number][] = [];
+  let min = 1;
+  for (let idx = 0; idx < branches.length; idx++) {
+    const p = branches[idx];
+    minMax.push([min, min + p.weight - 1]);
+    min += p.weight;
+  }
+  const pipelines = branches.map((b, idx) => ({ b, minMax: minMax[idx] }));
+
+  // test if our minMax is correct
+  const ranges = pipelines.map((p) => ({ from: p.minMax[0], to: p.minMax[1] }));
+  const hasOverlap = ranges.some((r1) => ranges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)));
+  if (hasOverlap) {
+    throw new ProgrammerError({ msg: "Branches have overlapping ranges", ranges });
+  }
+  const isContiguous = rangeMerge(ranges).length === 1;
+  if (!isContiguous) {
+    throw new ProgrammerError({ msg: "Branches are not contiguous", ranges });
+  }
+  const isCovering = Math.min(...ranges.map((r) => r.from)) === 1 && Math.max(...ranges.map((r) => r.to)) === totalWeight;
+  if (!isCovering) {
+    throw new ProgrammerError({ msg: "Branches are not covering", ranges, totalWeight });
+  }
+
+  const result = new Map<TBranch, TInput[]>();
+  for (const branch of branches) {
+    result.set(branch, []);
+  }
+
+  for (const item of items) {
+    const rngValue = rng(1, totalWeight, false);
+    const pipeline = pipelines.find((p) => rngValue >= p.minMax[0] && rngValue <= p.minMax[1]);
+    if (!pipeline) {
+      throw new ProgrammerError({ msg: "No pipeline found for rng value", rngValue, pipelines });
+    }
+    result.get(pipeline.b)!.push(item);
+  }
+
+  return result;
+}
