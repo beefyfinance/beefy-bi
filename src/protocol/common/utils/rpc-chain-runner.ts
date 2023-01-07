@@ -183,6 +183,13 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
   branches: TBranch[],
   rng: typeof random = random,
 ): Map<TBranch, TInput[]> {
+  if (branches.length < 0) {
+    return new Map();
+  }
+  if (branches.length === 1) {
+    return new Map([[branches[0], items]]);
+  }
+
   for (const branch of branches) {
     if (branch.weight < 1) {
       throw new ProgrammerError({ msg: "Branch weight must be positive", branch });
