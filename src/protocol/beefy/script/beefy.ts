@@ -1,8 +1,7 @@
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
-import { allSamplingPeriods, SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
-import { sleep } from "../../../utils/async";
+import { allSamplingPeriods, SamplingPeriod } from "../../../types/sampling";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -12,10 +11,10 @@ import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field
 import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
-import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport } from "../../common/types/import-context";
 import { defaultHistoricalStreamConfig } from "../../common/utils/multiplex-by-rpc";
-import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
+import { NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
 import { importBeefyHistoricalPendingRewardsSnapshots$ } from "../loader/investment/import-pending-rewards-snapshots";
@@ -37,6 +36,7 @@ interface CmdParams {
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
+  productRefreshInterval: SamplingPeriod;
   loopEvery: SamplingPeriod | null;
 }
 
@@ -66,6 +66,13 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           describe: "what to run",
         },
         rpcCount: { type: "number", demand: false, default: 1, alias: "r", describe: "how many RPCs to use" },
+        productRefreshInterval: {
+          choices: allSamplingPeriods,
+          demand: false,
+          default: "30min",
+          alias: "p",
+          describe: "how often workers should refresh the product list and redispatch accross rpcs",
+        },
         loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
       }),
     handler: (argv): Promise<any> =>
@@ -85,6 +92,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
             forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
             forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
+            productRefreshInterval: argv.productRefreshInterval as SamplingPeriod,
             loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
@@ -102,26 +110,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
           const tasks = getTasksToRun(cmdParams);
 
-          return Promise.all(
-            tasks.map(async (task) => {
-              do {
-                const start = Date.now();
-                await task();
-                const now = Date.now();
-
-                logger.info({ msg: "Import task finished" });
-
-                if (cmdParams.loopEvery !== null) {
-                  const shouldSleepABit = now - start < samplingPeriodMs[cmdParams.loopEvery];
-                  if (shouldSleepABit) {
-                    const sleepTime = samplingPeriodMs[cmdParams.loopEvery] - (now - start);
-                    logger.info({ msg: "Sleeping after import", data: { sleepTime } });
-                    await sleep(sleepTime);
-                  }
-                }
-              } while (cmdParams.loopEvery !== null);
-            }),
-          );
+          return Promise.all(tasks.map((task) => task()));
         },
         { appName: "beefy:run", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
       )(),
@@ -158,13 +147,26 @@ async function importProducts(cmdParams: CmdParams) {
 }
 
 function importBeefyDataPrices(cmdParams: CmdParams) {
-
   async function getInputs() {
+    const rpcConfig = createRpcConfig("bsc"); // never used
+    const streamConfig = defaultHistoricalStreamConfig;
+    const ctx = {
+      chain: "bsc" as Chain, // not used here
+      client: cmdParams.client,
+      rpcConfig,
+      streamConfig,
+    };
+    const emitError = (item: { product: DbProduct }, report: ErrorReport) => {
+      logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
+      logger.error(report.error);
+      throw new Error(`Error fetching price feed for product ${item.product.productId}`);
+    };
+
     const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
       productFilter$(null, cmdParams),
-  
+
       Rx.map((product) => ({ product })),
-  
+
       // now fetch the price feed we need
       fetchPriceFeed$({
         ctx,
@@ -181,115 +183,80 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
       Rx.concatMap((item) =>
         [item.priceFeed2, item.rewardPriceFeed].filter((x): x is DbPriceFeed => !!x).map((priceFeed) => ({ product: item.product, priceFeed })),
       ),
-  
+
       // remove duplicates
       Rx.distinct((item) => item.priceFeed.priceFeedId),
+
+      // collect
+      Rx.toArray(),
     );
 
-    return consumeObservable(pipeline$);
+    const res = await consumeObservable(pipeline$);
+    if (!res) {
+      return [];
+    }
+    return res;
   }
+
   // now import data for those
   const runnerConfig = {
-
-  client: cmdParams.client;
-  mode: cmdParams.task === "recent-prices" ?  "recent": "historical",
-  getInputs,
-  inputPollInterval: SamplingPeriod;
-  minWorkInterval: SamplingPeriod | null;
-}
-  };
-  const runner = 
-    cmdParams.task === "recent-prices"
-      ? importBeefyRecentUnderlyingPrices$({ client: cmdParams.client })
-      : importBeefyHistoricalUnderlyingPrices$({ client: cmdParams.client });
-
-  const rpcConfig = createRpcConfig("bsc"); // never used
-  const streamConfig = defaultHistoricalStreamConfig;
-  const ctx = {
-    chain: "bsc" as Chain, // not used here
     client: cmdParams.client,
-    rpcConfig,
-    streamConfig,
-  };
-  const emitError = (item: { product: DbProduct }, report: ErrorReport) => {
-    logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
-    logger.error(report.error);
-    throw new Error(`Error fetching price feed for product ${item.product.productId}`);
+    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    getInputs,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
   };
 
-  const pipeline$ = productList$(cmdParams.client, "beefy", null).pipe(
-    productFilter$(null, cmdParams),
-
-    Rx.map((product) => ({ product })),
-
-    // now fetch the price feed we need
-    fetchPriceFeed$({
-      ctx,
-      emitError,
-      getPriceFeedId: (item) => item.product.priceFeedId2,
-      formatOutput: (item, priceFeed2) => ({ ...item, priceFeed2 }),
-    }),
-    fetchPriceFeed$({
-      ctx,
-      emitError,
-      getPriceFeedId: (item) => item.product.pendingRewardsPriceFeedId,
-      formatOutput: (item, rewardPriceFeed) => ({ ...item, rewardPriceFeed }),
-    }),
-    Rx.concatMap((item) =>
-      [item.priceFeed2, item.rewardPriceFeed].filter((x): x is DbPriceFeed => !!x).map((priceFeed) => ({ product: item.product, priceFeed })),
-    ),
-
-    // remove duplicates
-    Rx.distinct((item) => item.priceFeed.priceFeedId),
-
-    // now import data for those
+  const runner =
     cmdParams.task === "recent-prices"
-      ? importBeefyRecentUnderlyingPrices$({ client: cmdParams.client })
-      : importBeefyHistoricalUnderlyingPrices$({ client: cmdParams.client }),
-  );
+      ? importBeefyRecentUnderlyingPrices$({ runnerConfig })
+      : importBeefyHistoricalUnderlyingPrices$({ runnerConfig });
 
-  logger.info({ msg: "starting share rate data import", data: { ...cmdParams, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
-}
-
-const historicalPipelineByChain = {} as Record<Chain, Rx.OperatorFunction<DbBeefyProduct, any>>;
-const recentPipelineByChain = {} as Record<Chain, Rx.OperatorFunction<DbBeefyProduct, any>>;
-function getChainInvestmentPipeline(chain: Chain, cmdParams: CmdParams, mode: "historical" | "recent") {
-  if (mode === "historical") {
-    if (!historicalPipelineByChain[chain]) {
-      historicalPipelineByChain[chain] = importChainHistoricalData$({
-        client: cmdParams.client,
-        chain,
-        forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-        forceRpcUrl: cmdParams.forceRpcUrl,
-        forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-        rpcCount: cmdParams.rpcCount,
-      });
-    }
-    return historicalPipelineByChain[chain];
-  } else {
-    if (!recentPipelineByChain[chain]) {
-      recentPipelineByChain[chain] = importChainRecentData$({
-        client: cmdParams.client,
-        chain,
-        forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-        forceRpcUrl: cmdParams.forceRpcUrl,
-        forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-        rpcCount: cmdParams.rpcCount,
-      });
-    }
-    return recentPipelineByChain[chain];
-  }
-  throw new ProgrammerError({ msg: "Unknown mode", data: { mode } });
+  return runner.run();
 }
 
 async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
-  const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-    productFilter$(chain, cmdParams),
-    cmdParams.task === "recent" ? getChainInvestmentPipeline(chain, cmdParams, "recent") : getChainInvestmentPipeline(chain, cmdParams, "historical"),
-  );
-  logger.info({ msg: "starting investment data import", data: { ...cmdParams, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
+  async function getInputs() {
+    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+      productFilter$(chain, cmdParams),
+      // collect
+      Rx.toArray(),
+    );
+
+    const res = await consumeObservable(pipeline$);
+    if (!res) {
+      return [];
+    }
+    return res;
+  }
+
+  // now import data for those
+  const runnerConfig = {
+    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    getInputs,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    client: cmdParams.client,
+    chain,
+    forceRpcUrl: cmdParams.forceRpcUrl,
+    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
+    rpcCount: cmdParams.rpcCount,
+  };
+
+  const runner =
+    cmdParams.task === "recent-prices"
+      ? importChainRecentData$({
+          chain,
+          forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+          runnerConfig,
+        })
+      : importChainHistoricalData$({
+          chain,
+          forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+          runnerConfig,
+        });
+
+  return runner.run();
 }
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
@@ -308,31 +275,50 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
-  const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-    productFilter$(chain, cmdParams),
-    // remove products that don't have a ppfs to fetch
-    // we don't fetch boosts because they would be duplicates anyway
-    Rx.filter((product) => isBeefyStandardVault(product)),
-    // now fetch the price feed we need
-    fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
-    // drop those without a price feed yet
-    excludeNullFields$("priceFeed"),
-    Rx.map(({ priceFeed }) => priceFeed),
-    // remove duplicates
-    Rx.distinct((priceFeed) => priceFeed.priceFeedId),
-    // now fetch associated price feeds
-    importBeefyHistoricalShareRatePrices$({
-      chain: chain,
-      client: cmdParams.client,
-      forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-      forceRpcUrl: cmdParams.forceRpcUrl,
-      forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-      rpcCount: cmdParams.rpcCount,
-    }),
-  );
+  async function getInputs() {
+    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+      productFilter$(chain, cmdParams),
+      // remove products that don't have a ppfs to fetch
+      // we don't fetch boosts because they would be duplicates anyway
+      Rx.filter((product) => isBeefyStandardVault(product)),
+      // now fetch the price feed we need
+      fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+      // drop those without a price feed yet
+      excludeNullFields$("priceFeed"),
+      Rx.map(({ priceFeed }) => priceFeed),
+      // remove duplicates
+      Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+      // collect
+      Rx.toArray(),
+    );
 
-  logger.info({ msg: "starting share rate data import", data: { ...cmdParams, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
+    const res = await consumeObservable(pipeline$);
+    if (!res) {
+      return [];
+    }
+    return res;
+  }
+
+  // now import data for those
+  const runnerConfig = {
+    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    getInputs,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    client: cmdParams.client,
+    chain,
+    forceRpcUrl: cmdParams.forceRpcUrl,
+    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
+    rpcCount: cmdParams.rpcCount,
+  };
+
+  const runner = importBeefyHistoricalShareRatePrices$({
+    chain: chain,
+    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+    runnerConfig,
+  });
+
+  return runner.run();
 }
 
 function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
@@ -351,42 +337,61 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
     throw new Error(`Error fetching rewards for product ${item.productId}`);
   };
 
-  const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-    productFilter$(chain, cmdParams),
-    // Rewards only exists for boosts and governance vaults
-    Rx.filter((product): product is DbBeefyBoostProduct | DbBeefyGovVaultProduct => isBeefyBoost(product) || isBeefyGovVault(product)),
-    // fetch all investors of this product
-    fetchAllInvestorIds$({
-      ctx,
-      emitError,
-      getProductId: (product) => product.productId,
-      formatOutput: (product, investorIds) => ({ product, investorIds }),
-    }),
-    // flatten the result
-    Rx.concatMap(({ product, investorIds }) => investorIds.map((investorId) => ({ product, investorId }))),
-    // fetch investor rows
-    fetchInvestor$({
-      ctx,
-      emitError: (item) => {
-        throw new Error(`Error fetching investor ${item.investorId} for product ${item.product.productId}`);
-      },
-      getInvestorId: (item) => item.investorId,
-      formatOutput: (item, investor) => ({ ...item, investor }),
-    }),
+  async function getInputs() {
+    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+      productFilter$(chain, cmdParams),
+      // Rewards only exists for boosts and governance vaults
+      Rx.filter((product): product is DbBeefyBoostProduct | DbBeefyGovVaultProduct => isBeefyBoost(product) || isBeefyGovVault(product)),
+      // fetch all investors of this product
+      fetchAllInvestorIds$({
+        ctx,
+        emitError,
+        getProductId: (product) => product.productId,
+        formatOutput: (product, investorIds) => ({ product, investorIds }),
+      }),
+      // flatten the result
+      Rx.concatMap(({ product, investorIds }) => investorIds.map((investorId) => ({ product, investorId }))),
+      // fetch investor rows
+      fetchInvestor$({
+        ctx,
+        emitError: (item) => {
+          throw new Error(`Error fetching investor ${item.investorId} for product ${item.product.productId}`);
+        },
+        getInvestorId: (item) => item.investorId,
+        formatOutput: (item, investor) => ({ ...item, investor }),
+      }),
 
-    // now fetch associated price feeds
-    importBeefyHistoricalPendingRewardsSnapshots$({
-      chain: chain,
-      client: cmdParams.client,
-      forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-      forceRpcUrl: cmdParams.forceRpcUrl,
-      forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-      rpcCount: cmdParams.rpcCount,
-    }),
-  );
+      // collect
+      Rx.toArray(),
+    );
 
-  logger.info({ msg: "starting pending rewards import", data: { ...cmdParams, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
+    const res = await consumeObservable(pipeline$);
+    if (!res) {
+      return [];
+    }
+    return res;
+  }
+
+  // now import data for those
+  const runnerConfig = {
+    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    getInputs,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    client: cmdParams.client,
+    chain,
+    forceRpcUrl: cmdParams.forceRpcUrl,
+    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
+    rpcCount: cmdParams.rpcCount,
+  };
+
+  const runner = importBeefyHistoricalPendingRewardsSnapshots$({
+    chain: chain,
+    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+    runnerConfig,
+  });
+
+  return runner.run();
 }
 
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
