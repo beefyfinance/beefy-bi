@@ -72,7 +72,8 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
+      "weight": 4,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 100,
@@ -88,6 +89,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 2,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 200,
@@ -103,6 +105,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 2,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -118,6 +121,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 3,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 200,
@@ -133,6 +137,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -148,6 +153,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -163,6 +169,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -178,6 +185,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -193,6 +201,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -208,6 +217,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -223,6 +233,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -238,6 +249,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -253,6 +265,7 @@
       "internalTimeoutMs": null,
       "disableBatching": true,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 10,
@@ -489,6 +502,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 3,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 500,
@@ -504,6 +518,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 7,
       "methods": {
         "eth_getLogs": 84,
         "eth_call": 500,

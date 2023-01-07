@@ -36,6 +36,7 @@ describe("batchRpcCalls$", () => {
           isArchiveNode: true,
           disableBatching: false,
           disableRpc: false,
+          weight: null,
           internalTimeoutMs: 10_000,
           maxGetLogsBlockSpan: 10_000,
           methods: {
@@ -75,6 +76,7 @@ describe("batchRpcCalls$", () => {
           isArchiveNode: true,
           disableBatching: false,
           disableRpc: false,
+          weight: null,
           internalTimeoutMs: 10_000,
           maxGetLogsBlockSpan: 10_000,
           methods: {

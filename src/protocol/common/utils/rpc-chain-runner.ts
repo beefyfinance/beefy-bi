@@ -126,6 +126,7 @@ export function createChainRunner<TInput>(
     runner: createRpcRunner({
       rpcConfig,
       minWorkInterval: options.minWorkInterval,
+      repeat: options.repeat,
       pipeline$: createPipeline({
         chain: options.chain,
         client: options.client,
@@ -170,6 +171,9 @@ export function createChainRunner<TInput>(
 }
 
 export function _getRpcWeight(rpcConfig: RpcConfig): number {
+  if (rpcConfig.rpcLimitations.weight !== null) {
+    return rpcConfig.rpcLimitations.weight;
+  }
   const minDelayBetweenCalls = rpcConfig.rpcLimitations.minDelayBetweenCalls;
   return minDelayBetweenCalls === "no-limit" ? 10_000 : Math.round(1_000_000 / Math.max(minDelayBetweenCalls, 500));
 }
@@ -235,6 +239,7 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
 function createRpcRunner<TInput>(options: {
   rpcConfig: RpcConfig;
   minWorkInterval: SamplingPeriod | null;
+  repeat: boolean;
   pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */>;
 }) {
   const logData = { chain: options.rpcConfig.chain, rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.linearProvider.connection.url) };
@@ -248,6 +253,9 @@ function createRpcRunner<TInput>(options: {
 
   async function run() {
     while (!stop) {
+      if (!options.repeat) {
+        stop = true;
+      }
       logger.debug({ msg: "Starting rpc work unit", data: logData });
       const work = Rx.from(inputList).pipe(options.pipeline$);
 

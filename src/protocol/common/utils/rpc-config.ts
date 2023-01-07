@@ -84,6 +84,7 @@ export function createRpcConfig(
         disableBatching: true, // etherscan doesn't support batching
         internalTimeoutMs: null,
         disableRpc: false,
+        weight: null,
         methods: {
           // no batching is supported
           eth_blockNumber: null,

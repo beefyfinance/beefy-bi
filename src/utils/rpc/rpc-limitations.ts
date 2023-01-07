@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { cloneDeep, merge } from "lodash";
+import { cloneDeep, isNumber, merge } from "lodash";
 import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
 import { CONFIG_DIRECTORY, USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND } from "../config";
@@ -30,6 +30,7 @@ export const defaultLimitations: RpcLimitations = {
   internalTimeoutMs: null,
   disableBatching: false,
   disableRpc: false,
+  weight: null,
   methods: {
     eth_getLogs: null,
     eth_call: null,
@@ -46,6 +47,27 @@ const findings = (() => {
   for (const chain of allChainIds) {
     if (!rawLimitations[chain]) {
       rawLimitations[chain] = {};
+    }
+  }
+
+  // check weights
+  for (const chain of allChainIds) {
+    let countWithWeight = 0;
+    let countWithoutWeight = 0;
+    for (const [rpcUrl, rawLimits] of Object.entries(rawLimitations[chain])) {
+      if (isNumber(rawLimits.weight)) {
+        countWithWeight++;
+      } else {
+        countWithoutWeight++;
+      }
+
+      if (countWithWeight > 0 && countWithoutWeight > 0) {
+        throw new ProgrammerError(
+          `Weights invalid for chain ${chain}. Please define the weight parameter for ALL rpc or none of them. Error on rpc: ${removeSecretsFromRpcUrl(
+            rpcUrl,
+          )}`,
+        );
+      }
     }
   }
 
@@ -127,6 +149,10 @@ export interface RpcLimitations {
   // sometimes an RPC is so slow or overloaded that we can't even use it
   // if this is true, we disable all calls to this RPC
   disableRpc: boolean;
+  // manually define how much one rpc is used on a multi-rpc setup
+  // weight must be defined for all rpc of a chain or none
+  // if not defined, some heuristic on `minDelayBetweenCalls` is used instead
+  weight: number | null;
   // maximum batching allowed for each method
   // null means batching is not allowed
   methods: {
