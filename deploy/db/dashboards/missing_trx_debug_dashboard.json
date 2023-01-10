@@ -29,6 +29,114 @@
   "liveNow": false,
   "panels": [
     {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 14,
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 21,
+            "w": 24,
+            "x": 0,
+            "y": 1
+          },
+          "id": 10,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  $__time(datetime),\n  product_id,\n  balance,\n  balance_diff,\n  pending_rewards,\n  pending_rewards_diff,\n  investment_data\nFROM\n  investment_balance_ts\nWHERE\n  $__timeFilter(datetime)\n  and product_id in ($_product_ids)\n  and investor_id in ($_investor_ids)\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "User transactions",
+          "type": "table"
+        }
+      ],
+      "title": "Transaction stats",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 12,
+      "panels": [],
+      "title": "Import stats",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "postgres",
         "uid": "P1A7A05C63CAD1F73"
@@ -59,7 +167,7 @@
         "h": 10,
         "w": 4,
         "x": 0,
-        "y": 0
+        "y": 2
       },
       "id": 8,
       "options": {
@@ -141,7 +249,7 @@
         "h": 10,
         "w": 8,
         "x": 4,
-        "y": 0
+        "y": 2
       },
       "id": 3,
       "options": {
@@ -219,7 +327,7 @@
         "h": 10,
         "w": 11,
         "x": 12,
-        "y": 0
+        "y": 2
       },
       "id": 2,
       "options": {
@@ -300,7 +408,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 12
       },
       "id": 5,
       "options": {
@@ -387,14 +495,50 @@
                 "value": 351
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "toRetry"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 275
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "coveredRanges"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 258
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "lastImportDate"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 232
+              }
+            ]
           }
         ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 14,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 18
       },
       "id": 7,
       "options": {
@@ -449,8 +593,8 @@
       {
         "current": {
           "selected": true,
-          "text": "optimism",
-          "value": "optimism"
+          "text": "bsc",
+          "value": "bsc"
         },
         "datasource": {
           "type": "postgres",
@@ -472,9 +616,47 @@
       {
         "current": {
           "selected": false,
-          "text": "",
-          "value": ""
+          "text": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
+          "value": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55"
         },
+        "hide": 0,
+        "name": "investor_address",
+        "options": [
+          {
+            "selected": false,
+            "text": "0x280a53cbf252f1b5f6bde7471299c94ec566a7c8",
+            "value": "0x280a53cbf252f1b5f6bde7471299c94ec566a7c8"
+          }
+        ],
+        "query": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "beefy:boost:bsc:moo_pots_bnb-moonpot",
+          "value": "beefy:boost:bsc:moo_pots_bnb-moonpot"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_key from product where chain = '$chain' and product_id in (select product_id from investment_balance_ts where investor_id in ($_investor_ids))",
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "product_keys",
+        "options": [],
+        "query": "select product_key from product where chain = '$chain' and product_id in (select product_id from investment_balance_ts where investor_id in ($_investor_ids))",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {},
         "hide": 0,
         "name": "transaction_hash",
         "options": [
@@ -491,28 +673,24 @@
       {
         "current": {
           "selected": false,
-          "text": "",
-          "value": ""
+          "text": "21556814",
+          "value": "21556814"
         },
         "hide": 0,
         "name": "block_number",
         "options": [
           {
             "selected": true,
-            "text": "",
-            "value": ""
+            "text": "21556814",
+            "value": "21556814"
           }
         ],
-        "query": "",
+        "query": "21556814",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "",
-          "value": ""
-        },
+        "current": {},
         "hide": 0,
         "name": "product_address",
         "options": [
@@ -528,36 +706,21 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "",
-          "value": ""
-        },
-        "hide": 0,
-        "name": "investor_address",
-        "options": [
-          {
-            "selected": true,
-            "text": "",
-            "value": ""
-          }
-        ],
-        "query": "",
-        "skipUrlSync": false,
-        "type": "textbox"
-      },
-      {
-        "current": {
           "selected": true,
           "text": ["All"],
           "value": ["$__all"]
         },
-        "definition": "select product_id\nfrom product\nwhere lower(coalesce(product_data->'vault'->>'contract_address',product_data->'boost'->>'contract_address')) = lower('$product_address')\nand chain = '$chain'",
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_id\nfrom product\nwhere product_key in ($product_keys)\nand chain = '$chain'",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select product_id\nfrom product\nwhere lower(coalesce(product_data->'vault'->>'contract_address',product_data->'boost'->>'contract_address')) = lower('$product_address')\nand chain = '$chain'",
+        "query": "select product_id\nfrom product\nwhere product_key in ($product_keys)\nand chain = '$chain'",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -569,6 +732,10 @@
           "selected": true,
           "text": ["All"],
           "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
         },
         "definition": "select investor_id\nfrom investor\nwhere lower(bytea_to_hexstr(address)) = lower('$investor_address')",
         "hide": 0,
@@ -589,6 +756,10 @@
           "text": ["All"],
           "value": ["$__all"]
         },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
         "definition": "  select 'product:investment:'|| product_id \n  from (select unnest(ARRAY[$_product_ids]::integer[]) as product_id) as t",
         "hide": 0,
         "includeAll": true,
@@ -605,13 +776,13 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-2y",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Debug user transaction",
   "uid": "pLvOZZd4k",
-  "version": 3,
+  "version": 9,
   "weekStart": ""
 }
