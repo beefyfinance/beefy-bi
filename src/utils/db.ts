@@ -191,6 +191,11 @@ export function pgStrArrToStrArr(pgArray: string[]) {
   return pgArray.map((s) => s.slice(1, -1).replace("''", "'"));
 }
 
+async function hasCompressionEnabled(tableName: string) {
+  const res = await db_query_one(`SELECT * FROM hypertable_compression_stats(%L) limit 1`, [tableName]);
+  return res !== null;
+}
+
 // postgresql don't have "create type/domain if not exists"
 async function typeExists(typeName: string) {
   const res = await db_query_one(`SELECT * FROM pg_type WHERE typname = %L`, [typeName]);
@@ -407,7 +412,7 @@ export async function db_migrate() {
     SELECT create_hypertable(
       relation => 'investment_balance_ts', 
       time_column_name => 'datetime',
-      chunk_time_interval => INTERVAL '7 days',
+      chunk_time_interval => INTERVAL '100 days',
       if_not_exists => true
     );
   `);
@@ -435,10 +440,21 @@ export async function db_migrate() {
     SELECT create_hypertable(
       relation => 'price_ts',
       time_column_name => 'datetime', 
-      chunk_time_interval => INTERVAL '7 days', 
+      chunk_time_interval => INTERVAL '100 days', 
       if_not_exists => true
     );
   `);
+
+  if (!hasCompressionEnabled("price_ts")) {
+    await db_query(`
+      ALTER TABLE price_ts SET (
+        timescaledb.compress,
+        timescaledb.compress_segmentby = 'price_feed_id'
+      );
+
+      SELECT add_compression_policy('price_ts', INTERVAL '100 days');
+    `);
+  }
 
   // a table to store which data we already imported and which range needs to be retried
   // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
@@ -462,7 +478,7 @@ export async function db_migrate() {
     SELECT create_hypertable(
       relation => 'block_ts', 
       time_column_name => 'datetime',
-      chunk_time_interval => INTERVAL '7 days',
+      chunk_time_interval => INTERVAL '100 days',
       if_not_exists => true
     );
   `);
