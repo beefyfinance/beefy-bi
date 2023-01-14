@@ -45,10 +45,15 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
   // also, built in exponential retry is very broken and leads to a TimeoutOverflowWarning
   // (node:7615) TimeoutOverflowWarning: 2192352000 does not fit into a 32-bit signed integer.
   // Timeout duration was set to 1.
+  throttleLimit: 1,
   throttleCallback: async (attempt: number, url: string) => {
     logger.error({ msg: "RPC call throttled (code 429)", data: { attempt, url } });
     return false;
   },
+  allowGzip: true,
+  allowInsecureAuthentication: false,
+  errorPassThrough: false,
+  skipFetchSetup: true,
 };
 
 export function createRpcConfig(

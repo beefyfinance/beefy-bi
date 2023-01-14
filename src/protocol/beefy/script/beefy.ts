@@ -233,7 +233,7 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 
   // now import data for those
   const runnerConfig = {
-    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    mode: cmdParams.task === "recent-prices" || "recent" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
     getInputs,
     inputPollInterval: cmdParams.productRefreshInterval,
     minWorkInterval: cmdParams.loopEvery,
@@ -246,7 +246,7 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
   };
 
   const runner =
-    cmdParams.task === "recent-prices"
+    runnerConfig.mode === "recent"
       ? importChainRecentData$({
           chain,
           forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,

@@ -1,6 +1,5 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
-import { getAddressBookTokenDecimals } from "../../../../utils/addressbook";
 import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
