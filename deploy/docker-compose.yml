@@ -55,6 +55,9 @@ volumes:
   timescaledb_data:
     external: true
     name: beefy_timescaledb_data_directory
+  timescaledb_data_new:
+    external: true
+    name: beefy_timescaledb_new_data_directory
   grafana_data:
     external: true
     name: beefy_grafana_data_directory
@@ -77,6 +80,31 @@ services:
     image: timescale/timescaledb-ha:pg14.4-ts2.7.2-latest
     volumes:
       - timescaledb_data:/home/postgres/pgdata/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: postgres -c 'max_connections=250' -c logging_collector=off -c log_min_duration_statement=10s -c log_statement=none
+    shm_size: 256M
+    deploy:
+      resources:
+        limits:
+          cpus: "0.70"
+          memory: 20G
+        reservations:
+          cpus: "0.25"
+          memory: 5G
+    environment:
+      TZ: "UTC"
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: beefy
+      POSTGRES_PASSWORD: beefy
+      POSTGRES_DB: beefy
+      PGDATA: /home/postgres/pgdata/data
+    networks:
+      - backend
+
+  timescaledb_new:
+    image: timescale/timescaledb-ha:pg14.6-ts2.9.1-latest
+    volumes:
+      - timescaledb_data_new:/home/postgres/pgdata/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c 'max_connections=250' -c logging_collector=off -c log_min_duration_statement=10s -c log_statement=none
     shm_size: 256M
