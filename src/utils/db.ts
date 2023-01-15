@@ -6,6 +6,7 @@ import { allChainIds } from "../types/chain";
 import { ConnectionTimeoutError, isConnectionTimeoutError, withTimeout } from "./async";
 import { TIMESCALEDB_URL } from "./config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "./logger";
+import { ProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
@@ -191,8 +192,36 @@ export function pgStrArrToStrArr(pgArray: string[]) {
   return pgArray.map((s) => s.slice(1, -1).replace("''", "'"));
 }
 
-async function hasCompressionEnabled(tableName: string) {
-  const res = await db_query_one(`SELECT * FROM hypertable_compression_stats(%L) limit 1`, [tableName]);
+async function hasPolicy(
+  tableSchema: string,
+  tableName: string,
+  tableType: "hypertable" | "continuous_aggregate",
+  policyType: "policy_retention" | "policy_refresh_continuous_aggregate" | "policy_compression",
+) {
+  let res: any = null;
+  if (tableType === "continuous_aggregate") {
+    res = await db_query_one(
+      `
+        select p.*
+        from timescaledb_information.continuous_aggregates a
+        left join timescaledb_information.jobs p on a.materialization_hypertable_schema = p.hypertable_schema and a.materialization_hypertable_name = p.hypertable_name
+        where a.view_schema = %L and a.view_name = %L
+        and p.proc_name = %L
+      `,
+      [tableSchema, tableName, policyType],
+    );
+  } else if (tableType === "hypertable") {
+    res = await db_query_one(
+      `
+        select p.*
+        from timescaledb_information.hypertables h
+        left join timescaledb_information.jobs p on h.hypertable_schema = p.hypertable_schema and h.hypertable_name = p.hypertable_name
+        where h.hypertable_schema = %L and h.hypertable_name = %L
+        and p.proc_name = %L
+      `,
+      [tableSchema, tableName, policyType],
+    );
+  }
   return res !== null;
 }
 
@@ -445,7 +474,7 @@ export async function db_migrate() {
     );
   `);
 
-  if (!hasCompressionEnabled("price_ts")) {
+  if (!hasPolicy("public", "price_ts", "hypertable", "policy_compression")) {
     await db_query(`
       ALTER TABLE price_ts SET (
         timescaledb.compress,
@@ -453,6 +482,37 @@ export async function db_migrate() {
       );
 
       SELECT add_compression_policy('price_ts', INTERVAL '100 days');
+    `);
+  }
+
+  // pre-aggregated price data
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS price_ts_cagg_price_ts_1h
+    WITH (timescaledb.continuous) AS
+    SELECT price_feed_id,
+      time_bucket(INTERVAL '1 hour', datetime) AS datetime,
+      AVG(price) as price_avg,
+      MAX(price) as price_high,
+      MIN(price) as price_low,
+      FIRST(price, datetime) as price_open,
+      LAST(price, datetime) as price_close
+    FROM price_ts
+    GROUP BY 1,2
+    WITH NO DATA;
+  `);
+
+  if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
+    await db_query(`
+      SELECT add_continuous_aggregate_policy('price_ts_cagg_price_ts_1h',
+        start_offset => INTERVAL '1 day',
+        end_offset => INTERVAL '2 hours',
+        schedule_interval => INTERVAL '1 hour'
+      );
+    `);
+  }
+  if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_retention")) {
+    await db_query(`
+      SELECT add_retention_policy('price_ts_cagg_price_ts_1h', INTERVAL '2 months');
     `);
   }
 
