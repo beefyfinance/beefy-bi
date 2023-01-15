@@ -92,10 +92,16 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
           acc[boostId] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
         } else {
           if (acc[boostId].fileVersion.date > fileVersion.date) {
-            logger.error({
+            logger.warn({
               msg: "Found a boost with a newer version in the past",
-              data: { boostId, boost, fileVersion, previousFileVersion: acc[boostId].fileVersion },
+              data: {
+                boostId,
+                previousDate: acc[boostId].fileVersion.date,
+                newDate: fileVersion.date,
+                boost,
+              },
             });
+            continue;
           }
 
           const eolDate = acc[boostId].eolDate || (boost.status === "closed" ? fileVersion.date : null);
@@ -105,7 +111,8 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
 
       // mark all deleted vaults as eol if not already done
       for (const boostId of Object.keys(acc)) {
-        if (!acc[boostId].foundInCurrentBatch && !acc[boostId].eolDate) {
+        if (!acc[boostId].foundInCurrentBatch) {
+          acc[boostId].boost.status = "closed";
           acc[boostId].eolDate = fileVersion.date;
         }
       }

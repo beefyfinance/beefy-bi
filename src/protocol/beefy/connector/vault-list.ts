@@ -144,10 +144,16 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
           acc[vaultId] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
         } else {
           if (acc[vaultId].fileVersion.date > fileVersion.date) {
-            logger.error({
+            logger.warn({
               msg: "Found a vault with a newer version in the past",
-              data: { vaultId, vault, fileVersion, previousFileVersion: acc[vaultId].fileVersion },
+              data: {
+                vaultId,
+                previousDate: acc[vaultId].fileVersion.date,
+                newDate: fileVersion.date,
+                vault,
+              },
             });
+            continue;
           }
 
           const eolDate = acc[vaultId].eolDate || (vault.status === "eol" ? fileVersion.date : null);
@@ -157,7 +163,8 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
 
       // mark all deleted vaults as eol if not already done
       for (const vaultId of Object.keys(acc)) {
-        if (!acc[vaultId].foundInCurrentBatch && !acc[vaultId].eolDate) {
+        if (!acc[vaultId].foundInCurrentBatch) {
+          acc[vaultId].vault.status = "eol";
           acc[vaultId].eolDate = fileVersion.date;
         }
       }
