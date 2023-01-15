@@ -7,10 +7,10 @@ import { addHistoricalBlockQuery$, addLatestBlockQuery$ } from "../../../common/
 import { upsertBlock$ } from "../../../common/loader/blocks";
 import { DbProductInvestmentImportState } from "../../../common/loader/import-state";
 import { DbBeefyProduct } from "../../../common/loader/product";
+import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { getProductContractAddress } from "../../utils/contract-accessors";
-import { isBeefyProductLive } from "../../utils/type-guard";
 import { importProductBlockRange$ } from "./product-block-range";
 
 const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
@@ -26,7 +26,7 @@ export function importChainHistoricalData$(options: {
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     getImportStateKey,
-    isLiveItem: isBeefyProductLive,
+    isLiveItem: (p) => !isProductDashboardEOL(p),
     generateQueries$: (ctx, emitError) =>
       Rx.pipe(
         addHistoricalBlockQuery$({
@@ -104,7 +104,7 @@ export function importChainRecentData$(options: {
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
     getImportStateKey,
-    isLiveItem: isBeefyProductLive,
+    isLiveItem: (p) => !isProductDashboardEOL(p),
     generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
       addLatestBlockQuery$({
         ctx,

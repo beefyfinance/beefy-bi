@@ -14,6 +14,7 @@ import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport } from "../../common/types/import-context";
+import { isProductDashboardEOL } from "../../common/utils/eol";
 import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
@@ -22,7 +23,7 @@ import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-s
 import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
 import { importBeefyProducts$ } from "../loader/products";
 import { getProductContractAddress } from "../utils/contract-accessors";
-import { isBeefyBoost, isBeefyGovVault, isBeefyProductLive, isBeefyStandardVault } from "../utils/type-guard";
+import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
@@ -407,7 +408,7 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
       return product.chain === chain;
     }),
     Rx.filter((product: DbProduct) => {
-      const isLiveProduct = isBeefyProductLive(product);
+      const isLiveProduct = !isProductDashboardEOL(product);
       if (isLiveProduct) {
         return true;
       }

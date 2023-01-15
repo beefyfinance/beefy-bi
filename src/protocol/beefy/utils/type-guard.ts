@@ -27,13 +27,6 @@ export function isBeefyBoostProductImportQuery(o: ImportRangeQuery<DbBeefyProduc
   return isBeefyBoost(o.target);
 }
 
-export function isBeefyProductEOL(o: DbBeefyProduct): boolean {
-  return isBeefyBoost(o) ? o.productData.boost.eol : o.productData.vault.eol;
-}
-export function isBeefyProductLive(o: DbBeefyProduct): boolean {
-  return !isBeefyProductEOL(o);
-}
-
 export function filterStandardVault$<Input, TKey extends keyof Input>(
   key: TKey,
 ): Rx.OperatorFunction<Input, OverwriteKeyType<Input, { [k in TKey]: DbBeefyStdVaultProduct }>> {

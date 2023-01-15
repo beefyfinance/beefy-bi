@@ -16,11 +16,12 @@ import { DbBeefyBoostProduct, DbBeefyGovVaultProduct } from "../../../common/loa
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
+import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { createHistoricalImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
 import { getProductContractAddress } from "../../utils/contract-accessors";
-import { isBeefyBoost, isBeefyProductEOL } from "../../utils/type-guard";
+import { isBeefyBoost } from "../../utils/type-guard";
 import { getImportStateKey as getInvestmentImportStateKey } from "./import-investments";
 
 const logger = rootLogger.child({ module: "beefy", component: "pending-rewards-import" });
@@ -42,7 +43,7 @@ export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing pending rewards snapshots", data: { chain: options.chain } },
     getImportStateKey,
-    isLiveItem: (target) => !isBeefyProductEOL(target.product),
+    isLiveItem: (target) => !isProductDashboardEOL(target.product),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
         Rx.map((obj) => ({ obj })),

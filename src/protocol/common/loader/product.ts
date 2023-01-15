@@ -23,6 +23,7 @@ export interface DbBeefyStdVaultProduct extends DbBaseProduct {
   pendingRewardsPriceFeedId: null;
   productData: {
     type: "beefy:vault";
+    dashboardEol: boolean;
     vault: BeefyVault;
   };
 }
@@ -32,6 +33,7 @@ export interface DbBeefyGovVaultProduct extends DbBaseProduct {
   pendingRewardsPriceFeedId: number; // in gas token
   productData: {
     type: "beefy:gov-vault";
+    dashboardEol: boolean;
     vault: BeefyVault;
   };
 }
@@ -41,6 +43,7 @@ export interface DbBeefyBoostProduct extends DbBaseProduct {
   pendingRewardsPriceFeedId: number; // in whatever token the boost is for
   productData: {
     type: "beefy:boost";
+    dashboardEol: boolean;
     boost: BeefyBoost;
   };
 }

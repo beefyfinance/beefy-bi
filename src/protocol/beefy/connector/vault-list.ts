@@ -6,7 +6,7 @@ import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { gitStreamFileVersions } from "../../common/connector/git-file-history";
+import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
@@ -34,6 +34,7 @@ export interface BeefyVault {
   want_address: string;
   want_decimals: number;
   eol: boolean;
+  eol_date: Date | null;
   protocol: string;
   protocol_product: string;
   assets: string[];
@@ -54,7 +55,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     branch: "main",
     filePath: `src/config/vault/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
-    order: "recent-to-old",
+    order: "old-to-recent",
     throwOnError: false,
     onePerMonth: true,
   });
@@ -67,23 +68,22 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     branch: "prod",
     filePath: `src/features/configure/vault/${v1Chain}_pools.js`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v1"),
-    order: "recent-to-old",
+    order: "old-to-recent",
     throwOnError: false,
     onePerMonth: true,
   });
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
-    Rx.concatMap((fileVersion) => {
+    Rx.map((fileVersion) => {
       const vaults = JSON.parse(fileVersion.fileContent) as RawBeefyVault[];
-      const vaultsAndVersion = vaults.map((vault) => ({ fileVersion, vault }));
-      return Rx.from(vaultsAndVersion);
+      return { fileVersion, vaults, error: false };
     }),
   );
 
   const v1$ = Rx.from(fileContentStreamV1).pipe(
     // parse the file content
-    Rx.concatMap((fileVersion) => {
+    Rx.map((fileVersion) => {
       // using prettier to transform js objects into proper json was the easiest way for me
       try {
         // remove js code to make json5-like string
@@ -105,8 +105,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
         );
 
         const vaults: RawBeefyVault[] = JSON.parse(jsonContent);
-        const vaultsAndVersion = vaults.map((vault) => ({ fileVersion, vault }));
-        return Rx.from(vaultsAndVersion);
+        return { fileVersion, vaults, error: false };
       } catch (error) {
         logger.error({
           msg: "Could not parse vault list for v1 hash",
@@ -114,42 +113,80 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
           error,
         });
         logger.debug(error);
-        return Rx.EMPTY;
+        return { fileVersion, vaults: [], error: true };
       }
     }),
   );
 
-  return Rx.concat(v2$, v1$).pipe(
-    // remove those without earned token address
-    Rx.filter(({ vault }) => {
-      if (!vault.earnedTokenAddress) {
-        logger.error({ msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } });
-        logger.trace(vault);
-        return false;
+  // process in chronological order
+  return Rx.concat(v1$, v2$).pipe(
+    Rx.filter(({ error }) => !error),
+
+    // process the vaults in chronolical order and mark the eol date if found
+    Rx.reduce((acc, { fileVersion, vaults }) => {
+      // reset the foundInCurrentBatch flag
+      for (const vaultId of Object.keys(acc)) {
+        acc[vaultId].foundInCurrentBatch = false;
       }
-      return true;
-    }),
 
-    // only keep the latest version of each vault
-    Rx.distinct(({ vault }) => normalizeVaultId(vault.id)), // remove duplicates
+      // add vaults to the accumulator
+      for (const vault of vaults) {
+        // ignore those without earned token address
+        if (!vault.earnedTokenAddress) {
+          logger.error({ msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } });
+          logger.trace(vault);
+          continue;
+        }
 
-    // fix the status if we find a new vault not in the latest file version
-    Rx.map(({ fileVersion, vault }) => {
-      if (!fileVersion.latestVersion && vault.status !== "eol") {
-        return { fileVersion, vault: { ...vault, status: "eol" } };
+        const vaultId = normalizeVaultId(vault.id);
+        if (!acc[vaultId]) {
+          const eolDate = vault.status === "eol" ? fileVersion.date : null;
+          acc[vaultId] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
+        } else {
+          if (acc[vaultId].fileVersion.date > fileVersion.date) {
+            logger.error({
+              msg: "Found a vault with a newer version in the past",
+              data: { vaultId, vault, fileVersion, previousFileVersion: acc[vaultId].fileVersion },
+            });
+          }
+
+          const eolDate = acc[vaultId].eolDate || (vault.status === "eol" ? fileVersion.date : null);
+          acc[vaultId] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
+        }
       }
-      return { fileVersion, vault };
-    }),
 
-    Rx.tap(({ fileVersion, vault }) =>
+      // mark all deleted vaults as eol if not already done
+      for (const vaultId of Object.keys(acc)) {
+        if (!acc[vaultId].foundInCurrentBatch && !acc[vaultId].eolDate) {
+          acc[vaultId].eolDate = fileVersion.date;
+        }
+      }
+
+      return acc;
+    }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; vault: RawBeefyVault }>),
+
+    // flatten the accumulator
+    Rx.map((acc) => Object.values(acc)),
+    Rx.concatAll(),
+
+    Rx.tap(({ fileVersion, vault, eolDate }) =>
       logger.trace({
         msg: "Vault from git history",
-        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault },
+        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, isEol: vault.status === "eol", eolDate },
       }),
     ),
 
+    Rx.tap(({ fileVersion, vault, eolDate }) => {
+      if (vault.status === "eol" && !eolDate) {
+        logger.error({
+          msg: "product marked as eol but no eol date found",
+          data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, eolDate },
+        });
+      }
+    }),
+
     // just emit the vault
-    Rx.map(({ vault }) => rawVaultToBeefyVault(chain, vault)),
+    Rx.map(({ vault, eolDate }) => rawVaultToBeefyVault(chain, vault, eolDate)),
 
     Rx.tap({
       complete: () => logger.debug({ msg: "Finished fetching vault list from beefy-v2 repo git history", data: { chain } }),
@@ -157,7 +194,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   );
 }
 
-function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault {
+function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Date | null): BeefyVault {
   try {
     const wnative = getChainWNativeTokenAddress(chain);
 
@@ -187,6 +224,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault): BeefyVault
       want_address: normalizeAddress(rawVault.tokenAddress || wnative),
       want_decimals: rawVault.tokenDecimals,
       eol: rawVault.status === "eol",
+      eol_date: eolDate,
       assets: rawVault.assets || [],
       protocol,
       protocol_product,

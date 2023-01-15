@@ -1,8 +1,9 @@
 import { groupBy, keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
+import { samplingPeriodMs } from "../../../types/sampling";
 import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS, CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
@@ -138,6 +139,15 @@ export function importBeefyProducts$(options: { client: DbClient }) {
         getProductData: (item) => {
           const vaultId = normalizeVaultId(item.vault.id);
           const isGov = item.vault.is_gov_vault;
+
+          let isDashboardEol = false;
+          // special case where we can't find when the product was eol'ed
+          if (item.vault.eol && item.vault.eol_date === null) {
+            logger.warn({ msg: "eol_date is null", data: { vaultId } });
+          } else if (item.vault.eol && item.vault.eol_date !== null) {
+            isDashboardEol = item.vault.eol_date.getTime() < Date.now() - samplingPeriodMs[CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL];
+          }
+
           return {
             // vault ids are unique by chain
             productKey: `beefy:vault:${item.vault.chain}:${vaultId}`,
@@ -147,6 +157,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
             chain: item.vault.chain,
             productData: {
               type: isGov ? "beefy:gov-vault" : "beefy:vault",
+              dashboardEol: isDashboardEol,
               vault: item.vault,
             },
           };
@@ -224,6 +235,14 @@ export function importBeefyProducts$(options: { client: DbClient }) {
         ctx,
         emitError: emitBoostError,
         getProductData: (item) => {
+          let isDashboardEol = false;
+          // special case where we can't find when the product was eol'ed
+          if (item.boost.eol && item.boost.eol_date === null) {
+            logger.warn({ msg: "eol_date is null", data: { boostId: item.boost.id } });
+          } else if (item.boost.eol && item.boost.eol_date !== null) {
+            isDashboardEol = item.boost.eol_date.getTime() < Date.now() - samplingPeriodMs[CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL];
+          }
+
           return {
             productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,
             priceFeedId1: item.priceFeedId1,
@@ -232,6 +251,7 @@ export function importBeefyProducts$(options: { client: DbClient }) {
             chain: item.boost.chain,
             productData: {
               type: "beefy:boost",
+              dashboardEol: isDashboardEol,
               boost: item.boost,
             },
           };

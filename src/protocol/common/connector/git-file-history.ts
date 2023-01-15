@@ -1,12 +1,19 @@
+import { sortBy } from "lodash";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GIT_WORK_DIRECTORY } from "../../../utils/config";
-import { sortBy } from "lodash";
-import { callLockProtectedGitRepo } from "../../../utils/shared-resources/shared-gitrepo";
 import { fileOrDirExists } from "../../../utils/fs";
 import { rootLogger } from "../../../utils/logger";
+import { callLockProtectedGitRepo } from "../../../utils/shared-resources/shared-gitrepo";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
+
+export interface GitFileVersion {
+  latestVersion: boolean;
+  commitHash: string;
+  date: Date;
+  fileContent: string;
+}
 
 export async function* gitStreamFileVersions(options: {
   remote: string;
@@ -16,7 +23,7 @@ export async function* gitStreamFileVersions(options: {
   order: "recent-to-old" | "old-to-recent";
   throwOnError: boolean;
   onePerMonth?: boolean;
-}): AsyncGenerator<{ latestVersion: boolean; commitHash: string; date: Date; fileContent: string }> {
+}): AsyncGenerator<GitFileVersion> {
   const baseOptions: Partial<SimpleGitOptions> = {
     binary: "git",
     maxConcurrentProcesses: 1,

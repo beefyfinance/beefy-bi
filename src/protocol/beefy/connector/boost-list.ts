@@ -5,7 +5,7 @@ import { Chain } from "../../../types/chain";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { gitStreamFileVersions } from "../../common/connector/git-file-history";
+import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 import { BeefyVault } from "./vault-list";
 
@@ -37,6 +37,7 @@ export interface BeefyBoost {
 
   // end of life
   eol: boolean;
+  eol_date: Date | null;
 
   staked_token_address: string;
   staked_token_decimals: number;
@@ -59,42 +60,87 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
     branch: "main",
     filePath: `src/config/boost/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
-    order: "recent-to-old",
+    order: "old-to-recent",
     throwOnError: false,
     onePerMonth: true,
   });
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
-    Rx.concatMap((fileVersion) => {
+    Rx.map((fileVersion) => {
       const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyBoost[];
-      const boostsAndVersion = boosts.map((boost) => ({ fileVersion, boost }));
-      return Rx.from(boostsAndVersion);
+      return { fileVersion, boosts };
     }),
   );
 
   const vaultMap = keyBy(allChainVaults, (vault) => normalizeVaultId(vault.id));
 
+  // process in chronological order
   return v2$.pipe(
-    // only keep the latest version of each boost
-    Rx.distinct(({ boost }) => boost.id), // remove duplicates
-
-    // fix the status if we find a new boost not in the latest file version
-    Rx.map(({ fileVersion, boost }) => {
-      if (!fileVersion.latestVersion && boost.status !== "closed") {
-        return { fileVersion, boost: { ...boost, status: "closed" } as typeof boost };
+    // process the vaults in chronolical order and mark the eol date if found
+    Rx.reduce((acc, { fileVersion, boosts }) => {
+      // reset the foundInCurrentBatch flag
+      for (const boostId of Object.keys(acc)) {
+        acc[boostId].foundInCurrentBatch = false;
       }
-      return { fileVersion, boost };
+
+      // add vaults to the accumulator
+      for (const boost of boosts) {
+        const boostId = boost.id;
+        if (!acc[boostId]) {
+          const eolDate = boost.status === "closed" ? fileVersion.date : null;
+          acc[boostId] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
+        } else {
+          if (acc[boostId].fileVersion.date > fileVersion.date) {
+            logger.error({
+              msg: "Found a boost with a newer version in the past",
+              data: { boostId, boost, fileVersion, previousFileVersion: acc[boostId].fileVersion },
+            });
+          }
+
+          const eolDate = acc[boostId].eolDate || (boost.status === "closed" ? fileVersion.date : null);
+          acc[boostId] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
+        }
+      }
+
+      // mark all deleted vaults as eol if not already done
+      for (const boostId of Object.keys(acc)) {
+        if (!acc[boostId].foundInCurrentBatch && !acc[boostId].eolDate) {
+          acc[boostId].eolDate = fileVersion.date;
+        }
+      }
+
+      return acc;
+    }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; boost: RawBeefyBoost }>),
+
+    // flatten the accumulator
+    Rx.map((acc) => Object.values(acc)),
+    Rx.concatAll(),
+
+    Rx.tap(({ fileVersion, boost, eolDate }) =>
+      logger.trace({
+        msg: "Boost from git history",
+        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, boost, isEol: boost.status === "closed", eolDate },
+      }),
+    ),
+
+    Rx.tap(({ fileVersion, boost, eolDate }) => {
+      if (boost.status === "closed" && !eolDate) {
+        logger.error({
+          msg: "product marked as eol but no eol date found",
+          data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, boost, eolDate },
+        });
+      }
     }),
 
     // just emit the boost
-    Rx.concatMap(({ boost }) => {
+    Rx.concatMap(({ boost, eolDate }) => {
       const vault = vaultMap[normalizeVaultId(boost.poolId)];
       if (!vault) {
         logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: normalizeVaultId(boost.poolId) } });
         return Rx.EMPTY;
       }
-      return Rx.of(rawBoostToBeefyBoost(chain, boost, vault));
+      return Rx.of(rawBoostToBeefyBoost(chain, boost, vault, eolDate));
     }),
 
     Rx.tap({
@@ -103,7 +149,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
   );
 }
 
-function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: BeefyVault): BeefyBoost {
+function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: BeefyVault, eolDate: Date | null): BeefyBoost {
   try {
     return {
       id: rawBoost.id,
@@ -124,6 +170,7 @@ function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: Beef
       reward_token_price_feed_key: rawBoost.earnedOracleId,
 
       eol: rawBoost.status === "closed",
+      eol_date: eolDate,
     };
   } catch (error) {
     logger.error({ msg: "Could not map raw boost to expected format", data: { rawVault: rawBoost }, error });
