@@ -40,6 +40,10 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       priceFeedId = priceFeedIds.price_feed_2_id;
     } else if (price_type === "pending_rewards_to_usd") {
       priceFeedId = priceFeedIds.pending_rewards_price_feed_id;
+      // some products don't have pending rewards price feeds
+      if (!priceFeedId) {
+        return reply.send([]);
+      }
     }
     if (!priceFeedId) {
       return reply.code(404).send({ error: "Price feed not found" });
