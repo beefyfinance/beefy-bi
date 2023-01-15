@@ -1314,7 +1314,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -1326,7 +1327,7 @@
             "h": 11,
             "w": 10,
             "x": 0,
-            "y": 1
+            "y": 2
           },
           "id": 18,
           "options": {
@@ -1337,7 +1338,7 @@
             },
             "showHeader": true
           },
-          "pluginVersion": "9.0.2",
+          "pluginVersion": "9.2.3",
           "targets": [
             {
               "datasource": {
@@ -1348,7 +1349,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "select \n  table_name,\n  total_size,\n  data_size,\n  index_size,\n  external_size\nfrom (\n(\n  select --schemaname as table_schema,\n         relname as table_name,\n         pg_size_pretty(pg_total_relation_size(relid)) as total_size,\n         pg_size_pretty(pg_relation_size(relid)) as data_size,\n         pg_size_pretty(pg_indexes_size(relid)) as index_size,\n         pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size,\n         pg_total_relation_size(relid) as raw_total_relation_size\n  from pg_catalog.pg_statio_user_tables\n  where schemaname not in ('_timescaledb_config', '_timescaledb_internal', '_timescaledb_catalog', '_timescaledb_cache')\n  and relname not like '%_ts'\n  order by pg_total_relation_size(relid) desc,\n           pg_relation_size(relid) desc\n)\nUNION ALL\n(\n  with timescale_objects as (\n      select\n          'hypertable' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          hypertable_schema || '.' || hypertable_name as table_internal_name\n      from timescaledb_information.hypertables\n      UNION ALL\n      select\n          'continuous aggregate' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          materialization_hypertable_schema || '.' || materialization_hypertable_name as table_internal_name\n      from timescaledb_information.continuous_aggregates\n  )\n  select --ht.object_type, \n      ht.table_display_name, \n      --ht.table_internal_name,\n      pg_size_pretty(htds.total_bytes) as total_bytes,\n      pg_size_pretty(htds.table_bytes) as table_size,\n      pg_size_pretty(htds.index_bytes) as index_bytes,\n      pg_size_pretty(htds.toast_bytes) as toast_bytes,\n      htds.total_bytes as raw_total_bytes\n  from timescale_objects as ht,\n  lateral (\n      select\n          sum(table_bytes) as table_bytes,\n          sum(index_bytes) as index_bytes,\n          sum(toast_bytes) as toast_bytes,\n          sum(total_bytes) as total_bytes\n      from hypertable_detailed_size(ht.table_internal_name)\n  ) as htds\n  order by htds.total_bytes desc\n)\n) as t\norder by raw_total_relation_size desc",
+              "rawSql": "select \n  table_name,\n  total_size,\n  data_size,\n  index_size,\n  external_size\nfrom (\n(\n  select --schemaname as table_schema,\n         relname as table_name,\n         pg_size_pretty(pg_total_relation_size(relid)) as total_size,\n         pg_size_pretty(pg_relation_size(relid)) as data_size,\n         pg_size_pretty(pg_indexes_size(relid)) as index_size,\n         pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size,\n         pg_total_relation_size(relid) as raw_total_relation_size\n  from pg_catalog.pg_statio_user_tables\n  where schemaname not in ('_timescaledb_config', '_timescaledb_internal', '_timescaledb_catalog', '_timescaledb_cache')\n  and relname not like '%_ts'\n  order by pg_total_relation_size(relid) desc,\n           pg_relation_size(relid) desc\n)\nUNION ALL\n(\n  with timescale_objects as (\n      select\n          'hypertable' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          hypertable_schema || '.' || hypertable_name as table_internal_name\n      from timescaledb_information.hypertables\n      UNION ALL\n      select\n          'continuous aggregate' as object_type,\n          view_schema || '.' || view_name as table_display_name,\n          materialization_hypertable_schema || '.' || materialization_hypertable_name as table_internal_name\n      from timescaledb_information.continuous_aggregates\n  )\n  select --ht.object_type, \n      ht.table_display_name, \n      --ht.table_internal_name,\n      pg_size_pretty(htds.total_bytes) as total_bytes,\n      pg_size_pretty(htds.table_bytes) as table_size,\n      pg_size_pretty(htds.index_bytes) as index_bytes,\n      pg_size_pretty(htds.toast_bytes) as toast_bytes,\n      htds.total_bytes as raw_total_bytes\n  from timescale_objects as ht,\n  lateral (\n      select\n          sum(table_bytes) as table_bytes,\n          sum(index_bytes) as index_bytes,\n          sum(toast_bytes) as toast_bytes,\n          sum(total_bytes) as total_bytes\n      from hypertable_detailed_size(ht.table_internal_name)\n  ) as htds\n  order by htds.total_bytes desc\n)\n) as t\norder by raw_total_relation_size desc",
               "refId": "A",
               "select": [
                 [
@@ -1391,7 +1392,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1406,7 +1408,7 @@
             "h": 11,
             "w": 14,
             "x": 10,
-            "y": 1
+            "y": 2
           },
           "id": 22,
           "options": {
@@ -1415,9 +1417,15 @@
               "reducer": ["sum"],
               "show": false
             },
-            "showHeader": true
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "raw_table_size"
+              }
+            ]
           },
-          "pluginVersion": "9.0.2",
+          "pluginVersion": "9.2.3",
           "targets": [
             {
               "datasource": {
@@ -1428,7 +1436,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT\n    idstat.relname AS TABLE_NAME,\n    indexrelname AS index_name,\n    idstat.idx_scan AS index_scans_count,\n    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,\n    tabstat.idx_scan AS table_reads_index_count,\n    tabstat.seq_scan AS table_reads_seq_count,\n    tabstat.seq_scan + tabstat.idx_scan AS table_reads_count,\n    n_tup_upd + n_tup_ins + n_tup_del AS table_writes_count,\n    pg_size_pretty(pg_relation_size(idstat.relid)) AS table_size\nFROM\n    pg_stat_user_indexes AS idstat\nJOIN\n    pg_indexes\n    ON\n    indexrelname = indexname\n    AND\n    idstat.schemaname = pg_indexes.schemaname\nJOIN\n    pg_stat_user_tables AS tabstat\n    ON\n    idstat.relid = tabstat.relid\nWHERE\n    indexdef !~* 'unique'\nORDER BY\n    idstat.idx_scan DESC,\n    pg_relation_size(indexrelid) DESC",
+              "rawSql": "SELECT\n    idstat.relname AS TABLE_NAME,\n    indexrelname AS index_name,\n    idstat.idx_scan AS index_scans_count,\n    pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,\n    tabstat.idx_scan AS table_reads_index_count,\n    tabstat.seq_scan AS table_reads_seq_count,\n    tabstat.seq_scan + tabstat.idx_scan AS table_reads_count,\n    n_tup_upd + n_tup_ins + n_tup_del AS table_writes_count,\n    pg_relation_size(idstat.relid) as raw_table_size,\n    pg_size_pretty(pg_relation_size(idstat.relid)) AS table_size\nFROM\n    pg_stat_user_indexes AS idstat\nJOIN\n    pg_indexes\n    ON\n    indexrelname = indexname\n    AND\n    idstat.schemaname = pg_indexes.schemaname\nJOIN\n    pg_stat_user_tables AS tabstat\n    ON\n    idstat.relid = tabstat.relid\nWHERE\n    indexdef !~* 'unique'\nORDER BY\n    idstat.idx_scan DESC,\n    pg_relation_size(indexrelid) DESC",
               "refId": "A",
               "select": [
                 [
@@ -2054,8 +2062,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2308,8 +2315,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "#EAB839",
@@ -2521,8 +2527,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2666,8 +2671,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2802,8 +2806,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2939,8 +2942,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -3100,8 +3102,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -3180,8 +3181,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -3949,8 +3949,8 @@
       {
         "current": {
           "selected": false,
-          "text": "no",
-          "value": "no"
+          "text": "yes",
+          "value": "yes"
         },
         "hide": 0,
         "includeAll": false,
@@ -3958,12 +3958,12 @@
         "name": "include_eol",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "no",
             "value": "no"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "yes",
             "value": "yes"
           }
@@ -4052,6 +4052,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 72,
+  "version": 74,
   "weekStart": ""
 }

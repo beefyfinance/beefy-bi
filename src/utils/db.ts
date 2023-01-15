@@ -499,6 +499,10 @@ export async function db_migrate() {
     FROM price_ts
     GROUP BY 1,2
     WITH NO DATA;
+
+    // https://docs.timescale.com/timescaledb/latest/how-to-guides/continuous-aggregates/create-index/
+    // When you create a continuous aggregate, an index is automatically created for each GROUP BY column. 
+    // The index is a composite index, combining the GROUP BY column with the time_bucket column.
   `);
 
   if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
