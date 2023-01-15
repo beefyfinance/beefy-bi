@@ -17,7 +17,7 @@ const logger = rootLogger.child({ module: "beefy", component: "investment-import
 
 export const getImportStateKey = (product: DbBeefyProduct) => `product:investment:${product.productId}`;
 
-export function importChainHistoricalData$(options: {
+export function createBeefyHistoricalInvestmentRunner(options: {
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<DbBeefyProduct>;
@@ -94,7 +94,7 @@ export function importChainHistoricalData$(options: {
   });
 }
 
-export function importChainRecentData$(options: {
+export function createBeefyRecentInvestmentRunner(options: {
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<DbBeefyProduct>;

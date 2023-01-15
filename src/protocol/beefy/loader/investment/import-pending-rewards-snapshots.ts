@@ -34,7 +34,7 @@ type PendingRewardSnapshotInput = {
 const getImportStateKey = (item: PendingRewardSnapshotInput) =>
   `product:investment:pending-reward:${item.product.productId}:${item.investor.investorId}`;
 
-export function importBeefyHistoricalPendingRewardsSnapshots$(options: {
+export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<PendingRewardSnapshotInput>;

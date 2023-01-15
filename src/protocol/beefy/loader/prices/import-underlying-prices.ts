@@ -25,7 +25,7 @@ const logger = rootLogger.child({ module: "beefy", component: "import-underlying
 
 const getImportStateKey = (item: UnderlyingPriceFeedInput) => `price:feed:${item.priceFeed.priceFeedId}`;
 
-export function importBeefyHistoricalUnderlyingPrices$(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
+export function createBeefyHistoricalUnderlyingPricesRunner(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
   return createHistoricalImportRunner<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical underlying prices" },
@@ -78,7 +78,7 @@ export function importBeefyHistoricalUnderlyingPrices$(options: { runnerConfig: 
   });
 }
 
-export function importBeefyRecentUnderlyingPrices$(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
+export function createBeefyRecentUnderlyingPricesRunner(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
   return createRecentImportRunner<UnderlyingPriceFeedInput, Date>({
     runnerConfig: options.runnerConfig,
     cacheKey: "beefy:underlying:prices:recent",

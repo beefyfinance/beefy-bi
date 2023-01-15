@@ -17,11 +17,11 @@ import { ErrorReport } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
 import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
-import { importChainHistoricalData$, importChainRecentData$ } from "../loader/investment/import-investments";
-import { importBeefyHistoricalPendingRewardsSnapshots$ } from "../loader/investment/import-pending-rewards-snapshots";
-import { importBeefyHistoricalShareRatePrices$ } from "../loader/prices/import-share-rate-prices";
-import { importBeefyHistoricalUnderlyingPrices$, importBeefyRecentUnderlyingPrices$ } from "../loader/prices/import-underlying-prices";
-import { importBeefyProducts$ } from "../loader/products";
+import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
+import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
+import { createBeefyHistoricalShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
+import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
+import { createBeefyProductRunner } from "../loader/products";
 import { getProductContractAddress } from "../utils/contract-accessors";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
@@ -142,9 +142,19 @@ function getTasksToRun(cmdParams: CmdParams) {
 }
 
 async function importProducts(cmdParams: CmdParams) {
-  const pipeline$ = Rx.from(cmdParams.filterChains).pipe(importBeefyProducts$({ client: cmdParams.client }));
-  logger.info({ msg: "starting product list import", data: { ...cmdParams, client: "<redacted>" } });
-  return consumeObservable(pipeline$);
+  // now import data for those
+  const runnerConfig: NoRpcRunnerConfig<Chain> = {
+    client: cmdParams.client,
+    mode: "recent",
+    getInputs: async () => cmdParams.filterChains,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    repeat: cmdParams.loopEvery !== null,
+  };
+
+  const runner = createBeefyProductRunner({ runnerConfig, client: cmdParams.client });
+
+  return runner.run();
 }
 
 function importBeefyDataPrices(cmdParams: CmdParams) {
@@ -211,8 +221,8 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
 
   const runner =
     cmdParams.task === "recent-prices"
-      ? importBeefyRecentUnderlyingPrices$({ runnerConfig })
-      : importBeefyHistoricalUnderlyingPrices$({ runnerConfig });
+      ? createBeefyRecentUnderlyingPricesRunner({ runnerConfig })
+      : createBeefyHistoricalUnderlyingPricesRunner({ runnerConfig });
 
   return runner.run();
 }
@@ -248,12 +258,12 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 
   const runner =
     runnerConfig.mode === "recent"
-      ? importChainRecentData$({
+      ? createBeefyRecentInvestmentRunner({
           chain,
           forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
           runnerConfig,
         })
-      : importChainHistoricalData$({
+      : createBeefyHistoricalInvestmentRunner({
           chain,
           forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
           runnerConfig,
@@ -316,7 +326,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     repeat: cmdParams.loopEvery !== null,
   };
 
-  const runner = importBeefyHistoricalShareRatePrices$({
+  const runner = createBeefyHistoricalShareRatePricesRunner({
     chain: chain,
     forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
     runnerConfig,
@@ -390,7 +400,7 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
     repeat: cmdParams.loopEvery !== null,
   };
 
-  const runner = importBeefyHistoricalPendingRewardsSnapshots$({
+  const runner = createBeefyHistoricalPendingRewardsSnapshotsRunner({
     chain: chain,
     forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
     runnerConfig,

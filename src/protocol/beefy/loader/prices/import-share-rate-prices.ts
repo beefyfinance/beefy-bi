@@ -19,7 +19,7 @@ import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
-export function importBeefyHistoricalShareRatePrices$(options: {
+export function createBeefyHistoricalShareRatePricesRunner(options: {
   chain: Chain;
   forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<DbPriceFeed>;
