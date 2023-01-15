@@ -156,7 +156,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
             continue;
           }
 
-          const eolDate = acc[vaultId].eolDate || (vault.status === "eol" ? fileVersion.date : null);
+          const eolDate = vault.status === "eol" ? acc[vaultId].eolDate || fileVersion.date : null;
           acc[vaultId] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
         }
       }
@@ -165,7 +165,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       for (const vaultId of Object.keys(acc)) {
         if (!acc[vaultId].foundInCurrentBatch) {
           acc[vaultId].vault.status = "eol";
-          acc[vaultId].eolDate = fileVersion.date;
+          acc[vaultId].eolDate = acc[vaultId].eolDate || fileVersion.date;
         }
       }
 

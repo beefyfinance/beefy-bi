@@ -104,7 +104,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
             continue;
           }
 
-          const eolDate = acc[boostId].eolDate || (boost.status === "closed" ? fileVersion.date : null);
+          const eolDate = boost.status === "closed" ? acc[boostId].eolDate || fileVersion.date : null;
           acc[boostId] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
         }
       }
@@ -113,7 +113,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
       for (const boostId of Object.keys(acc)) {
         if (!acc[boostId].foundInCurrentBatch) {
           acc[boostId].boost.status = "closed";
-          acc[boostId].eolDate = fileVersion.date;
+          acc[boostId].eolDate = acc[boostId].eolDate || fileVersion.date;
         }
       }
 
