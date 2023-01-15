@@ -73,7 +73,7 @@ export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPar
                 price_feed_1_id = EXCLUDED.price_feed_1_id,
                 price_feed_2_id = EXCLUDED.price_feed_2_id,
                 pending_rewards_price_feed_id = EXCLUDED.pending_rewards_price_feed_id,
-                product_data = jsonb_merge(product.product_data, EXCLUDED.product_data)
+                product_data = product.product_data
               RETURNING 
                 product_id as "productId", 
                 product_key as "productKey", 
