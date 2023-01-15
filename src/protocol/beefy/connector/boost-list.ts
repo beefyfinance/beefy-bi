@@ -62,7 +62,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
     order: "old-to-recent",
     throwOnError: false,
-    onePerMonth: true,
+    onePerMonth: false,
   });
 
   const v2$ = Rx.from(fileContentStreamV2).pipe(

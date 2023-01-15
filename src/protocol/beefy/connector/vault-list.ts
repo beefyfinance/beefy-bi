@@ -57,7 +57,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
     order: "old-to-recent",
     throwOnError: false,
-    onePerMonth: true,
+    onePerMonth: false,
   });
 
   const v1Chain = chain === "avax" ? "avalanche" : chain;
