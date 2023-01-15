@@ -207,8 +207,8 @@ export class PortfolioService {
     });
   }
 
-  async getInvestorProductUsdValueTs(investorId: number, productId: number, timeBucket: SamplingPeriod) {
-    const cacheKey = `api:portfolio-service:investor-product-usd-value:${investorId}-${productId}-${timeBucket}`;
+  async getInvestorProductUsdValueTs(investorId: number, productId: number, bucketSize: SamplingPeriod, timeRange: SamplingPeriod) {
+    const cacheKey = `api:portfolio-service:investor-product-usd-value:${investorId}-${productId}-${bucketSize}-${timeRange}`;
     const ttl = 1000 * 60 * 5; // 5 min
     return this.services.cache.wrap(cacheKey, ttl, async () => {
       const priceFeedIDs = await this.services.product.getPriceFeedIds([productId]);
@@ -219,8 +219,7 @@ export class PortfolioService {
         .concat([-1]) // make sure it's not empty
         .filter((id) => !!id);
       const to = new Date();
-      const dataPointCount = 1000;
-      const from = new Date(to.getTime() - dataPointCount * samplingPeriodMs[timeBucket]);
+      const from = new Date(to.getTime() - samplingPeriodMs[timeRange]);
 
       return db_query<{
         datetime: string;
@@ -269,23 +268,23 @@ export class PortfolioService {
           // balance_ts
           from.toISOString(),
           to.toISOString(),
-          timeBucket,
+          bucketSize,
           investorId,
           [productId],
           // price_1_ts
           from.toISOString(),
           to.toISOString(),
-          timeBucket,
+          bucketSize,
           priceFeed1Ids,
           // price_2_ts
           from.toISOString(),
           to.toISOString(),
-          timeBucket,
+          bucketSize,
           priceFeed2Ids,
           // price_rewards_ts
           from.toISOString(),
           to.toISOString(),
-          timeBucket,
+          bucketSize,
           priceFeedPendingRewardsIds,
         ],
         this.services.db,

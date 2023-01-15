@@ -3,7 +3,7 @@ import S from "fluent-json-schema";
 import { SamplingPeriod } from "../../types/sampling";
 import { addressSchema } from "../schema/address";
 import { productKeySchema } from "../schema/product";
-import { timeBucketSchema } from "../schema/time-bucket";
+import { TimeBucket, timeBucketSchema, timeBucketToSamplingPeriod } from "../schema/time-bucket";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
@@ -37,7 +37,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       .prop("product_key", productKeySchema.required())
       .prop("time_bucket", timeBucketSchema.required()),
   };
-  type TRoute2 = { Querystring: { address: string; product_key: string; time_bucket: SamplingPeriod } };
+  type TRoute2 = { Querystring: { address: string; product_key: string; time_bucket: TimeBucket } };
   const routeOptions2 = { schema: schema2, config: { rateLimit: await getRateLimitOpts() } };
   instance.get<TRoute2>("/product-ts", routeOptions2, async (req, reply) => {
     const { address, product_key, time_bucket } = req.query;
@@ -50,7 +50,14 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       return reply.code(404).send({ error: "Product not found" });
     }
 
-    const investorTimeline = await instance.diContainer.cradle.portfolio.getInvestorProductUsdValueTs(investorId, product.productId, time_bucket);
+    const { bucketSize, timeRange } = timeBucketToSamplingPeriod(time_bucket);
+
+    const investorTimeline = await instance.diContainer.cradle.portfolio.getInvestorProductUsdValueTs(
+      investorId,
+      product.productId,
+      bucketSize,
+      timeRange,
+    );
     return reply.send(investorTimeline);
   });
 

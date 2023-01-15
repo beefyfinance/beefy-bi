@@ -1,17 +1,12 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
-import { SamplingPeriod } from "../../types/sampling";
 import { productKeySchema } from "../schema/product";
+import { TimeBucket, timeBucketSchema, timeBucketToSamplingPeriod } from "../schema/time-bucket";
 import { getRateLimitOpts } from "../utils/rate-limiter";
-
-type TimeBucket = "1h_1d" | "1h_1w" | "1d_1M" | "1d_1Y";
-const timeBucketValues: TimeBucket[] = ["1h_1d", "1h_1w", "1d_1M", "1d_1Y"];
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
   const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"]).required();
 
-  // <bucket_size>_<time_range>
-  const timeBucketSchema = S.string().enum(timeBucketValues).required();
   const schema = {
     querystring: S.object()
       .prop("product_key", productKeySchema.required())
@@ -50,13 +45,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       return reply.code(404).send({ error: "Price feed not found" });
     }
 
-    const bucketParamMap: { [key in TimeBucket]: { bucketSize: SamplingPeriod; timeRange: SamplingPeriod } } = {
-      "1h_1d": { bucketSize: "1hour", timeRange: "1day" },
-      "1h_1w": { bucketSize: "1hour", timeRange: "1week" },
-      "1d_1M": { bucketSize: "1day", timeRange: "1month" },
-      "1d_1Y": { bucketSize: "1day", timeRange: "1year" },
-    };
-    const { bucketSize, timeRange } = bucketParamMap[time_bucket];
+    const { bucketSize, timeRange } = timeBucketToSamplingPeriod(time_bucket);
 
     const priceTs = await instance.diContainer.cradle.price.getPriceTs(priceFeedId, bucketSize, timeRange);
     return reply.send(priceTs.map((price) => [price.datetime, price.price]));

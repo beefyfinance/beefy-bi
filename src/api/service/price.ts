@@ -1,6 +1,6 @@
 import { SamplingPeriod } from "../../types/sampling";
 import { DbClient, db_query } from "../../utils/db";
-import { ProgrammerError } from "../../utils/programmer-error";
+import { assertIsValidTimeBucket } from "../schema/time-bucket";
 import { AsyncCache } from "./cache";
 
 export class PriceService {
@@ -8,14 +8,7 @@ export class PriceService {
 
   async getPriceTs(priceFeedId: number, bucketSize: SamplingPeriod, timeRange: SamplingPeriod) {
     // only accept some parameter combination
-    const isValidCombination =
-      (bucketSize === "1hour" && timeRange === "1day") ||
-      (bucketSize === "1hour" && timeRange === "1week") ||
-      (bucketSize === "1day" && timeRange === "1month") ||
-      (bucketSize === "1day" && timeRange === "1year");
-    if (!isValidCombination) {
-      throw new ProgrammerError("Invalid bucketSize and timeRange combination");
-    }
+    assertIsValidTimeBucket(bucketSize, timeRange);
 
     const cacheKey = `api:price-service:simple:${priceFeedId}-${bucketSize}`;
     const ttl = 1000 * 60 * 5; // 5 min
