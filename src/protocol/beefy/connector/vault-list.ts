@@ -222,6 +222,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       protocol = "unknown";
       protocol_product = rawVault.oracleId;
     }
+
     return {
       id: rawVault.id,
       chain,
