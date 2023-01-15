@@ -1226,6 +1226,18 @@
                 "value": 278
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_key"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 366
+              }
+            ]
           }
         ]
       },
@@ -1245,8 +1257,8 @@
         "showHeader": true,
         "sortBy": [
           {
-            "desc": true,
-            "displayName": "blocks_covered"
+            "desc": false,
+            "displayName": "has_import_status"
           }
         ]
       },
@@ -1314,8 +1326,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1392,8 +1403,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3948,9 +3958,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "yes",
-          "value": "yes"
+          "selected": true,
+          "text": "no",
+          "value": "no"
         },
         "hide": 0,
         "includeAll": false,
@@ -3958,12 +3968,12 @@
         "name": "include_eol",
         "options": [
           {
-            "selected": false,
+            "selected": true,
             "text": "no",
             "value": "no"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "yes",
             "value": "yes"
           }
@@ -3975,7 +3985,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -3983,13 +3993,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n    END",
+        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'true'\n    END",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false'\n    END",
+        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'true'\n    END",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -3998,7 +4008,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -4021,7 +4031,7 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -4045,13 +4055,13 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 74,
+  "version": 78,
   "weekStart": ""
 }
