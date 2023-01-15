@@ -48,7 +48,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     const { bucketSize, timeRange } = timeBucketToSamplingPeriod(time_bucket);
 
     const priceTs = await instance.diContainer.cradle.price.getPriceTs(priceFeedId, bucketSize, timeRange);
-    return reply.send(priceTs.map((price) => [price.datetime, price.price]));
+    return reply.send(priceTs.map((price) => [price.datetime, price.price_open, price.price_high, price.price_low, price.price_close]));
   });
 
   done();

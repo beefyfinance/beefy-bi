@@ -15,7 +15,11 @@ export class PriceService {
     return this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query<{
         datetime: string;
-        price: string;
+        price_avg: string;
+        price_high: string;
+        price_low: string;
+        price_open: string;
+        price_close: string;
       }>(
         `
         SELECT 
