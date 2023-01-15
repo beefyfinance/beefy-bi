@@ -474,17 +474,6 @@ export async function db_migrate() {
     );
   `);
 
-  if (!hasPolicy("public", "price_ts", "hypertable", "policy_compression")) {
-    await db_query(`
-      ALTER TABLE price_ts SET (
-        timescaledb.compress,
-        timescaledb.compress_segmentby = 'price_feed_id'
-      );
-
-      SELECT add_compression_policy('price_ts', INTERVAL '100 days');
-    `);
-  }
-
   // pre-aggregated price data
   await db_query(`
     CREATE MATERIALIZED VIEW IF NOT EXISTS price_ts_cagg_price_ts_1h
