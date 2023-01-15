@@ -941,8 +941,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1102,8 +1101,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -1182,8 +1180,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -1508,7 +1505,7 @@
             "h": 9,
             "w": 4,
             "x": 0,
-            "y": 2
+            "y": 3
           },
           "id": 36,
           "options": {
@@ -1586,7 +1583,7 @@
             "h": 9,
             "w": 4,
             "x": 4,
-            "y": 2
+            "y": 3
           },
           "id": 37,
           "options": {
@@ -1692,7 +1689,7 @@
             "h": 9,
             "w": 4,
             "x": 8,
-            "y": 2
+            "y": 3
           },
           "id": 38,
           "options": {
@@ -1744,6 +1741,112 @@
             }
           ],
           "title": "Products EOL",
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": []
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "eol"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "options": {
+                          "false": {
+                            "color": "green",
+                            "index": 1
+                          },
+                          "true": {
+                            "color": "red",
+                            "index": 0
+                          }
+                        },
+                        "type": "value"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 4,
+            "x": 12,
+            "y": 3
+          },
+          "id": 67,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "pieType": "pie",
+            "reduceOptions": {
+              "calcs": ["uniqueValues"],
+              "fields": "",
+              "limit": 39,
+              "values": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  (product_data->>'dashboardEol')::text as eol,\n  count(*)\nFROM\n  product\nwhere product_id in ($_product_ids)\ngroup by 1\n",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Products Dashboard EOL",
           "type": "piechart"
         }
       ],
@@ -3958,9 +4061,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "no",
-          "value": "no"
+          "selected": false,
+          "text": "yes",
+          "value": "yes"
         },
         "hide": 0,
         "includeAll": false,
@@ -3968,12 +4071,12 @@
         "name": "include_eol",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "no",
             "value": "no"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "yes",
             "value": "yes"
           }
@@ -3985,7 +4088,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -3993,13 +4096,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'true'\n    END",
+        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'true'\n    END",
+        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -4008,7 +4111,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -4031,7 +4134,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": ["All"],
           "value": ["$__all"]
         },
@@ -4062,6 +4165,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 78,
+  "version": 80,
   "weekStart": ""
 }
