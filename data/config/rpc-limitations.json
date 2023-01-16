@@ -8,8 +8,8 @@
       "disableBatching": false,
       "disableRpc": false,
       "methods": {
-        "eth_getLogs": 4,
-        "eth_call": 4,
+        "eth_getLogs": 10,
+        "eth_call": 10,
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 16,
         "eth_getTransactionReceipt": 8
@@ -504,9 +504,9 @@
       "disableRpc": false,
       "weight": 3,
       "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 378,
+        "eth_getLogs": 20,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 150,
         "eth_blockNumber": 2,
         "eth_getTransactionReceipt": 64
       }
@@ -517,7 +517,7 @@
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 7,
       "methods": {
         "eth_getLogs": 84,
