@@ -123,7 +123,6 @@ function getTasksToRun(cmdParams: CmdParams) {
 
   switch (cmdParams.task) {
     case "historical":
-      return cmdParams.filterChains.map((chain) => () => importInvestmentData(chain, cmdParams));
     case "recent":
       return cmdParams.filterChains.map((chain) => () => importInvestmentData(chain, cmdParams));
     case "products":
@@ -244,7 +243,7 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 
   // now import data for those
   const runnerConfig = {
-    mode: cmdParams.task === "recent-prices" || "recent" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
+    mode: cmdParams.task === "recent-prices" || cmdParams.task === "recent" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
     getInputs,
     inputPollInterval: cmdParams.productRefreshInterval,
     minWorkInterval: cmdParams.loopEvery,

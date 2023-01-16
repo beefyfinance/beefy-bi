@@ -40,10 +40,10 @@
       "disableBatching": false,
       "disableRpc": false,
       "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
+        "eth_getLogs": 10,
+        "eth_call": 150,
+        "eth_getBlockByNumber": 150,
+        "eth_blockNumber": 150,
         "eth_getTransactionReceipt": 8
       }
     }
