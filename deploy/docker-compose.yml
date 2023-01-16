@@ -34,6 +34,7 @@ x-importer: &importer
   env_file: ../.env
   environment:
     WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 1day"
+  stop_signal: SIGINT
   volumes:
     - git_work_directory:/git_work
   networks:
@@ -70,6 +71,7 @@ services:
     image: redis:7-alpine
     restart: always
     command: redis-server --save "" --appendonly no --replicaof no one
+    stop_signal: SIGINT
     networks:
       - backend
 
@@ -79,6 +81,7 @@ services:
       - timescaledb_data:/home/postgres/pgdata/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: postgres -c 'max_connections=250' -c logging_collector=off -c log_min_duration_statement=30s -c log_statement=none -c shared_buffers=5GB -c effective_cache_size=15GB -c timescaledb.max_background_workers=16 -c max_worker_processes=29 -c max_parallel_workers_per_gather=5 -c max_parallel_workers=10 -c max_parallel_maintenance_workers=4 -c maintenance_work_mem=2GB -c random_page_cost=4 -c effective_io_concurrency=2 -c min_wal_size=4GB -c max_wal_size=16GB
+    stop_signal: SIGINT
     shm_size: 256M
     deploy:
       resources:
@@ -110,6 +113,7 @@ services:
         reservations:
           cpus: "0.05"
           memory: 250M
+    stop_signal: SIGINT
     environment:
       TZ: UTC
       POSTGRES_HOST: timescaledb
@@ -134,6 +138,7 @@ services:
     env_file: ../.env
     ports:
       - "8080:8080"
+    stop_signal: SIGINT
     environment:
       TZ: UTC
       REDIS_URL: redis://redis:6379

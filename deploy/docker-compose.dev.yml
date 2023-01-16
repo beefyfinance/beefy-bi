@@ -30,6 +30,7 @@ services:
     command: postgres -c logging_collector=off -c log_min_duration_statement=1s -c log_statement=none
     env_file: ../.env
     cpus: ${TIMESCALEDB_CPU_SHARE:-0.3}
+    stop_signal: SIGINT
     ports:
       - "5432:5432"
     environment:
@@ -48,6 +49,7 @@ services:
       - "3000:3000"
     env_file: ../.env
     cpus: ${GRAFANA_CPU_SHARE:-0.3}
+    stop_signal: SIGINT
     environment:
       TZ: UTC
       POSTGRES_HOST: timescaledb
