@@ -1,15 +1,14 @@
 import { groupBy, keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { samplingPeriodMs } from "../../../types/sampling";
-import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
-import { CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL } from "../../../utils/config";
+qqimport { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
 import { DbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
 import { ErrorReport, ImportCtx } from "../../common/types/import-context";
+import { computeIsDashboardEOL } from "../../common/utils/eol";
 import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { BeefyBoost, beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list";
@@ -71,7 +70,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // from underlying amount
               toAssetKey: "fiat:USD", // to USD
               priceFeedData: {
-                active: !item.vault.eol,
+                active: !computeIsDashboardEOL(item.vault.eol, item.vault.eol_date),
                 externalId: item.vault.want_price_feed_key, // the id that the data api knows
               },
             };
@@ -104,7 +103,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
                     fromAssetKey: `${item.vault.chain}:${rewardToken}`,
                     toAssetKey: "fiat:USD", // to USD
                     priceFeedData: {
-                      active: !item.vault.eol,
+                      active: !computeIsDashboardEOL(item.vault.eol, item.vault.eol_date),
                       externalId: rewardToken, // the id that the data api knows
                     },
                   };
@@ -122,14 +121,6 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
             const vaultId = normalizeVaultId(item.vault.id);
             const isGov = item.vault.is_gov_vault;
 
-            let isDashboardEol = false;
-            // special case where we can't find when the product was eol'ed
-            if (item.vault.eol && item.vault.eol_date === null) {
-              logger.warn({ msg: "eol_date is null", data: { vaultId } });
-            } else if (item.vault.eol && item.vault.eol_date !== null) {
-              isDashboardEol = item.vault.eol_date.getTime() < Date.now() - samplingPeriodMs[CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL];
-            }
-
             return {
               // vault ids are unique by chain
               productKey: `beefy:vault:${item.vault.chain}:${vaultId}`,
@@ -139,7 +130,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               chain: item.vault.chain,
               productData: {
                 type: isGov ? "beefy:gov-vault" : "beefy:vault",
-                dashboardEol: isDashboardEol,
+                dashboardEol: computeIsDashboardEOL(item.vault.eol, item.vault.eol_date),
                 vault: item.vault,
               },
             };
@@ -206,7 +197,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               fromAssetKey: `${item.boost.chain}:${rewardToken}`,
               toAssetKey: "fiat:USD", // to USD
               priceFeedData: {
-                active: !item.boost.eol,
+                active: !computeIsDashboardEOL(item.boost.eol, item.boost.eol_date),
                 externalId: rewardToken, // the id that the data api knows
               },
             };
@@ -219,14 +210,6 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           ctx,
           emitError: emitBoostError,
           getProductData: (item) => {
-            let isDashboardEol = false;
-            // special case where we can't find when the product was eol'ed
-            if (item.boost.eol && item.boost.eol_date === null) {
-              logger.warn({ msg: "eol_date is null", data: { boostId: item.boost.id } });
-            } else if (item.boost.eol && item.boost.eol_date !== null) {
-              isDashboardEol = item.boost.eol_date.getTime() < Date.now() - samplingPeriodMs[CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL];
-            }
-
             return {
               productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,
               priceFeedId1: item.priceFeedId1,
@@ -235,7 +218,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               chain: item.boost.chain,
               productData: {
                 type: "beefy:boost",
-                dashboardEol: isDashboardEol,
+                dashboardEol: computeIsDashboardEOL(item.boost.eol, item.boost.eol_date),
                 boost: item.boost,
               },
             };
