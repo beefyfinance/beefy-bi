@@ -52,6 +52,8 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
     limitations: options.ctx.rpcConfig.rpcLimitations,
     logInfos: options.logInfos,
   });
+
+  const workConcurrency = options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? options.ctx.streamConfig.workConcurrency : 1;
   return Rx.pipe(
     // add object TS type
     Rx.tap((_: TObj) => {}),
@@ -61,7 +63,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
     Rx.filter((objs) => objs.length > 0),
 
     // for each batch, fetch the transfers
-    Rx.concatMap(async (objs) => {
+    Rx.mergeMap(async (objs) => {
       logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
 
       const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
@@ -129,7 +131,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
         }
         return Rx.EMPTY;
       }
-    }),
+    }, workConcurrency),
 
     Rx.tap(
       (objs) =>

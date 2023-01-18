@@ -19,7 +19,7 @@ const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" }
 
 export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   // since we are doing many historical queries at once, we cannot afford to do many at once
-  workConcurrency: 1,
+  workConcurrency: 50,
   // But we can afford to wait a bit longer before processing the next batch to be more efficient
   maxInputWaitMs: 30 * 1000,
   maxInputTake: 500,
@@ -41,7 +41,7 @@ export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
 export const defaultRecentStreamConfig: BatchStreamConfig = {
   // since we are doing live data on a small amount of queries (one per vault)
   // we can afford some amount of concurrency
-  workConcurrency: 10,
+  workConcurrency: 100,
   // But we can not afford to wait before processing the next batch
   maxInputWaitMs: 5_000,
   maxInputTake: 500,
