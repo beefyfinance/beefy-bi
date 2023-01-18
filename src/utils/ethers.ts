@@ -45,6 +45,10 @@ export function addDebugLogsToProvider(
             action: "response";
             error: any;
             request: any;
+          }
+        | {
+            action: "custom";
+            data: any;
           },
     ) => {
       if (event.action === "request" || event.action === "requestBatch") {
@@ -54,6 +58,8 @@ export function addDebugLogsToProvider(
       } else if (event.action === "response" && "error" in event) {
         // retryable errors are logged at a higher level
         logger.trace({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
+      } else if (event.action === "custom") {
+        logger.trace({ msg: "RPC custom", data: { data: event.data, rpcUrl: safeToLogUrl } });
       }
     },
   );

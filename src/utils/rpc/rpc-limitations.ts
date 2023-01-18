@@ -40,98 +40,101 @@ export const defaultLimitations: RpcLimitations = {
   },
 };
 
-const findings = (() => {
-  const rawLimitations = readRawLimitations();
+let _findings: ReturnType<typeof readRawLimitations> | null = null;
+function getFindings(): ReturnType<typeof readRawLimitations> {
+  if (_findings === null) {
+    const rawLimitations = readRawLimitations();
 
-  // add missing chains
-  for (const chain of allChainIds) {
-    if (!rawLimitations[chain]) {
-      rawLimitations[chain] = {};
-    }
-  }
-
-  // check weights
-  for (const chain of allChainIds) {
-    let countWithWeight = 0;
-    let countWithoutWeight = 0;
-    for (const [rpcUrl, rawLimits] of Object.entries(rawLimitations[chain])) {
-      if (isNumber(rawLimits.weight)) {
-        countWithWeight++;
-      } else {
-        rawLimits.weight = null;
-        countWithoutWeight++;
-      }
-
-      if (countWithWeight > 0 && countWithoutWeight > 0) {
-        throw new ProgrammerError(
-          `Weights invalid for chain ${chain}. Please define the weight parameter for ALL rpc or none of them. Error on rpc: ${removeSecretsFromRpcUrl(
-            rpcUrl,
-          )}`,
-        );
+    // add missing chains
+    for (const chain of allChainIds) {
+      if (!rawLimitations[chain]) {
+        rawLimitations[chain] = {};
       }
     }
-  }
 
-  for (const chain of allChainIds) {
-    for (const rpcUrl of Object.keys(rawLimitations[chain])) {
-      const rpcLimitations = rawLimitations[chain][rpcUrl];
-      let wasUpdated = false;
-      const limitationCopy = cloneDeep(rpcLimitations);
-
-      for (const method of allRpcCallMethods) {
-        const oldLimit = rpcLimitations.methods[method];
-        if (oldLimit === null) {
-          continue;
+    // check weights
+    for (const chain of allChainIds) {
+      let countWithWeight = 0;
+      let countWithoutWeight = 0;
+      for (const [rpcUrl, rawLimits] of Object.entries(rawLimitations[chain])) {
+        if (isNumber(rawLimits.weight)) {
+          countWithWeight++;
+        } else {
+          rawLimits.weight = null;
+          countWithoutWeight++;
         }
 
-        let newLimit: number | null = oldLimit;
+        if (countWithWeight > 0 && countWithoutWeight > 0) {
+          throw new ProgrammerError(
+            `Weights invalid for chain ${chain}. Please define the weight parameter for ALL rpc or none of them. Error on rpc: ${removeSecretsFromRpcUrl(
+              rpcUrl,
+            )}`,
+          );
+        }
+      }
+    }
 
-        // reduce the limit for those RPCs with a timeout
-        if (limitationCopy.internalTimeoutMs) {
-          if (limitationCopy.internalTimeoutMs <= 10_000) {
-            newLimit = Math.min(30, oldLimit);
-            logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-          } else if (limitationCopy.internalTimeoutMs <= 5_000) {
-            newLimit = Math.min(10, oldLimit);
-            logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+    for (const chain of allChainIds) {
+      for (const rpcUrl of Object.keys(rawLimitations[chain])) {
+        const rpcLimitations = rawLimitations[chain][rpcUrl];
+        let wasUpdated = false;
+        const limitationCopy = cloneDeep(rpcLimitations);
+
+        for (const method of allRpcCallMethods) {
+          const oldLimit = rpcLimitations.methods[method];
+          if (oldLimit === null) {
+            continue;
+          }
+
+          let newLimit: number | null = oldLimit;
+
+          // reduce the limit for those RPCs with a timeout
+          if (limitationCopy.internalTimeoutMs) {
+            if (limitationCopy.internalTimeoutMs <= 10_000) {
+              newLimit = Math.min(30, oldLimit);
+              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+            } else if (limitationCopy.internalTimeoutMs <= 5_000) {
+              newLimit = Math.min(10, oldLimit);
+              logger.trace({ msg: "Reducing limit for RPC with low timeout", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+            }
+          }
+
+          // disable batching if required
+          if (limitationCopy.disableBatching) {
+            newLimit = null;
+            logger.trace({ msg: "Disabling batching for RPC", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+          }
+
+          // apply safety margin
+          if (newLimit !== null && newLimit !== MAX_RPC_BATCHING_SIZE) {
+            newLimit = Math.floor(newLimit * safetyMargin[method]);
+            logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+          }
+
+          // disable batching if it's only 1
+          if (newLimit !== null && newLimit <= 1) {
+            newLimit = null;
+            logger.trace({ msg: "Limit is too low, disabling batching", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+          }
+
+          if (newLimit !== oldLimit) {
+            logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+            rpcLimitations.methods[method] = newLimit;
+            wasUpdated = true;
           }
         }
 
-        // disable batching if required
-        if (limitationCopy.disableBatching) {
-          newLimit = null;
-          logger.trace({ msg: "Disabling batching for RPC", data: { chain, rpcUrl, method, oldLimit, newLimit } });
+        if (wasUpdated) {
+          logger.debug({ msg: "updated rpc limitations", data: { chain, rpcUrl, rawLimits: limitationCopy, newLimits: rpcLimitations } });
+        } else {
+          logger.trace({ msg: "no rpc limitations updated", data: { chain, rpcUrl } });
         }
-
-        // apply safety margin
-        if (newLimit !== null && newLimit !== MAX_RPC_BATCHING_SIZE) {
-          newLimit = Math.floor(newLimit * safetyMargin[method]);
-          logger.trace({ msg: "Applying safety margin", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-        }
-
-        // disable batching if it's only 1
-        if (newLimit !== null && newLimit <= 1) {
-          newLimit = null;
-          logger.trace({ msg: "Limit is too low, disabling batching", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-        }
-
-        if (newLimit !== oldLimit) {
-          logger.trace({ msg: "lowering rpc limitation", data: { chain, rpcUrl, method, oldLimit, newLimit } });
-          rpcLimitations.methods[method] = newLimit;
-          wasUpdated = true;
-        }
-      }
-
-      if (wasUpdated) {
-        logger.debug({ msg: "updated rpc limitations", data: { chain, rpcUrl, rawLimits: limitationCopy, newLimits: rpcLimitations } });
-      } else {
-        logger.trace({ msg: "no rpc limitations updated", data: { chain, rpcUrl } });
       }
     }
+    _findings = rawLimitations;
   }
-
-  return rawLimitations;
-})();
+  return _findings;
+}
 
 export interface RpcLimitations {
   // if true, the RPC is an archive node
@@ -166,7 +169,7 @@ export interface RpcLimitations {
 }
 
 export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBlockSpan?: number | null): RpcLimitations {
-  let limitations = cloneDeep(findings[chain][removeSecretsFromRpcUrl(rpcUrl)]);
+  let limitations = cloneDeep(getFindings()[chain][removeSecretsFromRpcUrl(rpcUrl)]);
   if (!limitations) {
     if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
       limitations = cloneDeep(defaultLimitations);
@@ -184,7 +187,7 @@ export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBloc
 }
 
 export function getAllRpcUrlsForChain(chain: Chain): string[] {
-  const chainRpcs = findings[chain];
+  const chainRpcs = getFindings()[chain];
   if (!chainRpcs) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
@@ -192,7 +195,7 @@ export function getAllRpcUrlsForChain(chain: Chain): string[] {
 }
 
 export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recent"): string[] {
-  const chainRpcs = findings[chain];
+  const chainRpcs = getFindings()[chain];
   if (!chainRpcs) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
