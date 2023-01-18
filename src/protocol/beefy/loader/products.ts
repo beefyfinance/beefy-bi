@@ -1,7 +1,7 @@
 import { groupBy, keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-qqimport { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
+import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
 import { DbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
