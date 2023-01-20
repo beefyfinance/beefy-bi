@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy, keyBy, merge } from "lodash";
+import { groupBy, isEmpty, keyBy, merge } from "lodash";
 import { v4 as uuid } from "uuid";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
@@ -118,12 +118,9 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         db_query(
           `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
           [
-            investmentsAndUuid.map(({ data, debugDataUuid }) => [
-              debugDataUuid,
-              data.datetime.toISOString(),
-              "investment_balance_ts",
-              data.investmentData,
-            ]),
+            investmentsAndUuid
+              .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
+              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]),
           ],
           options.ctx.client,
         ),
@@ -210,12 +207,9 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
         db_query(
           `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
           [
-            objAndDataAndUuid.map(({ data, debugDataUuid }) => [
-              debugDataUuid,
-              data.datetime.toISOString(),
-              "investment_balance_ts",
-              data.investmentData,
-            ]),
+            objAndDataAndUuid
+              .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
+              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]),
           ],
           options.ctx.client,
         ),

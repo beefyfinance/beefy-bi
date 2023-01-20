@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy, uniqBy } from "lodash";
+import { groupBy, isEmpty, uniqBy } from "lodash";
 import { v4 as uuid } from "uuid";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
@@ -71,7 +71,11 @@ export function upsertPrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
 
         db_query(
           `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [objAndDataAndUuid.map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "price_ts", data.priceData])],
+          [
+            objAndDataAndUuid
+              .filter(({ data }) => !isEmpty(data.priceData)) // don't insert empty data
+              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "price_ts", data.priceData]),
+          ],
           options.ctx.client,
         ),
       ]);

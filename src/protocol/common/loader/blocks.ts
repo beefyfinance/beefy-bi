@@ -1,4 +1,4 @@
-import { keyBy, uniqBy } from "lodash";
+import { isEmpty, keyBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { v4 as uuid } from "uuid";
 import { Chain } from "../../../types/chain";
@@ -51,7 +51,11 @@ export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
         ),
         db_query(
           `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [objAndDataAndUuid.map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData])],
+          [
+            objAndDataAndUuid
+              .filter(({ data }) => !isEmpty(data.blockData)) // don't insert empty data
+              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData]),
+          ],
           options.ctx.client,
         ),
       ]);

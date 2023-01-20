@@ -315,5 +315,13 @@ SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertabl
 (4 rows)
 
 -- ENABLING COMPRESSION ON DEBUG DATA
-
+SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertable_schema, hypertable_name)::regclass))
+  FROM timescaledb_information.hypertables;
+    hypertable_name    | pg_size_pretty
+-----------------------+----------------
+ investment_balance_ts | 5763 MB
+ block_ts              | 4050 MB
+ price_ts              | 23 GB
+ debug_data_ts         | 32 GB
+(4 rows)
 ```
