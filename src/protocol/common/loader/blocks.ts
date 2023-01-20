@@ -1,5 +1,6 @@
 import { keyBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
+import { v4 as uuid } from "uuid";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -26,27 +27,34 @@ export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
     getData: options.getBlockData,
     logInfos: { msg: "upsert block" },
     processBatch: async (objAndData) => {
-      await db_query(
-        `INSERT INTO block_ts (
+      // generate debug data uuid for each object
+      const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
+
+      await Promise.all([
+        db_query(
+          `INSERT INTO block_ts (
               datetime,
               chain,
               block_number,
-              block_data
+              debug_data_uuid
           ) VALUES %L
               ON CONFLICT (block_number, chain, datetime) 
               DO UPDATE SET 
-              block_data = jsonb_merge(block_ts.block_data, EXCLUDED.block_data)
+              debug_data_uuid = coalesce(block_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
           `,
-        [
-          uniqBy(objAndData, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(({ data }) => [
-            data.datetime.toISOString(),
-            data.chain,
-            data.blockNumber,
-            data.blockData,
-          ]),
-        ],
-        options.ctx.client,
-      );
+          [
+            uniqBy(objAndDataAndUuid, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(
+              ({ data, debugDataUuid }) => [data.datetime.toISOString(), data.chain, data.blockNumber, debugDataUuid],
+            ),
+          ],
+          options.ctx.client,
+        ),
+        db_query(
+          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
+          [objAndDataAndUuid.map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData])],
+          options.ctx.client,
+        ),
+      ]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });
@@ -57,7 +65,7 @@ export function fetchBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options
   emitError: TErr;
   chain: Chain;
   getBlockNumber: (obj: TObj) => number;
-  formatOutput: (obj: TObj, block: DbBlock | null) => TRes;
+  formatOutput: (obj: TObj, block: Omit<DbBlock, "blockData"> | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return dbBatchCall$({
     ctx: options.ctx,
@@ -70,8 +78,7 @@ export function fetchBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options
         `SELECT 
             datetime,
             chain,
-            block_number as "blockNumber",
-            block_data as "blockData"
+            block_number as "blockNumber"
           FROM block_ts
           WHERE chain = %L and block_number IN (%L)`,
         [options.chain, objAndData.map((obj) => obj.data)],

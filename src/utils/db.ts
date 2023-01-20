@@ -233,6 +233,12 @@ async function typeExists(typeName: string) {
 
 export async function db_migrate() {
   logger.info({ msg: "Migrate begin" });
+
+  // extensions
+  await db_query(`
+    create extension if not exists "uuid-ossp";
+  `);
+
   // types
   if (!(await typeExists("chain_enum"))) {
     await db_query(`
@@ -416,6 +422,45 @@ export async function db_migrate() {
     );
   `);
 
+  // this is used to store import meta data for debug purpose, this can grow big and is separated from other ts
+  // tables to keep them small and lean. Also, we want to be able to use compression on most of this debug data
+  // but as of now, it's not possible to do `INSERT ... ON CONFLICT` on a compressed hypertable
+  // separating this debug data allows us to compress it
+  if (!(await typeExists("debug_origin_table_enum"))) {
+    await db_query(`
+        CREATE TYPE debug_origin_table_enum AS ENUM ('price_ts');
+    `);
+  }
+  for (const tsName of ["price_ts", "investment_balance_ts", "block_ts"]) {
+    await db_query(`ALTER TYPE debug_origin_table_enum ADD VALUE IF NOT EXISTS %L`, [tsName]);
+  }
+
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS debug_data_ts (
+      debug_data_uuid uuid not null, -- unique id, use uuids so we can generate them without having to query the db
+      datetime timestamptz not null, -- any datetime to make it a hypertable
+      origin_table debug_origin_table_enum not null, -- the table this debug data comes from
+      debug_data jsonb not null -- the actual debug data
+    );
+
+    SELECT create_hypertable(
+      relation => 'debug_data_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '30 days',
+      if_not_exists => true
+    );
+  `);
+  if (!hasPolicy("public", "debug_data_ts", "hypertable", "policy_compression")) {
+    await db_query(`
+      ALTER TABLE debug_data_ts SET (
+        timescaledb.compress,
+        timescaledb.compress_segmentby = 'origin_table'
+      );
+
+      SELECT add_compression_policy('debug_data_ts', INTERVAL '7 days');
+    `);
+  }
+
   await db_query(`
     CREATE TABLE IF NOT EXISTS investment_balance_ts (
       datetime timestamptz not null,
@@ -433,8 +478,8 @@ export async function db_migrate() {
       pending_rewards evm_decimal_256_nullable null, -- how much rewards are pending to be claimed
       pending_rewards_diff evm_decimal_256_nullable null, -- how much rewards changed at this block
 
-      -- some debug info to help us understand how we got this data
-      investment_data jsonb not null -- chain, block_number, transaction hash, transaction fees, etc
+      -- link to more debug data
+      debug_data_uuid uuid not null
     );
     CREATE UNIQUE INDEX IF NOT EXISTS investment_balance_ts_uniq ON investment_balance_ts(product_id, investor_id, block_number, datetime);
 
@@ -459,8 +504,8 @@ export async function db_migrate() {
 
       price evm_decimal_256 not null,
 
-      -- some debug info to help us understand how we got this data
-      price_data jsonb not null -- chain, transaction hash, transaction fees, etc
+      -- link to more debug data
+      debug_data_uuid uuid not null
     );
 
     -- make sure we don't create a unique index on a null value because all nulls are considered different
@@ -489,9 +534,11 @@ export async function db_migrate() {
     GROUP BY 1,2
     WITH NO DATA;
 
-    // https://docs.timescale.com/timescaledb/latest/how-to-guides/continuous-aggregates/create-index/
-    // When you create a continuous aggregate, an index is automatically created for each GROUP BY column. 
-    // The index is a composite index, combining the GROUP BY column with the time_bucket column.
+    /*
+     * https://docs.timescale.com/timescaledb/latest/how-to-guides/continuous-aggregates/create-index/
+     * When you create a continuous aggregate, an index is automatically created for each GROUP BY column. 
+     * The index is a composite index, combining the GROUP BY column with the time_bucket column.
+     */
   `);
 
   if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
@@ -524,7 +571,9 @@ export async function db_migrate() {
       datetime timestamptz not null,
       chain chain_enum not null,
       block_number integer not null,
-      block_data jsonb not null
+      
+      -- link to more debug data
+      debug_data_uuid uuid not null
     );
     CREATE UNIQUE INDEX IF NOT EXISTS block_ts_uniq ON block_ts(chain, block_number, datetime);
 

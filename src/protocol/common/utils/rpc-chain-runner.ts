@@ -4,7 +4,7 @@ import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS } from "../../../utils/config";
+import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS, DISABLE_WORK_CONCURRENCY } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -19,7 +19,7 @@ const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" }
 
 export const defaultHistoricalStreamConfig: BatchStreamConfig = {
   // since we are doing many historical queries at once, we cannot afford to do many at once
-  workConcurrency: 50,
+  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 50,
   // But we can afford to wait a bit longer before processing the next batch to be more efficient
   maxInputWaitMs: 30 * 1000,
   maxInputTake: 500,
@@ -30,7 +30,7 @@ export const defaultHistoricalStreamConfig: BatchStreamConfig = {
 };
 export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
   // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
-  workConcurrency: 1,
+  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 1,
   maxInputWaitMs: 1000,
   maxInputTake: 1,
   dbMaxInputTake: 1,
@@ -41,7 +41,7 @@ export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
 export const defaultRecentStreamConfig: BatchStreamConfig = {
   // since we are doing live data on a small amount of queries (one per vault)
   // we can afford some amount of concurrency
-  workConcurrency: 100,
+  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 100,
   // But we can not afford to wait before processing the next batch
   maxInputWaitMs: 5_000,
   maxInputTake: 500,

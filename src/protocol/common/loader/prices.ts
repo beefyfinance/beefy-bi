@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { groupBy, uniqBy } from "lodash";
+import { v4 as uuid } from "uuid";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -39,30 +40,41 @@ export function upsertPrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
         }
       }
 
-      await db_query(
-        `INSERT INTO price_ts (
+      // generate debug data uuid for each object
+      const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
+
+      await Promise.all([
+        db_query(
+          `INSERT INTO price_ts (
               datetime,
               block_number,
               price_feed_id,
               price,
-              price_data
+              debug_data_uuid
           ) VALUES %L
               ON CONFLICT (price_feed_id, block_number, datetime) 
               DO UPDATE SET 
                 price = EXCLUDED.price, 
-                price_data = jsonb_merge(price_ts.price_data, EXCLUDED.price_data)
+                debug_data_uuid = coalesce(price_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
           `,
-        [
-          uniqBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data }) => [
-            data.datetime.toISOString(),
-            data.blockNumber,
-            data.priceFeedId,
-            data.price.toString(),
-            data.priceData,
-          ]),
-        ],
-        options.ctx.client,
-      );
+          [
+            uniqBy(objAndDataAndUuid, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data, debugDataUuid }) => [
+              data.datetime.toISOString(),
+              data.blockNumber,
+              data.priceFeedId,
+              data.price.toString(),
+              debugDataUuid,
+            ]),
+          ],
+          options.ctx.client,
+        ),
+
+        db_query(
+          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
+          [objAndDataAndUuid.map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "price_ts", data.priceData])],
+          options.ctx.client,
+        ),
+      ]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });

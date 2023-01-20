@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { groupBy, keyBy, merge } from "lodash";
+import { v4 as uuid } from "uuid";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -74,8 +75,12 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         }
       }
 
-      const results = await db_query<{ product_id: number; investor_id: number; block_number: number }>(
-        `INSERT INTO investment_balance_ts (
+      // generate debug data uuid for each object
+      const investmentsAndUuid = investments.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
+
+      const results = await Promise.all([
+        db_query<{ product_id: number; investor_id: number; block_number: number }>(
+          `INSERT INTO investment_balance_ts (
               datetime,
               block_number,
               product_id,
@@ -84,7 +89,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
               balance_diff,
               pending_rewards,
               pending_rewards_diff,
-              investment_data
+              debug_data_uuid
           ) VALUES %L
               ON CONFLICT (product_id, investor_id, block_number, datetime) 
               DO UPDATE SET 
@@ -92,26 +97,40 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
                 balance_diff = EXCLUDED.balance_diff,
                 pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
                 pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-                investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
-          RETURNING product_id, investor_id, block_number
+                debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+                RETURNING product_id, investor_id, block_number
           `,
-        [
-          investments.map(({ data }) => [
-            data.datetime.toISOString(),
-            data.blockNumber,
-            data.productId,
-            data.investorId,
-            data.balance.toString(),
-            data.balanceDiff.toString(),
-            data.pendingRewards?.toString() || null,
-            data.pendingRewardsDiff?.toString() || null,
-            data.investmentData,
-          ]),
-        ],
-        options.ctx.client,
-      );
+          [
+            investmentsAndUuid.map(({ data, debugDataUuid }) => [
+              data.datetime.toISOString(),
+              data.blockNumber,
+              data.productId,
+              data.investorId,
+              data.balance.toString(),
+              data.balanceDiff.toString(),
+              data.pendingRewards?.toString() || null,
+              data.pendingRewardsDiff?.toString() || null,
+              debugDataUuid,
+            ]),
+          ],
+          options.ctx.client,
+        ),
+        db_query(
+          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
+          [
+            investmentsAndUuid.map(({ data, debugDataUuid }) => [
+              debugDataUuid,
+              data.datetime.toISOString(),
+              "investment_balance_ts",
+              data.investmentData,
+            ]),
+          ],
+          options.ctx.client,
+        ),
+      ]);
 
-      const idMap = keyBy(results, (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
+      // update debug data
+      const idMap = keyBy(results[0], (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
       return new Map(
         objAndData.map(({ data }) => {
           const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
@@ -150,39 +169,57 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestmentRewards" },
     processBatch: async (objAndData) => {
-      await db_query(
-        `INSERT INTO investment_balance_ts (
-              datetime,
-              block_number,
-              product_id,
-              investor_id,
-              balance,
-              balance_diff,
-              pending_rewards,
-              pending_rewards_diff,
-              investment_data
-          ) VALUES %L
-              ON CONFLICT (product_id, investor_id, block_number, datetime) 
-              DO UPDATE SET 
-                pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
-                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-                investment_data = jsonb_merge(investment_balance_ts.investment_data, EXCLUDED.investment_data)
-          `,
-        [
-          objAndData.map(({ data }) => [
-            data.datetime.toISOString(),
-            data.blockNumber,
-            data.productId,
-            data.investorId,
-            data.balance.toString(),
-            "0", // balance_diff
-            data.pendingRewards?.toString() || null,
-            data.pendingRewardsDiff?.toString() || null,
-            data.investmentData,
-          ]),
-        ],
-        options.ctx.client,
-      );
+      // generate debug data uuid for each object
+      const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
+
+      // insert into db
+      await Promise.all([
+        db_query(
+          `INSERT INTO investment_balance_ts (
+                datetime,
+                block_number,
+                product_id,
+                investor_id,
+                balance,
+                balance_diff,
+                pending_rewards,
+                pending_rewards_diff,
+                debug_data_uuid
+            ) VALUES %L
+                ON CONFLICT (product_id, investor_id, block_number, datetime) 
+                DO UPDATE SET 
+                  pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
+                  pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
+                  debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+            `,
+          [
+            objAndDataAndUuid.map(({ data, debugDataUuid }) => [
+              data.datetime.toISOString(),
+              data.blockNumber,
+              data.productId,
+              data.investorId,
+              data.balance.toString(),
+              "0", // balance_diff
+              data.pendingRewards?.toString() || null,
+              data.pendingRewardsDiff?.toString() || null,
+              debugDataUuid,
+            ]),
+          ],
+          options.ctx.client,
+        ),
+        db_query(
+          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
+          [
+            objAndDataAndUuid.map(({ data, debugDataUuid }) => [
+              debugDataUuid,
+              data.datetime.toISOString(),
+              "investment_balance_ts",
+              data.investmentData,
+            ]),
+          ],
+          options.ctx.client,
+        ),
+      ]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });

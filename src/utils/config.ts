@@ -39,6 +39,9 @@ export const CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL: SamplingPeriod = 
 // this messes up the log output. set to true to disable the dump
 export const DISABLE_PROGRAMMER_ERROR_DUMP = process.env.DISABLE_PROGRAMMER_ERROR_DUMP === "true";
 
+// disable work concurrency to make debugging easier
+export const DISABLE_WORK_CONCURRENCY = process.env.DISABLE_WORK_CONCURRENCY === "true";
+
 // memory management configs
 // Since there is no backpressure system in rxjs, we need to limit the number of incoming items
 // Fetching investments is a large operation, so we need to limit the number of concurrent requests
