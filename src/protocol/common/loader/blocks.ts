@@ -30,35 +30,35 @@ export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
       // generate debug data uuid for each object
       const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
 
-      await Promise.all([
-        db_query(
-          `INSERT INTO block_ts (
-              datetime,
-              chain,
-              block_number,
-              debug_data_uuid
-          ) VALUES %L
-              ON CONFLICT (block_number, chain, datetime) 
-              DO UPDATE SET 
-              debug_data_uuid = coalesce(block_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
-          `,
-          [
-            uniqBy(objAndDataAndUuid, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(
-              ({ data, debugDataUuid }) => [data.datetime.toISOString(), data.chain, data.blockNumber, debugDataUuid],
-            ),
-          ],
-          options.ctx.client,
-        ),
-        db_query(
-          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [
-            objAndDataAndUuid
-              .filter(({ data }) => !isEmpty(data.blockData)) // don't insert empty data
-              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData]),
-          ],
-          options.ctx.client,
-        ),
-      ]);
+      const upsertPromise = db_query(
+        `INSERT INTO block_ts (
+            datetime,
+            chain,
+            block_number,
+            debug_data_uuid
+        ) VALUES %L
+            ON CONFLICT (block_number, chain, datetime) 
+            DO UPDATE SET 
+            debug_data_uuid = coalesce(block_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+        `,
+        [
+          uniqBy(objAndDataAndUuid, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(
+            ({ data, debugDataUuid }) => [data.datetime.toISOString(), data.chain, data.blockNumber, debugDataUuid],
+          ),
+        ],
+        options.ctx.client,
+      );
+
+      const debugData = objAndDataAndUuid
+        .filter(({ data }) => !isEmpty(data.blockData)) // don't insert empty data
+        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData]);
+
+      const debugPromise =
+        debugData.length <= 0
+          ? Promise.resolve()
+          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
+
+      await Promise.all([upsertPromise, debugPromise]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });

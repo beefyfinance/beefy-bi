@@ -78,53 +78,53 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
       // generate debug data uuid for each object
       const investmentsAndUuid = investments.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
 
-      const results = await Promise.all([
-        db_query<{ product_id: number; investor_id: number; block_number: number }>(
-          `INSERT INTO investment_balance_ts (
-              datetime,
-              block_number,
-              product_id,
-              investor_id,
-              balance,
-              balance_diff,
-              pending_rewards,
-              pending_rewards_diff,
-              debug_data_uuid
-          ) VALUES %L
-              ON CONFLICT (product_id, investor_id, block_number, datetime) 
-              DO UPDATE SET 
-                balance = EXCLUDED.balance, 
-                balance_diff = EXCLUDED.balance_diff,
-                pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
-                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-                debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
-                RETURNING product_id, investor_id, block_number
-          `,
-          [
-            investmentsAndUuid.map(({ data, debugDataUuid }) => [
-              data.datetime.toISOString(),
-              data.blockNumber,
-              data.productId,
-              data.investorId,
-              data.balance.toString(),
-              data.balanceDiff.toString(),
-              data.pendingRewards?.toString() || null,
-              data.pendingRewardsDiff?.toString() || null,
-              debugDataUuid,
-            ]),
-          ],
-          options.ctx.client,
-        ),
-        db_query(
-          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [
-            investmentsAndUuid
-              .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
-              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]),
-          ],
-          options.ctx.client,
-        ),
-      ]);
+      const upsertPromise = db_query<{ product_id: number; investor_id: number; block_number: number }>(
+        `INSERT INTO investment_balance_ts (
+            datetime,
+            block_number,
+            product_id,
+            investor_id,
+            balance,
+            balance_diff,
+            pending_rewards,
+            pending_rewards_diff,
+            debug_data_uuid
+        ) VALUES %L
+            ON CONFLICT (product_id, investor_id, block_number, datetime) 
+            DO UPDATE SET 
+              balance = EXCLUDED.balance, 
+              balance_diff = EXCLUDED.balance_diff,
+              pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
+              pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
+              debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+              RETURNING product_id, investor_id, block_number
+        `,
+        [
+          investmentsAndUuid.map(({ data, debugDataUuid }) => [
+            data.datetime.toISOString(),
+            data.blockNumber,
+            data.productId,
+            data.investorId,
+            data.balance.toString(),
+            data.balanceDiff.toString(),
+            data.pendingRewards?.toString() || null,
+            data.pendingRewardsDiff?.toString() || null,
+            debugDataUuid,
+          ]),
+        ],
+        options.ctx.client,
+      );
+
+      const debugData = investmentsAndUuid
+        .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
+        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]);
+
+      const debugPromise =
+        debugData.length <= 0
+          ? Promise.resolve()
+          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
+
+      const results = await Promise.all([upsertPromise, debugPromise]);
 
       // update debug data
       const idMap = keyBy(results[0], (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
@@ -169,51 +169,51 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
       // generate debug data uuid for each object
       const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
 
+      const upsertPromise = db_query(
+        `INSERT INTO investment_balance_ts (
+              datetime,
+              block_number,
+              product_id,
+              investor_id,
+              balance,
+              balance_diff,
+              pending_rewards,
+              pending_rewards_diff,
+              debug_data_uuid
+          ) VALUES %L
+              ON CONFLICT (product_id, investor_id, block_number, datetime) 
+              DO UPDATE SET 
+                pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
+                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
+                debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+          `,
+        [
+          objAndDataAndUuid.map(({ data, debugDataUuid }) => [
+            data.datetime.toISOString(),
+            data.blockNumber,
+            data.productId,
+            data.investorId,
+            data.balance.toString(),
+            "0", // balance_diff
+            data.pendingRewards?.toString() || null,
+            data.pendingRewardsDiff?.toString() || null,
+            debugDataUuid,
+          ]),
+        ],
+        options.ctx.client,
+      );
+
+      const debugData = objAndDataAndUuid
+        .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
+        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]);
+
+      const debugPromise =
+        debugData.length <= 0
+          ? Promise.resolve()
+          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
+
       // insert into db
-      await Promise.all([
-        db_query(
-          `INSERT INTO investment_balance_ts (
-                datetime,
-                block_number,
-                product_id,
-                investor_id,
-                balance,
-                balance_diff,
-                pending_rewards,
-                pending_rewards_diff,
-                debug_data_uuid
-            ) VALUES %L
-                ON CONFLICT (product_id, investor_id, block_number, datetime) 
-                DO UPDATE SET 
-                  pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
-                  pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-                  debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
-            `,
-          [
-            objAndDataAndUuid.map(({ data, debugDataUuid }) => [
-              data.datetime.toISOString(),
-              data.blockNumber,
-              data.productId,
-              data.investorId,
-              data.balance.toString(),
-              "0", // balance_diff
-              data.pendingRewards?.toString() || null,
-              data.pendingRewardsDiff?.toString() || null,
-              debugDataUuid,
-            ]),
-          ],
-          options.ctx.client,
-        ),
-        db_query(
-          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [
-            objAndDataAndUuid
-              .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
-              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]),
-          ],
-          options.ctx.client,
-        ),
-      ]);
+      await Promise.all([upsertPromise, debugPromise]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });

@@ -43,42 +43,41 @@ export function upsertPrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
       // generate debug data uuid for each object
       const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
 
-      await Promise.all([
-        db_query(
-          `INSERT INTO price_ts (
-              datetime,
-              block_number,
-              price_feed_id,
-              price,
-              debug_data_uuid
-          ) VALUES %L
-              ON CONFLICT (price_feed_id, block_number, datetime) 
-              DO UPDATE SET 
-                price = EXCLUDED.price, 
-                debug_data_uuid = coalesce(price_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
-          `,
-          [
-            uniqBy(objAndDataAndUuid, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data, debugDataUuid }) => [
-              data.datetime.toISOString(),
-              data.blockNumber,
-              data.priceFeedId,
-              data.price.toString(),
-              debugDataUuid,
-            ]),
-          ],
-          options.ctx.client,
-        ),
+      const upsertPromise = db_query(
+        `INSERT INTO price_ts (
+            datetime,
+            block_number,
+            price_feed_id,
+            price,
+            debug_data_uuid
+        ) VALUES %L
+            ON CONFLICT (price_feed_id, block_number, datetime) 
+            DO UPDATE SET 
+              price = EXCLUDED.price, 
+              debug_data_uuid = coalesce(price_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+        `,
+        [
+          uniqBy(objAndDataAndUuid, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data, debugDataUuid }) => [
+            data.datetime.toISOString(),
+            data.blockNumber,
+            data.priceFeedId,
+            data.price.toString(),
+            debugDataUuid,
+          ]),
+        ],
+        options.ctx.client,
+      );
 
-        db_query(
-          `INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`,
-          [
-            objAndDataAndUuid
-              .filter(({ data }) => !isEmpty(data.priceData)) // don't insert empty data
-              .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "price_ts", data.priceData]),
-          ],
-          options.ctx.client,
-        ),
-      ]);
+      const debugData = objAndDataAndUuid
+        .filter(({ data }) => !isEmpty(data.priceData)) // don't insert empty data
+        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "price_ts", data.priceData]);
+
+      const debugPromise =
+        debugData.length <= 0
+          ? Promise.resolve()
+          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
+
+      await Promise.all([upsertPromise, debugPromise]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });
