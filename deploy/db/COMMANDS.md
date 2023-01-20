@@ -233,6 +233,10 @@ create table test as
 
 
 
+SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertable_schema, hypertable_name)::regclass))
+  FROM timescaledb_information.hypertables;
+
+
 begin;
 alter table investment_balance_ts rename column investment_data to _investment_data;
 alter table investment_balance_ts add column pending_rewards NUMERIC(100, 24);
@@ -284,5 +288,32 @@ vacuum full analyze price_ts;
 vacuum full analyze block_ts;
 vacuum full analyze investment_balance_ts;
 
+
+```
+
+```text
+
+-- BEFORE
+SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertable_schema, hypertable_name)::regclass))
+  FROM timescaledb_information.hypertables;
+    hypertable_name    | pg_size_pretty
+-----------------------+----------------
+ investment_balance_ts | 14 GB
+ block_ts              | 4341 MB
+ price_ts              | 45 GB
+(3 rows)
+
+-- AFTER
+SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertable_schema, hypertable_name)::regclass))
+  FROM timescaledb_information.hypertables;
+    hypertable_name    | pg_size_pretty
+-----------------------+----------------
+ investment_balance_ts | 5763 MB
+ block_ts              | 4050 MB
+ price_ts              | 23 GB
+ debug_data_ts         | 49 GB
+(4 rows)
+
+-- ENABLING COMPRESSION ON DEBUG DATA
 
 ```
