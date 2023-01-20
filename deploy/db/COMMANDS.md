@@ -267,20 +267,17 @@ select datetime, 'investment_balance_ts', debug_data_uuid, investment_data from 
 alter table investment_balance_ts drop column investment_data;
 alter table investment_balance_ts alter column debug_data_uuid drop default;
 
-
 alter table price_ts add column debug_data_uuid uuid not null default uuid_generate_v4();
 insert into debug_data_ts (datetime, origin_table, debug_data_uuid, debug_data)
 select datetime, 'price_ts', debug_data_uuid, price_data from price_ts;
 alter table price_ts drop column price_data;
 alter table price_ts alter column debug_data_uuid drop default;
 
-
 alter table block_ts add column debug_data_uuid uuid not null default uuid_generate_v4();
 insert into debug_data_ts (datetime, origin_table, debug_data_uuid, debug_data)
 select datetime, 'block_ts', debug_data_uuid, block_data from block_ts;
 alter table block_ts drop column block_data;
 alter table block_ts alter column debug_data_uuid drop default;
-
 COMMIT;
 
 vacuum full analyze price_ts;
