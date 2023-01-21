@@ -151,7 +151,7 @@ function processShareRateQuery$<
         blockNumber: item.rangeMidpoint,
         priceFeedId: item.target.priceFeedId,
         price: item.ppfs,
-        priceData: { from: "ppfs-snapshots", query: { range: item.range, midPoint: item.rangeMidpoint, latest: item.latest } },
+        priceData: { from: "p" /** ppfs-snapshots */, query: { range: item.range, midPoint: item.rangeMidpoint, latest: item.latest } },
       }),
       formatOutput: (priceData, price) => ({ ...priceData, price }),
     }),
