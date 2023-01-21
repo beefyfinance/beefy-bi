@@ -521,7 +521,7 @@ export async function db_migrate() {
 
   // pre-aggregated price data
   await db_query(`
-    CREATE MATERIALIZED VIEW IF NOT EXISTS price_ts_cagg_price_ts_1h
+    CREATE MATERIALIZED VIEW IF NOT EXISTS price_ts_cagg_1h
     WITH (timescaledb.continuous) AS
     SELECT price_feed_id,
       time_bucket(INTERVAL '1 hour', datetime) AS datetime,
@@ -541,18 +541,18 @@ export async function db_migrate() {
      */
   `);
 
-  if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
+  if (!hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
     await db_query(`
-      SELECT add_continuous_aggregate_policy('price_ts_cagg_price_ts_1h',
+      SELECT add_continuous_aggregate_policy('price_ts_cagg_1h',
         start_offset => INTERVAL '1 day',
         end_offset => INTERVAL '2 hours',
-        schedule_interval => INTERVAL '1 hour'
+        schedule_interval => INTERVAL '4 hour'
       );
     `);
   }
-  if (!hasPolicy("public", "price_ts_cagg_price_ts_1h", "continuous_aggregate", "policy_retention")) {
+  if (!hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_retention")) {
     await db_query(`
-      SELECT add_retention_policy('price_ts_cagg_price_ts_1h', INTERVAL '2 months');
+      SELECT add_retention_policy('price_ts_cagg_1h', INTERVAL '2 months');
     `);
   }
 
