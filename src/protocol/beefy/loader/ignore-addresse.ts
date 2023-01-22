@@ -1,12 +1,11 @@
-import { keyBy, uniqBy } from "lodash";
+import { keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { DbClient, db_query, strAddressToPgBytea } from "../../../utils/db";
+import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { DbIgnoreAddress, upsertIgnoreAddress$ } from "../../common/loader/ignore-address";
 import { productList$ } from "../../common/loader/product";
-import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
-import { dbBatchCall$ } from "../../common/utils/db-batch";
+import { ImportCtx } from "../../common/types/import-context";
 import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { beefyZapsFromGit$ } from "../connector/zap-list";
 import { getProductContractAddress } from "../utils/contract-accessors";
@@ -41,7 +40,7 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
     );
 
     const manualAddresses$ = Rx.pipe(
-      Rx.mergeMap((chain: Chain) => [
+      Rx.mergeMap((chain: Chain): DbIgnoreAddress[] => [
         // also ignore the default mintburn address
         {
           address: "0x0000000000000000000000000000000000000000",
@@ -109,8 +108,8 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
         {
           address: "0x3983C50fF4CD25b43A335D63839B1E36C7930D41",
           chain: "optimism",
-        }
-      ] satisfies DbIgnoreAddress[]),
+        },
+      ]),
     );
 
     return Rx.pipe(
@@ -140,11 +139,8 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
   return createChainRunner(options.runnerConfig, createPipeline);
 }
 
-export async function createShouldIgnoreFn(options: {
-  client: DbClient;
-  chain: Chain;
-}): Promise<(ownerAddress: string) => boolean> {
-  const result = await db_query<{ address: string; }>(
+export async function createShouldIgnoreFn(options: { client: DbClient; chain: Chain }): Promise<(ownerAddress: string) => boolean> {
+  const result = await db_query<{ address: string }>(
     `
     SELECT lower(bytea_to_hexstr(address)) as address
     FROM ignore_address
