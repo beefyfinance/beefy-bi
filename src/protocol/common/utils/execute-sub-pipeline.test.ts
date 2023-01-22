@@ -19,7 +19,7 @@ describe("executeSubPipeline$", () => {
       executeSubPipeline$({
         ctx,
         emitError: (obj) => errors.push(obj),
-        getObjs: (obj) => obj.targets,
+        getObjs: async (obj) => obj.targets,
         pipeline: (emitError) => Rx.pipe(Rx.map((item) => ({ ...item, result: item.target * 2 }))),
         formatOutput: (obj, result) => ({ ...obj, result: obj.targets.map((t) => result.get(t)) }),
       }),
@@ -48,7 +48,7 @@ describe("executeSubPipeline$", () => {
       executeSubPipeline$({
         ctx,
         emitError: (obj) => errors.push(obj),
-        getObjs: (obj) => obj.targets,
+        getObjs: async (obj) => obj.targets,
         pipeline: (emitError) =>
           Rx.pipe(
             Rx.filter((item) => item.target !== 5),
@@ -75,7 +75,7 @@ describe("executeSubPipeline$", () => {
       executeSubPipeline$({
         ctx,
         emitError: (obj) => errors.push(obj),
-        getObjs: (obj) => obj.targets,
+        getObjs: async (obj) => obj.targets,
         pipeline: (emitError) =>
           Rx.pipe(
             Rx.filter((item) => {
@@ -114,7 +114,7 @@ describe("executeSubPipeline$", () => {
       executeSubPipeline$({
         ctx,
         emitError: (obj) => errors.push(obj),
-        getObjs: (obj) => obj.targets,
+        getObjs: async (obj) => obj.targets,
         pipeline: (emitError) =>
           Rx.pipe(
             Rx.filter((item) => {
@@ -147,7 +147,7 @@ describe("executeSubPipeline$", () => {
       executeSubPipeline$({
         ctx,
         emitError: (obj) => errors.push(obj),
-        getObjs: (obj) => obj.targets,
+        getObjs: async (obj) => obj.targets,
         pipeline: (emitError) =>
           Rx.pipe(
             Rx.connect((items$) =>

@@ -15,7 +15,7 @@ const logger = rootLogger.child({ module: "common", component: "execute-sub-pipe
 export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TSubTarget, TSubPipelineRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getObjs: (item: TObj) => TSubTarget[];
+  getObjs: (item: TObj) => Promise<TSubTarget[]>;
   pipeline: (
     emitError: ErrorEmitter<{ target: TSubTarget; parent: TObj }>,
   ) => Rx.OperatorFunction<{ target: TSubTarget; parent: TObj }, { target: TSubTarget; parent: TObj; result: TSubPipelineRes }>;
@@ -31,7 +31,7 @@ export function executeSubPipeline$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
       Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, 300),
       Rx.filter((objs) => objs.length > 0),
 
-      Rx.map((objs) => objs.map((obj) => ({ obj, targets: options.getObjs(obj) }))),
+      Rx.mergeMap((objs) => Promise.all(objs.map(async (obj) => ({ obj, targets: await options.getObjs(obj) })))),
       Rx.tap((items) =>
         logger.debug({
           msg: "Importing a batch of values",

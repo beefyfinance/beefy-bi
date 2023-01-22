@@ -115,7 +115,7 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<UnderlyingPriceFeedI
     executeSubPipeline$({
       ctx: options.ctx,
       emitError: options.emitError,
-      getObjs: (item) => item.prices,
+      getObjs: async (item) => item.prices,
       pipeline: (emitError) =>
         Rx.pipe(
           upsertPrice$({

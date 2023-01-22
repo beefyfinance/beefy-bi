@@ -1,6 +1,5 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
-import { normalizeAddress } from "../../../../utils/ethers";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range } from "../../../../utils/range";
@@ -25,6 +24,7 @@ import {
   isBeefyStandardVault,
   isBeefyStandardVaultProductImportQuery,
 } from "../../utils/type-guard";
+import { createShouldIgnoreFn } from "../ignore-addresse";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
@@ -56,20 +56,11 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       },
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
-
-    // add an ignore address so we can pipe this observable into the main pipeline again
-    Rx.map((item) => ({ ...item, ignoreAddresses: [item.target.productData.boost.contract_address] })),
   );
 
   const standardVaultTransfers$ = Rx.pipe(
     // set the right product type
     Rx.filter(isBeefyStandardVaultProductImportQuery),
-
-    // for standard vaults, we only ignore the mint-burn addresses
-    Rx.map((item) => ({
-      ...item,
-      ignoreAddresses: [normalizeAddress("0x0000000000000000000000000000000000000000")],
-    })),
 
     // fetch the vault transfers
     fetchErc20Transfers$({
@@ -98,16 +89,6 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     // set the right product type
     Rx.filter(isBeefyGovVaultProductImportQuery),
 
-    // for gov vaults, we ignore the vault address and the associated maxi vault to avoid double counting
-    // todo: ignore the maxi vault
-    Rx.map((item) => ({
-      ...item,
-      ignoreAddresses: [
-        normalizeAddress("0x0000000000000000000000000000000000000000"),
-        normalizeAddress(item.target.productData.vault.contract_address),
-      ],
-    })),
-
     fetchERC20TransferToAStakingContract$({
       ctx: options.ctx,
       emitError: options.emitGovVaultError,
@@ -126,6 +107,8 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       formatOutput: (item, transfers) => ({ ...item, transfers }),
     }),
   );
+
+  const shouldIgnoreFnPromise = createShouldIgnoreFn({ client: options.ctx.client, chain: options.ctx.chain });
 
   return Rx.pipe(
     // add typings to the input item
@@ -168,8 +151,9 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
           throw new ProgrammerError("Unknown product type");
         }
       },
-      getObjs: (item) =>
-        item.transfers
+      getObjs: async (item) => {
+        const shouldIgnoreFn = await shouldIgnoreFnPromise;
+        return item.transfers
           .map(
             (transfer): TransferToLoad => ({
               transfer,
@@ -179,12 +163,13 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
             }),
           )
           .filter((transfer) => {
-            const shouldIgnore = item.ignoreAddresses.some((ignoreAddr) => ignoreAddr === normalizeAddress(transfer.transfer.ownerAddress));
+            const shouldIgnore = shouldIgnoreFn(transfer.transfer.ownerAddress, transfer.product.productId);
             if (shouldIgnore) {
-              //  logger.trace({ msg: "ignoring transfer", data: { chain: options.chain, transferData: item } });
+              logger.trace({ msg: "ignoring transfer", data: { chain: options.ctx.chain, transferData: item } });
             }
             return !shouldIgnore;
-          }),
+          });
+      },
       pipeline: (emitError) => loadTransfers$({ ctx: options.ctx, emitError }),
       formatOutput: (item, _ /* we don't care about the result */) => item,
     }),
