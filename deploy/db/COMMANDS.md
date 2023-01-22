@@ -452,6 +452,8 @@ insert into beefy_investor_timeline_cache_ts (
 
 ```sql
 
+
+
 delete from investment_balance_ts where investor_id in (
 select i.investor_id
 from ignore_address ia
