@@ -118,12 +118,11 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           ctx,
           emitError: emitVaultError,
           getProductData: (item) => {
-            const vaultId = normalizeVaultId(item.vault.id);
             const isGov = item.vault.is_gov_vault;
 
             return {
               // vault ids are unique by chain
-              productKey: `beefy:vault:${item.vault.chain}:${vaultId}`,
+              productKey: `beefy:vault:${item.vault.chain}:${item.vault.contract_address.toLocaleLowerCase()}`,
               priceFeedId1: item.priceFeed1.priceFeedId,
               priceFeedId2: item.priceFeed2.priceFeedId,
               pendingRewardsPriceFeedId: item.pendingRewardsPriceFeed?.priceFeedId || null,
@@ -211,7 +210,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           emitError: emitBoostError,
           getProductData: (item) => {
             return {
-              productKey: `beefy:boost:${item.boost.chain}:${item.boost.id}`,
+              productKey: `beefy:boost:${item.boost.chain}:${item.boost.contract_address.toLocaleLowerCase()}`,
               priceFeedId1: item.priceFeedId1,
               priceFeedId2: item.priceFeedId2,
               pendingRewardsPriceFeedId: item.pendingRewardsPriceFeed?.priceFeedId || null,

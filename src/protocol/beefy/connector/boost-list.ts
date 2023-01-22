@@ -80,23 +80,23 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
     // process the vaults in chronolical order and mark the eol date if found
     Rx.reduce((acc, { fileVersion, boosts }) => {
       // reset the foundInCurrentBatch flag
-      for (const boostId of Object.keys(acc)) {
-        acc[boostId].foundInCurrentBatch = false;
+      for (const boostAddress of Object.keys(acc)) {
+        acc[boostAddress].foundInCurrentBatch = false;
       }
 
       // add vaults to the accumulator
       for (const boost of boosts) {
-        const boostId = boost.id;
-        if (!acc[boostId]) {
+        const boostAddress = normalizeAddress(boost.earnContractAddress);
+        if (!acc[boostAddress]) {
           const eolDate = boost.status === "closed" ? fileVersion.date : null;
-          acc[boostId] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
+          acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
         } else {
-          if (acc[boostId].fileVersion.date > fileVersion.date) {
+          if (acc[boostAddress].fileVersion.date > fileVersion.date) {
             logger.warn({
               msg: "Found a boost with a newer version in the past",
               data: {
-                boostId,
-                previousDate: acc[boostId].fileVersion.date,
+                boostAddress,
+                previousDate: acc[boostAddress].fileVersion.date,
                 newDate: fileVersion.date,
                 boost,
               },
@@ -104,16 +104,16 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
             continue;
           }
 
-          const eolDate = boost.status === "closed" ? acc[boostId].eolDate || fileVersion.date : null;
-          acc[boostId] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
+          const eolDate = boost.status === "closed" ? acc[boostAddress].eolDate || fileVersion.date : null;
+          acc[boostAddress] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
         }
       }
 
       // mark all deleted vaults as eol if not already done
-      for (const boostId of Object.keys(acc)) {
-        if (!acc[boostId].foundInCurrentBatch) {
-          acc[boostId].boost.status = "closed";
-          acc[boostId].eolDate = acc[boostId].eolDate || fileVersion.date;
+      for (const boostAddress of Object.keys(acc)) {
+        if (!acc[boostAddress].foundInCurrentBatch) {
+          acc[boostAddress].boost.status = "closed";
+          acc[boostAddress].eolDate = acc[boostAddress].eolDate || fileVersion.date;
         }
       }
 

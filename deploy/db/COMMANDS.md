@@ -381,4 +381,94 @@ insert into beefy_investor_timeline_cache_ts (
   join product p on p.product_id = b.product_id
 );
 
+
+select
+  product_key,
+  chain,
+  product_data->'vault'->'eol',
+  product_data->'vault'->'id'
+from product
+where product_key not like '%' || (product_data->'vault'->>'id')
+order by 2;
+
+
+delete from investment_balance_ts where product_id in (
+  -- delete products with wrong product key, might have inserted wrong product data here
+  select product_id from product
+  where product_key not like '%' || (product_data->'vault'->>'id')
+
+  union all
+
+  -- delete products with duplicate addresses
+  select unnest(product_ids) as product_id
+  from (
+    select chain, lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address')), count(*), array_agg(product_id) as product_ids
+    from product
+    group by 1,2
+    having count(*) > 1
+  ) as t
+);
+
+delete from product where product_id in (
+  -- delete products with wrong product key, might have inserted wrong product data here
+  select product_id from product
+  where product_key not like '%' || (product_data->'vault'->>'id')
+
+  union all
+
+  -- delete products with duplicate addresses
+  select unnest(product_ids) as product_id
+  from (
+    select chain, lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address')), count(*), array_agg(product_id) as product_ids
+    from product
+    group by 1,2
+    having count(*) > 1
+  ) as t
+);
+
+
+-- fix product keys
+update product
+set product_key = regexp_replace(product_key, '^(beefy:.+?:.+?:).+?$', '\1') || lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address'));
+
+-- cleanup import state
+delete
+from import_state
+where import_key ~* '^product:investment:[0-9]+$'
+and import_key not in (
+  select 'product:investment:' || product_id
+  from product
+);
+
+delete
+from import_state
+where import_key ~* '^product:investment:pending-reward:[0-9]+:[0-9]+$'
+and regexp_replace(import_key, ':[0-9]+$', '') not in (
+  select 'product:investment:pending-reward:' || product_id
+  from product
+);
+
+delete from price_ts where price_feed_id not in (
+  select price_feed_1_id from product
+  union all
+  select price_feed_2_id from product
+  union all
+  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
+);
+
+delete from price_feed where price_feed_id not in (
+  select price_feed_1_id from product
+  union all
+  select price_feed_2_id from product
+  union all
+  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
+);
+
+delete from import_state
+where import_key ~* '^price:feed:[0-9]+$'
+and import_key not in (
+  select 'price:feed:' || price_feed_id
+  from price_feed
+);
+
 ```

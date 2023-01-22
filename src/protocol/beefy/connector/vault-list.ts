@@ -7,7 +7,6 @@ import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config"
 import { normalizeAddress } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
-import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 
@@ -125,8 +124,8 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     // process the vaults in chronolical order and mark the eol date if found
     Rx.reduce((acc, { fileVersion, vaults }) => {
       // reset the foundInCurrentBatch flag
-      for (const vaultId of Object.keys(acc)) {
-        acc[vaultId].foundInCurrentBatch = false;
+      for (const vaultAddress of Object.keys(acc)) {
+        acc[vaultAddress].foundInCurrentBatch = false;
       }
 
       // add vaults to the accumulator
@@ -138,17 +137,18 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
           continue;
         }
 
-        const vaultId = normalizeVaultId(vault.id);
-        if (!acc[vaultId]) {
+        // index by contract address since beefy's team changes ids when the vault is eol
+        const vaultAddress = normalizeAddress(vault.earnContractAddress);
+        if (!acc[vaultAddress]) {
           const eolDate = vault.status === "eol" ? fileVersion.date : null;
-          acc[vaultId] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
+          acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
         } else {
-          if (acc[vaultId].fileVersion.date > fileVersion.date) {
+          if (acc[vaultAddress].fileVersion.date > fileVersion.date) {
             logger.warn({
               msg: "Found a vault with a newer version in the past",
               data: {
-                vaultId,
-                previousDate: acc[vaultId].fileVersion.date,
+                vaultAddress,
+                previousDate: acc[vaultAddress].fileVersion.date,
                 newDate: fileVersion.date,
                 vault,
               },
@@ -156,16 +156,16 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
             continue;
           }
 
-          const eolDate = vault.status === "eol" ? acc[vaultId].eolDate || fileVersion.date : null;
-          acc[vaultId] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
+          const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
+          acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
         }
       }
 
       // mark all deleted vaults as eol if not already done
-      for (const vaultId of Object.keys(acc)) {
-        if (!acc[vaultId].foundInCurrentBatch) {
-          acc[vaultId].vault.status = "eol";
-          acc[vaultId].eolDate = acc[vaultId].eolDate || fileVersion.date;
+      for (const vaultAddress of Object.keys(acc)) {
+        if (!acc[vaultAddress].foundInCurrentBatch) {
+          acc[vaultAddress].vault.status = "eol";
+          acc[vaultAddress].eolDate = acc[vaultAddress].eolDate || fileVersion.date;
         }
       }
 
