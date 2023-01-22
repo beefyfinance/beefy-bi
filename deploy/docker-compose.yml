@@ -157,6 +157,12 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 1day"
 
+  importer-ignore-addresses:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t ignore-address -l 1day"
+
   importer-prices-historical:
     <<: *importer
     environment:

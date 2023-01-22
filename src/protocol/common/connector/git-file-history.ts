@@ -23,6 +23,7 @@ export async function* gitStreamFileVersions(options: {
   order: "recent-to-old" | "old-to-recent";
   throwOnError: boolean;
   onePerMonth?: boolean;
+  limit?: number;
 }): AsyncGenerator<GitFileVersion> {
   const baseOptions: Partial<SimpleGitOptions> = {
     binary: "git",
@@ -97,6 +98,10 @@ export async function* gitStreamFileVersions(options: {
       data: { allLogsCount: logs.length, filteredLogsCount: filteredLogs.length },
     });
     logs = filteredLogs;
+  }
+
+  if (options.limit) {
+    logs = logs.slice(0, options.limit);
   }
 
   // for each hash, get the file content

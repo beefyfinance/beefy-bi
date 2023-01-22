@@ -17,6 +17,7 @@ import { ErrorReport } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
 import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
+import { createBeefyIgnoreAddressRunner } from "../loader/ignore-addresse";
 import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
 import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
 import { createBeefyHistoricalShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
@@ -32,7 +33,15 @@ interface CmdParams {
   rpcCount: number | "all";
   forceRpcUrl: string | null;
   forceGetLogsBlockSpan: number | null;
-  task: "historical" | "recent" | "products" | "recent-prices" | "historical-prices" | "historical-share-rate" | "reward-snapshots";
+  task:
+    | "historical"
+    | "recent"
+    | "products"
+    | "ignore-address"
+    | "recent-prices"
+    | "historical-prices"
+    | "historical-share-rate"
+    | "reward-snapshots";
   filterChains: Chain[];
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
@@ -61,7 +70,16 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
         includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
         task: {
-          choices: ["historical", "recent", "products", "recent-prices", "historical-prices", "historical-share-rate", "reward-snapshots"],
+          choices: [
+            "historical",
+            "recent",
+            "products",
+            "ignore-address",
+            "recent-prices",
+            "historical-prices",
+            "historical-share-rate",
+            "reward-snapshots",
+          ],
           demand: true,
           alias: "t",
           describe: "what to run",
@@ -131,6 +149,8 @@ function getTasksToRun(cmdParams: CmdParams) {
       return [() => importBeefyDataPrices(cmdParams)];
     case "historical-prices":
       return [() => importBeefyDataPrices(cmdParams)];
+    case "ignore-address":
+      return [() => importIgnoreAddress(cmdParams)];
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
     case "reward-snapshots":
@@ -152,6 +172,22 @@ async function importProducts(cmdParams: CmdParams) {
   };
 
   const runner = createBeefyProductRunner({ runnerConfig, client: cmdParams.client });
+
+  return runner.run();
+}
+
+async function importIgnoreAddress(cmdParams: CmdParams) {
+  // now import data for those
+  const runnerConfig: NoRpcRunnerConfig<Chain> = {
+    client: cmdParams.client,
+    mode: "recent",
+    getInputs: async () => cmdParams.filterChains,
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    repeat: cmdParams.loopEvery !== null,
+  };
+
+  const runner = createBeefyIgnoreAddressRunner({ runnerConfig, client: cmdParams.client });
 
   return runner.run();
 }

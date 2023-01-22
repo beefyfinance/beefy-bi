@@ -325,3 +325,60 @@ SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertabl
  debug_data_ts         | 32 GB
 (4 rows)
 ```
+
+```sql
+insert into beefy_investor_timeline_cache_ts (
+  investor_id,
+  product_id,
+  datetime,
+  block_number,
+  share_balance,
+  share_diff,
+  share_to_underlying_price,
+  underlying_balance,
+  underlying_diff,
+  underlying_to_usd_price,
+  usd_balance,
+  usd_diff
+) (
+  with investment_diff_raw as (
+    select b.datetime, b.block_number, b.investor_id, b.product_id,
+      last(b.balance, b.datetime) as balance,
+      sum(b.balance_diff) as balance_diff,
+      last(pr1.price::numeric, pr1.datetime) as price1,
+      last(pr2.price::numeric, pr2.datetime) as price2
+    from investment_balance_ts b
+    left join product p
+      on b.product_id = p.product_id
+    -- we should have the exact price1 (share to underlying) from this exact block for all investment change
+    left join price_ts pr1
+      on p.price_feed_1_id = pr1.price_feed_id
+      and pr1.datetime = b.datetime
+      and pr1.block_number = b.block_number
+    -- but for price 2 (underlying to usd) we need to match on approx time
+    left join price_ts pr2
+      on p.price_feed_2_id = pr2.price_feed_id
+      and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
+    where b.balance_diff != 0 -- only show changes, not reward snapshots
+    group by 1,2,3,4
+    having sum(b.balance_diff) != 0 -- only show changes, not reward snapshots
+  )
+  select
+    b.investor_id,
+    b.product_id,
+    b.datetime,
+    b.block_number,
+
+    b.balance as share_balance,
+    b.balance_diff as share_diff,
+    b.price1 as share_to_underlying_price,
+    (b.balance * b.price1)::NUMERIC(100, 24) as underlying_balance,
+    (b.balance_diff * b.price1)::NUMERIC(100, 24) as underlying_diff,
+    b.price2 as underlying_to_usd_price,
+    (b.balance * b.price1 * b.price2)::NUMERIC(100, 24) as usd_balance,
+    (b.balance_diff * b.price1 * b.price2)::NUMERIC(100, 24) as usd_diff
+  from investment_diff_raw b
+  join product p on p.product_id = b.product_id
+);
+
+```

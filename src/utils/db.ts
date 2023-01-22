@@ -422,6 +422,16 @@ export async function db_migrate() {
     );
   `);
 
+  // list of ignored addresses
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS ignore_address (
+      chain chain_enum NOT NULL,
+      address evm_address_bytea NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS ignore_address_chain_address_idx ON ignore_address (chain, address);
+  `);
+
   // this is used to store import meta data for debug purpose, this can grow big and is separated from other ts
   // tables to keep them small and lean. Also, we want to be able to use compression on most of this debug data
   // but as of now, it's not possible to do `INSERT ... ON CONFLICT` on a compressed hypertable
@@ -712,6 +722,42 @@ export async function db_migrate() {
       from price_gf_ts
     $$
     language sql;
+  `);
+
+  // create a denormalized table specifically built to serve beefy's investor page
+  // this table is partitioned by investor id and is meant to be optimized for retrieving
+  // the whole investor history in one go so the client can compute P&L locally.
+  // Most fields are denormalized to avoid joins and nullable to account for data arriving at different times
+  // it's only a timescaledb hypertable so we don't have to manage partitions manually, nothing else
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_investor_timeline_cache_ts (
+      investor_id integer not null references investor(investor_id),
+      product_id integer not null references product(product_id),
+      datetime timestamptz not null,
+      block_number integer not null,
+
+      share_balance evm_decimal_256_nullable,
+      share_diff evm_decimal_256_nullable,
+      share_to_underlying_price evm_decimal_256_nullable,
+      underlying_balance evm_decimal_256_nullable,
+      underlying_diff evm_decimal_256_nullable,
+      underlying_to_usd_price evm_decimal_256_nullable,
+      usd_balance evm_decimal_256_nullable,
+      usd_diff evm_decimal_256_nullable
+    );
+
+    SELECT create_hypertable(
+      relation => 'beefy_investor_timeline_cache_ts', 
+      time_column_name => 'datetime',
+      if_not_exists => true,
+      -- we want all data in one chunk
+      chunk_time_interval => INTERVAL '1000 years',
+      partitioning_column => 'investor_id',
+      number_partitions => 1000
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS beefy_investor_cache_uniq_idx ON beefy_investor_timeline_cache_ts (investor_id, product_id, block_number, datetime);
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_query_idx ON beefy_investor_timeline_cache_ts (investor_id);
   `);
 
   logger.info({ msg: "Migrate done" });

@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
-import { SamplingPeriod } from "../../types/sampling";
 import { addressSchema } from "../schema/address";
 import { productKeySchema } from "../schema/product";
 import { TimeBucket, timeBucketSchema, timeBucketToSamplingPeriod } from "../schema/time-bucket";
