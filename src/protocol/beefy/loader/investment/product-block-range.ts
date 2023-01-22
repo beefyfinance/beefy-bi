@@ -163,7 +163,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
             }),
           )
           .filter((transfer) => {
-            const shouldIgnore = shouldIgnoreFn(transfer.transfer.ownerAddress, transfer.product.productId);
+            const shouldIgnore = shouldIgnoreFn(transfer.transfer.ownerAddress);
             if (shouldIgnore) {
               logger.trace({ msg: "ignoring transfer", data: { chain: options.ctx.chain, transferData: item } });
             }

@@ -7,7 +7,6 @@ import { dbBatchCall$ } from "../utils/db-batch";
 export interface DbIgnoreAddress {
   chain: Chain;
   address: string;
-  restrictToProductId: number | null;
 }
 
 export function upsertIgnoreAddress$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbIgnoreAddress>(options: {
@@ -24,22 +23,13 @@ export function upsertIgnoreAddress$<TObj, TErr extends ErrorEmitter<TObj>, TRes
     logInfos: { msg: "upsert ignore address data" },
     processBatch: async (objAndData) => {
       await db_query(
-        `INSERT INTO ignore_address (chain, address, restrict_to_product_id) VALUES %L 
-        ON CONFLICT (chain, address) 
-        DO UPDATE SET restrict_to_product_id = EXCLUDED.restrict_to_product_id`,
-        [
-          uniqBy(objAndData, ({ data }) => `${data.chain}:${data.address}`).map((obj) => [
-            obj.data.chain,
-            strAddressToPgBytea(obj.data.address),
-            obj.data.restrictToProductId,
-          ]),
-        ],
+        `INSERT INTO ignore_address (chain, address) VALUES %L 
+        ON CONFLICT (chain, address) DO NOTHING`,
+        [uniqBy(objAndData, ({ data }) => `${data.chain}:${data.address}`).map((obj) => [obj.data.chain, strAddressToPgBytea(obj.data.address)])],
         options.ctx.client,
       );
 
-      return new Map(
-        objAndData.map(({ data }) => [data, { chain: data.chain, address: data.address, restrictToProductId: data.restrictToProductId }]),
-      );
+      return new Map(objAndData.map(({ data }) => [data, { chain: data.chain, address: data.address }]));
     },
   });
 }

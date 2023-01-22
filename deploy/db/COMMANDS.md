@@ -367,15 +367,29 @@ and import_key not in (
   from price_feed
 );
 
-delete from debug_data where debug_data_uuid not in (
+-- decompress first
+SELECT remove_compression_policy('debug_data_ts');
+select decompress_chunk(c)
+  from show_chunks('debug_data_ts') as c;
+
+delete from debug_data_ts where debug_data_uuid not in (
   select debug_data_uuid from investment_balance_ts
   union all
   select debug_data_uuid from price_ts
   union all
   select debug_data_uuid from block_ts
 );
+-- recompress
+SELECT add_compression_policy('debug_data_ts', INTERVAL '7 days');
+select compress_chunk(c)
+  from show_chunks('debug_data_ts') as c;
 
 
+-- reclaim some space
+vacuum full analyze price_ts;
+vacuum full analyze block_ts;
+vacuum full analyze investment_balance_ts;
+vacuum full analyze debug_data_ts;
 ```
 
 ```sql
@@ -434,53 +448,33 @@ insert into beefy_investor_timeline_cache_ts (
 );
 
 
-select
-  product_key,
-  chain,
-  product_data->'vault'->'eol',
-  product_data->'vault'->'id'
-from product
-where product_key not like '%' || (product_data->'vault'->>'id')
-order by 2;
+```
 
+```sql
 
-delete from investment_balance_ts where product_id in (
-  -- delete products with wrong product key, might have inserted wrong product data here
-  select product_id from product
-  where product_key not like '%' || (product_data->'vault'->>'id')
-
-  union all
-
-  -- delete products with duplicate addresses
-  select unnest(product_ids) as product_id
-  from (
-    select chain, lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address')), count(*), array_agg(product_id) as product_ids
-    from product
-    group by 1,2
-    having count(*) > 1
-  ) as t
-);
-
-delete from product where product_id in (
-  -- delete products with wrong product key, might have inserted wrong product data here
-  select product_id from product
-  where product_key not like '%' || (product_data->'vault'->>'id')
-
-  union all
-
-  -- delete products with duplicate addresses
-  select unnest(product_ids) as product_id
-  from (
-    select chain, lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address')), count(*), array_agg(product_id) as product_ids
-    from product
-    group by 1,2
-    having count(*) > 1
-  ) as t
+delete from investment_balance_ts where investor_id in (
+select i.investor_id
+from ignore_address ia
+join investor i on ia.address = i.address
+where ia.restrict_to_product_id is null
 );
 
 
--- fix product keys
-update product
-set product_key = regexp_replace(product_key, '^(beefy:.+?:.+?:).+?$', '\1') || lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address'));
+delete from investor where investor_id in (
+select i.investor_id
+from ignore_address ia
+join investor i on ia.address = i.address
+where ia.restrict_to_product_id is null
+);
+
+
+select b.investor_id, p.product_id, p.chain, i.address, count(*)
+from investment_balance_ts b
+left join product p on b.product_id = p.product_id
+left join investor i on b.investor_id = i.investor_id
+where balance_diff != 0
+group by 1,2,3,4
+order by count(*) desc
+limit 20;
 
 ```

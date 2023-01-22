@@ -3,14 +3,13 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient, db_query, strAddressToPgBytea } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { upsertIgnoreAddress$ } from "../../common/loader/ignore-address";
+import { DbIgnoreAddress, upsertIgnoreAddress$ } from "../../common/loader/ignore-address";
 import { productList$ } from "../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
 import { dbBatchCall$ } from "../../common/utils/db-batch";
 import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { beefyZapsFromGit$ } from "../connector/zap-list";
 import { getProductContractAddress } from "../utils/contract-accessors";
-import { isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-products" });
 
@@ -28,7 +27,6 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
       Rx.map((zap) => ({
         address: zap.address,
         chain: zap.chain,
-        restrictToProductId: null,
       })),
     );
 
@@ -39,47 +37,85 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
       Rx.map((product) => ({
         address: getProductContractAddress(product),
         chain: product.chain,
-        restrictToProductId: null,
       })),
     );
 
-    // also ignore the maxi vault from gov vaults
-    const maxiVaults$ = Rx.pipe(
-      Rx.mergeMap((chain: Chain) =>
-        productList$(options.client, "beefy", chain).pipe(
-          Rx.toArray(),
-          Rx.mergeMap((products) => {
-            const maxiVault = products.filter(isBeefyStandardVault).find((product) => product.productData.vault.id.endsWith("bifi-maxi"));
-            const govVault = products.filter(isBeefyGovVault).find((product) => product.productData.vault.id.endsWith("bifi-gov"));
-
-            if (maxiVault && govVault) {
-              return Rx.from([
-                {
-                  address: getProductContractAddress(govVault),
-                  chain: govVault.chain,
-                  restrictToProductId: maxiVault.productId,
-                },
-              ]);
-            } else {
-              return Rx.EMPTY;
-            }
-          }),
-        ),
-      ),
-    );
-
-    // also ignore the default mintburn address
-    const defaultMintBurnAddress$ = Rx.pipe(
-      Rx.map((chain: Chain) => ({
-        address: "0x0000000000000000000000000000000000000000",
-        chain,
-        restrictToProductId: null,
-      })),
+    const manualAddresses$ = Rx.pipe(
+      Rx.mergeMap((chain: Chain) => [
+        // also ignore the default mintburn address
+        {
+          address: "0x0000000000000000000000000000000000000000",
+          chain,
+        },
+        // a GateManagerMultiRewards contract
+        {
+          address: "0x2c85A6aA1974230d3e91bA32956271E5A11b0392",
+          chain: "bsc",
+        },
+        {
+          address: "0xB9208616368c362c531aFE3b813a5cef181399b7",
+          chain: "bsc",
+        },
+        // a MooTokenYieldSource contract
+        {
+          address: "0x27CAa27B47182873AdD2ACFf8212a5A664C1a4a0",
+          chain: "bsc",
+        },
+        {
+          address: "0x155F5AcBda6ad32e74297836139edC13ee391a35",
+          chain: "bsc",
+        },
+        // crosschainQiStablecoin
+        {
+          address: "0x75D4aB6843593C111Eeb02Ff07055009c836A1EF",
+          chain: "fantom",
+        },
+        {
+          address: "0x3609A304c6A41d87E895b9c1fd18c02ba989Ba90",
+          chain: "fantom",
+        },
+        {
+          address: "0xBf0ff8ac03f3E0DD7d8faA9b571ebA999a854146",
+          chain: "fantom",
+        },
+        {
+          address: "0x5563Cc1ee23c4b17C861418cFF16641D46E12436",
+          chain: "fantom",
+        },
+        {
+          address: "0xC1c7eF18ABC94013F6c58C6CdF9e829A48075b4e",
+          chain: "fantom",
+        },
+        {
+          address: "0x8e5e4D08485673770Ab372c05f95081BE0636Fa2",
+          chain: "fantom",
+        },
+        // a bethoven X vault
+        {
+          address: "0x20dd72Ed959b6147912C2e529F0a0C651c33c9ce",
+          chain: "fantom",
+        },
+        // TOMB CErc20Delegator
+        {
+          address: "0x3F4f523ACf811E713e7c34852b24E927D773a9e5",
+          chain: "fantom",
+        },
+        // StrategybeTokenRewardPool
+        {
+          address: "0xBC3Df9A5879432135f4A976795b1fC1728279012",
+          chain: "polygon",
+        },
+        // an old BeefyZapOneInch ?
+        {
+          address: "0x3983C50fF4CD25b43A335D63839B1E36C7930D41",
+          chain: "optimism",
+        }
+      ] satisfies DbIgnoreAddress[]),
     );
 
     return Rx.pipe(
       Rx.connect((chains$: Rx.Observable<Chain>) =>
-        Rx.merge(chains$.pipe(beefyProducts$), chains$.pipe(maxiVaults$), chains$.pipe(defaultMintBurnAddress$), chains$.pipe(zapAddresses$)),
+        Rx.merge(chains$.pipe(beefyProducts$), chains$.pipe(manualAddresses$), chains$.pipe(zapAddresses$)),
       ),
 
       // insert the zap list as an ignored address
@@ -104,55 +140,13 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
   return createChainRunner(options.runnerConfig, createPipeline);
 }
 
-export function shouldIgnoreAddress$<
-  TObj,
-  TErr extends ErrorEmitter<TObj>,
-  TRes,
-  TParams extends { transferAddress: string; productId: number },
->(options: { ctx: ImportCtx; emitError: TErr; getAddressData: (obj: TObj) => TParams; formatOutput: (obj: TObj, shouldIgnore: boolean) => TRes }) {
-  return dbBatchCall$({
-    ctx: options.ctx,
-    emitError: options.emitError,
-    getData: options.getAddressData,
-    logInfos: { msg: "checking if address should be ignored", data: { chain: options.ctx.chain } },
-    processBatch: async (objAndData) => {
-      const result = await db_query<{ address: string; restrict_to_product_id: number | null }>(
-        `
-        SELECT lower(bytea_to_hexstr(address)) as address, restrict_to_product_id
-        FROM ignore_address
-        WHERE chain = %L
-        AND address IN (%L)
-      `,
-        [
-          options.ctx.chain,
-          uniqBy(objAndData, ({ data }) => data.transferAddress).map(({ data }) => [strAddressToPgBytea(data.transferAddress), data.productId]),
-          options.ctx.chain,
-        ],
-        options.ctx.client,
-      );
-
-      const ignoreAddressMap = keyBy(result, (row) => row.address);
-      return new Map(
-        objAndData.map(({ data }) => {
-          const ignoreAddress = ignoreAddressMap[data.transferAddress.toLocaleLowerCase()];
-          if (!ignoreAddress) return [data, false];
-          if (ignoreAddress.restrict_to_product_id === null) return [data, true];
-          if (ignoreAddress.restrict_to_product_id === data.productId) return [data, true];
-          return [data, false];
-        }),
-      );
-    },
-    formatOutput: options.formatOutput,
-  });
-}
-
 export async function createShouldIgnoreFn(options: {
   client: DbClient;
   chain: Chain;
-}): Promise<(ownerAddress: string, productId: number) => boolean> {
-  const result = await db_query<{ address: string; restrict_to_product_id: number | null }>(
+}): Promise<(ownerAddress: string) => boolean> {
+  const result = await db_query<{ address: string; }>(
     `
-    SELECT lower(bytea_to_hexstr(address)) as address, restrict_to_product_id
+    SELECT lower(bytea_to_hexstr(address)) as address
     FROM ignore_address
     WHERE chain = %L
   `,
@@ -161,11 +155,9 @@ export async function createShouldIgnoreFn(options: {
   );
 
   const ignoreAddressMap = keyBy(result, (row) => row.address);
-  return (ownerAddress, productId) => {
+  return (ownerAddress) => {
     const ignoreAddress = ignoreAddressMap[ownerAddress.toLocaleLowerCase()];
     if (!ignoreAddress) return false;
-    if (ignoreAddress.restrict_to_product_id === null) return true;
-    if (ignoreAddress.restrict_to_product_id === productId) return true;
     return false;
   };
 }
