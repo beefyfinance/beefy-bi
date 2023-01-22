@@ -8,6 +8,7 @@ import { ImportCtx } from "../../common/types/import-context";
 import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { beefyZapsFromGit$ } from "../connector/zap-list";
 import { getProductContractAddress } from "../utils/contract-accessors";
+import { isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-products" });
 
@@ -22,20 +23,62 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
           Rx.filter((zap) => zap.chain === chain),
         );
       }),
+      Rx.map((zap) => ({
+        address: zap.address,
+        chain: zap.chain,
+        restrictToProductId: null,
+      })),
+    );
 
-      // insert the zap list as an ignroed address
+    // we never want to track beefy product addresses as they are not real investors
+    const beefyProducts$ = Rx.pipe(
+      Rx.mergeMap((chain: Chain) => productList$(options.client, "beefy", chain)),
+
+      Rx.map((product) => ({
+        address: getProductContractAddress(product),
+        chain: product.chain,
+        restrictToProductId: null,
+      })),
+    );
+
+    // also ignore the maxi vault from gov vaults
+    const maxiVaults$ = Rx.pipe(
+      Rx.mergeMap((chain: Chain) =>
+        productList$(options.client, "beefy", chain).pipe(
+          Rx.toArray(),
+          Rx.mergeMap((products) => {
+            const maxiVault = products.filter(isBeefyStandardVault).find((product) => product.productData.vault.id.endsWith("bifi-maxi"));
+            const govVault = products.filter(isBeefyGovVault).find((product) => product.productData.vault.id.endsWith("bifi-gov"));
+
+            console.log({ maxiVault, govVault });
+
+            if (maxiVault && govVault) {
+              return Rx.from([
+                {
+                  address: getProductContractAddress(govVault),
+                  chain: govVault.chain,
+                  restrictToProductId: maxiVault.productId,
+                },
+              ]);
+            } else {
+              return Rx.EMPTY;
+            }
+          }),
+        ),
+      ),
+    );
+
+    return Rx.pipe(
+      Rx.connect((chains$: Rx.Observable<Chain>) => Rx.merge(chains$.pipe(zapAddresses$), chains$.pipe(beefyProducts$), chains$.pipe(maxiVaults$))),
+
+      // insert the zap list as an ignored address
       upsertIgnoreAddress$({
         ctx,
         emitError: (err) => logger.error({ msg: "error importing ignore address", data: { err } }),
-        getIgnoreAddressData: (zap) => ({
-          address: zap.address,
-          chain: zap.chain,
-          restrictToProductId: null,
-        }),
-        formatOutput: (zap) => zap,
+        getIgnoreAddressData: (data) => data,
+        formatOutput: (product) => product,
       }),
 
-      // add zap addresses to ignore list
       Rx.pipe(
         Rx.tap({
           error: (err) => logger.error({ msg: "error importing ignore address", data: { err } }),
@@ -44,40 +87,6 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
           },
         }),
       ),
-    );
-
-    // we never want to track beefy product addresses as they are not real investors
-    const beefyProducts$ = Rx.pipe(
-      Rx.mergeMap((chain: Chain) => productList$(options.client, "beefy", chain)),
-
-      // insert the zap list as an ignroed address
-      upsertIgnoreAddress$({
-        ctx,
-        emitError: (err) => logger.error({ msg: "error importing ignore address", data: { err } }),
-        getIgnoreAddressData: (product) => {
-          return {
-            address: getProductContractAddress(product),
-            chain: product.chain,
-            restrictToProductId: null,
-          };
-        },
-        formatOutput: (product) => product,
-      }),
-    );
-
-    // also ignore the maxi vault from gov vaults
-    const maxiVaults$ = Rx.pipe(
-      Rx.mergeMap((chain: Chain) => productList$(options.client, "beefy", chain)),
-      Rx.toArray(),
-      Rx.map((products) => {
-        const maxiVault = products.find((product) => product.productKey.endsWith("bifi-maxi"));
-        const govVault = products.find((product) => product.productKey.endsWith("bifi-gov"));
-        return maxiVault;
-      }),
-    );
-
-    return Rx.connect((chains$: Rx.Observable<Chain>) =>
-      Rx.merge(chains$.pipe(zapAddresses$), chains$.pipe(beefyProducts$), chains$.pipe(maxiVaults$)),
     );
   };
 

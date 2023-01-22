@@ -327,6 +327,58 @@ SELECT hypertable_name, pg_size_pretty(hypertable_size(format('%I.%I', hypertabl
 ```
 
 ```sql
+-- cleanup all loose relationships in the database
+delete
+from import_state
+where import_key ~* '^product:investment:[0-9]+$'
+and import_key not in (
+  select 'product:investment:' || product_id
+  from product
+);
+
+delete
+from import_state
+where import_key ~* '^product:investment:pending-reward:[0-9]+:[0-9]+$'
+and regexp_replace(import_key, ':[0-9]+$', '') not in (
+  select 'product:investment:pending-reward:' || product_id
+  from product
+);
+
+delete from price_ts where price_feed_id not in (
+  select price_feed_1_id from product
+  union all
+  select price_feed_2_id from product
+  union all
+  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
+);
+
+delete from price_feed where price_feed_id not in (
+  select price_feed_1_id from product
+  union all
+  select price_feed_2_id from product
+  union all
+  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
+);
+
+delete from import_state
+where import_key ~* '^price:feed:[0-9]+$'
+and import_key not in (
+  select 'price:feed:' || price_feed_id
+  from price_feed
+);
+
+delete from debug_data where debug_data_uuid not in (
+  select debug_data_uuid from investment_balance_ts
+  union all
+  select debug_data_uuid from price_ts
+  union all
+  select debug_data_uuid from block_ts
+);
+
+
+```
+
+```sql
 insert into beefy_investor_timeline_cache_ts (
   investor_id,
   product_id,
@@ -430,45 +482,5 @@ delete from product where product_id in (
 -- fix product keys
 update product
 set product_key = regexp_replace(product_key, '^(beefy:.+?:.+?:).+?$', '\1') || lower(coalesce(product_data->'boost'->>'contract_address', product_data->'vault'->>'contract_address'));
-
--- cleanup import state
-delete
-from import_state
-where import_key ~* '^product:investment:[0-9]+$'
-and import_key not in (
-  select 'product:investment:' || product_id
-  from product
-);
-
-delete
-from import_state
-where import_key ~* '^product:investment:pending-reward:[0-9]+:[0-9]+$'
-and regexp_replace(import_key, ':[0-9]+$', '') not in (
-  select 'product:investment:pending-reward:' || product_id
-  from product
-);
-
-delete from price_ts where price_feed_id not in (
-  select price_feed_1_id from product
-  union all
-  select price_feed_2_id from product
-  union all
-  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
-);
-
-delete from price_feed where price_feed_id not in (
-  select price_feed_1_id from product
-  union all
-  select price_feed_2_id from product
-  union all
-  select pending_rewards_price_feed_id from product where pending_rewards_price_feed_id is not null
-);
-
-delete from import_state
-where import_key ~* '^price:feed:[0-9]+$'
-and import_key not in (
-  select 'price:feed:' || price_feed_id
-  from price_feed
-);
 
 ```
