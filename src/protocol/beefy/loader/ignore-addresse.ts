@@ -72,9 +72,6 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
       Rx.map((products) => {
         const maxiVault = products.find((product) => product.productKey.endsWith("bifi-maxi"));
         const govVault = products.find((product) => product.productKey.endsWith("bifi-gov"));
-        if (!maxiVault) {
-          throw new Error("could not find maxi vault");
-        }
         return maxiVault;
       }),
     );

@@ -175,7 +175,7 @@ export function productList$<TKey extends string>(client: DbClient, keyPrefix: T
   ).pipe(
     Rx.mergeAll(),
 
-    Rx.tap((products) => logger.debug({ msg: "emitting product list", data: { count: products.length } })),
+    Rx.tap((products) => logger.debug({ msg: "emitting product list", data: { count: products.length, chain, keyPrefix } })),
 
     Rx.concatMap((products) => Rx.from(products)), // flatten
   );
