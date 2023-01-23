@@ -426,10 +426,7 @@ export async function db_migrate() {
   await db_query(`
     CREATE TABLE IF NOT EXISTS ignore_address (
       chain chain_enum NOT NULL,
-      address evm_address_bytea NOT NULL,
-      -- if set, only ignore the investments for this product from this address
-      -- especially useful for the beefy maxi vaults
-      restrict_to_product_id integer null references product(product_id)
+      address evm_address_bytea NOT NULL
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS ignore_address_chain_address_idx ON ignore_address (chain, address);

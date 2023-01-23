@@ -458,7 +458,6 @@ delete from investment_balance_ts where investor_id in (
 select i.investor_id
 from ignore_address ia
 join investor i on ia.address = i.address
-where ia.restrict_to_product_id is null
 );
 
 
@@ -466,7 +465,6 @@ delete from investor where investor_id in (
 select i.investor_id
 from ignore_address ia
 join investor i on ia.address = i.address
-where ia.restrict_to_product_id is null
 );
 
 
