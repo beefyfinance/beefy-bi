@@ -453,6 +453,8 @@ export async function db_migrate() {
       debug_data jsonb not null -- the actual debug data
     );
 
+    create index debug_data_ts_uuid_idx on debug_data_ts (origin_table, debug_data_uuid);
+    
     SELECT create_hypertable(
       relation => 'debug_data_ts', 
       time_column_name => 'datetime',
@@ -736,14 +738,19 @@ export async function db_migrate() {
       datetime timestamptz not null,
       block_number integer not null,
 
-      share_balance evm_decimal_256_nullable,
-      share_diff evm_decimal_256_nullable,
+      balance evm_decimal_256_nullable,
+      balance_diff evm_decimal_256_nullable,
       share_to_underlying_price evm_decimal_256_nullable,
-      underlying_balance evm_decimal_256_nullable,
-      underlying_diff evm_decimal_256_nullable,
+      -- underlying_balance evm_decimal_256_nullable, -- balance * share_to_underlying_price
+      -- underlying_diff evm_decimal_256_nullable, -- balance_diff * share_to_underlying_price
       underlying_to_usd_price evm_decimal_256_nullable,
-      usd_balance evm_decimal_256_nullable,
-      usd_diff evm_decimal_256_nullable
+      -- usd_balance evm_decimal_256_nullable, -- underlying_balance * underlying_to_usd_price
+      -- usd_diff evm_decimal_256_nullable, -- underlying_diff * underlying_to_usd_price
+      pending_rewards evm_decimal_256_nullable,
+      pending_rewards_diff evm_decimal_256_nullable,
+      pending_rewards_to_usd_price evm_decimal_256_nullable
+      -- pending_rewards_usd_balance evm_decimal_256_nullable, -- pending_rewards * pending_rewards_to_usd_price
+      -- pending_rewards_usd_diff evm_decimal_256_nullable -- pending_rewards_diff * pending_rewards_to_usd_price
     );
 
     SELECT create_hypertable(

@@ -78,7 +78,16 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
       // generate debug data uuid for each object
       const investmentsAndUuid = investments.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
 
-      const upsertPromise = db_query<{ product_id: number; investor_id: number; block_number: number }>(
+      const upsertPromise = db_query<{
+        datetime: Date;
+        product_id: number;
+        investor_id: number;
+        block_number: number;
+        balance: string;
+        balance_diff: string;
+        pending_rewards: string;
+        pending_rewards_diff: string;
+      }>(
         `INSERT INTO investment_balance_ts (
             datetime,
             block_number,
@@ -97,7 +106,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
               pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
               pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
               debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
-              RETURNING product_id, investor_id, block_number
+          RETURNING datetime, product_id, investor_id, block_number, balance, balance_diff, pending_rewards, pending_rewards_diff
         `,
         [
           investmentsAndUuid.map(({ data, debugDataUuid }) => [
@@ -135,7 +144,17 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
           if (!result) {
             throw new ProgrammerError({ msg: "Upserted investment not found", data });
           }
-          return [data, data];
+          return [data, {
+            investorId: result.investor_id,
+            productId: result.product_id,
+            blockNumber: result.block_number,
+            datetime: result.datetime,
+            balance: new Decimal(result.balance),
+            balanceDiff: new Decimal(result.balance_diff),
+            pendingRewards: result.pending_rewards ? new Decimal(result.pending_rewards) : null,
+            pendingRewardsDiff: result.pending_rewards_diff ? new Decimal(result.pending_rewards_diff) : null,
+            investmentData: data.investmentData,
+          } satisfies DbInvestment];
         }),
       );
     },

@@ -344,6 +344,18 @@ and regexp_replace(import_key, ':[0-9]+$', '') not in (
   from product
 );
 
+
+alter table import_state add column keep boolean not null default true;
+update import_state set keep = false
+  where import_key ~* '^product:investment:pending-reward:[0-9]+:[0-9]+$'
+  and regexp_replace(import_key, ':[0-9]+$', '') not in (
+    select 'product:investment:pending-reward:' || product_id
+    from product
+  );
+delete from import_state where not keep;
+alter table import_state drop column keep;
+
+
 delete from price_ts where price_feed_id not in (
   select price_feed_1_id from product
   union all
@@ -367,22 +379,119 @@ and import_key not in (
   from price_feed
 );
 
--- decompress first
-SELECT remove_compression_policy('debug_data_ts');
-select decompress_chunk(c)
-  from show_chunks('debug_data_ts') as c;
-
-delete from debug_data_ts where debug_data_uuid not in (
-  select debug_data_uuid from investment_balance_ts
-  union all
-  select debug_data_uuid from price_ts
-  union all
-  select debug_data_uuid from block_ts
+-- create a new table to avoid mvcc issues
+-- this has to be the only thing running
+alter table debug_data_ts rename to debug_data_ts_old;
+alter index debug_data_ts_uuid_idx rename to debug_data_ts_old_uuid_idx;
+CREATE TABLE IF NOT EXISTS debug_data_ts (
+  debug_data_uuid uuid not null, -- unique id, use uuids so we can generate them without having to query the db
+  datetime timestamptz not null, -- any datetime to make it a hypertable
+  origin_table debug_origin_table_enum not null, -- the table this debug data comes from
+  debug_data jsonb not null -- the actual debug data
 );
+create index debug_data_ts_uuid_idx on debug_data_ts (origin_table, debug_data_uuid);
+SELECT create_hypertable(
+  relation => 'debug_data_ts',
+  time_column_name => 'datetime',
+  chunk_time_interval => INTERVAL '30 days',
+  if_not_exists => true
+);
+
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '1d'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = '2020-09-01T00:00:00Z'::TIMESTAMPTZ;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    insert into debug_data_ts (datetime, origin_table, debug_data_uuid, debug_data) (
+      select t.datetime, 'investment_balance_ts', t.debug_data_uuid, d.debug_data
+      from investment_balance_ts t
+      join debug_data_ts_old d on d.debug_data_uuid = t.debug_data_uuid
+      where d.origin_table = 'investment_balance_ts'
+      and t.datetime >= start_timestamp and t.datetime < end_timestamp
+    );
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '1d'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = '2020-09-01T00:00:00Z'::TIMESTAMPTZ;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    insert into debug_data_ts (datetime, origin_table, debug_data_uuid, debug_data) (
+      select t.datetime, 'price_ts', t.debug_data_uuid, d.debug_data
+      from price_ts t
+      join debug_data_ts_old d on d.debug_data_uuid = t.debug_data_uuid
+      where d.origin_table = 'price_ts'
+      and t.datetime >= start_timestamp and t.datetime < end_timestamp
+    );
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '1d'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = '2020-09-01T00:00:00Z'::TIMESTAMPTZ;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    insert into debug_data_ts (datetime, origin_table, debug_data_uuid, debug_data) (
+      select t.datetime, 'block_ts', t.debug_data_uuid, d.debug_data
+      from block_ts t
+      join debug_data_ts_old d on d.debug_data_uuid = t.debug_data_uuid
+      where d.origin_table = 'block_ts'
+      and t.datetime >= start_timestamp and t.datetime < end_timestamp
+    );
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
 -- recompress
+
+ALTER TABLE debug_data_ts SET (
+  timescaledb.compress,
+  timescaledb.compress_segmentby = 'origin_table'
+);
 SELECT add_compression_policy('debug_data_ts', INTERVAL '7 days');
 select compress_chunk(c)
   from show_chunks('debug_data_ts') as c;
+
+
+
+
+-- cleanup ignored addresses
+delete from investment_balance_ts where investor_id in (
+  select i.investor_id
+  from ignore_address ia
+  join investor i on ia.address = i.address
+);
+
+
+delete from investor where investor_id in (
+  select i.investor_id
+  from ignore_address ia
+  join investor i on ia.address = i.address
+);
 
 
 -- reclaim some space
@@ -453,19 +562,6 @@ insert into beefy_investor_timeline_cache_ts (
 ```sql
 
 
-
-delete from investment_balance_ts where investor_id in (
-select i.investor_id
-from ignore_address ia
-join investor i on ia.address = i.address
-);
-
-
-delete from investor where investor_id in (
-select i.investor_id
-from ignore_address ia
-join investor i on ia.address = i.address
-);
 
 
 select b.investor_id, p.product_id, p.chain, i.address, count(*)

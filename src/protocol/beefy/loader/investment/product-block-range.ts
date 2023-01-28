@@ -25,6 +25,7 @@ import {
   isBeefyStandardVaultProductImportQuery,
 } from "../../utils/type-guard";
 import { createShouldIgnoreFn } from "../ignore-addresse";
+import { upsertInvestorCacheChainInfos$ } from "./investor-cache";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
 
@@ -407,6 +408,17 @@ export function loadTransfers$<
         },
       }),
       formatOutput: (item, investment) => ({ ...item, investment, result: true }),
+    }),
+
+    // push all this data to the investor cache so we can use it later
+    upsertInvestorCacheChainInfos$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getInvestorCacheChainInfos: (item) => ({
+        ...item.investment,
+        shareToUnderlyingPrice: item.ppfs,
+      }),
+      formatOutput: (item, investorCacheChainInfos) => ({ ...item, investorCacheChainInfos }),
     }),
   );
 }
