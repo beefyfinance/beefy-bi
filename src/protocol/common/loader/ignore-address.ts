@@ -1,6 +1,6 @@
-import { uniqBy } from "lodash";
+import { keyBy, uniqBy } from "lodash";
 import { Chain } from "../../../types/chain";
-import { db_query, strAddressToPgBytea } from "../../../utils/db";
+import { DbClient, db_query, strAddressToPgBytea } from "../../../utils/db";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
@@ -32,4 +32,23 @@ export function upsertIgnoreAddress$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       return new Map(objAndData.map(({ data }) => [data, { chain: data.chain, address: data.address }]));
     },
   });
+}
+
+export async function createShouldIgnoreFn(options: { client: DbClient; chain: Chain }): Promise<(ownerAddress: string) => boolean> {
+  const result = await db_query<{ address: string }>(
+    `
+    SELECT lower(bytea_to_hexstr(address)) as address
+    FROM ignore_address
+    WHERE chain = %L
+  `,
+    [options.chain],
+    options.client,
+  );
+
+  const ignoreAddressMap = keyBy(result, (row) => row.address);
+  return (ownerAddress) => {
+    const ignoreAddress = ignoreAddressMap[ownerAddress.toLocaleLowerCase()];
+    const ignoreAddressExists = !!ignoreAddress;
+    return ignoreAddressExists;
+  };
 }

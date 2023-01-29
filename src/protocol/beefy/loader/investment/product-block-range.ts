@@ -7,6 +7,7 @@ import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
 import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
 import { fetchTransactionGas$ } from "../../../common/connector/transaction-gas";
+import { createShouldIgnoreFn } from "../../../common/loader/ignore-address";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { upsertPrice$ } from "../../../common/loader/prices";
@@ -24,7 +25,6 @@ import {
   isBeefyStandardVault,
   isBeefyStandardVaultProductImportQuery,
 } from "../../utils/type-guard";
-import { createShouldIgnoreFn } from "../ignore-addresse";
 import { upsertInvestorCacheChainInfos$ } from "./investor-cache";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-product-block-range" });
@@ -167,6 +167,8 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
             const shouldIgnore = shouldIgnoreFn(transfer.transfer.ownerAddress);
             if (shouldIgnore) {
               logger.trace({ msg: "ignoring transfer", data: { chain: options.ctx.chain, transferData: item } });
+            } else {
+              logger.trace({ msg: "not ignoring transfer", data: { chain: options.ctx.chain, ownerAddress: transfer.transfer.ownerAddress } });
             }
             return !shouldIgnore;
           });
@@ -415,8 +417,18 @@ export function loadTransfers$<
       ctx: options.ctx,
       emitError: options.emitError,
       getInvestorCacheChainInfos: (item) => ({
-        ...item.investment,
+        productId: item.investment.productId,
+        investorId: item.investment.investorId,
+        datetime: item.investment.datetime,
+        blockNumber: item.investment.blockNumber,
+
+        balance: item.investment.balance,
+        balanceDiff: item.investment.balanceDiff,
+        pendingRewards: item.investment.pendingRewards,
+        pendingRewardsDiff: item.investment.pendingRewardsDiff,
         shareToUnderlyingPrice: item.ppfs,
+        underlyingBalance: item.investment.balance.mul(item.ppfs),
+        underlyingDiff: item.investment.balanceDiff.mul(item.ppfs),
       }),
       formatOutput: (item, investorCacheChainInfos) => ({ ...item, investorCacheChainInfos }),
     }),

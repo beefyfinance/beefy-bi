@@ -155,6 +155,9 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
   }
   const sql_w_params = pgf(sql, ...params);
   //console.log(sql_w_params);
+  //if (sql_w_params.includes("beefy_investor_timeline_cache_ts") || sql_w_params.includes("investment_balance_ts")) {
+  //  console.log(sql_w_params);
+  //}
   try {
     const res = await useClient.query(sql_w_params);
     const rows = res?.rows || null;
@@ -738,19 +741,20 @@ export async function db_migrate() {
       datetime timestamptz not null,
       block_number integer not null,
 
-      balance evm_decimal_256_nullable,
-      balance_diff evm_decimal_256_nullable,
-      share_to_underlying_price evm_decimal_256_nullable,
-      -- underlying_balance evm_decimal_256_nullable, -- balance * share_to_underlying_price
-      -- underlying_diff evm_decimal_256_nullable, -- balance_diff * share_to_underlying_price
-      underlying_to_usd_price evm_decimal_256_nullable,
-      -- usd_balance evm_decimal_256_nullable, -- underlying_balance * underlying_to_usd_price
-      -- usd_diff evm_decimal_256_nullable, -- underlying_diff * underlying_to_usd_price
-      pending_rewards evm_decimal_256_nullable,
-      pending_rewards_diff evm_decimal_256_nullable,
-      pending_rewards_to_usd_price evm_decimal_256_nullable
-      -- pending_rewards_usd_balance evm_decimal_256_nullable, -- pending_rewards * pending_rewards_to_usd_price
-      -- pending_rewards_usd_diff evm_decimal_256_nullable -- pending_rewards_diff * pending_rewards_to_usd_price
+      -- store everything as double precision as we can afford to lose some precision for speed
+      balance double precision,
+      balance_diff double precision,
+      share_to_underlying_price double precision,
+      underlying_balance double precision, -- balance * share_to_underlying_price
+      underlying_diff double precision, -- balance_diff * share_to_underlying_price
+      underlying_to_usd_price double precision,
+      usd_balance double precision, -- underlying_balance * underlying_to_usd_price
+      usd_diff double precision, -- underlying_diff * underlying_to_usd_price
+      pending_rewards double precision,
+      pending_rewards_diff double precision,
+      pending_rewards_to_usd_price double precision,
+      pending_rewards_usd_balance double precision, -- pending_rewards * pending_rewards_to_usd_price
+      pending_rewards_usd_diff double precision -- pending_rewards_diff * pending_rewards_to_usd_price
     );
 
     SELECT create_hypertable(

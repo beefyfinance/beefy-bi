@@ -1,4 +1,3 @@
-import { keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
@@ -43,7 +42,7 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
       Rx.mergeMap((chain: Chain): DbIgnoreAddress[] => [
         // also ignore the default mintburn address
         { address: "0x0000000000000000000000000000000000000000", chain },
-        { address: "000000000000000000000000000000000000dead", chain: "fantom" },
+        { address: "0x000000000000000000000000000000000000dead", chain: "fantom" },
         // a GateManagerMultiRewards contract
         { address: "0x2c85A6aA1974230d3e91bA32956271E5A11b0392", chain: "bsc" },
         { address: "0xB9208616368c362c531aFE3b813a5cef181399b7", chain: "bsc" },
@@ -111,23 +110,4 @@ export function createBeefyIgnoreAddressRunner(options: { client: DbClient; runn
   };
 
   return createChainRunner(options.runnerConfig, createPipeline);
-}
-
-export async function createShouldIgnoreFn(options: { client: DbClient; chain: Chain }): Promise<(ownerAddress: string) => boolean> {
-  const result = await db_query<{ address: string }>(
-    `
-    SELECT lower(bytea_to_hexstr(address)) as address
-    FROM ignore_address
-    WHERE chain = %L
-  `,
-    [options.chain],
-    options.client,
-  );
-
-  const ignoreAddressMap = keyBy(result, (row) => row.address);
-  return (ownerAddress) => {
-    const ignoreAddress = ignoreAddressMap[ownerAddress.toLocaleLowerCase()];
-    if (!ignoreAddress) return false;
-    return false;
-  };
 }

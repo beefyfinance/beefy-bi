@@ -138,23 +138,26 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
       // update debug data
       const idMap = keyBy(results[0], (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
       return new Map(
-        objAndData.map(({ data }) => {
+        objAndData.map(({ data }): [typeof data, DbInvestment] => {
           const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
           const result = idMap[key];
           if (!result) {
             throw new ProgrammerError({ msg: "Upserted investment not found", data });
           }
-          return [data, {
-            investorId: result.investor_id,
-            productId: result.product_id,
-            blockNumber: result.block_number,
-            datetime: result.datetime,
-            balance: new Decimal(result.balance),
-            balanceDiff: new Decimal(result.balance_diff),
-            pendingRewards: result.pending_rewards ? new Decimal(result.pending_rewards) : null,
-            pendingRewardsDiff: result.pending_rewards_diff ? new Decimal(result.pending_rewards_diff) : null,
-            investmentData: data.investmentData,
-          } satisfies DbInvestment];
+          return [
+            data,
+            {
+              investorId: result.investor_id,
+              productId: result.product_id,
+              blockNumber: result.block_number,
+              datetime: result.datetime,
+              balance: new Decimal(result.balance),
+              balanceDiff: new Decimal(result.balance_diff),
+              pendingRewards: result.pending_rewards ? new Decimal(result.pending_rewards) : null,
+              pendingRewardsDiff: result.pending_rewards_diff ? new Decimal(result.pending_rewards_diff) : null,
+              investmentData: data.investmentData,
+            },
+          ];
         }),
       );
     },

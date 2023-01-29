@@ -20,8 +20,8 @@ type DbInvestorCacheChainInfos = Nullable<{
   balance: Decimal; // moo balance
   balanceDiff: Decimal; // balance - previous balance
   shareToUnderlyingPrice: Decimal; // ppfs
-  //underlyingBalance: Decimal; // balance * shareToUnderlyingPrice
-  //underlyingDiff: Decimal; // balanceDiff * shareToUnderlyingPrice
+  underlyingBalance: Decimal; // balance * shareToUnderlyingPrice
+  underlyingDiff: Decimal; // balanceDiff * shareToUnderlyingPrice
   pendingRewards: Decimal; // pending rewards
   pendingRewardsDiff: Decimal; // pendingRewards - previous pendingRewards
 }>;
@@ -29,11 +29,11 @@ type DbInvestorCacheChainInfos = Nullable<{
 // usd price infos are added afterwards
 type DbInvestorCacheUsdInfos = Nullable<{
   pendingRewardsToUsdPrice: Decimal; // token price
-  // pendingRewardsUsdBalance: Decimal; // pendingRewards * pendingRewardsToUsdPrice
-  // pendingRewardsUsdDiff: Decimal; // pendingRewardsDiff * pendingRewardsToUsdPrice
+  pendingRewardsUsdBalance: Decimal; // pendingRewards * pendingRewardsToUsdPrice
+  pendingRewardsUsdDiff: Decimal; // pendingRewardsDiff * pendingRewardsToUsdPrice
   underlyingToUsdPrice: Decimal; // lp price
-  // usdBalance: Decimal; // underlyingBalance * underlyingToUsdPrice
-  // usdDiff: Decimal; // underlyingDiff * underlyingToUsdPrice
+  usdBalance: Decimal; // underlyingBalance * underlyingToUsdPrice
+  usdDiff: Decimal; // underlyingDiff * underlyingToUsdPrice
 }>;
 
 export type DbInvestorCache = DbInvestorCacheDimensions & DbInvestorCacheChainInfos & DbInvestorCacheUsdInfos;
@@ -67,27 +67,34 @@ export function upsertInvestorCacheChainInfos$<
             balance,
             balance_diff,
             share_to_underlying_price,
+            underlying_balance,
+            underlying_diff,
             pending_rewards,
             pending_rewards_diff
           ) VALUES %L
             ON CONFLICT (product_id, investor_id, block_number, datetime) 
             DO UPDATE SET 
-                balance = coalesce(EXCLUDED.balance, balance),
-                balance_diff = coalesce(EXCLUDED.balance_diff, balance_diff),
-                share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, share_to_underlying_price),
-                underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, underlying_to_usd_price),
-                pending_rewards = coalesce(EXCLUDED.pending_rewards, pending_rewards),
-                pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, pending_rewards_diff)
+                balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
+                balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
+                share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
+                underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, beefy_investor_timeline_cache_ts.underlying_to_usd_price),
+                underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
+                underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
+                pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
+                pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff)
+            RETURNING product_id, investor_id, block_number
           `,
         [
           uniqBy(objAndData, ({ data }) => `${data.productId}:${data.investorId}:${data.blockNumber}`).map(({ data }) => [
+            data.investorId,
+            data.productId,
             data.datetime.toISOString(),
             data.blockNumber,
-            data.productId,
-            data.investorId,
             data.balance ? data.balance.toString() : null,
             data.balanceDiff ? data.balanceDiff.toString() : null,
             data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
+            data.underlyingBalance ? data.underlyingBalance.toString() : null,
+            data.underlyingDiff ? data.underlyingDiff.toString() : null,
             data.pendingRewards ? data.pendingRewards.toString() : null,
             data.pendingRewardsDiff ? data.pendingRewardsDiff.toString() : null,
           ]),
@@ -102,7 +109,7 @@ export function upsertInvestorCacheChainInfos$<
           const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
           const result = idMap[key];
           if (!result) {
-            throw new ProgrammerError({ msg: "Upserted investment not found", data });
+            throw new ProgrammerError({ msg: "Upserted investment cache not found", data });
           }
           return [data, data];
         }),

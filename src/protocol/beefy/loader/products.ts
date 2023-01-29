@@ -5,6 +5,7 @@ import { getChainWNativeTokenSymbol } from "../../../utils/addressbook";
 import { DbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
+import { upsertIgnoreAddress$ } from "../../common/loader/ignore-address";
 import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
 import { ErrorReport, ImportCtx } from "../../common/types/import-context";
@@ -137,6 +138,13 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           formatOutput: (item, product) => ({ ...item, product }),
         }),
 
+        upsertIgnoreAddress$({
+          ctx,
+          emitError: (err) => logger.error({ msg: "error adding vault ignore address", data: { err } }),
+          getIgnoreAddressData: (item) => ({ address: item.vault.contract_address, chain: item.vault.chain }),
+          formatOutput: (product) => product,
+        }),
+
         Rx.tap({
           error: (err) => logger.error({ msg: "error importing chain", data: { err } }),
           complete: () => {
@@ -223,6 +231,14 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
             };
           },
           formatOutput: (item, product) => ({ ...item, product }),
+        }),
+
+        // add the boost to the list of ignored addresses
+        upsertIgnoreAddress$({
+          ctx,
+          emitError: (err) => logger.error({ msg: "error adding boost ignore address", data: { err } }),
+          getIgnoreAddressData: (item) => ({ address: item.boost.contract_address, chain: item.boost.chain }),
+          formatOutput: (product) => product,
         }),
 
         Rx.tap({
