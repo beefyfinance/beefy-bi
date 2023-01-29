@@ -456,7 +456,7 @@ export async function db_migrate() {
       debug_data jsonb not null -- the actual debug data
     );
 
-    create index debug_data_ts_uuid_idx on debug_data_ts (origin_table, debug_data_uuid);
+    create index if not exists debug_data_ts_uuid_idx on debug_data_ts (origin_table, debug_data_uuid);
     
     SELECT create_hypertable(
       relation => 'debug_data_ts', 
