@@ -596,8 +596,8 @@ export async function db_migrate() {
   if (!hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
     await db_query(`
       SELECT add_continuous_aggregate_policy('price_ts_cagg_1d',
-        start_offset => INTERVAL '2 day',
-        end_offset => INTERVAL '1 hours',
+        start_offset => INTERVAL '3 day',
+        end_offset => INTERVAL '1 day',
         schedule_interval => INTERVAL '12 hour'
       );
     `);

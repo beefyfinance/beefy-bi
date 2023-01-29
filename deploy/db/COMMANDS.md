@@ -734,7 +734,7 @@ where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
 ```
 
 ```sql
- call refresh_continuous_aggregate('price_ts_cagg_1d', now() - '1 month'::interval, now());
+ call refresh_continuous_aggregate('price_ts_cagg_1h', now() - '1 month'::interval, now());
 
   call refresh_continuous_aggregate('price_ts_cagg_1d', now() - '18 month'::interval, now());
 ```
