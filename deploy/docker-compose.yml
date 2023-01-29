@@ -80,7 +80,7 @@ services:
     volumes:
       - timescaledb_data:/home/postgres/pgdata/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: postgres -c 'max_connections=250' -c logging_collector=off -c log_min_duration_statement=60s -c log_statement=none -c shared_buffers=5GB -c effective_cache_size=15GB -c timescaledb.max_background_workers=16 -c max_worker_processes=29 -c max_parallel_workers_per_gather=5 -c max_parallel_workers=10 -c max_parallel_maintenance_workers=4 -c maintenance_work_mem=2GB -c random_page_cost=4 -c effective_io_concurrency=2 -c min_wal_size=4GB -c max_wal_size=16GB
+    command: postgres -c 'max_connections=250' -c logging_collector=off -c log_min_duration_statement=60s -c log_statement=none -c shared_buffers=5GB -c effective_cache_size=15GB -c timescaledb.max_background_workers=16 -c max_worker_processes=29 -c max_parallel_workers_per_gather=5 -c max_parallel_workers=10 -c max_parallel_maintenance_workers=4 -c maintenance_work_mem=2GB -c random_page_cost=4 -c effective_io_concurrency=2 -c min_wal_size=4GB -c max_wal_size=16GB -c max_locks_per_transaction=2000
     stop_signal: SIGINT
     shm_size: 256M
     deploy:
@@ -162,6 +162,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t ignore-address -l 1day"
+
+  importer-investor-cache:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t investor-cache -l 15min"
 
   importer-prices-historical:
     <<: *importer

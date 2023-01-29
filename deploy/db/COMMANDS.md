@@ -507,21 +507,25 @@ insert into beefy_investor_timeline_cache_ts (
   product_id,
   datetime,
   block_number,
-  share_balance,
-  share_diff,
+  balance,
+  balance_diff,
   share_to_underlying_price,
   underlying_balance,
   underlying_diff,
   underlying_to_usd_price,
   usd_balance,
-  usd_diff
+  usd_diff,
+  pending_rewards,
+  pending_rewards_diff
 ) (
   with investment_diff_raw as (
     select b.datetime, b.block_number, b.investor_id, b.product_id,
       last(b.balance, b.datetime) as balance,
       sum(b.balance_diff) as balance_diff,
       last(pr1.price::numeric, pr1.datetime) as price1,
-      last(pr2.price::numeric, pr2.datetime) as price2
+      last(pr2.price::numeric, pr2.datetime) as price2,
+      last(b.pending_rewards, b.datetime) as pending_reward,
+      sum(b.pending_rewards_diff) as pending_reward_diff
     from investment_balance_ts b
     left join product p
       on b.product_id = p.product_id
@@ -544,17 +548,29 @@ insert into beefy_investor_timeline_cache_ts (
     b.datetime,
     b.block_number,
 
-    b.balance as share_balance,
-    b.balance_diff as share_diff,
+    b.balance as balance,
+    b.balance_diff as balance_diff,
     b.price1 as share_to_underlying_price,
     (b.balance * b.price1)::NUMERIC(100, 24) as underlying_balance,
     (b.balance_diff * b.price1)::NUMERIC(100, 24) as underlying_diff,
     b.price2 as underlying_to_usd_price,
     (b.balance * b.price1 * b.price2)::NUMERIC(100, 24) as usd_balance,
-    (b.balance_diff * b.price1 * b.price2)::NUMERIC(100, 24) as usd_diff
+    (b.balance_diff * b.price1 * b.price2)::NUMERIC(100, 24) as usd_diff,
+    b.pending_reward as pending_reward,
+    b.pending_reward_diff as pending_reward_diff
   from investment_diff_raw b
   join product p on p.product_id = b.product_id
-);
+)
+ON CONFLICT (product_id, investor_id, block_number, datetime)
+DO UPDATE SET
+    balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
+    balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
+    share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
+    underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, beefy_investor_timeline_cache_ts.underlying_to_usd_price),
+    underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
+    underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
+    pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
+    pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff);
 
 
 ```
@@ -572,5 +588,89 @@ where balance_diff != 0
 group by 1,2,3,4
 order by count(*) desc
 limit 20;
+
+```
+
+```sql
+
+
+insert into beefy_investor_timeline_cache_ts (
+  investor_id,
+  product_id,
+  datetime,
+  block_number,
+  balance,
+  balance_diff,
+  share_to_underlying_price,
+  underlying_balance,
+  underlying_diff,
+  underlying_to_usd_price,
+  usd_balance,
+  usd_diff,
+  pending_rewards,
+  pending_rewards_diff
+) (
+  with balance_scope as (
+    select *
+    from beefy_investor_timeline_cache_ts
+    where underlying_to_usd_price is null
+  ),
+  investment_diff_raw as (
+    select b.datetime, b.block_number, b.investor_id, b.product_id,
+      last(b.balance, b.datetime) as balance,
+      sum(b.balance_diff) as balance_diff,
+      last(pr1.price::numeric, pr1.datetime) as price1,
+      last(pr2.price::numeric, pr2.datetime) as price2,
+      last(b.pending_rewards, b.datetime) as pending_reward,
+      sum(b.pending_rewards_diff) as pending_reward_diff
+    from balance_scope b
+     join product p
+      on b.product_id = p.product_id
+    -- we should have the exact price1 (share to underlying) from this exact block for all investment change
+    join price_ts pr1
+      on p.price_feed_1_id = pr1.price_feed_id
+      and pr1.datetime = b.datetime
+      and pr1.block_number = b.block_number
+    -- but for price 2 (underlying to usd) we need to match on approx time
+    join price_ts pr2
+      on p.price_feed_2_id = pr2.price_feed_id
+      and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
+    where b.balance_diff != 0 -- only show changes, not reward snapshots
+    group by 1,2,3,4
+    having sum(b.balance_diff) != 0 -- only show changes, not reward snapshots
+  )
+  select
+    b.investor_id,
+    b.product_id,
+    b.datetime,
+    b.block_number,
+
+    b.balance as balance,
+    b.balance_diff as balance_diff,
+    b.price1 as share_to_underlying_price,
+    (b.balance * b.price1)::NUMERIC(100, 24) as underlying_balance,
+    (b.balance_diff * b.price1)::NUMERIC(100, 24) as underlying_diff,
+    b.price2 as underlying_to_usd_price,
+    (b.balance * b.price1 * b.price2)::NUMERIC(100, 24) as usd_balance,
+    (b.balance_diff * b.price1 * b.price2)::NUMERIC(100, 24) as usd_diff,
+    b.pending_reward as pending_reward,
+    b.pending_reward_diff as pending_reward_diff
+  from investment_diff_raw b
+  join product p on p.product_id = b.product_id
+)
+ON CONFLICT (product_id, investor_id, block_number, datetime)
+DO UPDATE SET
+    balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
+    balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
+    share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
+    underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, beefy_investor_timeline_cache_ts.underlying_to_usd_price),
+    underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
+    underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
+    pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
+    pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff);
+
+```
+
+```sql
 
 ```

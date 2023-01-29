@@ -17,9 +17,10 @@ import { ErrorReport } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
 import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
-import { createBeefyIgnoreAddressRunner } from "../loader/ignore-addresse";
+import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
 import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
 import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
+import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
 import { createBeefyHistoricalShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
@@ -41,7 +42,8 @@ interface CmdParams {
     | "recent-prices"
     | "historical-prices"
     | "historical-share-rate"
-    | "reward-snapshots";
+    | "reward-snapshots"
+    | "investor-cache";
   filterChains: Chain[];
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
@@ -79,6 +81,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             "historical-prices",
             "historical-share-rate",
             "reward-snapshots",
+            "investor-cache",
           ],
           demand: true,
           alias: "t",
@@ -155,6 +158,8 @@ function getTasksToRun(cmdParams: CmdParams) {
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
     case "reward-snapshots":
       return cmdParams.filterChains.map((chain) => () => importBeefyRewardSnapshots(chain, cmdParams));
+    case "investor-cache":
+      return [() => importInvestorCache(cmdParams)];
     default:
       throw new ProgrammerError(`Unknown importer: ${cmdParams.task}`);
   }
@@ -172,6 +177,22 @@ async function importProducts(cmdParams: CmdParams) {
   };
 
   const runner = createBeefyProductRunner({ runnerConfig, client: cmdParams.client });
+
+  return runner.run();
+}
+
+async function importInvestorCache(cmdParams: CmdParams) {
+  // now import data for those
+  const runnerConfig: NoRpcRunnerConfig<null> = {
+    client: cmdParams.client,
+    mode: "recent",
+    getInputs: async () => [null],
+    inputPollInterval: cmdParams.productRefreshInterval,
+    minWorkInterval: cmdParams.loopEvery,
+    repeat: cmdParams.loopEvery !== null,
+  };
+
+  const runner = createBeefyInvestorCacheRunner({ runnerConfig, client: cmdParams.client });
 
   return runner.run();
 }

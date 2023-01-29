@@ -764,11 +764,17 @@ export async function db_migrate() {
       -- we want all data in one chunk
       chunk_time_interval => INTERVAL '1000 years',
       partitioning_column => 'investor_id',
-      number_partitions => 1000
+      number_partitions => 200
     );
 
     CREATE UNIQUE INDEX IF NOT EXISTS beefy_investor_cache_uniq_idx ON beefy_investor_timeline_cache_ts (investor_id, product_id, block_number, datetime);
+
+    -- query index
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_query_idx ON beefy_investor_timeline_cache_ts (investor_id);
+
+    -- find empty price index
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_uprice_idx ON beefy_investor_timeline_cache_ts (product_id, datetime) where underlying_to_usd_price is null;
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_rprice_idx ON beefy_investor_timeline_cache_ts (product_id, datetime) where pending_rewards_to_usd_price is null;
   `);
 
   logger.info({ msg: "Migrate done" });
