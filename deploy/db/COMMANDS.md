@@ -738,3 +738,20 @@ where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
 
   call refresh_continuous_aggregate('price_ts_cagg_1d', now() - '18 month'::interval, now());
 ```
+
+```sql
+
+select investor_id, address, bytea_to_hexstr(address)
+from investor
+where investor_id in (
+  select investor_id
+  from beefy_investor_timeline_cache_ts
+  where product_id in (select product_id from product where not product_data::text ~* 'gov')
+  group by 1
+  order by last(balance,datetime) desc
+  limit 10
+);
+
+;
+
+```
