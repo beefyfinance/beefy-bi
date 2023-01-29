@@ -27,7 +27,7 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     # configure the database
     #command: postgres -c max_locks_per_transaction=600
-    command: postgres -c logging_collector=off -c log_min_duration_statement=1s -c log_statement=none -c max_locks_per_transaction=2000
+    command: postgres -c logging_collector=off -c log_min_duration_statement=1s -c log_statement=none -c max_locks_per_transaction=500
     env_file: ../.env
     cpus: ${TIMESCALEDB_CPU_SHARE:-0.3}
     stop_signal: SIGINT
