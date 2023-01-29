@@ -507,6 +507,9 @@ insert into beefy_investor_timeline_cache_ts (
   product_id,
   datetime,
   block_number,
+  price_feed_1_id,
+  price_feed_2_id,
+  pending_rewards_price_feed_id,
   balance,
   balance_diff,
   share_to_underlying_price,
@@ -520,6 +523,9 @@ insert into beefy_investor_timeline_cache_ts (
 ) (
   with investment_diff_raw as (
     select b.datetime, b.block_number, b.investor_id, b.product_id,
+      p.price_feed_1_id,
+      p.price_feed_2_id,
+      p.pending_rewards_price_feed_id,
       last(b.balance, b.datetime) as balance,
       sum(b.balance_diff) as balance_diff,
       last(pr1.price::numeric, pr1.datetime) as price1,
@@ -539,7 +545,7 @@ insert into beefy_investor_timeline_cache_ts (
       on p.price_feed_2_id = pr2.price_feed_id
       and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
     where b.balance_diff != 0 -- only show changes, not reward snapshots
-    group by 1,2,3,4
+    group by 1,2,3,4,5,6,7
     having sum(b.balance_diff) != 0 -- only show changes, not reward snapshots
   )
   select
@@ -547,7 +553,9 @@ insert into beefy_investor_timeline_cache_ts (
     b.product_id,
     b.datetime,
     b.block_number,
-
+    b.price_feed_1_id,
+    b.price_feed_2_id,
+    b.pending_rewards_price_feed_id,
     b.balance as balance,
     b.balance_diff as balance_diff,
     b.price1 as share_to_underlying_price,
@@ -599,6 +607,9 @@ insert into beefy_investor_timeline_cache_ts (
   product_id,
   datetime,
   block_number,
+  price_feed_1_id,
+  price_feed_2_id,
+  pending_rewards_price_feed_id,
   balance,
   balance_diff,
   share_to_underlying_price,
@@ -617,6 +628,9 @@ insert into beefy_investor_timeline_cache_ts (
   ),
   investment_diff_raw as (
     select b.datetime, b.block_number, b.investor_id, b.product_id,
+      p.price_feed_1_id,
+      p.price_feed_2_id,
+      p.pending_rewards_price_feed_id,
       last(b.balance, b.datetime) as balance,
       sum(b.balance_diff) as balance_diff,
       last(pr1.price::numeric, pr1.datetime) as price1,
@@ -636,7 +650,7 @@ insert into beefy_investor_timeline_cache_ts (
       on p.price_feed_2_id = pr2.price_feed_id
       and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
     where b.balance_diff != 0 -- only show changes, not reward snapshots
-    group by 1,2,3,4
+    group by 1,2,3,4,5,6,7
     having sum(b.balance_diff) != 0 -- only show changes, not reward snapshots
   )
   select
@@ -644,6 +658,9 @@ insert into beefy_investor_timeline_cache_ts (
     b.product_id,
     b.datetime,
     b.block_number,
+    b.price_feed_1_id,
+    b.price_feed_2_id,
+    b.pending_rewards_price_feed_id,
 
     b.balance as balance,
     b.balance_diff as balance_diff,
@@ -672,5 +689,46 @@ DO UPDATE SET
 ```
 
 ```sql
+
+
+
+
+
+
+explain update beefy_investor_timeline_cache_ts set
+  underlying_to_usd_price = pr2.price,
+  usd_balance = underlying_balance * pr2.price,
+  usd_diff = underlying_diff * pr2.price
+from price_ts pr2
+where underlying_to_usd_price is null and investor_id = 8402782
+  and beefy_investor_timeline_cache_ts.price_feed_2_id = pr2.price_feed_id
+  and time_bucket('15min', pr2.datetime) = time_bucket('15min', beefy_investor_timeline_cache_ts.datetime);
+
+explain with missing_cache_prices as materialized (
+  select
+    c.investor_id,
+    c.product_id,
+    c.datetime,
+    c.block_number,
+    last(pr2.price, pr2.datetime) as price
+  from beefy_investor_timeline_cache_ts c
+    join price_ts pr2 on c.price_feed_2_id = pr2.price_feed_id
+     and time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)
+  where c.underlying_to_usd_price is null
+  group by 1,2,3,4
+)
+update beefy_investor_timeline_cache_ts
+set
+  underlying_to_usd_price = to_update.price,
+  usd_balance = underlying_balance * to_update.price,
+  usd_diff = underlying_diff * to_update.price
+from missing_cache_prices to_update
+where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
+  and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
+  and to_update.datetime = beefy_investor_timeline_cache_ts.datetime
+  and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
+
+
+
 
 ```

@@ -525,6 +525,7 @@ export async function db_migrate() {
 
     -- make sure we don't create a unique index on a null value because all nulls are considered different
     CREATE UNIQUE INDEX IF NOT EXISTS price_ts_wi_chain_uniq ON price_ts(price_feed_id, block_number, datetime);
+    CREATE INDEX IF NOT EXISTS price_ts_15min_idx ON price_ts (price_feed_id, time_bucket('15min', datetime));
 
     SELECT create_hypertable(
       relation => 'price_ts',
@@ -741,6 +742,11 @@ export async function db_migrate() {
       datetime timestamptz not null,
       block_number integer not null,
 
+      -- denormalized product field to facilitate joins on price_ts
+      price_feed_1_id integer not null references price_feed(price_feed_id),
+      price_feed_2_id integer not null references price_feed(price_feed_id),
+      pending_rewards_price_feed_id integer references price_feed(price_feed_id),
+
       -- store everything as double precision as we can afford to lose some precision for speed
       balance double precision,
       balance_diff double precision,
@@ -773,8 +779,8 @@ export async function db_migrate() {
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_query_idx ON beefy_investor_timeline_cache_ts (investor_id);
 
     -- find empty price index
-    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_uprice_idx ON beefy_investor_timeline_cache_ts (product_id, datetime) where underlying_to_usd_price is null;
-    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_rprice_idx ON beefy_investor_timeline_cache_ts (product_id, datetime) where pending_rewards_to_usd_price is null;
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_uprice_idx ON beefy_investor_timeline_cache_ts (price_feed_2_id, time_bucket('15min', datetime)) where underlying_to_usd_price is null;
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_rprice_idx ON beefy_investor_timeline_cache_ts (pending_rewards_price_feed_id, time_bucket('15min', datetime)) where pending_rewards_to_usd_price is null and pending_rewards_price_feed_id is not null;
   `);
 
   logger.info({ msg: "Migrate done" });

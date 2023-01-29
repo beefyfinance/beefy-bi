@@ -421,6 +421,9 @@ export function loadTransfers$<
         investorId: item.investment.investorId,
         datetime: item.investment.datetime,
         blockNumber: item.investment.blockNumber,
+        priceFeed1Id: item.target.product.priceFeedId1,
+        priceFeed2Id: item.target.product.priceFeedId2,
+        pendingRewardsPriceFeedId: item.target.product.pendingRewardsPriceFeedId,
 
         balance: item.investment.balance,
         balanceDiff: item.investment.balanceDiff,

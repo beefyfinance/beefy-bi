@@ -14,6 +14,10 @@ interface DbInvestorCacheDimensions {
   productId: number;
   datetime: Date;
   blockNumber: number;
+  // denormalized fiels
+  priceFeed1Id: number;
+  priceFeed2Id: number;
+  pendingRewardsPriceFeedId: number | null;
 }
 
 type DbInvestorCacheChainInfos = Nullable<{
@@ -64,6 +68,9 @@ export function upsertInvestorCacheChainInfos$<
             product_id,
             datetime,
             block_number,
+            price_feed_1_id,
+            price_feed_2_id,
+            pending_rewards_price_feed_id,
             balance,
             balance_diff,
             share_to_underlying_price,
@@ -90,6 +97,9 @@ export function upsertInvestorCacheChainInfos$<
             data.productId,
             data.datetime.toISOString(),
             data.blockNumber,
+            data.priceFeed1Id,
+            data.priceFeed2Id,
+            data.pendingRewardsPriceFeedId,
             data.balance ? data.balance.toString() : null,
             data.balanceDiff ? data.balanceDiff.toString() : null,
             data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
@@ -121,80 +131,29 @@ export function upsertInvestorCacheChainInfos$<
 export async function addMissingInvestorCacheUsdInfos(options: { client: DbClient }) {
   await db_query<{ product_id: number; investor_id: number; block_number: number }>(
     `
-      insert into beefy_investor_timeline_cache_ts (
-        investor_id,
-        product_id,
-        datetime,
-        block_number,
-        balance,
-        balance_diff,
-        share_to_underlying_price,
-        underlying_balance,
-        underlying_diff,
-        underlying_to_usd_price,
-        usd_balance,
-        usd_diff,
-        pending_rewards,
-        pending_rewards_diff
-      ) (
-        with balance_scope as (
-          select *
-          from beefy_investor_timeline_cache_ts
-          where underlying_to_usd_price is null
-        ),
-        investment_diff_raw as (
-          select b.datetime, b.block_number, b.investor_id, b.product_id,
-            last(b.balance, b.datetime) as balance,
-            sum(b.balance_diff) as balance_diff,
-            last(pr1.price::numeric, pr1.datetime) as price1,
-            last(pr2.price::numeric, pr2.datetime) as price2,
-            last(b.pending_rewards, b.datetime) as pending_reward,
-            sum(b.pending_rewards_diff) as pending_reward_diff
-          from balance_scope b
-          join product p
-            on b.product_id = p.product_id
-          -- we should have the exact price1 (share to underlying) from this exact block for all investment change
-          join price_ts pr1
-            on p.price_feed_1_id = pr1.price_feed_id
-            and pr1.datetime = b.datetime
-            and pr1.block_number = b.block_number
-          -- but for price 2 (underlying to usd) we need to match on approx time
-          join price_ts pr2
-            on p.price_feed_2_id = pr2.price_feed_id
-            and time_bucket('15min', pr2.datetime) = time_bucket('15min', b.datetime)
-          where b.balance_diff != 0 -- only show changes, not reward snapshots
-          group by 1,2,3,4
-          having sum(b.balance_diff) != 0 -- only show changes, not reward snapshots
-        )
+      with missing_cache_prices as materialized (
         select
-          b.investor_id,
-          b.product_id,
-          b.datetime,
-          b.block_number,
-          b.balance as balance,
-          b.balance_diff as balance_diff,
-          b.price1 as share_to_underlying_price,
-          (b.balance * b.price1)::NUMERIC(100, 24) as underlying_balance,
-          (b.balance_diff * b.price1)::NUMERIC(100, 24) as underlying_diff,
-          b.price2 as underlying_to_usd_price,
-          (b.balance * b.price1 * b.price2)::NUMERIC(100, 24) as usd_balance,
-          (b.balance_diff * b.price1 * b.price2)::NUMERIC(100, 24) as usd_diff,
-          b.pending_reward as pending_reward,
-          b.pending_reward_diff as pending_reward_diff
-        from investment_diff_raw b
-        join product p on p.product_id = b.product_id
+          c.investor_id,
+          c.product_id,
+          c.datetime,
+          c.block_number,
+          last(pr2.price, pr2.datetime) as price
+        from beefy_investor_timeline_cache_ts c
+          join price_ts pr2 on c.price_feed_2_id = pr2.price_feed_id
+          and time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)
+        where c.underlying_to_usd_price is null
+        group by 1,2,3,4
       )
-      ON CONFLICT (product_id, investor_id, block_number, datetime)
-      DO UPDATE SET
-          balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
-          balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
-          share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
-          underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, beefy_investor_timeline_cache_ts.underlying_to_usd_price),
-          underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
-          underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
-          pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
-          pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff);
-
+      update beefy_investor_timeline_cache_ts
+      set
+        underlying_to_usd_price = to_update.price,
+        usd_balance = underlying_balance * to_update.price,
+        usd_diff = underlying_diff * to_update.price
+      from missing_cache_prices to_update
+      where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
+        and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
+        and to_update.datetime = beefy_investor_timeline_cache_ts.datetime
+        and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
       `,
     [],
     options.client,
