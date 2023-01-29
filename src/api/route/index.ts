@@ -6,6 +6,7 @@ import { API_DISABLE_HTTPS } from "../../utils/config";
 import portfolioRoutes from "./portfolio";
 import pricesRoutes from "./prices";
 import productRoutes from "./product";
+import beefyRoutes from "./protocol/beefy";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
   instance
@@ -28,6 +29,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       reply.send(instance.swagger());
     });
   instance.register(portfolioRoutes, { prefix: "/portfolio" });
+  instance.register(beefyRoutes, { prefix: "/beefy" });
   instance.register(productRoutes, { prefix: "/product" });
   instance.register(pricesRoutes, { prefix: "/price" });
   done();

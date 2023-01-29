@@ -9,6 +9,7 @@ import { InvestorService } from "./investor";
 import { PortfolioService } from "./portfolio";
 import { PriceService } from "./price";
 import { ProductService } from "./product";
+import { BeefyPortfolioService } from "./protocol/beefy";
 
 const AbstractCache: any = require("abstract-cache"); // todo: add or install types
 
@@ -17,6 +18,7 @@ declare module "@fastify/awilix" {
     db: DbClient;
     investor: InvestorService;
     portfolio: PortfolioService;
+    beefy: BeefyPortfolioService;
     product: ProductService;
     price: PriceService;
     cache: AsyncCache;
@@ -56,6 +58,9 @@ export async function registerDI(instance: FastifyInstance) {
       lifetime: Lifetime.SINGLETON,
     }),
     portfolio: asClass(PortfolioService, {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    beefy: asClass(BeefyPortfolioService, {
       lifetime: Lifetime.SINGLETON,
     }),
     product: asClass(ProductService, {
