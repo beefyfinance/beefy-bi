@@ -44,6 +44,7 @@ export class BeefyPortfolioService {
             b.pending_rewards_usd_balance
           from beefy_investor_timeline_cache_ts b
             join product p on b.product_id = p.product_id
+          where b.investor_id = %L
           order by 1
         `,
         [investorId],
@@ -90,6 +91,7 @@ export class BeefyPortfolioService {
               b.usd_diff
             from beefy_investor_timeline_cache_ts b
             join product p on p.product_id = b.product_id
+            where b.investor_id = %L
             order by product_key asc, datetime asc
         `,
         [investorId],
