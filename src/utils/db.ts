@@ -572,6 +572,42 @@ export async function db_migrate() {
     `);
   }
 
+  await db_query(`
+    CREATE MATERIALIZED VIEW IF NOT EXISTS price_ts_cagg_1d
+    WITH (timescaledb.continuous) AS
+    SELECT price_feed_id,
+      time_bucket(INTERVAL '1 day', datetime) AS datetime,
+      AVG(price) as price_avg,
+      MAX(price) as price_high,
+      MIN(price) as price_low,
+      FIRST(price, datetime) as price_open,
+      LAST(price, datetime) as price_close
+    FROM price_ts
+    GROUP BY 1,2
+    WITH NO DATA;
+
+    /*
+     * https://docs.timescale.com/timescaledb/latest/how-to-guides/continuous-aggregates/create-index/
+     * When you create a continuous aggregate, an index is automatically created for each GROUP BY column. 
+     * The index is a composite index, combining the GROUP BY column with the time_bucket column.
+     */
+  `);
+
+  if (!hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
+    await db_query(`
+      SELECT add_continuous_aggregate_policy('price_ts_cagg_1d',
+        start_offset => INTERVAL '2 day',
+        end_offset => INTERVAL '1 hours',
+        schedule_interval => INTERVAL '12 hour'
+      );
+    `);
+  }
+  if (!hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_retention")) {
+    await db_query(`
+      SELECT add_retention_policy('price_ts_cagg_1d', INTERVAL '18 months');
+    `);
+  }
+
   // a table to store which data we already imported and which range needs to be retried
   // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
   await db_query(`

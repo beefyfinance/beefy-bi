@@ -1,17 +1,28 @@
-import { SamplingPeriod } from "../../types/sampling";
 import { DbClient, db_query } from "../../utils/db";
-import { assertIsValidTimeBucket } from "../schema/time-bucket";
+import { ProgrammerError } from "../../utils/programmer-error";
+import { TimeBucket, timeBucketToSamplingPeriod } from "../schema/time-bucket";
 import { AsyncCache } from "./cache";
 
 export class PriceService {
   constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
-  async getPriceTs(priceFeedId: number, bucketSize: SamplingPeriod, timeRange: SamplingPeriod) {
-    // only accept some parameter combination
-    assertIsValidTimeBucket(bucketSize, timeRange);
+  async getPriceTs(priceFeedId: number, timeBucket: TimeBucket) {
+    const { timeRange } = timeBucketToSamplingPeriod(timeBucket);
 
-    const cacheKey = `api:price-service:simple:${priceFeedId}-${bucketSize}`;
+    const cacheKey = `api:price-service:simple:${priceFeedId}-${timeBucket}`;
     const ttl = 1000 * 60 * 5; // 5 min
+
+    const matViewMap: { [key in TimeBucket]: string } = {
+      "1h_1d": "price_ts_cagg_1h",
+      "1h_1w": "price_ts_cagg_1h",
+      "1d_1M": "price_ts_cagg_1d",
+      "1d_1Y": "price_ts_cagg_1d",
+    };
+    const matView = matViewMap[timeBucket];
+    if (!matView) {
+      throw new ProgrammerError("Unsupported time bucket: " + timeBucket);
+    }
+
     return this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query<{
         datetime: string;
@@ -23,19 +34,18 @@ export class PriceService {
       }>(
         `
         SELECT 
-          time_bucket(%L, datetime) as datetime, 
-          AVG(price) as price_avg,
-          MAX(price) as price_high,
-          MIN(price) as price_low,
-          FIRST(price, datetime) as price_open,
-          LAST(price, datetime) as price_close
-        FROM price_ts
+          datetime as datetime, 
+          price_avg,
+          price_high,
+          price_low,
+          price_open,
+          price_close
+        FROM ${matView}
         WHERE price_feed_id = %L
           AND datetime > NOW() - %L::INTERVAL
-        group by 1
         order by 1 asc
       `,
-        [bucketSize, priceFeedId, timeRange],
+        [priceFeedId, timeRange],
         this.services.db,
       ),
     );

@@ -6,7 +6,6 @@ import { ProgrammerError } from "../../utils/programmer-error";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
 import { AsyncCache } from "./cache";
 import { InvestorService } from "./investor";
-import { PortfolioService } from "./portfolio";
 import { PriceService } from "./price";
 import { ProductService } from "./product";
 import { BeefyPortfolioService } from "./protocol/beefy";
@@ -17,7 +16,6 @@ declare module "@fastify/awilix" {
   interface Cradle {
     db: DbClient;
     investor: InvestorService;
-    portfolio: PortfolioService;
     beefy: BeefyPortfolioService;
     product: ProductService;
     price: PriceService;
@@ -55,9 +53,6 @@ export async function registerDI(instance: FastifyInstance) {
       { lifetime: Lifetime.TRANSIENT },
     ),
     investor: asClass(InvestorService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    portfolio: asClass(PortfolioService, {
       lifetime: Lifetime.SINGLETON,
     }),
     beefy: asClass(BeefyPortfolioService, {

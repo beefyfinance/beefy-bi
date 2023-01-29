@@ -2,6 +2,7 @@ import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { TimeBucket, timeBucketToSamplingPeriod } from "../../schema/time-bucket";
 import { AsyncCache } from "../cache";
 import { ProductService } from "../product";
 

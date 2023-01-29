@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { productKeySchema } from "../schema/product";
-import { TimeBucket, timeBucketSchema, timeBucketToSamplingPeriod } from "../schema/time-bucket";
+import { TimeBucket, timeBucketSchema } from "../schema/time-bucket";
 import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
@@ -49,9 +49,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       return reply.code(404).send({ error: "Price feed not found" });
     }
 
-    const { bucketSize, timeRange } = timeBucketToSamplingPeriod(time_bucket);
-
-    const priceTs = await instance.diContainer.cradle.price.getPriceTs(priceFeedId, bucketSize, timeRange);
+    const priceTs = await instance.diContainer.cradle.price.getPriceTs(priceFeedId, time_bucket);
     return reply.send(priceTs.map((price) => [price.datetime, price.price_open, price.price_high, price.price_low, price.price_close]));
   });
 
