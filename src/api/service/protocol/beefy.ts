@@ -17,6 +17,7 @@ export class BeefyPortfolioService {
       const res = await db_query<{
         product_id: number;
         product_key: string;
+        display_name: string;
         chain: Chain;
         is_eol: boolean;
         share_to_underlying_price: string;
@@ -31,6 +32,7 @@ export class BeefyPortfolioService {
           select 
             p.product_id,
             p.product_key,
+            coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id')::text as display_name,
             p.chain,
             coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
             b.share_to_underlying_price, 
@@ -60,6 +62,7 @@ export class BeefyPortfolioService {
       return db_query<{
         datetime: Date;
         product_key: string;
+        display_name: string;
         chain: Chain;
         is_eol: boolean;
         share_to_underlying_price: string;
@@ -74,6 +77,7 @@ export class BeefyPortfolioService {
         `
             select b.datetime,
               p.product_key,
+              coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id')::text as display_name,
               p.chain,
               coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
               b.share_to_underlying_price, 
