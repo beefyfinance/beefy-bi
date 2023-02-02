@@ -104,7 +104,7 @@
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "methods": {
         "eth_getLogs": null,
@@ -120,7 +120,7 @@
       "maxGetLogsBlockSpan": 5000,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 3,
       "methods": {
         "eth_getLogs": 1,
@@ -136,7 +136,7 @@
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 1,
