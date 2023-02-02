@@ -28,7 +28,7 @@ export function beefyZapsFromGit$(): Rx.Observable<BeefyZap> {
   const beefyZapStream = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
-      : "git@github.com:beefyfinance/beefy-v2.git",
+      : "https://github.com/beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/zap/beefy.ts`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
@@ -40,7 +40,7 @@ export function beefyZapsFromGit$(): Rx.Observable<BeefyZap> {
   const oneInchZapStream = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
-      : "git@github.com:beefyfinance/beefy-v2.git",
+      : "https://github.com/beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/zap/one-inch.ts`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),

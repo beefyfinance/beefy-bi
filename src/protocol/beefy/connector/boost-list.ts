@@ -56,7 +56,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
   const fileContentStreamV2 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
-      : "git@github.com:beefyfinance/beefy-v2.git",
+      : "https://github.com/beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/boost/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),

@@ -50,7 +50,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   const fileContentStreamV2 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
-      : "git@github.com:beefyfinance/beefy-v2.git",
+      : "https://github.com/beefyfinance/beefy-v2.git",
     branch: "main",
     filePath: `src/config/vault/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
@@ -63,7 +63,7 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   const fileContentStreamV1 = gitStreamFileVersions({
     remote: GITHUB_RO_AUTH_TOKEN
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-app.git`
-      : "git@github.com:beefyfinance/beefy-app.git",
+      : "https://github.com/beefyfinance/beefy-app.git",
     branch: "prod",
     filePath: `src/features/configure/vault/${v1Chain}_pools.js`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v1"),
