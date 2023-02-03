@@ -17,7 +17,7 @@ export class BeefyPortfolioService {
     const cacheKey = `api:portfolio-service:current-value:${investorId}}`;
     const ttl = 1000 * 60 * 5; // 5 min
     return this.services.cache.wrap(cacheKey, ttl, async () => {
-      const rawLastBalance = await db_query<{
+      let rawLastBalance = await db_query<{
         product_id: number;
         price_feed_1_id: number;
         price_feed_2_id: number;
@@ -51,6 +51,9 @@ export class BeefyPortfolioService {
         [investorId],
         this.services.db,
       );
+      rawLastBalance = rawLastBalance
+        .filter((x) => x.balance !== null || x.pending_rewards !== null)
+        .filter((x) => x.balance !== "0" || x.pending_rewards !== "0");
 
       const lastPriceMap = await this.services.price.getLastPrices(
         [
@@ -120,6 +123,7 @@ export class BeefyPortfolioService {
             from beefy_investor_timeline_cache_ts b
             join product p on p.product_id = b.product_id
             where b.investor_id = %L
+              and coalesce(p.product_data->>'dashboardEol')::text = 'false'
             order by product_key asc, datetime asc
         `,
         [investorId],
