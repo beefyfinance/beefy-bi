@@ -1,3 +1,4 @@
+import Decimal from "decimal.js";
 import { DbClient, db_query } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
 import { TimeBucket, timeBucketToSamplingPeriod } from "../schema/time-bucket";
@@ -23,7 +24,7 @@ export class PriceService {
       throw new ProgrammerError("Unsupported time bucket: " + timeBucket);
     }
 
-    return this.services.cache.wrap(cacheKey, ttl, async () =>
+    const result = await this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query<{
         datetime: string;
         price_avg: string;
@@ -49,5 +50,36 @@ export class PriceService {
         this.services.db,
       ),
     );
+    return result.map((row) => ({
+      datetime: new Date(row.datetime),
+      price_avg: new Decimal(row.price_avg),
+      price_high: new Decimal(row.price_high),
+      price_low: new Decimal(row.price_low),
+      price_open: new Decimal(row.price_open),
+      price_close: new Decimal(row.price_close),
+    }));
+  }
+
+  async getLastPrices(priceFeedIds: number[]): Promise<Map<number, Decimal>> {
+    if (priceFeedIds.length === 0) return new Map();
+
+    const cacheKey = `api:price-service:last-price:${priceFeedIds.join(",")}`;
+    const ttl = 1000 * 60 * 5; // 5 min
+
+    const result = await this.services.cache.wrap(cacheKey, ttl, async () =>
+      db_query<{ price_feed_id: number; price: string }>(
+        `
+        SELECT 
+          price_feed_id,
+          last(price, datetime) as price
+        FROM price_ts
+        WHERE price_feed_id IN (%L)
+        group by 1
+      `,
+        [priceFeedIds],
+        this.services.db,
+      ),
+    );
+    return new Map(result.map((row) => [row.price_feed_id, new Decimal(row.price)]));
   }
 }
