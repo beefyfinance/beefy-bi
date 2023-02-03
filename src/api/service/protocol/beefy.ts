@@ -71,12 +71,8 @@ export class BeefyPortfolioService {
         }))
         .map((x) => ({
           ...x,
-          share_balance: x.balance?.mul(x.share_to_underlying_price ?? 0) ?? null,
+          underlying_balance: x.balance?.mul(x.share_to_underlying_price ?? 0) ?? null,
           pending_rewards_usd_balance: x.pending_rewards?.mul(x.pending_rewards_usd_price ?? 0) ?? null,
-        }))
-        .map((x) => ({
-          ...x,
-          underlying_balance: x.share_balance?.mul(x.underlying_to_usd_price ?? 0) ?? null,
         }))
         .map((x) => ({
           ...x,
