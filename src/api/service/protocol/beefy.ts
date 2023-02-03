@@ -53,7 +53,7 @@ export class BeefyPortfolioService {
       );
       rawLastBalance = rawLastBalance
         .filter((x) => x.balance !== null || x.pending_rewards !== null)
-        .filter((x) => x.balance !== "0" || x.pending_rewards !== "0");
+        .filter((x) => !new Decimal(x.balance).isZero() || !new Decimal(x.pending_rewards).isZero());
 
       const lastPriceMap = await this.services.price.getLastPrices(
         [
