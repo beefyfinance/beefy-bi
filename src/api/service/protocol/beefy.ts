@@ -51,9 +51,7 @@ export class BeefyPortfolioService {
         [investorId],
         this.services.db,
       );
-      rawLastBalance = rawLastBalance
-        .filter((x) => x.balance !== null || x.pending_rewards !== null)
-        .filter((x) => !new Decimal(x.balance).isZero() || !new Decimal(x.pending_rewards).isZero());
+      rawLastBalance = rawLastBalance.filter((x) => !new Decimal(x.balance || 0).isZero() || !new Decimal(x.pending_rewards || 0).isZero());
 
       const lastPriceMap = await this.services.price.getLastPrices(
         [
