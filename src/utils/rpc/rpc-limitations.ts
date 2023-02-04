@@ -209,14 +209,19 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
-  // shortcut when there's only one RPC
-  if (rpcConfigs.length === 1) {
-    return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
-  }
-
   // remove disabled RPCs
   rpcConfigs = rpcConfigs.filter((rpcConfig) => !rpcConfig.limitations.disableRpc);
 
+  // shortcut when there's only one RPC
+  if (rpcConfigs.length === 1) {
+    return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
+  } else if (rpcConfigs.length === 0) {
+    throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+  }
+
+  // use archive node for historical mode
+  // use non-archive node for recent mode
+  // if no rpc matches, use all rpcs anyway
   if (mode === "historical") {
     const historicalRpcConfigs = rpcConfigs.filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);
     if (historicalRpcConfigs.length > 0) {
@@ -224,6 +229,15 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     } else {
       logger.warn({ msg: "No archive nodes RPC found for chain", data: { chain } });
     }
+  } else if (mode === "recent") {
+    const recentRpcConfigs = rpcConfigs.filter((rpcConfig) => !rpcConfig.limitations.isArchiveNode);
+    if (recentRpcConfigs.length > 0) {
+      rpcConfigs = recentRpcConfigs;
+    } else {
+      logger.warn({ msg: "No non-archive nodes RPC found for chain", data: { chain } });
+    }
+  } else {
+    throw new ProgrammerError({ msg: "Unknown mode", data: { mode } });
   }
 
   // order by no-limit nodes first, then by minDelayBetweenCalls, then by the get logs block span

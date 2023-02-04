@@ -164,7 +164,8 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
       // not sure if this is correct, explorer shows a weird block
       // https://optimistic.etherscan.io/address/0x4200000000000000000000000000000000000006
       // https://optimistic.etherscan.io/tx/GENESIS_4200000000000000000000000000000000000006 -> 404
-      optimism: 1,
+      //optimism: 1000,
+      optimism: 12334163, // beefy first contract is at 13334163
       polygon: 4931456,
       syscoin: 1523,
     };

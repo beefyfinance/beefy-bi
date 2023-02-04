@@ -511,6 +511,22 @@
         "eth_getTransactionReceipt": 64
       }
     },
+    "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 3,
+      "methods": {
+        "eth_getLogs": 50,
+        "eth_call": null,
+        "eth_getBlockByNumber": 250,
+        "eth_blockNumber": 250,
+        "eth_getTransactionReceipt": 50
+      }
+    },
     "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
