@@ -230,7 +230,11 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
       logger.warn({ msg: "No archive nodes RPC found for chain", data: { chain } });
     }
   } else if (mode === "recent") {
-    const recentRpcConfigs = rpcConfigs.filter((rpcConfig) => !rpcConfig.limitations.isArchiveNode);
+    // remove archive nodes only if they have a limit on calls
+    const recentRpcConfigs = rpcConfigs.filter(
+      (rpcConfig) =>
+        !rpcConfig.limitations.isArchiveNode || (rpcConfig.limitations.isArchiveNode && rpcConfig.limitations.minDelayBetweenCalls === "no-limit"),
+    );
     if (recentRpcConfigs.length > 0) {
       rpcConfigs = recentRpcConfigs;
     } else {
