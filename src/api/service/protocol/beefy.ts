@@ -40,6 +40,7 @@ export class BeefyPortfolioService {
             coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id')::text as display_name,
             p.chain,
             coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
+            p.product_data->>'dashboardEol' = 'true' as is_dashboard_eol,
             last(datetime, datetime) as datetime,
             last(balance, datetime) as balance,
             last(pending_rewards, datetime) as pending_rewards
@@ -47,11 +48,12 @@ export class BeefyPortfolioService {
             join product p on b.product_id = p.product_id
           where b.investor_id = %L
           group by 1,2,3,4,5,6,7,8
+          having not (last(balance, datetime) is null and last(pending_rewards, datetime) is null) -- filter out empty rows
+            and not (last(balance, datetime) = 0 and last(pending_rewards, datetime) = 0) -- filter out exited products
         `,
         [investorId],
         this.services.db,
       );
-      rawLastBalance = rawLastBalance.filter((x) => !new Decimal(x.balance || 0).isZero() || !new Decimal(x.pending_rewards || 0).isZero());
 
       const lastPriceMap = await this.services.price.getLastPrices(
         [
@@ -61,6 +63,7 @@ export class BeefyPortfolioService {
         ].filter((x) => x), // remove nulls
       );
 
+      // compute balance using last available prices
       const lastBalance = rawLastBalance
         .map((x) => ({
           ...x,

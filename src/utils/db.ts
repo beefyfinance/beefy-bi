@@ -82,7 +82,7 @@ export async function getDbClient({ appName = "beefy", freshClient = false }: { 
 
     const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
-    logger.trace({ msg: "Instantiating new pg client", data: { appNameToUse } });
+    logger.trace({ msg: "Instantiating new shared pg client", data: { appNameToUse } });
     sharedClient = new PgClient({ ...config, application_name: appNameToUse });
     sharedClient.on("error", (err: any) => {
       logger.error({ msg: "Postgres client error", data: { err, appNameToUse } });
@@ -95,7 +95,7 @@ export async function getDbClient({ appName = "beefy", freshClient = false }: { 
 
     const pgUrl = TIMESCALEDB_URL;
     const config = pgcs.parse(pgUrl) as any as PgClientConfig;
-    logger.trace({ msg: "Instantiating new pg client", data: { appNameToUse } });
+    logger.trace({ msg: "Instantiating new unique pg client", data: { appNameToUse } });
     return new PgClient({ ...config, application_name: appNameToUse });
   }
 
@@ -111,6 +111,7 @@ export function withDbClient<TArgs extends any[], TRes>(
     const pgClient = await getDbClient({ appName, freshClient: false });
     let res: TRes;
     try {
+      logger.trace({ msg: "Connecting to pg", data: { appName, connectTimeoutMs } });
       await withTimeout(() => pgClient.connect(), connectTimeoutMs, logInfos);
       res = await fn(pgClient, ...args);
     } finally {

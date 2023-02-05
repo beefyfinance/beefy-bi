@@ -8,16 +8,20 @@ const logger = rootLogger.child({ module: "shared-resources", component: "redis-
 let client: Client | null = null;
 export async function getRedisClient() {
   if (!client) {
-    logger.debug({ msg: "Creating redis client" });
-    client = new Client(REDIS_URL);
-    client
-      .on("connection", () => {
-        logger.debug({ msg: "Redis client conneted" });
-      })
-      .on("error", (err: any) => {
-        logger.error({ msg: "Redis client error", data: { err } });
-        logger.error(err);
-      });
+    return new Promise<Client>((resolve, reject) => {
+      logger.debug({ msg: "Creating redis client" });
+      const _client = new Client(REDIS_URL)
+        .on("ready", () => {
+          logger.debug({ msg: "Redis client connected" });
+          client = _client;
+          resolve(client);
+        })
+        .on("error", (err: any) => {
+          logger.error({ msg: "Redis client error", data: { err } });
+          logger.error(err);
+          reject(err);
+        });
+    });
   }
   return client;
 }
@@ -25,8 +29,8 @@ export async function getRedisClient() {
 let redlock: Redlock | null = null;
 export async function getRedlock() {
   if (!redlock) {
-    logger.debug({ msg: "Creating redlock client" });
     const client = await getRedisClient();
+    logger.debug({ msg: "Creating redlock client" });
     redlock = new Redlock(
       // You should have one client for each independent redis node
       // or cluster.
