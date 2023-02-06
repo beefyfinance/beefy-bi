@@ -106,7 +106,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
           const cmdParams: CmdParams = {
             client,
-            rpcCount: isEmpty(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
+            rpcCount: argv.rpcCount === undefined ? "all" : argv.rpcCount ?? 0,
             task: argv.task as CmdParams["task"],
             includeEol: argv.includeEol,
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
@@ -118,16 +118,28 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({ msg: "Cannot force current block number without a chain filter", data: { cmdParams } });
+            throw new ProgrammerError({
+              msg: "Cannot force current block number without a chain filter",
+              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+            });
           }
           if (cmdParams.forceRpcUrl !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({ msg: "Cannot force RPC URL without a chain filter", data: { cmdParams } });
+            throw new ProgrammerError({
+              msg: "Cannot force RPC URL without a chain filter",
+              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+            });
           }
           if (cmdParams.forceRpcUrl !== null && cmdParams.rpcCount !== 1) {
-            throw new ProgrammerError({ msg: "Cannot force RPC URL with multiple RPCs", data: { cmdParams } });
+            throw new ProgrammerError({
+              msg: "Cannot force RPC URL with multiple RPCs",
+              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+            });
           }
           if (cmdParams.filterContractAddress !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({ msg: "Cannot filter contract address without a chain filter", data: { cmdParams } });
+            throw new ProgrammerError({
+              msg: "Cannot filter contract address without a chain filter",
+              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+            });
           }
 
           const tasks = getTasksToRun(cmdParams);
