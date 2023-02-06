@@ -118,16 +118,16 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             loopEvery: argv.loopEvery || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError("Cannot force current block number without a chain filter");
+            throw new ProgrammerError({ msg: "Cannot force current block number without a chain filter", data: { cmdParams } });
           }
           if (cmdParams.forceRpcUrl !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError("Cannot force RPC URL without a chain filter");
+            throw new ProgrammerError({ msg: "Cannot force RPC URL without a chain filter", data: { cmdParams } });
           }
           if (cmdParams.forceRpcUrl !== null && cmdParams.rpcCount !== 1) {
-            throw new ProgrammerError("Cannot force RPC URL with multiple RPCs");
+            throw new ProgrammerError({ msg: "Cannot force RPC URL with multiple RPCs", data: { cmdParams } });
           }
           if (cmdParams.filterContractAddress !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError("Cannot filter contract address without a chain filter");
+            throw new ProgrammerError({ msg: "Cannot filter contract address without a chain filter", data: { cmdParams } });
           }
 
           const tasks = getTasksToRun(cmdParams);
