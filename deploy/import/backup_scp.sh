@@ -12,7 +12,7 @@ TARGET_DIR=/home/data-storage/beefy-bi-backups
 BACKUP_SSH_NAME=storage-box
 
 
-BACKUP_DIR=~/beefy/snapshots
+BACKUP_DIR=~/beefy-bi-backups
 cd $BACKUP_DIR
 FILE_NAME=$(ls -t beefy.*.bak | tail -n 1)
 
