@@ -127,7 +127,7 @@ services:
       GF_INSTALL_PLUGINS: marcusolsson-json-datasource
       LETSENCRYPT_HOST: dm-control.beefy.com
       VIRTUAL_HOST: dm-control.beefy.com
-      VIRTUAL_PORT: 8080
+      VIRTUAL_PORT: 3000
     volumes:
       - grafana_data:/var/lib/grafana
       - grafana_plugins:/var/lib/grafana/plugins
