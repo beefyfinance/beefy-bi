@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # crontab -e
-# 0 5 * * * sh -c 'date > /home/nftocean/beefy/backup.log; export FTP_USER="xxx"; export FTP_PASSWORD="xxx"; export FTP_HOST="xxx"; export PGPASSWORD="xxx"; /home/nftocean/beefy/beefy-bi/deploy/import/backup.sh 2>&1 >> /home/nftocean/beefy/backup.log'
+# 0 5 * * * sh -c 'date > /home/backup.log; export PGPASSWORD="xxx"; /home/beefy-bi/deploy/import/backup_file.sh 2>&1 >> /home/backup.log'
 
 # if nothing happens
 # sudo apt-get install postfix
