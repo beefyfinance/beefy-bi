@@ -65,6 +65,9 @@ volumes:
 
 networks:
   backend: {}
+  proxy-exposed:
+    external:
+      name: proxy-exposed
 
 services:
   redis:
