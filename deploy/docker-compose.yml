@@ -103,8 +103,8 @@ services:
 
   grafana:
     image: grafana/grafana:9.2.3
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     deploy:
       resources:
         limits:
@@ -122,6 +122,9 @@ services:
       POSTGRES_PASSWORD: grafana_ro
       POSTGRES_DB: beefy
       GF_INSTALL_PLUGINS: marcusolsson-json-datasource
+      LETSENCRYPT_HOST: dm-control.beefy.com
+      VIRTUAL_HOST: dm-control.beefy.com
+      VIRTUAL_PORT: 8080
     volumes:
       - grafana_data:/var/lib/grafana
       - grafana_plugins:/var/lib/grafana/plugins
@@ -131,13 +134,14 @@ services:
       - timescaledb
     networks:
       - backend
+      - proxy-exposed
 
   public-api:
     image: beefy-data-importer
     restart: always
     env_file: ../.env
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     stop_signal: SIGINT
     environment:
       TZ: UTC
@@ -145,8 +149,12 @@ services:
       TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/api.js"
+      LETSENCRYPT_HOST: datamart.beefy.com
+      VIRTUAL_HOST: datamart.beefy.com
+      VIRTUAL_PORT: 8080
     networks:
       - backend
+      - proxy-exposed
     depends_on:
       - redis
       - timescaledb

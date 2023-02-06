@@ -14,7 +14,6 @@ BACKUP_SSH_NAME=storage-box
 
 BACKUP_DIR=~/beefy-bi-backups
 cd $BACKUP_DIR
-FILE_NAME=$(ls -t beefy.*.bak | tail -n 1)
 
 rsync -v -e "ssh $BACKUP_SSH_NAME" ./ $TARGET_DIR $TARGET_USER"@"$TARGET_HOST":"$TARGET_DIR
 cd -
