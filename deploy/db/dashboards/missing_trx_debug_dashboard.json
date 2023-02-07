@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 39,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -96,7 +96,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT\n  $__time(datetime),\n  product_id,\n  balance,\n  balance_diff,\n  pending_rewards,\n  pending_rewards_diff,\n  investment_data\nFROM\n  investment_balance_ts\nWHERE\n  $__timeFilter(datetime)\n  and product_id in ($_product_ids)\n  and investor_id in ($_investor_ids)\norder by 1",
+              "rawSql": "SELECT\n  $__time(datetime),\n  product_id,\n  balance,\n  balance_diff,\n  pending_rewards,\n  pending_rewards_diff\nFROM\n  investment_balance_ts\nWHERE\n  $__timeFilter(datetime)\n  and product_id in ($_product_ids)\n  and investor_id in ($_investor_ids)\norder by 1",
               "refId": "A",
               "select": [
                 [
@@ -483,6 +483,168 @@
             ]
           }
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 15,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select * \nfrom investment_balance_ts\nwhere product_id in ($_product_ids)\nand investor_id in ($_investor_ids)\norder by datetime desc;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investments from this user / product",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 16,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select * \nfrom beefy_investor_timeline_cache_ts\nwhere product_id in ($_product_ids)\nand investor_id in ($_investor_ids)\norder by datetime desc;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investment cache from this user / product",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
         "overrides": [
           {
             "matcher": {
@@ -538,7 +700,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 36
       },
       "id": 7,
       "options": {
@@ -593,8 +755,8 @@
       {
         "current": {
           "selected": true,
-          "text": "bsc",
-          "value": "bsc"
+          "text": "optimism",
+          "value": "optimism"
         },
         "datasource": {
           "type": "postgres",
@@ -616,27 +778,27 @@
       {
         "current": {
           "selected": false,
-          "text": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
-          "value": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55"
+          "text": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
+          "value": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
-            "selected": false,
-            "text": "0x280a53cbf252f1b5f6bde7471299c94ec566a7c8",
-            "value": "0x280a53cbf252f1b5f6bde7471299c94ec566a7c8"
+            "selected": true,
+            "text": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
+            "value": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76"
           }
         ],
-        "query": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
+        "query": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": true,
-          "text": "beefy:boost:bsc:moo_pots_bnb-moonpot",
-          "value": "beefy:boost:bsc:moo_pots_bnb-moonpot"
+          "text": "beefy:vault:optimism:0x6992333e5df2364eb1b6cf14dc0c86eb0865d6e2",
+          "value": "beefy:vault:optimism:0x6992333e5df2364eb1b6cf14dc0c86eb0865d6e2"
         },
         "datasource": {
           "type": "postgres",
@@ -656,36 +818,40 @@
         "type": "query"
       },
       {
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
+          "value": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2"
+        },
         "hide": 0,
         "name": "transaction_hash",
         "options": [
           {
             "selected": true,
-            "text": "",
-            "value": ""
+            "text": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
+            "value": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2"
           }
         ],
-        "query": "",
+        "query": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": false,
-          "text": "21556814",
-          "value": "21556814"
+          "text": "72817938",
+          "value": "72817938"
         },
         "hide": 0,
         "name": "block_number",
         "options": [
           {
             "selected": true,
-            "text": "21556814",
-            "value": "21556814"
+            "text": "72817938",
+            "value": "72817938"
           }
         ],
-        "query": "21556814",
+        "query": "72817938",
         "skipUrlSync": false,
         "type": "textbox"
       },
@@ -783,6 +949,6 @@
   "timezone": "",
   "title": "Debug user transaction",
   "uid": "pLvOZZd4k",
-  "version": 9,
+  "version": 5,
   "weekStart": ""
 }
