@@ -550,7 +550,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 4,
       "methods": {
         "eth_getLogs": 42,
         "eth_call": 500,
