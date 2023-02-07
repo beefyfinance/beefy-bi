@@ -11,7 +11,7 @@
 
 BACKUP_DIR=~/beefy/snapshots
 cd $BACKUP_DIR
-FILE_NAME=$(ls -t beefy.*.pg_dump | tail -n 1)
+FILE_NAME=$(ls -t beefy.*.gz | tail -n 1)
 
 ncftpput -u $FTP_USER -p $FTP_PASSWORD $FTP_HOST ~/beefy/snapshots $FILE_NAME
 cd -
