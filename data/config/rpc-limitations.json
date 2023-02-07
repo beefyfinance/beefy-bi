@@ -542,6 +542,22 @@
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
       }
+    },
+    "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY>": {
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": true,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 42,
+        "eth_call": 500,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
     }
   },
   "polygon": {
