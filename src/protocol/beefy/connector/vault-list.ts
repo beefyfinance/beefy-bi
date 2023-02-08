@@ -1,10 +1,11 @@
+import { ethers } from "ethers";
 import * as path from "path";
 import prettier from "prettier";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
-import { normalizeAddress } from "../../../utils/ethers";
+import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
 
@@ -138,7 +139,15 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
         }
 
         // index by contract address since beefy's team changes ids when the vault is eol
-        const vaultAddress = normalizeAddress(vault.earnContractAddress);
+        if (!ethers.utils.isAddress(vault.earnContractAddress)) {
+          logger.error({
+            msg: "Vault earnContractAddress is invalid, ignoring",
+            data: { vaultId: vault.id, earnContractAddress: vault.earnContractAddress },
+          });
+          logger.trace(vault);
+          continue;
+        }
+        const vaultAddress = normalizeAddressOrThrow(vault.earnContractAddress);
         if (!acc[vaultAddress]) {
           const eolDate = vault.status === "eol" ? fileVersion.date : null;
           acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
@@ -228,8 +237,8 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       chain,
       token_name: rawVault.earnedToken,
       token_decimals: 18,
-      contract_address: normalizeAddress(rawVault.earnContractAddress),
-      want_address: normalizeAddress(rawVault.tokenAddress || wnative),
+      contract_address: normalizeAddressOrThrow(rawVault.earnContractAddress),
+      want_address: normalizeAddressOrThrow(rawVault.tokenAddress || wnative),
       want_decimals: rawVault.tokenDecimals,
       eol: rawVault.status === "eol",
       eol_date: eolDate,

@@ -3,7 +3,7 @@ import * as path from "path";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
-import { normalizeAddress } from "../../../utils/ethers";
+import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
@@ -86,7 +86,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
 
       // add vaults to the accumulator
       for (const boost of boosts) {
-        const boostAddress = normalizeAddress(boost.earnContractAddress);
+        const boostAddress = normalizeAddressOrThrow(boost.earnContractAddress);
         if (!acc[boostAddress]) {
           const eolDate = boost.status === "closed" ? fileVersion.date : null;
           acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
@@ -164,16 +164,16 @@ function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: Beef
 
       vault_id: rawBoost.poolId,
       name: rawBoost.name,
-      contract_address: normalizeAddress(rawBoost.earnContractAddress),
+      contract_address: normalizeAddressOrThrow(rawBoost.earnContractAddress),
 
-      staked_token_address: normalizeAddress(vault.contract_address),
+      staked_token_address: normalizeAddressOrThrow(vault.contract_address),
       staked_token_decimals: vault.token_decimals,
-      vault_want_address: normalizeAddress(vault.want_address),
+      vault_want_address: normalizeAddressOrThrow(vault.want_address),
       vault_want_decimals: vault.want_decimals,
 
       reward_token_decimals: rawBoost.earnedTokenDecimals,
       reward_token_symbol: rawBoost.earnedToken,
-      reward_token_address: normalizeAddress(rawBoost.earnedTokenAddress),
+      reward_token_address: normalizeAddressOrThrow(rawBoost.earnedTokenAddress),
       reward_token_price_feed_key: rawBoost.earnedOracleId,
 
       eol: rawBoost.status === "closed",

@@ -1,9 +1,10 @@
+import { ethers } from "ethers";
 import * as path from "path";
 import prettier from "prettier";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
-import { normalizeAddress } from "../../../utils/ethers";
+import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
@@ -88,9 +89,17 @@ export function beefyZapsFromGit$(): Rx.Observable<BeefyZap> {
       return zaps;
     }),
 
+    Rx.filter((zap) => {
+      if (ethers.utils.isAddress(zap.zapAddress)) {
+        return true;
+      }
+      logger.error({ msg: "Invalid zap address", zap });
+      return false;
+    }),
+
     Rx.map((zap) => ({
       chain: zap.chainId,
-      address: normalizeAddress(zap.zapAddress),
+      address: normalizeAddressOrThrow(zap.zapAddress),
     })),
 
     Rx.tap({
