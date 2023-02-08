@@ -16,7 +16,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     }
     // remove technical fields
     const { productId, priceFeedId1, priceFeedId2, pendingRewardsPriceFeedId, ...rest } = product;
-    return reply.send(product);
+    return reply.send(rest);
   });
 
   done();
