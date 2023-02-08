@@ -14,6 +14,8 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     if (!product) {
       return reply.code(404).send({ error: "Product not found" });
     }
+    // remove technical fields
+    const { productId, priceFeedId1, priceFeedId2, pendingRewardsPriceFeedId, ...rest } = product;
     return reply.send(product);
   });
 

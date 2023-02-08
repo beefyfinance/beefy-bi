@@ -81,7 +81,9 @@ export class BeefyPortfolioService {
         .map((x) => ({
           ...x,
           usd_balance: x.underlying_balance?.mul(x.underlying_to_usd_price ?? 0) ?? null,
-        }));
+        }))
+        // remove technical fields
+        .map(({ product_id, price_feed_1_id, price_feed_2_id, pending_rewards_price_feed_id, ...rest }) => rest);
 
       logger.trace({ msg: "getInvestorPortfolioValue", data: { investorId, lastBalance } });
       return lastBalance;
