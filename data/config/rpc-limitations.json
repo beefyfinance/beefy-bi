@@ -68,7 +68,7 @@
   "bsc": {
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2>": {
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 100,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 3000,
       "internalTimeoutMs": null,
       "disableBatching": false,
