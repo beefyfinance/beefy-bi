@@ -638,135 +638,6 @@ export async function db_migrate() {
     );
   `);
 
-  // helper timeseries functions, mostly because we need them for grafana
-  await db_query(`
-    CREATE OR REPLACE FUNCTION narrow_gapfilled_investor_balance(
-        _time_from timestamptz, _time_to timestamptz, _interval interval,
-        _investor_id integer, _product_ids integer[]
-    ) returns table (datetime timestamptz, product_id integer, balance numeric, balance_diff numeric, pending_rewards numeric, pending_rewards_diff numeric) AS 
-    $$
-        -- find out investor's investments inside the requested range
-        with maybe_empty_investments_ts as (
-            SELECT
-                time_bucket_gapfill(_interval, b.datetime) as datetime,
-                b.product_id,
-                sum(balance_diff) as balance_diff,
-                locf(last(b.balance::numeric, b.datetime)) as balance,
-                sum(pending_rewards_diff) as pending_rewards_diff,
-                locf(last(b.pending_rewards::numeric, b.datetime)) as pending_rewards
-            from investment_balance_ts b
-            WHERE
-                b.datetime BETWEEN _time_from AND _time_to
-                and b.investor_id = _investor_id
-                and b.product_id in (select unnest(_product_ids))
-            GROUP BY 1, 2
-        ),
-        -- generate a full range of timestamps for these products and merge with actual investments
-        -- this step is necessary to fill gaps with nulls when there is no investments
-        investments_ts as (
-            select 
-                ts.datetime,
-                p.product_id,
-                i.balance,
-                i.balance_diff,
-                i.pending_rewards,
-                i.pending_rewards_diff
-            from generate_series(time_bucket(_interval, _time_from), time_bucket(_interval, _time_to), _interval) ts(datetime)
-                cross join (select UNNEST(_product_ids)) as p(product_id)
-                left join maybe_empty_investments_ts i on ts.datetime = i.datetime and i.product_id = p.product_id
-        ),
-        -- go fetch the investor balance before the requested range and merge it with the actual investments
-        balance_with_gaps_ts as (
-            select
-                time_bucket(_interval, _time_from - _interval) as datetime,
-                b.product_id,
-                last(b.balance::numeric, b.datetime) as balance,
-                sum(b.balance_diff) as balance_diff,
-                last(b.pending_rewards::numeric, b.datetime) as pending_rewards,
-                sum(b.pending_rewards_diff) as pending_rewards_diff
-            from investment_balance_ts b
-                where b.datetime < _time_from
-                and b.investor_id = _investor_id
-                and b.product_id in (select unnest(_product_ids))
-            group by 1,2
-
-            union all
-
-            select * from investments_ts
-        ),
-        -- propagate the data (basically does locf's job but on the whole range)
-        balance_gf_ts as (
-            select 
-                b.datetime,
-                b.product_id,
-                gapfill(b.balance) over (partition by b.product_id order by b.datetime) as balance,
-                b.balance_diff,
-                gapfill(b.pending_rewards) over (partition by b.product_id order by b.datetime) as pending_rewards,
-                b.pending_rewards_diff
-            from balance_with_gaps_ts b
-        )
-        select *
-        from balance_gf_ts
-    $$
-    language sql;
-
-    CREATE OR REPLACE FUNCTION narrow_gapfilled_price(
-      _time_from timestamptz, _time_to timestamptz, _interval interval,
-      _price_feed_ids integer[]
-    ) returns table (datetime timestamptz, price_feed_id integer, price numeric) AS 
-    $$
-      -- find out the price inside the requested range
-      with maybe_empty_price_ts as (
-          SELECT
-              time_bucket_gapfill(_interval, p.datetime) as datetime,
-              p.price_feed_id,
-              locf(last(p.price::numeric, p.datetime)) as price
-          from price_ts p
-          WHERE
-              p.datetime BETWEEN _time_from AND _time_to
-              and p.price_feed_id in (select unnest(_price_feed_ids))
-          GROUP BY 1, 2
-      ),
-      -- generate a full range of timestamps for these price feeds and merge with prices
-      -- this step is necessary to fill gaps with nulls when there is no price available at all
-      price_full_ts as (
-          select 
-              ts.datetime,
-              pf.price_feed_id,
-              p.price
-          from generate_series(time_bucket(_interval, _time_from), time_bucket(_interval, _time_to), _interval) ts(datetime)
-              cross join (select UNNEST(_price_feed_ids)) as pf(price_feed_id)
-              left join maybe_empty_price_ts p on ts.datetime = p.datetime and p.price_feed_id = pf.price_feed_id
-      ),
-      -- go fetch the prices before the requested range and merge it with the actual prices
-      price_with_gaps_ts as (
-          select
-              time_bucket(_interval, p.datetime) as datetime,
-              p.price_feed_id,
-              last(p.price::numeric, p.datetime) as price
-          from price_ts p
-              where p.datetime < _time_from
-              and p.price_feed_id in (select unnest(_price_feed_ids))
-          group by 1,2
-
-          union all
-
-          select * from price_full_ts
-      ),
-      -- propagate the data (basically does locf's job but on the whole range)
-      price_gf_ts as (
-          select 
-              p.datetime,
-              p.price_feed_id,
-              gapfill(p.price) over (partition by p.price_feed_id order by p.datetime) as price
-          from price_with_gaps_ts p
-      )
-      select *
-      from price_gf_ts
-    $$
-    language sql;
-  `);
-
   // create a denormalized table specifically built to serve beefy's investor page
   // this table is partitioned by investor id and is meant to be optimized for retrieving
   // the whole investor history in one go so the client can compute P&L locally.
@@ -819,6 +690,35 @@ export async function db_migrate() {
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_uprice_idx ON beefy_investor_timeline_cache_ts (price_feed_2_id, time_bucket('15min', datetime)) where underlying_to_usd_price is null;
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_rprice_idx ON beefy_investor_timeline_cache_ts (pending_rewards_price_feed_id, time_bucket('15min', datetime)) where pending_rewards_to_usd_price is null and pending_rewards_price_feed_id is not null;
   `);
+
+  // track down rpc errors to be able to understand what's going on without looking at logs
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS rpc_error_ts (
+      chain chain_enum NOT NULL,
+      datetime timestamptz NOT NULL,
+      rpc_url character varying NOT NULL,
+
+      -- use json instead of jsonb to keep the error and query as close to the original as possible
+      -- this is because jsonb will reorder keys and remove whitespaces
+      request json NOT NULL,
+      response json NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS rpc_error_chain_idx ON rpc_error_ts (chain, datetime);
+
+    SELECT create_hypertable(
+      relation => 'rpc_error_ts', 
+      time_column_name => 'datetime',
+      if_not_exists => true,
+      chunk_time_interval => INTERVAL '15 days'
+    );
+  `);
+
+  if (!hasPolicy("public", "rpc_error_ts", "hypertable", "policy_retention")) {
+    await db_query(`
+      SELECT add_retention_policy('rpc_error_ts', INTERVAL '1 month');
+    `);
+  }
 
   logger.info({ msg: "Migrate done" });
 }

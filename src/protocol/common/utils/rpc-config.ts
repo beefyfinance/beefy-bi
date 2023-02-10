@@ -17,6 +17,7 @@ import {
   MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 
@@ -31,6 +32,9 @@ export function getMultipleRpcConfigsForChain(options: {
   let rpcUrls = getBestRpcUrlsForChain(options.chain, options.mode);
   if (options.rpcCount !== "all") {
     rpcUrls = rpcUrls.slice(0, options.rpcCount);
+  }
+  if (rpcUrls.length === 0) {
+    throw new ProgrammerError({ msg: "No matching RPC", data: { chain: options.chain, mode: options.mode, rpcCount: options.rpcCount } });
   }
 
   logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });

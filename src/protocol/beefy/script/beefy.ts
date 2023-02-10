@@ -106,7 +106,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
           const cmdParams: CmdParams = {
             client,
-            rpcCount: argv.rpcCount === undefined ? "all" : argv.rpcCount ?? 0,
+            rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
             task: argv.task as CmdParams["task"],
             includeEol: argv.includeEol,
             filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),

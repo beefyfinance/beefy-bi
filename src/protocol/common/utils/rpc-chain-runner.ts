@@ -11,6 +11,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
+import { saveRpcErrorToDb } from "../connector/rpc-error";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
@@ -125,6 +126,8 @@ export function createChainRunner<TInput>(
   const workers = rpcConfigs.map((rpcConfig) => ({
     runner: createRpcRunner({
       rpcConfig,
+      mode: options.mode,
+      client: options.client,
       minWorkInterval: options.minWorkInterval,
       repeat: options.repeat,
       pipeline$: createPipeline({
@@ -165,6 +168,9 @@ export function createChainRunner<TInput>(
 
   function stop() {
     clearInterval(pollerHandle);
+    for (const worker of workers) {
+      worker.runner.stop();
+    }
   }
 
   return { run, stop };
@@ -211,15 +217,17 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
   const ranges = pipelines.map((p) => ({ from: p.minMax[0], to: p.minMax[1] }));
   const hasOverlap = ranges.some((r1) => ranges.some((r2) => r1 !== r2 && rangeOverlap(r1, r2)));
   if (hasOverlap) {
-    throw new ProgrammerError({ msg: "Branches have overlapping ranges", ranges, pipelines });
+    throw new ProgrammerError({ msg: "Branches have overlapping ranges", data: { ranges, pipelines, branches } });
   }
+  // test if our minMax has gaps
   const isContiguous = rangeMerge(ranges).length === 1;
   if (!isContiguous) {
-    throw new ProgrammerError({ msg: "Branches are not contiguous", ranges });
+    throw new ProgrammerError({ msg: "Branches are not contiguous", data: { ranges, pipelines, branches } });
   }
+  // test if our minMax covers the whole range
   const isCovering = Math.min(...ranges.map((r) => r.from)) === 1 && Math.max(...ranges.map((r) => r.to)) === totalWeight;
   if (!isCovering) {
-    throw new ProgrammerError({ msg: "Branches are not covering", ranges, totalWeight });
+    throw new ProgrammerError({ msg: "Branches are not covering", data: { ranges, totalWeight } });
   }
 
   const result = new Map<TBranch, TInput[]>();
@@ -244,6 +252,8 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
  * - When the pipeline ends, restart it with potentially updated input, but respect the `minInterval` param
  */
 function createRpcRunner<TInput>(options: {
+  mode: "historical" | "recent";
+  client: DbClient;
   rpcConfig: RpcConfig;
   minWorkInterval: SamplingPeriod | null;
   repeat: boolean;
@@ -266,9 +276,29 @@ function createRpcRunner<TInput>(options: {
       logger.debug({ msg: "Starting rpc work unit", data: logData });
       const work = Rx.from(inputList).pipe(options.pipeline$);
 
+      // handle rpc errors
+      const errorObsComplete = [
+        saveRpcErrorToDb({
+          chain: options.rpcConfig.chain,
+          client: options.client,
+          mode: options.mode,
+          rpc: options.rpcConfig.linearProvider,
+        }),
+        saveRpcErrorToDb({
+          chain: options.rpcConfig.chain,
+          client: options.client,
+          mode: options.mode,
+          rpc: options.rpcConfig.batchProvider,
+        }),
+      ];
+
       const start = Date.now();
       await consumeObservable(work);
       const now = Date.now();
+
+      for (const complete of errorObsComplete) {
+        complete();
+      }
 
       logger.debug({ msg: "Done rpc work unit", data: logData });
       if (options.minWorkInterval !== null) {
