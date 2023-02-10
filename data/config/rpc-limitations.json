@@ -1,6 +1,7 @@
 {
   "arbitrum": {
     "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -17,6 +18,7 @@
       }
     },
     "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -35,6 +37,7 @@
   },
   "aurora": {
     "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -53,6 +56,7 @@
   },
   "avax": {
     "https://rpc.ankr.com/avalanche/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -71,13 +75,14 @@
   },
   "bsc": {
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2>": {
+      "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 25000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 4,
       "methods": {
         "eth_getLogs": null,
@@ -88,6 +93,7 @@
       }
     },
     "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -95,7 +101,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 2,
+      "weight": 4,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 200,
@@ -105,6 +111,7 @@
       }
     },
     "https://compatible-greatest-wish.bsc.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -122,6 +129,7 @@
       }
     },
     "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 30,
       "maxGetLogsBlockSpan": 5000,
@@ -139,6 +147,7 @@
       }
     },
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -156,6 +165,7 @@
       }
     },
     "https://bsc-private-dataseed1.nariox.org": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -173,6 +183,7 @@
       }
     },
     "https://bsc-dataseed1.ninicoin.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -190,6 +201,7 @@
       }
     },
     "https://bsc-dataseed.binance.org": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -207,6 +219,7 @@
       }
     },
     "https://bsc-dataseed1.defibit.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -224,6 +237,7 @@
       }
     },
     "https://bsc-dataseed2.defibit.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -241,6 +255,7 @@
       }
     },
     "https://bsc-dataseed3.defibit.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -258,6 +273,7 @@
       }
     },
     "https://bsc-dataseed4.defibit.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -275,6 +291,7 @@
       }
     },
     "https://bsc-dataseed1.binance.org": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 3000,
@@ -294,6 +311,7 @@
   },
   "celo": {
     "https://forno.celo.org": {
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -312,6 +330,7 @@
   },
   "cronos": {
     "https://evm-cronos.crypto.org": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
@@ -330,6 +349,7 @@
   },
   "emerald": {
     "https://emerald.oasis.dev": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 100,
@@ -348,6 +368,7 @@
   },
   "ethereum": {
     "https://rpc.ankr.com/eth/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -366,6 +387,7 @@
   },
   "fantom": {
     "https://rpc.ankr.com/fantom/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -384,6 +406,7 @@
   },
   "fuse": {
     "https://explorer-node.fuse.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -402,6 +425,7 @@
   },
   "harmony": {
     "https://rpc.ankr.com/harmony/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 1024,
@@ -420,6 +444,7 @@
   },
   "heco": {
     "https://http-mainnet.hecochain.com": {
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -438,6 +463,7 @@
   },
   "kava": {
     "https://evm.kava.io": {
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 256,
@@ -456,6 +482,7 @@
   },
   "metis": {
     "https://andromeda.metis.io": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 4661,
@@ -474,6 +501,7 @@
   },
   "moonbeam": {
     "https://rpc.ankr.com/moonbeam/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -492,6 +520,7 @@
   },
   "moonriver": {
     "https://rpc.api.moonriver.moonbeam.network": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
@@ -508,6 +537,7 @@
       }
     },
     "https://moonriver.api.onfinality.io/public": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
@@ -526,6 +556,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -543,6 +574,7 @@
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -560,6 +592,7 @@
       }
     },
     "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -577,6 +610,7 @@
       }
     },
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 2000,
@@ -596,6 +630,7 @@
   },
   "polygon": {
     "https://rpc.ankr.com/polygon/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -614,6 +649,7 @@
   },
   "syscoin": {
     "https://rpc.ankr.com/syscoin/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 256,

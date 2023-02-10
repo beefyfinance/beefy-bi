@@ -24,6 +24,7 @@ export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
 export const RPC_SOFT_TIMEOUT_MS = 15_000;
 
 export const defaultLimitations: RpcLimitations = {
+  restrictToMode: null,
   isArchiveNode: false,
   minDelayBetweenCalls: 1000,
   maxGetLogsBlockSpan: 10,
@@ -138,6 +139,11 @@ function getFindings(): ReturnType<typeof readRawLimitations> {
 }
 
 export interface RpcLimitations {
+  // if not null, only allow calls to this rpc from scripts that match
+  // - historical: script dedicated to filling up historical data
+  // - recent: script dedicated to filling up recent data
+  // if null, no restriction is applied
+  restrictToMode: "recent" | "historical" | null;
   // if true, the RPC is an archive node
   // we need this information to know if we can retry ArchiveNodeNeeded errors
   isArchiveNode: boolean;
@@ -227,7 +233,9 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
   // use non-archive node for recent mode
   // if no rpc matches, use all rpcs anyway
   if (mode === "historical") {
-    const historicalRpcConfigs = rpcConfigs.filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);
+    const historicalRpcConfigs = rpcConfigs
+      .filter((rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "historical")
+      .filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);
     if (historicalRpcConfigs.length > 0) {
       rpcConfigs = historicalRpcConfigs;
     } else {
@@ -235,10 +243,12 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     }
   } else if (mode === "recent") {
     // remove archive nodes only if they have a limit on calls
-    const recentRpcConfigs = rpcConfigs.filter(
-      (rpcConfig) =>
-        !rpcConfig.limitations.isArchiveNode || (rpcConfig.limitations.isArchiveNode && rpcConfig.limitations.minDelayBetweenCalls === "no-limit"),
-    );
+    const recentRpcConfigs = rpcConfigs
+      .filter((rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "recent")
+      .filter(
+        (rpcConfig) =>
+          !rpcConfig.limitations.isArchiveNode || (rpcConfig.limitations.isArchiveNode && rpcConfig.limitations.minDelayBetweenCalls === "no-limit"),
+      );
     if (recentRpcConfigs.length > 0) {
       rpcConfigs = recentRpcConfigs;
     } else {

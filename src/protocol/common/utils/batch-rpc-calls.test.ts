@@ -1,10 +1,5 @@
-import { cloneDeep } from "lodash";
-import * as Rx from "rxjs";
-import { ProgrammerError } from "../../../utils/programmer-error";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
-import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { getBatchConfigFromLimitations } from "./batch-rpc-calls";
-import { executeSubPipeline$ } from "./execute-sub-pipeline";
 
 describe("batchRpcCalls$", () => {
   it.each([
@@ -33,12 +28,14 @@ describe("batchRpcCalls$", () => {
           eth_getTransactionReceipt: 0,
         },
         limitations: {
+          restrictToMode: null,
           isArchiveNode: true,
           disableBatching: false,
           disableRpc: false,
           weight: null,
           internalTimeoutMs: 10_000,
           maxGetLogsBlockSpan: 10_000,
+          maxGetLogsAddressBatchSize: null,
           methods: {
             eth_blockNumber: null,
             eth_call: null,
@@ -73,12 +70,14 @@ describe("batchRpcCalls$", () => {
           eth_getTransactionReceipt: 0,
         },
         limitations: {
+          restrictToMode: null,
           isArchiveNode: true,
           disableBatching: false,
           disableRpc: false,
           weight: null,
           internalTimeoutMs: 10_000,
           maxGetLogsBlockSpan: 10_000,
+          maxGetLogsAddressBatchSize: null,
           methods: {
             eth_blockNumber: 100,
             eth_call: 100,

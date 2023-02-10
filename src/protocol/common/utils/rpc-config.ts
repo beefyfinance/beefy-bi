@@ -89,6 +89,7 @@ export function createRpcConfig(
     rpcConfig.etherscan = {
       provider: new MultiChainEtherscanProvider(networkish, apiKey || undefined),
       limitations: {
+        restrictToMode: null,
         isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
         maxGetLogsBlockSpan: 100_000, // unused value
         maxGetLogsAddressBatchSize: null, // unused value
