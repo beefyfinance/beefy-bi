@@ -14,7 +14,7 @@ TARGET_DIR=/home/data-storage/beefy-bi-backups
 
 
 cd $BACKUP_DIR
-FILE_NAME=$(ls -t beefy.*.gz | tail -n 1)
+FILE_NAME=$(ls -t beefy.*.gz | head -n 1)
 
 # can't use rsync because target box is echoing some prompt on login https://serverfault.com/a/328404
 #rsync -v -e 'ssh '$BACKUP_SSH_NAME ./ $TARGET_USER"@"$TARGET_HOST":"$TARGET_DIR
