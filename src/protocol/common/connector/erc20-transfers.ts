@@ -1,12 +1,13 @@
 import { Decimal } from "decimal.js";
 import { ethers } from "ethers";
-import { flatten, groupBy, zipWith } from "lodash";
+import { flatten, groupBy, uniq, zipWith } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { ERC20AbiInterface } from "../../../utils/abi";
+import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
+import { ContractWithMultiAddressGetLogs, JsonRpcProviderWithMultiAddressGetLogs } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { Range, rangeMerge } from "../../../utils/range";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -44,24 +45,56 @@ interface GetTransferCallParams {
 export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
+  batchAddressesIfPossible: boolean;
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
-  return batchRpcCalls$({
-    ctx: options.ctx,
-    emitError: options.emitError,
-    rpcCallsPerInputObj: {
-      eth_call: 0,
-      eth_blockNumber: 0,
-      eth_getBlockByNumber: 0,
-      eth_getLogs: 2,
-      eth_getTransactionReceipt: 0,
-    },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
-    getQuery: options.getQueryParams,
-    processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
-    formatOutput: options.formatOutput,
-  });
+  if (options.batchAddressesIfPossible && options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize !== null) {
+    const workConcurrency = options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? options.ctx.streamConfig.workConcurrency : 1;
+
+    const maxInputObjsPerBatch = options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize;
+    return Rx.pipe(
+      // add object TS type
+      Rx.tap((_: TObj) => {}),
+
+      // take a batch of items
+      Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, maxInputObjsPerBatch),
+      Rx.filter((objs) => objs.length > 0),
+      Rx.mergeMap(async (objs) => {
+        const objAndCallParams = objs.map((obj) => ({ obj, contractCall: options.getQueryParams(obj) }));
+        const resMap = await fetchERC20TransferEventsFromRpcUsingAddressBatching(
+          options.ctx.rpcConfig.linearProvider,
+          options.ctx.chain,
+          objAndCallParams.map(({ contractCall }) => contractCall),
+        );
+        return objAndCallParams.map(({ obj, contractCall }) => {
+          const res = resMap.get(contractCall);
+          if (!res) {
+            throw new ProgrammerError({ msg: "Missing result", data: { contractCall } });
+          }
+          return options.formatOutput(obj, res);
+        });
+      }, workConcurrency),
+      // flatten
+      Rx.mergeAll(),
+    );
+  } else {
+    return batchRpcCalls$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      rpcCallsPerInputObj: {
+        eth_call: 0,
+        eth_blockNumber: 0,
+        eth_getBlockByNumber: 0,
+        eth_getLogs: 2,
+        eth_getTransactionReceipt: 0,
+      },
+      logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
+      getQuery: options.getQueryParams,
+      processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
+      formatOutput: options.formatOutput,
+    });
+  }
 }
 
 // when hitting a staking contract we don't have a token in return
@@ -75,6 +108,10 @@ export function fetchERC20TransferToAStakingContract$<TObj, TErr extends ErrorEm
   return fetchErc20Transfers$({
     ctx: options.ctx,
     emitError: options.emitError,
+    // we can't batch addresses while tracking a specific address since
+    // tracking means we need to use topics including the address we track
+    // and those topics are unique per tracked address
+    batchAddressesIfPossible: false,
     getQueryParams: options.getQueryParams,
     formatOutput: (item, transfers) => {
       const params = options.getQueryParams(item);
@@ -149,6 +186,65 @@ async function fetchERC20TransferEventsFromRpc(
 
   return new Map(
     zipWith(contractCalls, eventsRes, (contractCall, events) => {
+      const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
+      return [contractCall, transfers];
+    }),
+  );
+}
+
+/**
+ * Make a batched call to the RPC for all the given contract calls
+ * This uses the address batching feature of the RPC
+ * This is only possible if all the contract calls have the same from/to block
+ * and if none of the contract calls have a trackAddress
+ *
+ * This feature should be natively supported by ethers.js but it's not available yet, should be in v6
+ * https://github.com/ethers-io/ethers.js/issues/473#issuecomment-1387042069
+ *
+ * Returns the results in the same order as the contract calls
+ */
+async function fetchERC20TransferEventsFromRpcUsingAddressBatching(
+  provider: JsonRpcProviderWithMultiAddressGetLogs,
+  chain: Chain,
+  contractCalls: GetTransferCallParams[],
+): Promise<Map<GetTransferCallParams, ERC20Transfer[]>> {
+  if (contractCalls.length === 0) {
+    return new Map();
+  }
+  // we can't do batching while tracking a specific address
+  const contractCallsWithTrackAddress = contractCalls.filter((call) => call.trackAddress);
+  if (contractCallsWithTrackAddress.length > 0) {
+    throw new ProgrammerError({ msg: "Can't batch addresses while tracking a specific address", data: { contractCallsWithTrackAddress } });
+  }
+
+  // can only do batching if all from/to blocks are the same
+  const allFrom = uniq(contractCalls.map((call) => call.fromBlock));
+  const allTo = uniq(contractCalls.map((call) => call.toBlock));
+  if (allFrom.length > 1 || allTo.length > 1) {
+    throw new ProgrammerError({ msg: "Can't batch addresses with different query ranges", data: { allFrom, allTo } });
+  }
+
+  logger.debug({
+    msg: "Fetching transfer events from RPC with address batching",
+    data: { chain, contractCalls: contractCalls.length },
+  });
+
+  // instanciate any ERC20 contract to get the event filter topics
+  const contract = new ContractWithMultiAddressGetLogs(getChainWNativeTokenAddress(chain), ERC20AbiInterface, provider);
+  const eventFilter = contract.filters.Transfer();
+  const events = await contract.queryFilter(eventFilter, allFrom[0], allTo[0]);
+
+  if (events.length > 0) {
+    logger.trace({
+      msg: "Got transfer events from RPC",
+      data: { chain, contractCalls: contractCalls.length, eventCount: events.length },
+    });
+  }
+
+  const eventsByAddress = groupBy(events, (event) => event.address.toLocaleLowerCase());
+  return new Map(
+    contractCalls.map((contractCall) => {
+      const events = eventsByAddress[contractCall.address.toLocaleLowerCase()] || [];
       const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
       return [contractCall, transfers];
     }),

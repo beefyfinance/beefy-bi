@@ -67,6 +67,9 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     fetchErc20Transfers$({
       ctx: options.ctx,
       emitError: options.emitStdVaultError,
+      // we can batch the requests if we are in recent mode
+      // since all the query ranges should be the same
+      batchAddressesIfPossible: options.mode === "recent",
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {

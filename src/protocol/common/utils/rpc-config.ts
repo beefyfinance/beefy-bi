@@ -6,6 +6,7 @@ import { ETHERSCAN_API_KEY } from "../../../utils/config";
 
 import {
   addDebugLogsToProvider,
+  JsonRpcProviderWithMultiAddressGetLogs,
   monkeyPatchAnkrBscLinearProvider,
   monkeyPatchArchiveNodeRpcProvider,
   monkeyPatchCeloProvider,
@@ -77,7 +78,7 @@ export function createRpcConfig(
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
   const rpcConfig: RpcConfig = {
     chain,
-    linearProvider: new ethers.providers.JsonRpcProvider(rpcOptions, networkish),
+    linearProvider: new JsonRpcProviderWithMultiAddressGetLogs(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
     rpcLimitations: getRpcLimitations(chain, rpcOptions.url, forceGetLogsBlockSpan),
   };

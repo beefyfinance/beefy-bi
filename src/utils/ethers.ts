@@ -1,7 +1,10 @@
-import { deepCopy } from "@ethersproject/properties";
+import { BlockTag, Filter, FilterByBlockHash, Log } from "@ethersproject/abstract-provider";
+import { deepCopy, resolveProperties, shallowCopy } from "@ethersproject/properties";
+import { Formatter } from "@ethersproject/providers";
 import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
 import * as ethers from "ethers";
+import { Logger as EthersLogger } from "ethers/lib/utils";
 import { backOff } from "exponential-backoff";
 import { get, isString } from "lodash";
 import { Chain } from "../types/chain";
@@ -445,4 +448,107 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
     });
     throw lastError;
   };
+}
+
+/**
+ * This is a hack to get acces to private methods of ethers.providers.JsonRpcProvider
+ * so we can transform the Log objects we get from manual RPC calls
+ * to ethers.Event objects. This is needed to be able to use the
+ * address batching feature of some RPCs while we wait for ethers v6
+ */
+
+interface MultiAddressEventFilter {
+  address: string[];
+  topics?: Array<string | Array<string>>;
+  fromBlock?: BlockTag;
+  toBlock?: BlockTag;
+  blockHash?: string;
+}
+
+const ethersLogger = new EthersLogger("JsonRpcProviderWithMultiAddressGetLogs");
+export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.JsonRpcProvider {
+  async getLogsMultiAddress(filter: MultiAddressEventFilter): Promise<Array<Log>> {
+    await this.getNetwork();
+    const params = await resolveProperties({ filter: this.__getFilter(filter) });
+
+    const logs: Log[] = await this.send("eth_getLogs", [params.filter]);
+
+    logs.forEach((log) => {
+      if (log.removed == null) {
+        log.removed = false;
+      }
+    });
+    return Formatter.arrayOf(this.formatter.filterLog.bind(this.formatter))(logs);
+  }
+
+  async __getFilter(filter: MultiAddressEventFilter): Promise<Filter | FilterByBlockHash> {
+    filter = await filter;
+
+    const result: any = {};
+
+    if (filter.address != null) {
+      result.address = filter.address.map(this._getAddress);
+    }
+
+    ["blockHash", "topics"].forEach((key) => {
+      if ((<any>filter)[key] == null) {
+        return;
+      }
+      result[key] = (<any>filter)[key];
+    });
+
+    ["fromBlock", "toBlock"].forEach((key) => {
+      if ((<any>filter)[key] == null) {
+        return;
+      }
+      result[key] = this._getBlockTag((<any>filter)[key]);
+    });
+
+    return this.formatter.filter(await resolveProperties(result));
+  }
+}
+export class ContractWithMultiAddressGetLogs extends ethers.Contract {
+  declare readonly provider: JsonRpcProviderWithMultiAddressGetLogs;
+
+  constructor(addressOrName: string, contractInterface: ethers.ContractInterface, signerOrProvider?: JsonRpcProviderWithMultiAddressGetLogs) {
+    super(addressOrName, contractInterface, signerOrProvider);
+  }
+
+  public queryFilterMultiAddress(
+    event: MultiAddressEventFilter | string,
+    fromBlockOrBlockhash?: BlockTag | string,
+    toBlock?: BlockTag,
+  ): ReturnType<ethers.Contract["queryFilter"]> {
+    const runningEvent = this.__getRunningEvent(event);
+    const filter = shallowCopy<MultiAddressEventFilter>(runningEvent.filter);
+
+    if (typeof fromBlockOrBlockhash === "string" && ethers.utils.isHexString(fromBlockOrBlockhash, 32)) {
+      if (toBlock != null) {
+        ethersLogger.throwArgumentError("cannot specify toBlock with blockhash", "toBlock", toBlock);
+      }
+      filter.blockHash = fromBlockOrBlockhash;
+    } else {
+      filter.fromBlock = fromBlockOrBlockhash != null ? fromBlockOrBlockhash : 0;
+      filter.toBlock = toBlock != null ? toBlock : "latest";
+    }
+
+    return this.provider.getLogsMultiAddress(filter).then((logs) => {
+      return logs.map((log) => this._wrapEvent(runningEvent, log, null as any));
+    });
+  }
+
+  /**
+   * make some private method callable from our class
+   * https://stackoverflow.com/a/48908067/2523414
+   *
+   * Technically, in current versions of TypeScript private methods are only compile-time checked to be private - so you can call them.
+   */
+  protected __wrapEvent(runningEvent: any, log: Log, listener: any) {
+    // @ts-ignore
+    return super._wrapEvent(runningEvent, log, listener);
+  }
+  private __getRunningEvent(eventName: MultiAddressEventFilter | string): any {
+    // @ts-ignore
+    return super._getRunningEvent(eventName);
+  }
 }

@@ -348,13 +348,13 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
         }
       },
       (i) => {
+        const maxGetLogsBlockSpan = findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsBlockSpan || 1000;
         const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
         const eventFilter = contract.filters.Transfer();
-        ethers.utils.hexValue;
         return linearProvider.send("eth_getLogs", [
           {
             address: Array.from({ length: i }).map(() => getChainWNativeTokenAddress(chain)),
-            fromBlock: ethers.utils.hexValue(latestBlockNumber - 1000),
+            fromBlock: ethers.utils.hexValue(latestBlockNumber - maxGetLogsBlockSpan),
             toBlock: ethers.utils.hexValue(latestBlockNumber),
             topics: eventFilter.topics || [],
           },
