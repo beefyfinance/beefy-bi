@@ -8,11 +8,11 @@
 # -> local only
 # sudo tail -f /var/mail/<user>
 
-TARGET_DIR=/home/data-storage/beefy-bi-backups
+BACKUP_DIR=/home/data-storage/beefy-bi-backups
 BACKUP_SSH_NAME=storage-box
+TARGET_DIR=~/beefy/snapshots
 
 
-BACKUP_DIR=~/beefy/snapshots
 cd $BACKUP_DIR
 FILE_NAME=$(ls -t beefy.*.gz | tail -n 1)
 
