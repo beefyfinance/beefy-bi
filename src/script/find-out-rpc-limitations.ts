@@ -33,7 +33,8 @@ type RpcTests =
   | "eth_getTransactionReceipt"
   | "maxGetLogsBlockSpan"
   | "isArchiveNode"
-  | "minDelayBetweenCalls";
+  | "minDelayBetweenCalls"
+  | "eth_getLogs_address_batching";
 
 const allRpcTests: RpcTests[] = [
   "eth_call",
@@ -44,6 +45,7 @@ const allRpcTests: RpcTests[] = [
   "maxGetLogsBlockSpan",
   "isArchiveNode",
   "minDelayBetweenCalls",
+  "eth_getLogs_address_batching",
 ];
 
 const findings = {} as {
@@ -325,6 +327,38 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
           return batchProvider.getBlockNumber();
         });
         return Promise.all(promises);
+      },
+    );
+  }
+
+  if (tests.includes("eth_getLogs_address_batching")) {
+    logger.info({ msg: "Testing eth_getLogs address batching limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    await findTheLimit(
+      rpcSoftTimeout,
+      chain,
+      rpcLimitations.minDelayBetweenCalls,
+      MAX_RPC_BATCHING_SIZE,
+      (n: number) => {
+        if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsAddressBatchSize || 0) < n) {
+          findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsAddressBatchSize = n;
+          logger.debug({
+            msg: "Updated findings",
+            data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: "maxGetLogsAddressBatchSize", newValue: n },
+          });
+        }
+      },
+      (i) => {
+        const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
+        const eventFilter = contract.filters.Transfer();
+        ethers.utils.hexValue;
+        return linearProvider.send("eth_getLogs", [
+          {
+            address: Array.from({ length: i }).map(() => getChainWNativeTokenAddress(chain)),
+            fromBlock: ethers.utils.hexValue(latestBlockNumber - 1000),
+            toBlock: ethers.utils.hexValue(latestBlockNumber),
+            topics: eventFilter.topics || [],
+          },
+        ]);
       },
     );
   }

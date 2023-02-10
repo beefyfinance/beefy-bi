@@ -204,115 +204,115 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c arbitrum  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c arbitrum -l 15sec"
 
   importer-investment-recent-aurora:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c aurora  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c aurora -l 15sec"
 
   importer-investment-recent-avax:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c avax  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c avax -l 15sec"
 
   importer-investment-recent-bsc:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c bsc  -l 15sec -e" # make ankr handle recent blocks to protect nodereal rpc when it's doing historical
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c bsc -l 15sec -e" # make ankr handle recent blocks to protect nodereal rpc when it's doing historical
 
   importer-investment-recent-celo:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c celo  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c celo -l 15sec"
 
   importer-investment-recent-cronos:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c cronos  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c cronos -l 15sec"
 
   importer-investment-recent-ethereum:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c ethereum  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c ethereum -l 15sec"
 
   importer-investment-recent-emerald:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c emerald  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c emerald -l 15sec"
 
   importer-investment-recent-fantom:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c fantom  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c fantom -l 15sec"
 
   importer-investment-recent-fuse:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c fuse  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c fuse -l 15sec"
 
   importer-investment-recent-harmony:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c harmony  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c harmony -l 15sec"
 
   importer-investment-recent-heco:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c heco  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c heco -l 15sec"
 
   importer-investment-recent-kava:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c kava  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c kava -l 15sec"
 
   importer-investment-recent-metis:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c metis  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c metis -l 15sec"
 
   importer-investment-recent-moonbeam:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c moonbeam  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c moonbeam -l 15sec"
 
   importer-investment-recent-moonriver:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c moonriver  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c moonriver -l 15sec"
 
   importer-investment-recent-optimism:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c optimism  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c optimism -l 15sec"
 
   importer-investment-recent-polygon:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c polygon  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c polygon -l 15sec"
 
   importer-investment-recent-syscoin:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c syscoin  -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c syscoin -l 15sec"
 
   # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 

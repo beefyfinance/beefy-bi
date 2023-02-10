@@ -90,6 +90,7 @@ export function createRpcConfig(
       limitations: {
         isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
         maxGetLogsBlockSpan: 100_000, // unused value
+        maxGetLogsAddressBatchSize: null, // unused value
         disableBatching: true, // etherscan doesn't support batching
         internalTimeoutMs: null,
         disableRpc: false,

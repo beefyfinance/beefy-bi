@@ -27,6 +27,7 @@ export const defaultLimitations: RpcLimitations = {
   isArchiveNode: false,
   minDelayBetweenCalls: 1000,
   maxGetLogsBlockSpan: 10,
+  maxGetLogsAddressBatchSize: null,
   internalTimeoutMs: null,
   disableBatching: false,
   disableRpc: false,
@@ -144,6 +145,9 @@ export interface RpcLimitations {
   minDelayBetweenCalls: number | "no-limit";
   // the maximum number of blocks that can be queried with eth_getLogs
   maxGetLogsBlockSpan: number;
+  // address batching while doing eth_getLogs
+  // null means address batching is not allowed
+  maxGetLogsAddressBatchSize: number | null;
   // the internal timeout of the RPC, calls that take longer than this will be aborted
   // we use this information to lower the batch size so that we don't hit the timeout
   internalTimeoutMs: number | null;
