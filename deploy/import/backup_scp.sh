@@ -18,5 +18,5 @@ FILE_NAME=$(ls -t beefy.*.gz | tail -n 1)
 
 # can't use rsync because target box is echoing some prompt on login https://serverfault.com/a/328404
 #rsync -v -e 'ssh '$BACKUP_SSH_NAME ./ $TARGET_USER"@"$TARGET_HOST":"$TARGET_DIR
-scp $FILE_NAME $BACKUP_SSH_NAME:"$TARGET_DIR/$FILE_NAME
+scp $FILE_NAME $BACKUP_SSH_NAME:"$TARGET_DIR/$FILE_NAME"
 cd -
