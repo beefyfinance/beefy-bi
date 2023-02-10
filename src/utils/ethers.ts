@@ -457,7 +457,7 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
  * address batching feature of some RPCs while we wait for ethers v6
  */
 
-interface MultiAddressEventFilter {
+export interface MultiAddressEventFilter {
   address: string[];
   topics?: Array<string | Array<string>>;
   fromBlock?: BlockTag;
@@ -478,6 +478,7 @@ export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.Jso
         log.removed = false;
       }
     });
+
     return Formatter.arrayOf(this.formatter.filterLog.bind(this.formatter))(logs);
   }
 
@@ -487,7 +488,7 @@ export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.Jso
     const result: any = {};
 
     if (filter.address != null) {
-      result.address = filter.address.map(this._getAddress);
+      result.address = Promise.all(filter.address.map(this.__getAddress));
     }
 
     ["blockHash", "topics"].forEach((key) => {
@@ -504,7 +505,20 @@ export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.Jso
       result[key] = this._getBlockTag((<any>filter)[key]);
     });
 
-    return this.formatter.filter(await resolveProperties(result));
+    const filterFormat = { ...this.formatter.formats.filter, address: Formatter.arrayOf(this.formatter.address.bind(this.formatter)) };
+    const filterFormatter = (value: any): any => Formatter.check(filterFormat, value);
+
+    return filterFormatter(await resolveProperties(result));
+  }
+
+  async __getAddress(addressOrName: string | Promise<string>): Promise<string> {
+    addressOrName = await addressOrName;
+    if (typeof addressOrName !== "string") {
+      ethersLogger.throwArgumentError("invalid address or ENS name", "name", addressOrName);
+    }
+
+    const address = addressOrName;
+    return address;
   }
 }
 export class ContractWithMultiAddressGetLogs extends ethers.Contract {
@@ -515,12 +529,13 @@ export class ContractWithMultiAddressGetLogs extends ethers.Contract {
   }
 
   public queryFilterMultiAddress(
-    event: MultiAddressEventFilter | string,
+    event: MultiAddressEventFilter,
     fromBlockOrBlockhash?: BlockTag | string,
     toBlock?: BlockTag,
   ): ReturnType<ethers.Contract["queryFilter"]> {
     const runningEvent = this.__getRunningEvent(event);
     const filter = shallowCopy<MultiAddressEventFilter>(runningEvent.filter);
+    filter.address = event.address;
 
     if (typeof fromBlockOrBlockhash === "string" && ethers.utils.isHexString(fromBlockOrBlockhash, 32)) {
       if (toBlock != null) {
@@ -533,7 +548,7 @@ export class ContractWithMultiAddressGetLogs extends ethers.Contract {
     }
 
     return this.provider.getLogsMultiAddress(filter).then((logs) => {
-      return logs.map((log) => this._wrapEvent(runningEvent, log, null as any));
+      return logs.map((log) => this.__wrapEvent(runningEvent, log, null as any));
     });
   }
 

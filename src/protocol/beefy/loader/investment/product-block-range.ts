@@ -15,6 +15,7 @@ import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStd
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
+import { fetchBeefyBoostTransfers$ } from "../../connector/boost-transfers";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
 import {
@@ -39,18 +40,16 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
   const boostTransfers$ = Rx.pipe(
     Rx.filter(isBeefyBoostProductImportQuery),
 
-    // fetch latest transfers from and to the boost contract
-    fetchERC20TransferToAStakingContract$({
+    fetchBeefyBoostTransfers$({
       ctx: options.ctx,
       emitError: options.emitBoostError,
-      getQueryParams: (item) => {
-        // for gov vaults we don't have a share token so we use the underlying token
-        // transfers and filter on those transfer from and to the contract address
+      batchAddressesIfPossible: options.mode === "recent",
+      getBoostTransfersCallParams: (item) => {
         const boost = item.target.productData.boost;
         return {
-          address: boost.staked_token_address,
-          decimals: boost.staked_token_decimals,
-          trackAddress: boost.contract_address,
+          boostAddress: boost.contract_address,
+          stakedTokenAddress: boost.staked_token_address,
+          stakedTokenDecimals: boost.staked_token_decimals,
           fromBlock: item.range.from,
           toBlock: item.range.to,
         };

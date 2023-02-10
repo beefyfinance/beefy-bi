@@ -7,6 +7,7 @@ import { sleep } from "../../utils/async";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../utils/logger";
 import { ProgrammerError } from "../programmer-error";
 import { isErrorRetryable } from "../retryable-error";
+import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../rpc/archive-node-needed";
 import { removeSecretsFromRpcUrl } from "../rpc/remove-secrets-from-rpc-url";
 import { RpcLimitations } from "../rpc/rpc-limitations";
 import { getRedisClient, getRedlock } from "./shared-lock";
@@ -91,6 +92,13 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
     let res: TRes | null = null;
     try {
       res = await work();
+    } catch (error) {
+      if (error instanceof ArchiveNodeNeededError) {
+        throw error;
+      } else if (isErrorDueToMissingDataFromNode(error)) {
+        throw new ArchiveNodeNeededError(options.chain, error);
+      }
+      throw error;
     } finally {
       // reset the last call date if the call succeeded
       // just in case rate limiting is accounted by explorers at the end of requests

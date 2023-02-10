@@ -5,7 +5,7 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { ERC20AbiInterface } from "../../../utils/abi";
 import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
-import { ContractWithMultiAddressGetLogs, JsonRpcProviderWithMultiAddressGetLogs } from "../../../utils/ethers";
+import { ContractWithMultiAddressGetLogs, JsonRpcProviderWithMultiAddressGetLogs, MultiAddressEventFilter } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
@@ -62,10 +62,21 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       Rx.filter((objs) => objs.length > 0),
       Rx.mergeMap(async (objs) => {
         const objAndCallParams = objs.map((obj) => ({ obj, contractCall: options.getQueryParams(obj) }));
-        const resMap = await fetchERC20TransferEventsFromRpcUsingAddressBatching(
-          options.ctx.rpcConfig.linearProvider,
-          options.ctx.chain,
-          objAndCallParams.map(({ contractCall }) => contractCall),
+        const resMap = await callLockProtectedRpc(
+          () =>
+            fetchERC20TransferEventsFromRpcUsingAddressBatching(
+              options.ctx.rpcConfig.linearProvider,
+              options.ctx.chain,
+              objAndCallParams.map(({ contractCall }) => contractCall),
+            ),
+          {
+            chain: options.ctx.chain,
+            rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
+            logInfos: { msg: "Fetching ERC20 transfers with address batch", data: { chain: options.ctx.chain } },
+            maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+            noLockIfNoLimit: true,
+            provider: options.ctx.rpcConfig.linearProvider,
+          },
         );
         return objAndCallParams.map(({ obj, contractCall }) => {
           const res = resMap.get(contractCall);
@@ -231,8 +242,12 @@ async function fetchERC20TransferEventsFromRpcUsingAddressBatching(
 
   // instanciate any ERC20 contract to get the event filter topics
   const contract = new ContractWithMultiAddressGetLogs(getChainWNativeTokenAddress(chain), ERC20AbiInterface, provider);
-  const eventFilter = contract.filters.Transfer();
-  const events = await contract.queryFilter(eventFilter, allFrom[0], allTo[0]);
+  const singleEventFilter = contract.filters.Transfer();
+  const multiEventFilter: MultiAddressEventFilter = {
+    topics: singleEventFilter.topics,
+    address: contractCalls.map((call) => call.address),
+  };
+  const events = await contract.queryFilterMultiAddress(multiEventFilter, allFrom[0], allTo[0]);
 
   if (events.length > 0) {
     logger.trace({

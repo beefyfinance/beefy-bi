@@ -71,18 +71,9 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
       const work = async () => {
         logger.trace(mergeLogsInfos({ msg: "Ready to call RPC", data: { chain: options.ctx.chain } }, options.logInfos));
 
-        try {
-          const contractCalls = objAndCallParams.map(({ query }) => query);
-          const res = await options.processBatch(provider, contractCalls);
-          return res;
-        } catch (error) {
-          if (error instanceof ArchiveNodeNeededError) {
-            throw error;
-          } else if (isErrorDueToMissingDataFromNode(error)) {
-            throw new ArchiveNodeNeededError(options.ctx.chain, error);
-          }
-          throw error;
-        }
+        const contractCalls = objAndCallParams.map(({ query }) => query);
+        const res = await options.processBatch(provider, contractCalls);
+        return res;
       };
 
       let provider: ethers.providers.JsonRpcProvider;
