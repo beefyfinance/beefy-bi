@@ -222,7 +222,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c bsc  -l 15min -e" # make ankr handle recent blocks to protect nodereal rpc when it's doing historical
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c bsc  -l 15sec -e" # make ankr handle recent blocks to protect nodereal rpc when it's doing historical
 
   importer-investment-recent-celo:
     <<: *importer

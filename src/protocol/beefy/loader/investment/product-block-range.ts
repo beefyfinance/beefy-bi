@@ -67,12 +67,6 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     fetchErc20Transfers$({
       ctx: options.ctx,
       emitError: options.emitStdVaultError,
-      // we only want to fetch from etherscan when fetching historical data
-      // for recent data we are better off using rpc batching since we fetch a small amount of data for many addresses
-      // whereas for historical data we are able to batch lots of ranges for a single address in one etherscan call
-      //allowFetchingFromEtherscan: options.mode === "historical",
-      // for now, disable etherscan
-      allowFetchingFromEtherscan: false,
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {
