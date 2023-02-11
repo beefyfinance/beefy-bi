@@ -47,7 +47,7 @@ export function saveRpcErrorToDb(options: { client: DbClient; mode: "historical"
             chain: options.chain,
             rpc_url: options.rpc.connection.url,
             request: event.request,
-            response: response,
+            response: JSON.stringify(response),
           };
 
           next(info);

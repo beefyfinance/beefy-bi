@@ -9,7 +9,7 @@ export interface DbRpcError {
   datetime: Date;
   rpc_url: string;
   request: object;
-  response: object;
+  response: object | string;
 }
 
 export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbRpcError>(options: {
@@ -23,7 +23,7 @@ export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
     emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getRpcErrorData,
-    logInfos: { msg: "upsert price" },
+    logInfos: { msg: "rpc error insert" },
     processBatch: async (objAndData) => {
       await db_query(
         `INSERT INTO rpc_error_ts (chain, datetime, rpc_url, request, response) VALUES %L`,
