@@ -471,7 +471,7 @@ export async function db_migrate() {
       if_not_exists => true
     );
   `);
-  if (!hasPolicy("public", "debug_data_ts", "hypertable", "policy_compression")) {
+  if (!(await hasPolicy("public", "debug_data_ts", "hypertable", "policy_compression"))) {
     await db_query(`
       ALTER TABLE debug_data_ts SET (
         timescaledb.compress,
@@ -563,7 +563,7 @@ export async function db_migrate() {
      */
   `);
 
-  if (!hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
+  if (!(await hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_refresh_continuous_aggregate"))) {
     await db_query(`
       SELECT add_continuous_aggregate_policy('price_ts_cagg_1h',
         start_offset => INTERVAL '1 day',
@@ -572,7 +572,7 @@ export async function db_migrate() {
       );
     `);
   }
-  if (!hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_retention")) {
+  if (!(await hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_retention"))) {
     await db_query(`
       SELECT add_retention_policy('price_ts_cagg_1h', INTERVAL '2 months');
     `);
@@ -599,7 +599,7 @@ export async function db_migrate() {
      */
   `);
 
-  if (!hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_refresh_continuous_aggregate")) {
+  if (!(await hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_refresh_continuous_aggregate"))) {
     await db_query(`
       SELECT add_continuous_aggregate_policy('price_ts_cagg_1d',
         start_offset => INTERVAL '3 day',
@@ -608,7 +608,7 @@ export async function db_migrate() {
       );
     `);
   }
-  if (!hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_retention")) {
+  if (!(await hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_retention"))) {
     await db_query(`
       SELECT add_retention_policy('price_ts_cagg_1d', INTERVAL '18 months');
     `);
@@ -719,14 +719,14 @@ export async function db_migrate() {
     );
   `);
 
-  if (!hasPolicy("public", "rpc_error_ts", "hypertable", "policy_retention")) {
+  if (!(await hasPolicy("public", "rpc_error_ts", "hypertable", "policy_retention"))) {
     await db_query(`
       SELECT add_retention_policy('rpc_error_ts', INTERVAL '1 month');
     `);
   }
 
   // create a job to snapshot import metrics every 15 minutes
-  if (!timescaledbJobExists("snapshot_import_metrics")) {
+  if (!(await timescaledbJobExists("snapshot_import_metrics"))) {
     await db_query(`
       create table if not exists import_state_metrics_ts (
         datetime timestamptz not null,
@@ -790,9 +790,7 @@ export async function db_migrate() {
       $$
         LANGUAGE SQL;
       
-      
       SELECT add_job('snapshot_import_metrics', '15min', config => null);
-    
     `);
   }
 
