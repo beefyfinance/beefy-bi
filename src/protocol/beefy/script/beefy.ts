@@ -91,7 +91,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         productRefreshInterval: {
           choices: allSamplingPeriods,
           demand: false,
-          default: "30min",
+          default: "4hour",
           alias: "p",
           describe: "how often workers should refresh the product list and redispatch accross rpcs",
         },
