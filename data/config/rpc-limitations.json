@@ -538,32 +538,32 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": null,
+      "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
       "weight": 3,
       "methods": {
-        "eth_getLogs": 20,
-        "eth_call": 20,
+        "eth_getLogs": 400,
+        "eth_call": 120,
         "eth_getBlockByNumber": 150,
-        "eth_blockNumber": 2,
-        "eth_getTransactionReceipt": 64
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 200
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": "historical",
+      "restrictToMode": "recent",
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 3,
       "methods": {
         "eth_getLogs": 50,
