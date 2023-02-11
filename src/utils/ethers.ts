@@ -56,7 +56,7 @@ export function addDebugLogsToProvider(
       logger.trace({ msg: "RPC request", data: { request: event.request, rpcUrl: safeToLogUrl } });
     } else if (event.action === "response" && "error" in event) {
       // retryable errors are logged at a higher level
-      logger.error({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
+      logger.trace({ msg: "RPC error", data: { request: event.request, error: event.error, rpcUrl: safeToLogUrl } });
     } else if (event.action === "response" && "response" in event) {
       logger.trace({ msg: "RPC response", data: { request: event.request, response: event.response, rpcUrl: safeToLogUrl } });
     } else if (event.action === "custom") {

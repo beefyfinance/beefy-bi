@@ -3,11 +3,9 @@ import * as Rx from "rxjs";
 import { RpcCallMethod } from "../../../types/rpc-config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
-import { cloneBatchProvider } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
@@ -78,12 +76,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
 
       let provider: ethers.providers.JsonRpcProvider;
       if (canUseBatchProvider) {
-        // create a clone of the provider so we can batch without locks
-        if (options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit") {
-          provider = cloneBatchProvider(options.ctx.chain, options.ctx.rpcConfig.batchProvider);
-        } else {
-          provider = options.ctx.rpcConfig.batchProvider;
-        }
+        provider = options.ctx.rpcConfig.batchProvider;
       } else {
         provider = options.ctx.rpcConfig.linearProvider;
       }

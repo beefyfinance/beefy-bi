@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { get } from "lodash";
+import { get, isArray } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient } from "../../../utils/db";
@@ -33,14 +33,33 @@ export function saveRpcErrorToDb(options: { client: DbClient; mode: "historical"
         response: get(error, "body") || error,
       };
 
-      next(info);
+      return next(info);
+    }
+
+    // sometimes the errors is not detected by the provider and we need to check the response
+    const response = get(event, "response") as any;
+    if (event.action === "response" && response) {
+      const responses = isArray(response) ? response : [response];
+      for (const response of responses) {
+        if (response.error) {
+          const info: DbRpcError = {
+            datetime: new Date(),
+            chain: options.chain,
+            rpc_url: options.rpc.connection.url,
+            request: event.request,
+            response: response,
+          };
+
+          next(info);
+        }
+      }
     }
   });
 
   // immediately subscribe to the observable so it starts
   observable
     .pipe(
-      Rx.tap((err) => logger.error({ msg: "Got rpc error to insert", data: { err } })),
+      Rx.tap((err) => logger.trace({ msg: "Got rpc error to insert", data: { err } })),
       insertRpcError$({
         ctx,
         emitError: (obj, report) => {

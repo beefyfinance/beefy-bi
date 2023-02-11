@@ -117,20 +117,6 @@ export function createRpcConfig(
   return rpcConfig;
 }
 
-export function cloneBatchProvider(chain: Chain, provider: ethers.providers.JsonRpcBatchProvider): ethers.providers.JsonRpcBatchProvider {
-  const rpcUrl = provider.connection.url;
-  logger.debug({ msg: "Cloning batch RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
-
-  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: provider.connection.timeout };
-  const networkish = { name: chain, chainId: getChainNetworkId(chain) };
-  const limitations = getRpcLimitations(chain, rpcOptions.url);
-
-  const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish);
-  monkeyPatchProvider(chain, batchProvider, limitations);
-
-  return batchProvider;
-}
-
 export function monkeyPatchProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, limitations: RpcLimitations) {
   const isBatchProvider = provider instanceof ethers.providers.JsonRpcBatchProvider;
   const networkish = {
