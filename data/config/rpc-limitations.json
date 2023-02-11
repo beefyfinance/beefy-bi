@@ -538,7 +538,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -556,7 +556,7 @@
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": null,
+      "restrictToMode": "historical",
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
