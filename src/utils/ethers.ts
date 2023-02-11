@@ -197,6 +197,14 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
                 const error = new Error(payload.error.message);
                 (error as any).code = payload.error.code;
                 (error as any).data = payload.error.data;
+
+                this.emit("debug", {
+                  action: "response",
+                  error: error,
+                  request: request,
+                  provider: this,
+                });
+
                 inflightRequest.reject(error);
               } else {
                 inflightRequest.resolve(payload.result);

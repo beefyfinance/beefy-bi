@@ -35,25 +35,6 @@ export function saveRpcErrorToDb(options: { client: DbClient; mode: "historical"
 
       return next(info);
     }
-
-    // sometimes the errors is not detected by the provider and we need to check the response
-    const response = get(event, "response") as any;
-    if (event.action === "response" && response) {
-      const responses = isArray(response) ? response : [response];
-      for (const response of responses) {
-        if (response.error) {
-          const info: DbRpcError = {
-            datetime: new Date(),
-            chain: options.chain,
-            rpc_url: options.rpc.connection.url,
-            request: event.request,
-            response: JSON.stringify(response),
-          };
-
-          next(info);
-        }
-      }
-    }
   });
 
   // immediately subscribe to the observable so it starts
