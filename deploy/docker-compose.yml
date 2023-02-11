@@ -320,13 +320,13 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c arbitrum -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c arbitrum -l 15sec"
 
   importer-investment-historical-aurora:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c aurora -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c aurora -l 15sec"
 
   importer-investment-historical-avax:
     <<: *importer
@@ -350,19 +350,19 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c cronos -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c cronos -l 15sec"
 
   importer-investment-historical-ethereum:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c ethereum -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c ethereum -l 15sec"
 
   importer-investment-historical-emerald:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c emerald -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c emerald -l 15sec"
 
   importer-investment-historical-fantom:
     <<: *importer
@@ -374,13 +374,13 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c fuse -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c fuse -l 15sec"
 
   importer-investment-historical-harmony:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c harmony -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c harmony -l 15sec"
 
   importer-investment-historical-heco:
     <<: *importer
@@ -398,7 +398,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c metis -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c metis -l 15sec"
 
   importer-investment-historical-moonbeam:
     <<: *importer
@@ -428,7 +428,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c syscoin -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c syscoin -l 15sec"
 
   # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 

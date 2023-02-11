@@ -43,7 +43,7 @@ export function fetchTransactionGas$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       eth_getLogs: 0,
       eth_getTransactionReceipt: 1,
     },
-    logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
+    logInfos: { msg: "Fetching Transaction gas", data: { chain: options.ctx.chain } },
     getQuery: options.getQueryParams,
     processBatch: async (provider, params: GetTransactionGasCallParams[]) => {
       const transactionHashes = params.map((p) => p.transactionHash);

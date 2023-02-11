@@ -100,7 +100,14 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
         eth_getLogs: 2,
         eth_getTransactionReceipt: 0,
       },
-      logInfos: { msg: "Fetching ERC20 transfers", data: { chain: options.ctx.chain } },
+      logInfos: {
+        msg: "Fetching ERC20 transfers without address batch",
+        data: {
+          chain: options.ctx.chain,
+          batchAddressesIfPossible: options.batchAddressesIfPossible,
+          maxGetLogsAddressBatchSize: options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize,
+        },
+      },
       getQuery: options.getQueryParams,
       processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
       formatOutput: options.formatOutput,
