@@ -40,7 +40,7 @@ export function saveRpcErrorToDb(options: { client: DbClient; mode: "historical"
   // immediately subscribe to the observable so it starts
   observable
     .pipe(
-      Rx.tap((err) => logger.trace({ msg: "Got rpc error to insert", data: { err } })),
+      Rx.tap((err) => logger.error({ msg: "Got rpc error to insert", data: { err } })),
       insertRpcError$({
         ctx,
         emitError: (obj, report) => {
