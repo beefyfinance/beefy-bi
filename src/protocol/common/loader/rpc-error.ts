@@ -27,7 +27,15 @@ export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
     processBatch: async (objAndData) => {
       await db_query(
         `INSERT INTO rpc_error_ts (chain, datetime, rpc_url, request, response) VALUES %L`,
-        [objAndData.map(({ data }) => [data.chain, data.datetime.toISOString(), removeSecretsFromRpcUrl(data.rpc_url), data.request, data.response])],
+        [
+          objAndData.map(({ data }) => [
+            data.chain,
+            data.datetime.toISOString(),
+            removeSecretsFromRpcUrl(data.rpc_url),
+            JSON.stringify(data.request),
+            JSON.stringify(data.response),
+          ]),
+        ],
         options.ctx.client,
       );
 

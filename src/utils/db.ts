@@ -1,4 +1,3 @@
-import { get } from "lodash";
 import { Client as PgClient, ClientConfig as PgClientConfig } from "pg";
 import * as pgcs from "pg-connection-string";
 import pgf from "pg-format";
@@ -6,7 +5,6 @@ import { allChainIds } from "../types/chain";
 import { ConnectionTimeoutError, isConnectionTimeoutError, withTimeout } from "./async";
 import { TIMESCALEDB_URL } from "./config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "./logger";
-import { ProgrammerError } from "./programmer-error";
 
 const logger = rootLogger.child({ module: "db", component: "query" });
 
