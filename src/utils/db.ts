@@ -235,6 +235,11 @@ async function typeExists(typeName: string) {
   return res !== null;
 }
 
+async function timescaledbJobExists(procName: string) {
+  const res = await db_query_one(`SELECT * FROM timescaledb_information.jobs WHERE proc_name = %L`, [procName]);
+  return res !== null;
+}
+
 export async function db_migrate() {
   logger.info({ msg: "Migrate begin" });
 
@@ -717,6 +722,77 @@ export async function db_migrate() {
   if (!hasPolicy("public", "rpc_error_ts", "hypertable", "policy_retention")) {
     await db_query(`
       SELECT add_retention_policy('rpc_error_ts', INTERVAL '1 month');
+    `);
+  }
+
+  // create a job to snapshot import metrics every 15 minutes
+  if (!timescaledbJobExists("snapshot_import_metrics")) {
+    await db_query(`
+      create table if not exists import_state_metrics_ts (
+        datetime timestamptz not null,
+        chain chain_enum not null,
+        import_type text not null,
+        errors_count bigint not null,
+        success_count bigint not null,
+        not_covered_yet bigint not null
+      );
+      
+      SELECT create_hypertable(
+        relation => 'import_state_metrics_ts', 
+        time_column_name => 'datetime',
+        chunk_time_interval => INTERVAL '30 days',
+        if_not_exists => true
+      );
+      
+      create index if not exists import_state_metrics_ts_chain_import_type_idx on import_state_metrics_ts (chain, import_type, datetime);
+      
+      
+      create or replace PROCEDURE snapshot_import_metrics(job_id INT, config JSONB) 
+      as $$
+      insert into import_state_metrics_ts (
+        datetime,
+        chain,
+        import_type,
+        errors_count,
+        success_count,
+        not_covered_yet
+      )
+          with max_block_number_by_chain as materialized (
+            select 
+              (i.import_data->>'chain')::chain_enum as chain,
+              max((import_data->>'chainLatestBlockNumber')::integer) as last_covered
+            from import_state i
+            where i.import_data->>'type' = 'product:investment'
+            group by 1
+          ),
+          procuct_block_stats as (
+            select 
+              p.chain,
+              p.product_id,
+              i.import_data->>'type' as import_type,
+              b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
+              jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
+              jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
+            from product p
+            left join import_state i on p.product_id = (i.import_data->>'productId')::integer
+            left join max_block_number_by_chain b on p.chain = b.chain
+          )
+          select 
+            now(),
+            chain,
+            import_type,
+            sum(blocks_to_retry) as errors_count,
+            sum(blocks_covered) - sum(blocks_to_retry) as success_count,
+            sum(total_blocks_to_cover) - sum(blocks_covered) as not_covered_yet
+          from procuct_block_stats
+          where import_type is not null
+          group by 1, 2, 3
+      $$
+        LANGUAGE SQL;
+      
+      
+      SELECT add_job('snapshot_import_metrics', '15min', config => null);
+    
     `);
   }
 
