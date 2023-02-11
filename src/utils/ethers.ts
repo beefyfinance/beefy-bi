@@ -200,7 +200,7 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
 
                 this.emit("debug", {
                   action: "response",
-                  error: error,
+                  error: payload,
                   request: request,
                   provider: this,
                 });
