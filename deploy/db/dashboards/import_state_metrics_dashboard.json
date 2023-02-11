@@ -55,7 +55,153 @@
           },
           "custom": {
             "axisCenteredZero": false,
-            "axisColorMode": "text",
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 39,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  errors_count as errors_count,\n  --success_count as success_count,\n  not_covered_yet as not_covered_yet\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = '$import_type'\n--group by 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains: Import Stats ",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -98,15 +244,40 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
-        "w": 24,
-        "x": 0,
+        "w": 12,
+        "x": 12,
         "y": 1
       },
-      "id": 4,
+      "id": 91,
       "options": {
         "legend": {
           "calcs": [],
@@ -129,7 +300,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('15min', datetime) AS \"time\",\n  last(errors_count, datetime) as errors_count,\n  last(success_count, datetime) as success_count,\n  last(not_covered_yet, datetime) as not_covered_yet\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = '$import_type'\ngroup by 1\nORDER BY 1",
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  errors_count + not_covered_yet as error_or_not_covered\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = '$import_type'\n--group by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -151,7 +322,7 @@
           ]
         }
       ],
-      "title": "Block Stats",
+      "title": "$chains: Total work",
       "type": "timeseries"
     }
   ],
@@ -209,13 +380,13 @@
     ]
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 7,
+  "version": 13,
   "weekStart": ""
 }
