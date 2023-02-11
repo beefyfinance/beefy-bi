@@ -10,7 +10,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
-import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
+import { consumeStoppableObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { saveRpcErrorToDb } from "../connector/rpc-error";
 import { ImportCtx } from "../types/import-context";
 import { BatchStreamConfig } from "./batch-rpc-calls";
@@ -263,8 +263,11 @@ function createRpcRunner<TInput>(options: {
   let inputList: TInput[] = [];
   let stop: boolean = false;
 
+  let stopWork: () => void = () => {};
+
   function updateInputs(inputs: TInput[]) {
     logger.debug({ msg: "Updating inputs ", data: { ...logData, count: inputs.length } });
+    stopWork();
     inputList = inputs;
   }
 
@@ -293,7 +296,9 @@ function createRpcRunner<TInput>(options: {
       ];
 
       const start = Date.now();
-      await consumeObservable(work);
+      const { stop: stopWorker, promise: workerPromise } = consumeStoppableObservable(work);
+      stopWork = stopWorker;
+      await workerPromise;
       const now = Date.now();
 
       for (const complete of errorObsComplete) {

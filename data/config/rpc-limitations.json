@@ -74,7 +74,7 @@
     }
   },
   "bsc": {
-    "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL_2>": {
+    "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
@@ -93,7 +93,7 @@
       }
     },
     "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -144,24 +144,6 @@
         "eth_getBlockByNumber": 200,
         "eth_blockNumber": 200,
         "eth_getTransactionReceipt": 200
-      }
-    },
-    "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 500,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 256
       }
     },
     "https://bsc-private-dataseed1.nariox.org": {
