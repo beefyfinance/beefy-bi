@@ -6,7 +6,6 @@ import { Chain } from "../../../types/chain";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
-import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { gitStreamFileVersions } from "../../common/connector/git-file-history";
 import { isNotNull } from "../../common/utils/type-guard";
 

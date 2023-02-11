@@ -22,7 +22,7 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
       cacheConfig: {
         type: "global",
         globalKey: "latest-block-number",
-        stdTTLSec: 60 /* 1min */,
+        stdTTLSec: 10 /* 10 sec */,
         useClones: false,
       },
       getCacheKey: () => options.ctx.chain,
