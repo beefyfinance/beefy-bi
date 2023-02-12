@@ -36,6 +36,117 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time_bucket('$interval', datetime) AS \"time\",\n  chain,\n  count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nGROUP BY 1, 2\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Error count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "thresholds"
           },
           "mappings": [],
@@ -59,7 +170,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -135,7 +246,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 0
+        "y": 8
       },
       "id": 6,
       "options": {
@@ -215,7 +326,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 0
+        "y": 8
       },
       "id": 5,
       "options": {
@@ -306,7 +417,7 @@
         "h": 22,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 2,
       "options": {
@@ -328,7 +439,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT *\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY datetime desc",
+          "rawSql": "SELECT *\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY datetime desc\nlimit 500",
           "refId": "A",
           "select": [
             [
@@ -350,7 +461,7 @@
           ]
         }
       ],
-      "title": "Panel Title",
+      "title": "Last 500 errors",
       "type": "table"
     }
   ],
@@ -361,9 +472,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "selected": false,
+          "text": ["optimism"],
+          "value": ["optimism"]
         },
         "datasource": {
           "type": "postgres",
@@ -381,17 +492,81 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
+      },
+      {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "1h",
+          "value": "1h"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": true,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "15m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
       }
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "RPC errors",
   "uid": "slqCbg1Vz",
-  "version": 4,
+  "version": 9,
   "weekStart": ""
 }
