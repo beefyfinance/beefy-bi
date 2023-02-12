@@ -199,7 +199,7 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
                 (error as any).code = payload.error.code;
                 (error as any).data = payload.error.data;
 
-                allErrors.push(payload);
+                allErrors[index] = payload;
 
                 inflightRequest.reject(error);
               } else {
@@ -207,12 +207,14 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
               }
             });
 
-            this.emit("debug", {
-              action: "response",
-              error: allErrors,
-              request: request,
-              provider: this,
-            });
+            if (allErrors.length > 0) {
+              this.emit("debug", {
+                action: "response",
+                error: allErrors,
+                request: request,
+                provider: this,
+              });
+            }
           })
           .catch((error) => {
             this.emit("debug", {
