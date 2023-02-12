@@ -86,6 +86,7 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
   ctx: ImportCtx;
   emitError: TErr;
   forceCurrentBlockNumber: number | null;
+  isLiveItem: (input: TObj) => boolean;
   getImport: (obj: TObj) => TImport;
   getFirstBlockNumber: (importState: TImport) => number;
   formatOutput: (obj: TObj, latestBlockNumber: number, historicalBlockQueries: Range<number>[]) => TRes;
@@ -133,7 +134,11 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       let ranges = [fullRange];
 
       // exclude latest block query from the range
-      ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+      // only if the item is live because we don't fetch recent data for eol items
+      // so it's the historical script job to fetch the last data
+      if (options.isLiveItem(item.obj)) {
+        ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+      }
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
       ranges = _restrictRangesWithImportState(ranges, importState, maxBlocksPerQuery, LIMIT_INVESTMENT_QUERIES);

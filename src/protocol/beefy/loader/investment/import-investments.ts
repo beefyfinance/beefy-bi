@@ -32,6 +32,7 @@ export function createBeefyHistoricalInvestmentRunner(options: {
         addHistoricalBlockQuery$({
           ctx,
           emitError,
+          isLiveItem: (p) => !isProductDashboardEOL(p.target),
           forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImport: (item) => item.importState,
           getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
