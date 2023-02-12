@@ -713,7 +713,7 @@ export async function db_migrate() {
       relation => 'rpc_error_ts', 
       time_column_name => 'datetime',
       if_not_exists => true,
-      chunk_time_interval => INTERVAL '15 days'
+      chunk_time_interval => INTERVAL '1 day'
     );
   `);
 
