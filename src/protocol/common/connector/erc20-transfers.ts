@@ -49,6 +49,12 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
   getQueryParams: (obj: TObj) => GetTransferCallParams;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }) {
+  const logData = {
+    chain: options.ctx.chain,
+    batchAddressesIfPossible: options.batchAddressesIfPossible,
+    maxGetLogsAddressBatchSize: options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize,
+    streamConfig: options.ctx.streamConfig,
+  };
   if (options.batchAddressesIfPossible && options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize !== null) {
     const workConcurrency = options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? options.ctx.streamConfig.workConcurrency : 1;
 
@@ -72,7 +78,7 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
           {
             chain: options.ctx.chain,
             rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
-            logInfos: { msg: "Fetching ERC20 transfers with address batch", data: { chain: options.ctx.chain } },
+            logInfos: { msg: "Fetching ERC20 transfers with address batch", data: logData },
             maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
             noLockIfNoLimit: true,
             provider: options.ctx.rpcConfig.linearProvider,
@@ -102,11 +108,7 @@ export function fetchErc20Transfers$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       },
       logInfos: {
         msg: "Fetching ERC20 transfers without address batch",
-        data: {
-          chain: options.ctx.chain,
-          batchAddressesIfPossible: options.batchAddressesIfPossible,
-          maxGetLogsAddressBatchSize: options.ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize,
-        },
+        data: logData,
       },
       getQuery: options.getQueryParams,
       processBatch: (provider, contractCalls: GetTransferCallParams[]) => fetchERC20TransferEventsFromRpc(provider, options.ctx.chain, contractCalls),
