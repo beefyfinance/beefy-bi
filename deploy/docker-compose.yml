@@ -138,6 +138,7 @@ services:
       LETSENCRYPT_HOST: dm-control.beefy.com
       VIRTUAL_HOST: dm-control.beefy.com
       VIRTUAL_PORT: 3000
+      TRUST_DOWNSTREAM_PROXY: true
     logging:
       driver: "local"
       options:
@@ -170,6 +171,7 @@ services:
       LETSENCRYPT_HOST: datamart.beefy.com
       VIRTUAL_HOST: datamart.beefy.com
       VIRTUAL_PORT: 8080
+      TRUST_DOWNSTREAM_PROXY: true
     logging:
       driver: "local"
       options:
