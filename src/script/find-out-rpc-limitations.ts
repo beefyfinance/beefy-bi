@@ -151,6 +151,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
       aurora: 51919680,
       avax: 820,
       bsc: 149268,
+      canto: 85395,
       celo: 2919,
       cronos: 446,
       emerald: 7881,

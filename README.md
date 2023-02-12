@@ -144,9 +144,10 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 
 ### How to add a new chain?
 
-- Add the new enum to the database
 - Update the chain enum in the `src/types/chain.ts` file
-- Run `npm run build` and solve any typescript error
+- Run `npx ncu --upgrade blockchain-addressbook` and `npm install` to get the wtoken address
+- Run `npm run build` and solve any remainning typescript error
+- Add a new RPC using the above guide
 
 ### Update a grafana dashboard
 
@@ -177,7 +178,7 @@ Operations
 
 - [grafana](https://grafana.com/): ingestion monitoring, quick prototyping
 
-### Indexing overview
+### Indexing overview (OUT OF DATE)
 
 ```mermaid
 

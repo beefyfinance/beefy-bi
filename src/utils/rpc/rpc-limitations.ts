@@ -199,14 +199,18 @@ export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBloc
 export function getAllRpcUrlsForChain(chain: Chain): string[] {
   const chainRpcs = getFindings()[chain];
   if (!chainRpcs) {
-    throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+    if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+      return [];
+    } else {
+      throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
+    }
   }
   return Object.keys(chainRpcs).map(addSecretsToRpcUrl);
 }
 
 export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recent"): string[] {
   const chainRpcs = getFindings()[chain];
-  if (!chainRpcs) {
+  if (!chainRpcs && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
@@ -215,7 +219,7 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     limitations,
   }));
 
-  if (rpcConfigs.length === 0) {
+  if (rpcConfigs.length === 0 && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
@@ -225,7 +229,7 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
   // shortcut when there's only one RPC
   if (rpcConfigs.length === 1) {
     return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
-  } else if (rpcConfigs.length === 0) {
+  } else if (rpcConfigs.length === 0 && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 

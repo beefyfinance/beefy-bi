@@ -739,5 +739,25 @@
         "eth_getTransactionReceipt": 1
       }
     }
+  },
+  "canto": {
+    "https://canto.slingshot.finance": {
+      "restrictToMode": null,
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 192,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
   }
 }
