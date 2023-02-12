@@ -42,6 +42,7 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
             maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
             noLockIfNoLimit: true, // we use linearProvider, so this has no effect
           });
+          logger.trace({ msg: "Latest block number from rpc query", data: { latestBlockNumber, chain: options.ctx.chain } });
           return { input: objs, output: latestBlockNumber };
         } catch (err) {
           logger.error({ msg: "Error while fetching latest block number", data: { chain: options.ctx.chain, err } });
@@ -60,6 +61,7 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
         if (!dbRes) {
           throw new Error(`No block number found for chain ${options.ctx.chain}`);
         }
+        logger.trace({ msg: "Latest block number from db", data: { latestBlockNumber: dbRes.latest_block_number, chain: options.ctx.chain } });
         return { input: objs, output: dbRes.latest_block_number };
       }, options.ctx.streamConfig.workConcurrency),
       formatOutput: (objs, latestBlockNumber: number) => ({ objs, latestBlockNumber }),

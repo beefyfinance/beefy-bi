@@ -69,12 +69,15 @@ export function addLatestBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
       // where the RPC don't know about the block number he just gave us
       const waitForBlockPropagation = 5;
-      return objGroup.objs.map((obj) =>
-        options.formatOutput(obj, objGroup.latestBlockNumber, {
-          from: fromBlock - waitForBlockPropagation,
-          to: toBlock - waitForBlockPropagation,
-        }),
-      );
+      const query = {
+        from: fromBlock - waitForBlockPropagation,
+        to: toBlock - waitForBlockPropagation,
+      };
+      logger.trace({
+        msg: "latest block query generated",
+        data: { query, fromBlock, toBlock, maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported, blockCountToFetch },
+      });
+      return objGroup.objs.map((obj) => options.formatOutput(obj, objGroup.latestBlockNumber, query));
     }, options.ctx.streamConfig.workConcurrency),
   );
 }

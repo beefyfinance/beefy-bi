@@ -159,8 +159,6 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
 }) {
   const createPipeline = (ctx: ImportCtx) =>
     Rx.pipe(
-      Rx.filter((item: TInput) => options.isLiveItem(item)),
-
       // set ts typings
       Rx.map((item: TInput) => ({ target: item })),
 
