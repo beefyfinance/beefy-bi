@@ -71,8 +71,8 @@ volumes:
 networks:
   backend: {}
   proxy-exposed:
-    external:
-      name: proxy-exposed
+    name: proxy-exposed
+    external: true
 
 services:
   redis:

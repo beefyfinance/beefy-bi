@@ -32,8 +32,8 @@ services:
 
 networks:
   proxy-exposed:
-    external:
-      name: proxy-exposed
+    name: proxy-exposed
+    external: true
 
 volumes:
   nginx-certs:
