@@ -10,7 +10,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "methods": {
-        "eth_getLogs": 10,
+        "eth_getLogs": null,
         "eth_call": null,
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 16,
