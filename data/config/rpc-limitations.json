@@ -320,12 +320,31 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 2,
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 2,
         "eth_getTransactionReceipt": null
+      }
+    },
+    "https://evm.cronos.org": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 500,
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 2,
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": 4,
+        "eth_getBlockByNumber": 4,
+        "eth_blockNumber": 4,
+        "eth_getTransactionReceipt": 4
       }
     }
   },
