@@ -465,7 +465,7 @@
     "https://http-mainnet.hecochain.com": {
       "restrictToMode": null,
       "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 300,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,

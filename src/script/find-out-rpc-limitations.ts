@@ -118,6 +118,8 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableBatching = rpcLimitations.disableBatching;
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableRpc = rpcLimitations.disableRpc;
   findings[chain][removeSecretsFromRpcUrl(rpcUrl)].weight = rpcLimitations.weight;
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].restrictToMode = rpcLimitations.restrictToMode;
+  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].minDelayBetweenCalls = rpcLimitations.minDelayBetweenCalls;
 
   // set the soft timeout, the delay after which we consider the rpc request to have failed
   const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
