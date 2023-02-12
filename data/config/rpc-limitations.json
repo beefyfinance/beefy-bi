@@ -292,6 +292,24 @@
     }
   },
   "celo": {
+    "https://rpc.ankr.com/celo/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 24,
+        "eth_call": 200,
+        "eth_getBlockByNumber": 200,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 100
+      }
+    },
     "https://forno.celo.org": {
       "restrictToMode": null,
       "isArchiveNode": false,
@@ -300,7 +318,7 @@
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 1,
