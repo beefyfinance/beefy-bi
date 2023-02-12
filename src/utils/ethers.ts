@@ -191,7 +191,7 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
 
             // For each result, feed it to the correct Promise, depending
             // on whether it was a success or error
-            const yieldedErrors = new Set<any>();
+            const allErrors: any = [];
             batch.forEach((inflightRequest, index) => {
               const payload = resultMap[inflightRequest.request.id];
               if (payload.error) {
@@ -199,20 +199,19 @@ export function monkeyPatchEthersBatchProvider(provider: ethers.providers.JsonRp
                 (error as any).code = payload.error.code;
                 (error as any).data = payload.error.data;
 
-                if (!yieldedErrors.has(payload)) {
-                  yieldedErrors.add(payload);
-                  this.emit("debug", {
-                    action: "response",
-                    error: payload,
-                    request: request,
-                    provider: this,
-                  });
-                }
+                allErrors.push(payload);
 
                 inflightRequest.reject(error);
               } else {
                 inflightRequest.resolve(payload.result);
               }
+            });
+
+            this.emit("debug", {
+              action: "response",
+              error: allErrors,
+              request: request,
+              provider: this,
             });
           })
           .catch((error) => {
