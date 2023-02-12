@@ -37,6 +37,11 @@ x-importer: &importer
   stop_signal: SIGINT
   volumes:
     - git_work_directory:/git_work
+  logging:
+    driver: "local"
+    options:
+      max-size: "5M"
+      max-file: "3"
   networks:
     - backend
   depends_on:
@@ -94,6 +99,11 @@ services:
         reservations:
           cpus: "0.25"
           memory: 15G
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
     environment:
       TZ: "UTC"
       POSTGRES_PORT: 5432
@@ -128,6 +138,11 @@ services:
       LETSENCRYPT_HOST: dm-control.beefy.com
       VIRTUAL_HOST: dm-control.beefy.com
       VIRTUAL_PORT: 3000
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
     volumes:
       - grafana_data:/var/lib/grafana
       - grafana_plugins:/var/lib/grafana/plugins
@@ -155,6 +170,11 @@ services:
       LETSENCRYPT_HOST: datamart.beefy.com
       VIRTUAL_HOST: datamart.beefy.com
       VIRTUAL_PORT: 8080
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
     networks:
       - backend
       - proxy-exposed
