@@ -8,7 +8,7 @@ import FastifyRateLimit from "@fastify/rate-limit";
 import FastifyRedis from "@fastify/redis";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify from "fastify";
-import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_LISTEN, API_PORT, API_URL, TIMESCALEDB_URL } from "../utils/config";
+import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_LISTEN, API_PORT, API_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { getRedisClient } from "../utils/shared-resources/shared-lock";
 import routes from "./route";
@@ -49,7 +49,7 @@ server.register(async (instance, opts, done) => {
     .register(FastifyUnderPressure)
     // rate limit disabled globally because I don't know how to disable it just for swagger ui
     .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100 })
-    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL] })
+    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)

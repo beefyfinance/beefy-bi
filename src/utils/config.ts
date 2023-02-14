@@ -24,6 +24,8 @@ export const API_LISTEN = process.env.API_LISTEN || "127.0.0.1";
 export const API_DISABLE_HTTPS = process.env.API_DISABLE_HTTPS === "true";
 export const API_URL = process.env.API_URL || "http://localhost:8080";
 export const API_FRONTEND_URL = process.env.API_FRONTEND_URL || "http://localhost:3001";
+export const APP_PR_BUILDS_URL = process.env.APP_PR_BUILDS_URL || "http://localhost:3000";
+export const APP_LOCAL_BUILDS_URL = process.env.APP_LOCAL_BUILDS_URL || "http://localhost:3001";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 export const BATCH_DB_INSERT_SIZE = 5000;
