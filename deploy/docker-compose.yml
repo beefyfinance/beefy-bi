@@ -372,7 +372,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c cannto -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c canto -l 15sec"
 
   importer-investment-historical-celo:
     <<: *importer
