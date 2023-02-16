@@ -220,7 +220,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t reward-snapshots -c all -l 4hour"
 
-  # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
   importer-investment-recent-arbitrum:
     <<: *importer
@@ -245,6 +245,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c bsc -l 15sec -e" # make ankr handle recent blocks to protect nodereal rpc when it's doing historical
+
+  importer-investment-recent-canto:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c canto -l 15sec"
 
   importer-investment-recent-celo:
     <<: *importer
@@ -336,7 +342,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c syscoin -l 15sec"
 
-  # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
   importer-investment-historical-arbitrum:
     <<: *importer
@@ -361,6 +367,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c bsc -l 15sec"
+
+  importer-investment-historical-canto:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c cannto -l 15sec"
 
   importer-investment-historical-celo:
     <<: *importer
@@ -452,7 +464,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c syscoin -l 15sec"
 
-  # arbitrum aurora avax bsc celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
   importer-investment-historical-share-rate-arbitrum:
     <<: *importer
@@ -471,6 +483,12 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c avax -l 15sec"
+
+  importer-investment-historical-share-rate-canto:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c canto -l 15sec"
 
   importer-investment-historical-share-rate-bsc:
     <<: *importer
