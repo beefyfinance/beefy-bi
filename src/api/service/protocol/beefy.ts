@@ -100,6 +100,7 @@ export class BeefyPortfolioService {
         display_name: string;
         chain: Chain;
         is_eol: boolean;
+        is_dashboard_eol: boolean;
         transaction_hash: string;
         share_to_underlying_price: string;
         underlying_to_usd_price: string;
@@ -116,6 +117,7 @@ export class BeefyPortfolioService {
               coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id')::text as display_name,
               p.chain,
               coalesce(p.product_data->'vault'->>'eol', p.product_data->'boost'->>'eol')::text = 'true' as is_eol,
+              (p.product_data->>'dashboardEol')::text = 'true' as is_dashboard_eol,
               bytea_to_hexstr(b.transaction_hash) as transaction_hash,
               b.share_to_underlying_price, 
               b.underlying_to_usd_price,
