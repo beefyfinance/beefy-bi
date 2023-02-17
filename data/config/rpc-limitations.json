@@ -329,22 +329,22 @@
     }
   },
   "cronos": {
-    "https://evm-cronos.crypto.org": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
+    "https://rpc.vvs.finance": {
+      "restrictToMode": "recent",
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 2000,
-      "maxGetLogsAddressBatchSize": null,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 16,
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 1,
+      "weight": null,
       "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 2,
-        "eth_getBlockByNumber": 2,
-        "eth_blockNumber": 2,
-        "eth_getTransactionReceipt": null
+        "eth_getLogs": 4,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 4,
+        "eth_blockNumber": 4,
+        "eth_getTransactionReceipt": 4
       }
     },
     "https://evm.cronos.org": {
@@ -356,7 +356,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 2,
+      "weight": null,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 4,
