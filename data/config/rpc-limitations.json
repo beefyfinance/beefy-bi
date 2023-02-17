@@ -492,7 +492,7 @@
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 56,
-        "eth_call": 128,
+        "eth_call": 58,
         "eth_getBlockByNumber": 192,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": null
