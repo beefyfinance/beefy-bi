@@ -66,10 +66,10 @@
       "disableRpc": false,
       "methods": {
         "eth_getLogs": 10,
-        "eth_call": 128,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 324
+        "eth_call": 50,
+        "eth_getBlockByNumber": 300,
+        "eth_blockNumber": 300,
+        "eth_getTransactionReceipt": 200
       }
     }
   },
