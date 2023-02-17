@@ -159,6 +159,21 @@ Grafana dashboards are stored in the `deploy/db/dashboards` folder. To update a 
 docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 ```
 
+### Grafana get locked out of his own db
+
+When the db returns too much data, the sqlite db gets locked. https://community.grafana.com/t/database-is-locked-unable-to-use-grafana-anymore/16557
+
+```bash
+docker exec --user root -it deploy-grafana-1 apk add sqlite3
+docker exec -it -w /var/lib/grafana deploy-grafana-1 /bin/sh
+
+sqlite3 grafana.db '.clone grafana-new.db'
+mv grafana.db grafana-old.db
+mv grafana-new.db grafana.db
+
+docker compose -f deploy/docker-compose.yml restart grafana
+```
+
 ## Internals
 
 ### Moving parts
@@ -177,54 +192,6 @@ User facing
 Operations
 
 - [grafana](https://grafana.com/): ingestion monitoring, quick prototyping
-
-### Indexing overview (OUT OF DATE)
-
-```mermaid
-
-flowchart TB
-
-    subgraph DataStore
-        Product
-        Price
-        Investor
-        InvestmentBalance
-        Product-->|price 1|Price
-        Product-->|price 2|Price
-        InvestmentBalance-->|investor|Investor
-        InvestmentBalance-->|product|Product
-
-        ImportState
-    end
-
-    subgraph RPC
-        ERC20TransferEventHistoryRPC("ERC20TransferEventHistory")
-        InvestorBalance
-        PPFSHistory
-        ETC2("...")
-    end
-    subgraph Explorers
-        ERC20TransferEventHistoryEXP("ERC20TransferEventHistory")
-    end
-    subgraph ExternalAPI
-        PriceHistory
-    end
-
-    subgraph Indexer
-        direction BT
-
-        Worker1 -->|polls| ERC20TransferEventHistoryRPC
-        Worker1 -->|polls| ERC20TransferEventHistoryEXP
-        Worker1 -->|polls| InvestorBalance
-        Worker2 -->|polls| PPFSHistory
-        Worker3 -->|polls| PriceHistory
-
-        ETC1("...")
-    end
-
-    Indexer-->|Feeds|DataStore
-
-```
 
 ### FAQ
 
