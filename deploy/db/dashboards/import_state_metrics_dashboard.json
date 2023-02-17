@@ -29,19 +29,374 @@
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*error.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*not_covered.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*total_work.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*progress.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
-        "h": 1,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
         "y": 0
       },
-      "id": 2,
-      "panels": [],
-      "repeat": "chains",
-      "repeatDirection": "h",
-      "title": "$chains",
-      "type": "row"
+      "id": 492,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["allValues"],
+          "fields": "",
+          "values": true
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:investment'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:investment'\n  group by 1\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains investments: Import Stats ",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*error.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*not_covered.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*total_work.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*progress.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 634,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["allValues"],
+          "fields": "",
+          "values": true
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:share-rate'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:share-rate'\n  group by 1\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains share rate: Import Stats ",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -73,7 +428,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -92,7 +447,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -132,16 +488,35 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_work"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 7,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 7
       },
-      "id": 39,
+      "id": 143,
       "options": {
         "legend": {
           "calcs": [],
@@ -150,7 +525,7 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -164,7 +539,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  errors_count as errors_count,\n  --success_count as success_count,\n  not_covered_yet as not_covered_yet\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = '$import_type'\n--group by 1\nORDER BY 1",
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:investment'\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -186,7 +561,7 @@
           ]
         }
       ],
-      "title": "$chains: Import Stats ",
+      "title": "$chains investments: Import Stats ",
       "type": "timeseries"
     },
     {
@@ -219,7 +594,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -236,13 +611,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -254,6 +626,13 @@
               {
                 "id": "custom.axisPlacement",
                 "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
               }
             ]
           },
@@ -266,18 +645,44 @@
               {
                 "id": "custom.axisPlacement",
                 "value": "left"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_work"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 7,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 7
       },
-      "id": 91,
+      "id": 370,
       "options": {
         "legend": {
           "calcs": [],
@@ -286,7 +691,7 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -300,7 +705,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  errors_count + not_covered_yet as error_or_not_covered\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = '$import_type'\n--group by 1\nORDER BY 1",
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:share-rate'\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -322,8 +727,438 @@
           ]
         }
       ],
-      "title": "$chains: Total work",
+      "title": "$chains ppfs: Import Stats ",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 2,
+      "panels": [],
+      "repeat": "chains",
+      "repeatDirection": "h",
+      "title": "$chains",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_work"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 371,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:investment'\ngroup by 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains investments: Import Stats ",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_work"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
+      "id": 372,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:share-rate'\ngroup by 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains ppfs: Import Stats ",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 687,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT datetime, rpc_url, request, response\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY 1\nlimit 20",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Last 20 Rpc Errors for this chain",
+      "type": "table"
     }
   ],
   "schemaVersion": 37,
@@ -334,8 +1169,8 @@
       {
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -353,40 +1188,17 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "product:investment",
-          "value": "product:investment"
-        },
-        "datasource": {
-          "type": "postgres",
-          "uid": "P1A7A05C63CAD1F73"
-        },
-        "definition": "select distinct import_type from import_state_metrics_ts;",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "import_type",
-        "options": [],
-        "query": "select distinct import_type from import_state_metrics_ts;",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 5,
-        "type": "query"
       }
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-4d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 13,
+  "version": 32,
   "weekStart": ""
 }
