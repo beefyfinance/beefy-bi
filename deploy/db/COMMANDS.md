@@ -755,3 +755,53 @@ where investor_id in (
 ;
 
 ```
+
+```sql
+alter table beefy_investor_timeline_cache_ts add column transaction_hash bytea;
+
+
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '1d'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = '2020-09-01T00:00:00Z'::TIMESTAMPTZ;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    with to_update_rows as (
+      select *
+      from beefy_investor_timeline_cache_ts
+      where transaction_hash is null
+        and datetime >= start_timestamp
+        and datetime < end_timestamp
+    ),
+    transaction_hash_matches as (
+      select u.investor_id, u.product_id, u.datetime, u.block_number, ('\' || SUBSTRING(d.debug_data->>'trxHash', 2, octet_length(d.debug_data->>'trxHash')))::bytea as transaction_hash
+      from to_update_rows u
+      join investment_balance_ts b on b.investor_id = u.investor_id
+        and b.product_id = u.product_id
+        and b.datetime = u.datetime
+        and b.block_number = u.block_number
+      join debug_data_ts d on d.debug_data_uuid = b.debug_data_uuid
+      where d.origin_table = 'investment_balance_ts'
+    )
+    update beefy_investor_timeline_cache_ts
+    set transaction_hash = transaction_hash_matches.transaction_hash
+    from transaction_hash_matches
+    where transaction_hash_matches.investor_id = beefy_investor_timeline_cache_ts.investor_id
+      and transaction_hash_matches.product_id = beefy_investor_timeline_cache_ts.product_id
+      and transaction_hash_matches.datetime = beefy_investor_timeline_cache_ts.datetime
+      and transaction_hash_matches.block_number = beefy_investor_timeline_cache_ts.block_number
+    ;
+
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
+
+alter table beefy_investor_timeline_cache_ts alter column transaction_hash set not null;
+```

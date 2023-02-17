@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { keyBy, uniqBy } from "lodash";
 import { Nullable } from "../../../../types/ts";
-import { DbClient, db_query } from "../../../../utils/db";
+import { DbClient, db_query, strAddressToPgBytea } from "../../../../utils/db";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
@@ -14,6 +14,7 @@ interface DbInvestorCacheDimensions {
   productId: number;
   datetime: Date;
   blockNumber: number;
+  transactionHash: string;
   // denormalized fiels
   priceFeed1Id: number;
   priceFeed2Id: number;
@@ -68,6 +69,7 @@ export function upsertInvestorCacheChainInfos$<
             product_id,
             datetime,
             block_number,
+            transaction_hash,
             price_feed_1_id,
             price_feed_2_id,
             pending_rewards_price_feed_id,
@@ -97,6 +99,7 @@ export function upsertInvestorCacheChainInfos$<
             data.productId,
             data.datetime.toISOString(),
             data.blockNumber,
+            strAddressToPgBytea(data.transactionHash),
             data.priceFeed1Id,
             data.priceFeed2Id,
             data.pendingRewardsPriceFeedId,
