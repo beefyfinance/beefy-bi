@@ -332,7 +332,7 @@
     "https://evm.cronos.org": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 300,
       "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
