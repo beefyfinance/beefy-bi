@@ -83,6 +83,7 @@ export function upsertInvestorCacheChainInfos$<
           ) VALUES %L
             ON CONFLICT (product_id, investor_id, block_number, datetime) 
             DO UPDATE SET 
+                transaction_hash = coalesce(EXCLUDED.transaction_hash, beefy_investor_timeline_cache_ts.transaction_hash),
                 balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
                 balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
                 share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
