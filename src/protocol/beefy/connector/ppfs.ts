@@ -101,7 +101,7 @@ export function isEmptyVaultPPFSError(err: any) {
   if (!err) {
     return false;
   }
-  const errorMessage = get(err, ["error", "message"]) || get(err, "message");
+  const errorMessage = get(err, ["error", "message"]) || get(err, "message") || "";
   return errorMessage.includes("SafeMath: division by zero");
 }
 
