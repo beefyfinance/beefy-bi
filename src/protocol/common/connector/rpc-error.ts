@@ -1,11 +1,12 @@
 import { ethers } from "ethers";
-import { get, isArray } from "lodash";
+import { get, isArray, isObject } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient } from "../../../utils/db";
 import { EthersProviderDebugEvent } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
+import { isEmptyVaultPPFSError } from "../../beefy/connector/ppfs";
 import { DbRpcError, insertRpcError$ } from "../loader/rpc-error";
 import { ImportCtx } from "../types/import-context";
 import { defaultHistoricalStreamConfig, defaultRecentStreamConfig } from "../utils/rpc-chain-runner";
@@ -33,6 +34,17 @@ export function saveRpcErrorToDb(options: { client: DbClient; mode: "historical"
         response: get(error, "body") || error,
       };
 
+      // remove null values
+      if (isArray(info.response)) {
+        info.response = info.response.filter((x) => x !== null);
+      }
+
+      // ignore those errors, we expect they will happen
+      if (isArray(info.response)) {
+        info.response = info.response.filter((x) => !isEmptyVaultPPFSError(x));
+      } else if (isEmptyVaultPPFSError(info.response)) {
+        return;
+      }
       return next(info);
     }
   });

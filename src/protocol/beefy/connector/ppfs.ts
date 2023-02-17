@@ -77,9 +77,7 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     const shareRatePromise = rawPromise
       .then(([ppfs]) => [contractCall, ppfs] as PPFSEntry)
       .catch((err) => {
-        // sometimes, we get this error: "execution reverted: SafeMath: division by zero"
-        // this means that the totalSupply is 0 so we set ppfs to zero
-        if (get(err, "message", "").includes("SafeMath: division by zero")) {
+        if (isEmptyVaultPPFSError(err)) {
           return [contractCall, ethers.BigNumber.from(0)] as PPFSEntry;
         } else {
           // otherwise, we pass the error through
@@ -95,6 +93,16 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   }
 
   return new Map(await Promise.all(shareRatePromises));
+}
+
+// sometimes, we get this error: "execution reverted: SafeMath: division by zero"
+// this means that the totalSupply is 0 so we set ppfs to zero
+export function isEmptyVaultPPFSError(err: any) {
+  if (!err) {
+    return false;
+  }
+  const errorMessage = get(err, ["error", "message"]) || get(err, "message");
+  return errorMessage.includes("SafeMath: division by zero");
 }
 
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance
