@@ -759,7 +759,7 @@ where investor_id in (
 ```sql
 alter table beefy_investor_timeline_cache_ts add column transaction_hash bytea;
 
-
+create index beefy_investor_timeline_cache_ts_transaction_hash_idx on beefy_investor_timeline_cache_ts (transaction_hash, datetime) where transaction_hash is null;
 
 DO
 $$
@@ -769,7 +769,7 @@ DECLARE
   end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
 BEGIN
   WHILE start_timestamp < now() LOOP
-    with to_update_rows as (
+    with to_update_rows as materialized (
       select *
       from beefy_investor_timeline_cache_ts
       where transaction_hash is null
