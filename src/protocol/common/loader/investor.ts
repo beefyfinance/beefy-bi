@@ -43,7 +43,7 @@ export function upsertInvestor$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
           : await db_query<DbInvestor>(
               `INSERT INTO investor (address, investor_data) VALUES %L
                 ON CONFLICT (address) DO UPDATE SET investor_data = jsonb_merge(investor.investor_data, EXCLUDED.investor_data)
-                RETURNING investor_id as "investorId", bytea_to_hexstr(address) as "address, investor_data as "investorData"`,
+                RETURNING investor_id as "investorId", bytea_to_hexstr(address) as "address", investor_data as "investorData"`,
               [
                 uniqBy(investorsToInsert, (objAndData) => objAndData.data.address.toLocaleLowerCase()).map((obj) => [
                   strAddressToPgBytea(obj.data.address),
