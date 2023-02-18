@@ -154,9 +154,6 @@ export async function db_query<RowType>(sql: string, params: any[] = [], client:
   }
   const sql_w_params = pgf(sql, ...params);
   //console.log(sql_w_params);
-  //if (sql_w_params.includes("beefy_investor_timeline_cache_ts") || sql_w_params.includes("investment_balance_ts")) {
-  //  console.log(sql_w_params);
-  //}
   try {
     const res = await useClient.query(sql_w_params);
     const rows = res?.rows || null;

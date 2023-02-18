@@ -64,36 +64,94 @@ export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPar
     getData: options.getProductData,
     logInfos: { msg: "upsert product" },
     processBatch: async (objAndData) => {
-      const results = await db_query<DbProduct>(
-        `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, pending_rewards_price_feed_id, chain, product_data) VALUES %L
+      // select existing products to update them instead of inserting new ones so we don't burn too much serial ids
+      // More details: https://dba.stackexchange.com/a/295356/65636
+      const existingProducts = await db_query<DbProduct>(
+        `SELECT 
+          product_id as "productId",
+          chain,
+          product_key as "productKey",
+          price_feed_1_id as "priceFeedId1",
+          price_feed_2_id as "priceFeedId2",
+          pending_rewards_price_feed_id as "pendingRewardsPriceFeedId",
+          product_data as "productData"
+        FROM product
+        where product_key in (%L)`,
+        [objAndData.map(({ data }) => data.productKey)],
+        options.ctx.client,
+      );
+
+      const existingProductByProductKey = keyBy(existingProducts, "productKey");
+      const productsToInsert = objAndData.filter(({ data }) => !existingProductByProductKey[data.productKey]);
+      const productsToUpdate = objAndData.filter(({ data }) => existingProductByProductKey[data.productKey]);
+
+      const insertResults =
+        productsToInsert.length <= 0
+          ? []
+          : await db_query<DbProduct>(
+              `INSERT INTO product (product_key, price_feed_1_id, price_feed_2_id, pending_rewards_price_feed_id, chain, product_data) VALUES %L
               ON CONFLICT (product_key) 
               DO UPDATE SET
                 chain = EXCLUDED.chain,
-                product_key = EXCLUDED.product_key,
                 price_feed_1_id = EXCLUDED.price_feed_1_id,
                 price_feed_2_id = EXCLUDED.price_feed_2_id,
                 pending_rewards_price_feed_id = EXCLUDED.pending_rewards_price_feed_id,
                 product_data = EXCLUDED.product_data
               RETURNING 
-                product_id as "productId", 
-                product_key as "productKey", 
-                price_feed_1_id as "priceFeedId1", 
-                price_feed_2_id as "priceFeedId2", 
-                chain, 
+                product_id as "productId",
+                chain,
+                product_key as "productKey",
+                price_feed_1_id as "priceFeedId1",
+                price_feed_2_id as "priceFeedId2",
+                pending_rewards_price_feed_id as "pendingRewardsPriceFeedId",
                 product_data as "productData"`,
-        [
-          objAndData.map(({ data }) => [
-            data.productKey,
-            data.priceFeedId1,
-            data.priceFeedId2,
-            data.pendingRewardsPriceFeedId,
-            data.chain,
-            data.productData,
-          ]),
-        ],
-        options.ctx.client,
-      );
+              [
+                productsToInsert.map(({ data }) => [
+                  data.productKey,
+                  data.priceFeedId1,
+                  data.priceFeedId2,
+                  data.pendingRewardsPriceFeedId,
+                  data.chain,
+                  data.productData,
+                ]),
+              ],
+              options.ctx.client,
+            );
 
+      const updateResults =
+        productsToUpdate.length <= 0
+          ? []
+          : await db_query<DbProduct>(
+              `UPDATE product SET
+                chain = u.chain::chain_enum,
+                price_feed_1_id = u.price_feed_1_id::integer,
+                price_feed_2_id = u.price_feed_2_id::integer,
+                pending_rewards_price_feed_id = u.pending_rewards_price_feed_id::integer,
+                product_data = u.product_data
+              FROM (VALUES %L) AS u(product_key, chain, price_feed_1_id, price_feed_2_id, pending_rewards_price_feed_id, product_data)
+              WHERE product.product_key = u.product_key
+              RETURNING 
+                product.product_id as "productId",
+                product.chain,
+                product.product_key as "productKey",
+                product.price_feed_1_id as "priceFeedId1",
+                product.price_feed_2_id as "priceFeedId2",
+                product.pending_rewards_price_feed_id as "pendingRewardsPriceFeedId",
+                product.product_data as "productData"`,
+              [
+                productsToUpdate.map(({ data }) => [
+                  data.productKey,
+                  data.chain,
+                  data.priceFeedId1,
+                  data.priceFeedId2,
+                  data.pendingRewardsPriceFeedId,
+                  data.productData,
+                ]),
+              ],
+              options.ctx.client,
+            );
+
+      const results = [...insertResults, ...updateResults];
       // return a map where keys are the original parameters object refs
       const idMap = keyBy(results, "productKey");
 

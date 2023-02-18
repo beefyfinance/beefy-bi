@@ -33,7 +33,7 @@ x-importer: &importer
   restart: always
   env_file: ../.env
   environment:
-    WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 1day"
+    WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 2hour"
   stop_signal: SIGINT
   volumes:
     - git_work_directory:/git_work

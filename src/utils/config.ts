@@ -28,8 +28,8 @@ export const APP_PR_BUILDS_URL = process.env.APP_PR_BUILDS_URL ? new RegExp(proc
 export const APP_LOCAL_BUILDS_URL = process.env.APP_LOCAL_BUILDS_URL || "http://localhost:3001";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
-export const BATCH_DB_INSERT_SIZE = 5000;
-export const BATCH_MAX_WAIT_MS = 5000;
+export const BATCH_DB_INSERT_SIZE = process.env.BATCH_DB_INSERT_SIZE ? parseInt(process.env.BATCH_DB_INSERT_SIZE, 10) : 5000;
+export const BATCH_MAX_WAIT_MS = process.env.BATCH_MAX_WAIT_MS ? parseInt(process.env.BATCH_MAX_WAIT_MS, 10) : 5000;
 
 export const DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED = process.env.DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED === "true";
 export const USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND = process.env.USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true";
