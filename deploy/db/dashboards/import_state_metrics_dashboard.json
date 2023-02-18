@@ -47,172 +47,6 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "series",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "total_work"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 2
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 1
-      },
-      "id": 756,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type in ('product:investment', 'product:share-rate')\ngroup by 1\nORDER BY 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["balance"],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "beefy_investor_timeline_cache_ts",
-          "timeColumn": "datetime",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "$chains investments & share rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
             "mode": "thresholds"
           },
           "mappings": [],
@@ -338,7 +172,7 @@
       "gridPos": {
         "h": 7,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 1
       },
       "id": 757,
@@ -365,7 +199,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n), first_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain and l.import_type = f.import_type",
           "refId": "A",
           "select": [
             [
@@ -387,8 +221,423 @@
           ]
         }
       ],
-      "title": "$chains investments: Import Stats ",
+      "title": "$chains investments & share rate",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 12,
+        "y": 1
+      },
+      "id": 898,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["allValues"],
+          "fields": "/^total_work$/",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains investments & share rate total work",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 17,
+        "y": 1
+      },
+      "id": 899,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["allValues"],
+          "fields": "/^total_work$/",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains investments total work",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_work"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 756,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type in ('product:investment', 'product:share-rate')\ngroup by 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains investments & share rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 12,
+        "y": 8
+      },
+      "id": 900,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["allValues"],
+          "fields": "/^total_work$/",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ( 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "$chains share rate total work",
+      "type": "piechart"
     },
     {
       "collapsed": false,
@@ -396,7 +645,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 15
       },
       "id": 829,
       "panels": [],
@@ -537,7 +786,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 16
       },
       "id": 492,
       "options": {
@@ -722,7 +971,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 16
       },
       "id": 634,
       "options": {
@@ -889,7 +1138,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 23
       },
       "id": 143,
       "options": {
@@ -1055,7 +1304,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 23
       },
       "id": 370,
       "options": {
@@ -1111,7 +1360,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 30
       },
       "id": 2,
       "panels": [],
@@ -1236,7 +1485,7 @@
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 31
       },
       "id": 371,
       "options": {
@@ -1402,7 +1651,7 @@
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 31
       },
       "id": 372,
       "options": {
@@ -1488,7 +1737,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 36
       },
       "id": 687,
       "options": {
@@ -1536,6 +1785,7 @@
       "type": "table"
     }
   ],
+  "refresh": false,
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],
@@ -1567,13 +1817,13 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 34,
+  "version": 38,
   "weekStart": ""
 }
