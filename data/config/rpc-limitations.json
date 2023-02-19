@@ -346,6 +346,24 @@
         "eth_blockNumber": 4,
         "eth_getTransactionReceipt": 4
       }
+    },
+    "https://mainnet.cronoslabs.com/v1/55e37d8975113ae7a44603ef8ce460aa": {
+      "restrictToMode": null,
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 200,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 200
+      }
     }
   },
   "emerald": {
