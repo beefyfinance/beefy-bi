@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
-import { keyBy, uniqBy } from "lodash";
+import { groupBy, keyBy, uniqBy } from "lodash";
+import * as Rx from "rxjs";
 import { Nullable } from "../../../../types/ts";
 import { DbClient, db_query, strAddressToPgBytea } from "../../../../utils/db";
 import { rootLogger } from "../../../../utils/logger";
@@ -132,34 +133,54 @@ export function upsertInvestorCacheChainInfos$<
   });
 }
 
-export async function addMissingInvestorCacheUsdInfos(options: { client: DbClient }) {
-  await db_query<{ product_id: number; investor_id: number; block_number: number }>(
-    `
-      with missing_cache_prices as materialized (
-        select
-          c.investor_id,
-          c.product_id,
-          c.datetime,
-          c.block_number,
-          last(pr2.price, pr2.datetime) as price
-        from beefy_investor_timeline_cache_ts c
-          join price_ts pr2 on c.price_feed_2_id = pr2.price_feed_id
-          and time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)
-        where c.underlying_to_usd_price is null
-        group by 1,2,3,4
-      )
-      update beefy_investor_timeline_cache_ts
-      set
-        underlying_to_usd_price = to_update.price,
-        usd_balance = underlying_balance * to_update.price,
-        usd_diff = underlying_diff * to_update.price
-      from missing_cache_prices to_update
-      where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
-        and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
-        and to_update.datetime = beefy_investor_timeline_cache_ts.datetime
-        and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
+export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) {
+  return Rx.pipe(
+    Rx.concatMap(async () => {
+      // find rows with missing usd infoss
+      const rowsMissingPrice = await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: string; price: string }>(
+        ` 
+          select
+            c.investor_id,
+            c.product_id,
+            c.datetime,
+            c.block_number,
+            last(pr2.price, pr2.datetime) as price
+          from beefy_investor_timeline_cache_ts c
+            join price_ts pr2 on c.price_feed_2_id = pr2.price_feed_id
+            and time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)
+          where c.underlying_to_usd_price is null
+          group by 1,2,3,4
+          limit 50000
       `,
-    [],
-    options.client,
+        [],
+        options.client,
+      );
+
+      // batch them by investor ID so updates only modify one partition at a time
+      const missingRowsByInvestor = groupBy(rowsMissingPrice, (row) => `${row.investor_id}`);
+      console.dir(rowsMissingPrice.slice(0, 10), { depth: null });
+      // yield each batch to be processed
+      return Object.values(missingRowsByInvestor);
+    }),
+    Rx.concatAll(),
+    // update investor rows
+    Rx.concatMap(async (rows) => {
+      await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: string; price: string }>(
+        `
+          update beefy_investor_timeline_cache_ts
+          set
+            underlying_to_usd_price = to_update.price::evm_decimal_256,
+            usd_balance = underlying_balance * to_update.price::evm_decimal_256,
+            usd_diff = underlying_diff * to_update.price::evm_decimal_256
+          from (VALUES %L) to_update(investor_id, product_id, datetime, block_number, price)
+          where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
+            and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
+            and to_update.datetime = beefy_investor_timeline_cache_ts.datetime
+            and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
+          `,
+        [rows.map((row) => [row.investor_id, row.product_id, row.datetime, row.block_number, row.price])],
+        options.client,
+      );
+    }),
   );
 }
