@@ -172,10 +172,10 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
             usd_balance = underlying_balance * to_update.price::evm_decimal_256,
             usd_diff = underlying_diff * to_update.price::evm_decimal_256
           from (VALUES %L) to_update(investor_id, product_id, datetime, block_number, price)
-          where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
-            and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
+          where to_update.investor_id::integer = beefy_investor_timeline_cache_ts.investor_id
+            and to_update.product_id::integer = beefy_investor_timeline_cache_ts.product_id
             and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
-            and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
+            and to_update.block_number::integer = beefy_investor_timeline_cache_ts.block_number;
           `,
         [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
         options.client,
