@@ -137,7 +137,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
   return Rx.pipe(
     Rx.concatMap(async () => {
       // find rows with missing usd infoss
-      const rowsMissingPrice = await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: string; price: string }>(
+      const rowsMissingPrice = await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: Date; price: string }>(
         ` 
           select
             c.investor_id,
@@ -164,7 +164,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
     Rx.concatAll(),
     // update investor rows
     Rx.concatMap(async (rows) => {
-      await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: string; price: string }>(
+      await db_query<never>(
         `
           update beefy_investor_timeline_cache_ts
           set
@@ -177,7 +177,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
             and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
             and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
           `,
-        [rows.map((row) => [row.investor_id, row.product_id, row.datetime, row.block_number, row.price])],
+        [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
         options.client,
       );
     }),
