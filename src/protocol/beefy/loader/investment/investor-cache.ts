@@ -158,7 +158,6 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
 
       // batch them by investor ID so updates only modify one partition at a time
       const missingRowsByInvestor = groupBy(rowsMissingPrice, (row) => `${row.investor_id}`);
-      console.dir(rowsMissingPrice.slice(0, 10), { depth: null });
       // yield each batch to be processed
       return Object.values(missingRowsByInvestor);
     }),
@@ -175,7 +174,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
           from (VALUES %L) to_update(investor_id, product_id, datetime, block_number, price)
           where to_update.investor_id = beefy_investor_timeline_cache_ts.investor_id
             and to_update.product_id = beefy_investor_timeline_cache_ts.product_id
-            and to_update.datetime = beefy_investor_timeline_cache_ts.datetime
+            and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
             and to_update.block_number = beefy_investor_timeline_cache_ts.block_number;
           `,
         [rows.map((row) => [row.investor_id, row.product_id, row.datetime, row.block_number, row.price])],
