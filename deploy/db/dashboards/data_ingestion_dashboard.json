@@ -29,12 +29,125 @@
   "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "red",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "series",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 69,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT \n  time_bucket('30d', datetime) as \"time\",\n  count(*)\nFROM beefy_investor_timeline_cache_ts\nWHERE\n  $__timeFilter(datetime)\n  and underlying_to_usd_price is null\ngroup by 1\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Beefy Cache missing a price: $interval",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 40,
       "panels": [],
@@ -119,7 +232,7 @@
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 9
       },
       "id": 43,
       "options": {
@@ -240,7 +353,7 @@
         "h": 5,
         "w": 4,
         "x": 12,
-        "y": 1
+        "y": 9
       },
       "id": 9,
       "options": {
@@ -368,7 +481,7 @@
         "h": 5,
         "w": 3,
         "x": 16,
-        "y": 1
+        "y": 9
       },
       "id": 50,
       "options": {
@@ -458,7 +571,7 @@
         "h": 5,
         "w": 5,
         "x": 19,
-        "y": 1
+        "y": 9
       },
       "id": 32,
       "options": {
@@ -586,7 +699,7 @@
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 14
       },
       "id": 49,
       "options": {
@@ -714,7 +827,7 @@
         "h": 20,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 14
       },
       "id": 65,
       "options": {
@@ -851,7 +964,7 @@
         "h": 15,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 19
       },
       "id": 8,
       "options": {
@@ -1000,7 +1113,7 @@
         "h": 15,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 51,
       "options": {
@@ -1114,7 +1227,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 49
       },
       "id": 20,
       "options": {
@@ -1245,7 +1358,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "id": 6,
       "options": {
@@ -1302,7 +1415,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 64
       },
       "id": 24,
       "panels": [
@@ -1338,7 +1451,7 @@
             "h": 11,
             "w": 10,
             "x": 0,
-            "y": 2
+            "y": 10
           },
           "id": 18,
           "options": {
@@ -1418,7 +1531,7 @@
             "h": 11,
             "w": 14,
             "x": 10,
-            "y": 2
+            "y": 10
           },
           "id": 22,
           "options": {
@@ -1479,7 +1592,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "id": 34,
       "panels": [
@@ -1508,7 +1621,7 @@
             "h": 9,
             "w": 4,
             "x": 0,
-            "y": 3
+            "y": 11
           },
           "id": 36,
           "options": {
@@ -1586,7 +1699,7 @@
             "h": 9,
             "w": 4,
             "x": 4,
-            "y": 3
+            "y": 11
           },
           "id": 37,
           "options": {
@@ -1692,7 +1805,7 @@
             "h": 9,
             "w": 4,
             "x": 8,
-            "y": 3
+            "y": 11
           },
           "id": 38,
           "options": {
@@ -1798,7 +1911,7 @@
             "h": 9,
             "w": 4,
             "x": 12,
-            "y": 3
+            "y": 11
           },
           "id": 67,
           "options": {
@@ -1862,7 +1975,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 66
       },
       "id": 47,
       "panels": [
@@ -1912,7 +2025,7 @@
             "h": 15,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 12
           },
           "id": 10,
           "options": {
@@ -1994,7 +2107,7 @@
             "h": 5,
             "w": 4,
             "x": 12,
-            "y": 4
+            "y": 12
           },
           "id": 26,
           "options": {
@@ -2101,7 +2214,7 @@
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 27
           },
           "id": 48,
           "options": {
@@ -2154,1272 +2267,1270 @@
       "type": "row"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 67
       },
       "id": 42,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "id": 52,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": true
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Total blocks to cover",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "mappings": [],
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 4,
+            "x": 12,
+            "y": 13
+          },
+          "id": 54,
+          "options": {
+            "displayLabels": ["percent", "name"],
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "pieType": "pie",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Block coverage status",
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 3,
+            "x": 16,
+            "y": 13
+          },
+          "id": 55,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id and i.import_data->>'type' = 'product:share-rate'\nwhere product_id in ($_product_ids)\n  and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  and i.import_key is null",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Price feeds without a data import object",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              "decimals": 4,
+              "mappings": [],
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 16,
+            "y": 17
+          },
+          "id": 56,
+          "options": {
+            "displayLabels": ["percent", "name"],
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "pieType": "pie",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom price_feed_block_stats\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Success / Error rate",
+          "type": "piechart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 4,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 0,
+            "y": 18
+          },
+          "id": 53,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": true
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Total blocks to cover",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 12,
+            "x": 0,
+            "y": 23
+          },
+          "id": 57,
+          "options": {
+            "barRadius": 0,
+            "barWidth": 0.8,
+            "groupWidth": 0.7,
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "orientation": "horizontal",
+            "showValue": "always",
+            "stacking": "percent",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 0
+          },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Block coverage status",
+          "type": "barchart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 20,
+            "w": 12,
+            "x": 12,
+            "y": 23
+          },
+          "id": 66,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  ((sum(blocks_to_retry) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as to_retry_percent,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  (((sum(blocks_covered)::double precision - sum(blocks_to_retry)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as success_percent,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet,\n  (((sum(total_blocks_to_cover)::double precision - sum(blocks_covered)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as not_covered_yet_percent\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Block coverage status",
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineWidth": 1,
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "errors_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "success_count"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "not_covered_yet"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "blue",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 15,
+            "w": 12,
+            "x": 0,
+            "y": 38
+          },
+          "id": 58,
+          "options": {
+            "barRadius": 0,
+            "barWidth": 0.8,
+            "groupWidth": 0.7,
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "orientation": "horizontal",
+            "showValue": "always",
+            "stacking": "percent",
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            },
+            "xTickLabelRotation": 0,
+            "xTickLabelSpacing": 0
+          },
+          "pluginVersion": "9.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Block coverage Success rate",
+          "type": "barchart"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 0,
+                "pointSize": 24,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 53
+          },
+          "id": 59,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "SELECT\n  coalesce((import_data->'ranges'->>'lastImportDate')::timestamp with time zone, now() - '4 weeks'::interval) as time,\n  p.product_key,\n  1 as metric\nFROM\n  product p \n  join import_state i\n    on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\nwhere \n  p.product_id in ($_product_ids)\n  and i.import_data->>'type' = 'product:share-rate'\norder by 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Last import date per product",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "has_import_status"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "palette-classic"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "lastimportdate"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 246
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "import_key"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 278
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "product_key"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 500
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 11,
+            "w": 24,
+            "x": 0,
+            "y": 57
+          },
+          "id": 60,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "rest_to_cover"
+              }
+            ]
+          },
+          "pluginVersion": "9.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect * from price_feed_block_stats",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["value"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Product import stats",
+          "type": "table"
+        }
+      ],
       "title": "PPFS import stats",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 12,
-        "x": 0,
-        "y": 60
-      },
-      "id": 52,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": true
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Total blocks to cover",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": [],
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 4,
-        "x": 12,
-        "y": 60
-      },
-      "id": 54,
-      "options": {
-        "displayLabels": ["percent", "name"],
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Block coverage status",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 100
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 16,
-        "y": 60
-      },
-      "id": 55,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id and i.import_data->>'type' = 'product:share-rate'\nwhere product_id in ($_product_ids)\n  and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  and i.import_key is null",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Price feeds without a data import object",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "decimals": 4,
-          "mappings": [],
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 3,
-        "x": 16,
-        "y": 64
-      },
-      "id": 56,
-      "options": {
-        "displayLabels": ["percent", "name"],
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom price_feed_block_stats\norder by 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Success / Error rate",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 12,
-        "x": 0,
-        "y": 65
-      },
-      "id": 53,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": true
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  sum(blocks_to_retry)::double precision / sum(total_blocks_to_cover)::double precision as errors_count,\n  (sum(blocks_covered)::double precision - sum(blocks_to_retry)::double precision) / sum(total_blocks_to_cover)::double precision as success_count,\n  (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)::double precision) / sum(total_blocks_to_cover)::double precision as not_covered_yet\nfrom price_feed_block_stats\norder by 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Total blocks to cover",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 15,
-        "w": 12,
-        "x": 0,
-        "y": 70
-      },
-      "id": 57,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.8,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "orientation": "horizontal",
-        "showValue": "always",
-        "stacking": "percent",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Block coverage status",
-      "type": "barchart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto",
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 20,
-        "w": 12,
-        "x": 12,
-        "y": 70
-      },
-      "id": 66,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": ["sum"],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  ((sum(blocks_to_retry) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as to_retry_percent,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count,\n  (((sum(blocks_covered)::double precision - sum(blocks_to_retry)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as success_percent,\n  sum(total_blocks_to_cover)::double precision - sum(blocks_covered) as not_covered_yet,\n  (((sum(total_blocks_to_cover)::double precision - sum(blocks_covered)) / sum(total_blocks_to_cover)::double precision)*100.0)::text||'%' as not_covered_yet_percent\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Block coverage status",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "errors_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success_count"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 15,
-        "w": 12,
-        "x": 0,
-        "y": 85
-      },
-      "id": 58,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.8,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "orientation": "horizontal",
-        "showValue": "always",
-        "stacking": "percent",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "pluginVersion": "9.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  sum(blocks_to_retry) as errors_count,\n  sum(blocks_covered)::double precision - sum(blocks_to_retry) as success_count\nfrom price_feed_block_stats\ngroup by 1\norder by chain::text",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Block coverage Success rate",
-      "type": "barchart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 0,
-            "pointSize": 24,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "always",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 100
-      },
-      "id": 59,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  coalesce((import_data->'ranges'->>'lastImportDate')::timestamp with time zone, now() - '4 weeks'::interval) as time,\n  p.product_key,\n  1 as metric\nFROM\n  product p \n  join import_state i\n    on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\nwhere \n  p.product_id in ($_product_ids)\n  and i.import_data->>'type' = 'product:share-rate'\norder by 1",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Last import date per product",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto",
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "has_import_status"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "palette-classic"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "lastimportdate"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 246
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "import_key"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 278
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "product_key"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 500
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 11,
-        "w": 24,
-        "x": 0,
-        "y": 104
-      },
-      "id": 60,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": ["sum"],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": false,
-            "displayName": "rest_to_cover"
-          }
-        ]
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:share-rate'\n  group by 1\n),\nprice_feed_block_stats as (\n  select \n    p.chain,\n    p.product_id,\n    f.price_feed_id,\n    product_key,\n    i.import_key,\n    coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text as eol,\n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    (import_data->'ranges'->>'lastImportDate') as lastImportDate,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from price_feed f\n  left join product p on f.price_feed_id = p.price_feed_1_id and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:share-rate'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect * from price_feed_block_stats",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["value"],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Product import stats",
-      "type": "table"
     },
     {
       "collapsed": true,
@@ -3427,7 +3538,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 115
+        "y": 68
       },
       "id": 62,
       "panels": [
@@ -3464,8 +3575,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3480,7 +3590,7 @@
             "h": 15,
             "w": 12,
             "x": 0,
-            "y": 116
+            "y": 124
           },
           "id": 63,
           "options": {
@@ -3551,8 +3661,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "blue",
-                    "value": null
+                    "color": "blue"
                   }
                 ]
               }
@@ -3563,7 +3672,7 @@
             "h": 5,
             "w": 4,
             "x": 12,
-            "y": 116
+            "y": 124
           },
           "id": 29,
           "options": {
@@ -3657,8 +3766,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3673,7 +3781,7 @@
             "h": 21,
             "w": 24,
             "x": 0,
-            "y": 131
+            "y": 139
           },
           "id": 64,
           "options": {
@@ -3731,7 +3839,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 69
       },
       "id": 12,
       "panels": [
@@ -3807,7 +3915,7 @@
             "h": 10,
             "w": 4,
             "x": 0,
-            "y": 117
+            "y": 125
           },
           "id": 27,
           "options": {
@@ -3877,8 +3985,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "blue",
-                    "value": null
+                    "color": "blue"
                   },
                   {
                     "color": "#EAB839",
@@ -3897,7 +4004,7 @@
             "h": 5,
             "w": 5,
             "x": 4,
-            "y": 117
+            "y": 125
           },
           "id": 31,
           "options": {
@@ -3992,7 +4099,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 127
+            "y": 135
           },
           "id": 30,
           "options": {
@@ -4176,13 +4283,13 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-6M",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
