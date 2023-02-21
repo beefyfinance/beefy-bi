@@ -805,3 +805,39 @@ $$;
 
 alter table beefy_investor_timeline_cache_ts alter column transaction_hash set not null;
 ```
+
+```sql
+
+-- full refresh
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '10 days'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = now() - '2 months'::INTERVAL;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    CALL refresh_continuous_aggregate('price_ts_cagg_1h', start_timestamp, end_timestamp);
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '10 days'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = now() - '18 months'::INTERVAL;
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    CALL refresh_continuous_aggregate('price_ts_cagg_1d', start_timestamp, end_timestamp);
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+```
