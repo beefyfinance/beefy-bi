@@ -214,11 +214,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c all -l 15min"
 
-  importer-reward-snapshots:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t reward-snapshots -c all -l 4hour"
+  #importer-reward-snapshots:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t reward-snapshots -c all -l 4hour"
 
   # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse harmony heco kava metis moonbeam moonriver optimism polygon syscoin
 
