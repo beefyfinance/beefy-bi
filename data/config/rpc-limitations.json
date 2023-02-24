@@ -1,7 +1,7 @@
 {
   "arbitrum": {
     "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -21,7 +21,7 @@
     "https://arb-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 100,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
@@ -649,7 +649,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -669,7 +669,7 @@
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 100,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
