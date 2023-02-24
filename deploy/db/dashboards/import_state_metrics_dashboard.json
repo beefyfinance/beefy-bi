@@ -1754,7 +1754,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT datetime, rpc_url, request, response\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY 1\nlimit 20",
+          "rawSql": "SELECT datetime, rpc_url, request, response\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY 1 desc\nlimit 20",
           "refId": "A",
           "select": [
             [
@@ -1812,13 +1812,13 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-12h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 38,
+  "version": 39,
   "weekStart": ""
 }
