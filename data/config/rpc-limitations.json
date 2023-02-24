@@ -694,7 +694,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": null,
@@ -712,7 +712,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 84,
         "eth_call": 500,
