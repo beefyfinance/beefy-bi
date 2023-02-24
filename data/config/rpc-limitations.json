@@ -9,7 +9,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -27,7 +27,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -45,6 +45,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 18,
         "eth_call": 500,
@@ -657,7 +658,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 400,
         "eth_call": 120,
@@ -675,7 +676,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
