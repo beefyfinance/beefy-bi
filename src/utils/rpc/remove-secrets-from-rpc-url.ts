@@ -1,5 +1,6 @@
 import {
-  RPC_API_KEY_ALCHEMY,
+  RPC_API_KEY_ALCHEMY_ARBITRUM,
+  RPC_API_KEY_ALCHEMY_OPTIMISM,
   RPC_API_KEY_ANKR,
   RPC_API_KEY_AURORA,
   RPC_API_KEY_FIGMENT,
@@ -35,7 +36,11 @@ export function removeSecretsFromRpcUrl(secretRpcUrl: string): string {
   } else if (secretRpcUrl.includes("andromeda.metis.io") && secretRpcUrl.includes("owner=")) {
     publicRpcUrl += "/?owner=<RPC_API_KEY_METIS_OWNER>";
   } else if (secretRpcUrl.includes("alchemy.com") && pathParts.length === 2 && pathParts[0] === "v2") {
-    publicRpcUrl += "/v2/<RPC_API_KEY_ALCHEMY>";
+    if (secretRpcUrl.includes("opt-mainnet")) {
+      publicRpcUrl += "/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>";
+    } else if (secretRpcUrl.includes("arb-mainnet")) {
+      publicRpcUrl += "/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>";
+    }
   } else if (secretRpcUrl.includes("nodereal.io") && pathParts.length === 2 && pathParts[0] === "v1") {
     publicRpcUrl += "/v1/<RPC_API_KEY_NODEREAL>";
   } else if (secretRpcUrl.includes("figment.io") && pathParts.length === 2 && pathParts[0] === "apikey") {
@@ -68,7 +73,6 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
     return url;
   }
 
-  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY", RPC_API_KEY_ALCHEMY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ANKR", RPC_API_KEY_ANKR);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_AURORA", RPC_API_KEY_AURORA);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_METIS_OWNER", RPC_API_KEY_METIS_OWNER);
@@ -76,6 +80,8 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_OPTIMISM", RPC_API_KEY_ALCHEMY_OPTIMISM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_ARBITRUM", RPC_API_KEY_ALCHEMY_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE", RPC_API_KEY_QUIKNODE);
 

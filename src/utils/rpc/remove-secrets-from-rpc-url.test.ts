@@ -21,7 +21,10 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("https://rpc.api.moonbeam.network")).toBe("https://rpc.api.moonbeam.network");
     expect(removeSecretsFromRpcUrl("https://rpc.api.moonriver.moonbeam.network/")).toBe("https://rpc.api.moonriver.moonbeam.network");
     expect(removeSecretsFromRpcUrl("https://opt-mainnet.g.alchemy.com/v2/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
-      "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY>",
+      "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>",
+    );
+    expect(removeSecretsFromRpcUrl("https://arb-mainnet.g.alchemy.com/v2/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
+      "https://arb-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>",
     );
     expect(removeSecretsFromRpcUrl("https://moonriver.api.onfinality.io/public")).toBe("https://moonriver.api.onfinality.io/public");
     expect(removeSecretsFromRpcUrl("https://polygon-rpc.com/")).toBe("https://polygon-rpc.com");

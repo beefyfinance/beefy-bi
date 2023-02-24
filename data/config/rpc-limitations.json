@@ -1,7 +1,7 @@
 {
   "arbitrum": {
     "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -9,12 +9,31 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": null,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 16,
         "eth_getTransactionReceipt": 8
+      }
+    },
+    "https://arb-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>": {
+      "restrictToMode": "historical",
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 100,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": null,
+        "eth_getBlockByNumber": null,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": 64
       }
     },
     "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
@@ -630,7 +649,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -638,13 +657,31 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 3,
+      "weight": null,
       "methods": {
         "eth_getLogs": 400,
         "eth_call": 120,
         "eth_getBlockByNumber": 150,
         "eth_blockNumber": 200,
         "eth_getTransactionReceipt": 200
+      }
+    },
+    "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
+      "restrictToMode": "historical",
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 100,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": null,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 64
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
@@ -656,7 +693,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": 3,
+      "weight": null,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": null,
@@ -674,27 +711,9 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": 7,
+      "weight": null,
       "methods": {
         "eth_getLogs": 84,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 2000,
-      "maxGetLogsAddressBatchSize": null,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 4,
-      "methods": {
-        "eth_getLogs": 42,
         "eth_call": 500,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
