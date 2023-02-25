@@ -69,12 +69,12 @@ export const RPC_API_KEY_GETBLOCK = process.env.RPC_API_KEY_GETBLOCK || null;
 export const RPC_API_KEY_INFURA = process.env.RPC_API_KEY_INFURA || null;
 export const RPC_API_KEY_QUIKNODE = process.env.RPC_API_KEY_QUIKNODE || null;
 
-export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "harmony" | "other"; url: string } } = {
+export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony"; url: string } } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
   avax: { type: "etherscan", url: "https://api.snowtrace.io/api" },
   bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
-  canto: { type: "blockscout", url: "https://evm.explorer.canto.io" },
+  canto: { type: "blockscout-json", url: "https://evm.explorer.canto.io" },
   celo: { type: "blockscout", url: "https://explorer.celo.org/" },
   cronos: { type: "etherscan", url: "https://api.cronoscan.com/api" },
   emerald: { type: "blockscout", url: "https://explorer.emerald.oasis.dev/" },

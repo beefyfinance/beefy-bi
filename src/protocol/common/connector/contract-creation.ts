@@ -3,6 +3,7 @@ import { isArray, isString } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
+import { sleep } from "../../../utils/async";
 import { EXPLORER_URLS, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS } from "../../../utils/config";
 import { MultiChainEtherscanProvider } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
@@ -53,6 +54,12 @@ async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: s
       data: { contractAddress, chain },
     });
     return await getBlockScoutScrapingContractCreationInfos(contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "blockscout-json") {
+    logger.trace({
+      msg: "BlockScout explorer detected for this chain, proceeding to scrape",
+      data: { contractAddress, chain },
+    });
+    return await getBlockScoutJSONAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
@@ -126,6 +133,7 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
     logger.trace({ msg: "Fetching blockscout transaction link", data: { contractAddress, url } });
     const resp = await axios.get(url);
 
+    console.log(resp.data);
     const tx = resp.data.split(`<a data-test="transaction_hash_link" href="/`)[1].split(`"`)[0];
     const trxUrl = `${explorerUrl}/${tx}/internal-transactions`;
     logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, trxUrl } });
@@ -139,6 +147,38 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
     const rawDateStr: string = txResp.data.split(`data-from-now="`)[1].split(`"`)[0];
     const datetime = new Date(Date.parse(rawDateStr));
 
+    logger.trace({ msg: "Fetched contract creation block", data: { chain, contractAddress, blockNumber, datetime } });
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, url, chain, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explorerUrl: string, chain: Chain) {
+  let url = explorerUrl + `/address/${contractAddress}/internal-transactions?type=JSON`;
+  try {
+    let data: { items: string[]; next_page_path: string | null } = {
+      items: [],
+      next_page_path: `/address/${contractAddress}/internal-transactions?type=JSON`,
+    };
+    while (data.next_page_path) {
+      const url = explorerUrl + data.next_page_path;
+      logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
+      const resp = await axios.get(url);
+      data = resp.data;
+      await sleep(10_000);
+    }
+    logger.trace({ msg: "Found the first blockscout transaction", data: { contractAddress, url } });
+    const tx = data.items[data.items.length - 1];
+    const blockNumberStr = tx.split(`href="/block/`)[1].split(`"`)[0];
+    const blockNumber = parseInt(blockNumberStr);
+
+    const rawDateStr: string = tx.split(`data-from-now="`)[1].split(`"`)[0];
+    const datetime = new Date(Date.parse(rawDateStr));
+
+    logger.trace({ msg: "Fetched contract creation block", data: { chain, contractAddress, blockNumber, datetime } });
     return { blockNumber, datetime };
   } catch (error) {
     logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, url, chain, error: error } });
