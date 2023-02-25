@@ -69,27 +69,27 @@ export const RPC_API_KEY_GETBLOCK = process.env.RPC_API_KEY_GETBLOCK || null;
 export const RPC_API_KEY_INFURA = process.env.RPC_API_KEY_INFURA || null;
 export const RPC_API_KEY_QUIKNODE = process.env.RPC_API_KEY_QUIKNODE || null;
 
-export const EXPLORER_URLS: { [chain in Chain]: string } = {
-  arbitrum: "https://api.arbiscan.io/api",
-  aurora: "https://api.aurorascan.dev/api",
-  avax: "https://api.snowtrace.io/api",
-  bsc: "https://api.bscscan.com/api",
-  canto: "https://evm.explorer.canto.io",
-  celo: "https://explorer.celo.org/",
-  cronos: "https://api.cronoscan.com/api",
-  emerald: "https://explorer.emerald.oasis.dev/",
-  ethereum: "https://api.etherscan.io/api",
-  fantom: "https://api.ftmscan.com/api",
-  fuse: "https://explorer.fuse.io/",
-  harmony: "https://explorer.harmony.one/",
-  heco: "https://api.hecoinfo.com/api",
-  kava: "https://explorer.kava.io",
-  metis: "https://andromeda-explorer.metis.io/",
-  moonbeam: "https://api-moonbeam.moonscan.io/api",
-  moonriver: "https://api-moonriver.moonscan.io/api",
-  optimism: "https://api-optimistic.etherscan.io/api",
-  polygon: "https://api.polygonscan.com/api",
-  syscoin: "https://explorer.syscoin.org/api",
+export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "harmony" | "other"; url: string } } = {
+  arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
+  aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
+  avax: { type: "etherscan", url: "https://api.snowtrace.io/api" },
+  bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
+  canto: { type: "blockscout", url: "https://evm.explorer.canto.io" },
+  celo: { type: "blockscout", url: "https://explorer.celo.org/" },
+  cronos: { type: "etherscan", url: "https://api.cronoscan.com/api" },
+  emerald: { type: "blockscout", url: "https://explorer.emerald.oasis.dev/" },
+  ethereum: { type: "etherscan", url: "https://api.etherscan.io/api" },
+  fantom: { type: "etherscan", url: "https://api.ftmscan.com/api" },
+  fuse: { type: "blockscout", url: "https://explorer.fuse.io/" },
+  harmony: { type: "harmony", url: "https://explorer.harmony.one/" },
+  heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
+  kava: { type: "blockscout", url: "https://explorer.kava.io" },
+  metis: { type: "blockscout", url: "https://andromeda-explorer.metis.io/" },
+  moonbeam: { type: "etherscan", url: "https://api-moonbeam.moonscan.io/api" },
+  moonriver: { type: "etherscan", url: "https://api-moonriver.moonscan.io/api" },
+  optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },
+  polygon: { type: "etherscan", url: "https://api.polygonscan.com/api" },
+  syscoin: { type: "etherscan", url: "https://explorer.syscoin.org/api" },
 };
 
 function _getExplorerApiKey(chain: Chain) {

@@ -46,16 +46,14 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
 }
 
 async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
-  const blockScoutChainsTimeout: Set<Chain> = new Set(["fuse", "metis", "celo", "emerald", "kava"]);
-  const harmonyRpcChains: Set<Chain> = new Set(["harmony"]);
-
-  if (blockScoutChainsTimeout.has(chain)) {
+  const explorerType = EXPLORER_URLS[chain].type;
+  if (explorerType === "blockscout") {
     logger.trace({
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
       data: { contractAddress, chain },
     });
-    return await getBlockScoutScrapingContractCreationInfos(contractAddress, EXPLORER_URLS[chain], chain);
-  } else if (harmonyRpcChains.has(chain)) {
+    return await getBlockScoutScrapingContractCreationInfos(contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "harmony") {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
       data: { contractAddress, chain },
@@ -67,7 +65,7 @@ async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: s
     if (!etherscanConfig) {
       throw new ProgrammerError("Etherscan is not configured for this chain");
     }
-    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]), {
+    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url), {
       chain,
       logInfos: { msg: "Fetching contract creation block", data: { contractAddress, chain } },
       maxTotalRetryMs: 10_000,
@@ -75,8 +73,10 @@ async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: s
       provider: etherscanConfig.provider,
       noLockIfNoLimit: true, // etherscan have a rate limit so this has no effect
     });
+  } else if (explorerType === "etherscan") {
+    return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url);
   } else {
-    return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain]);
+    throw new Error("Unsupported explorer type: " + explorerType);
   }
 }
 async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string) {
