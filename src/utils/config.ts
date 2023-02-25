@@ -83,7 +83,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   fuse: { type: "blockscout", url: "https://explorer.fuse.io/" },
   harmony: { type: "harmony", url: "https://explorer.harmony.one/" },
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
-  kava: { type: "blockscout", url: "https://explorer.kava.io" },
+  kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
   metis: { type: "blockscout", url: "https://andromeda-explorer.metis.io/" },
   moonbeam: { type: "etherscan", url: "https://api-moonbeam.moonscan.io/api" },
   moonriver: { type: "etherscan", url: "https://api-moonriver.moonscan.io/api" },
