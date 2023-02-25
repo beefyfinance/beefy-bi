@@ -29,10 +29,10 @@
       "disableRpc": false,
       "weight": 1,
       "methods": {
-        "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": null,
-        "eth_blockNumber": null,
+        "eth_getLogs": 20,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 50,
         "eth_getTransactionReceipt": 64
       }
     },
@@ -678,8 +678,8 @@
       "disableRpc": false,
       "weight": 1,
       "methods": {
-        "eth_getLogs": null,
-        "eth_call": null,
+        "eth_getLogs": 20,
+        "eth_call": 20,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 64
