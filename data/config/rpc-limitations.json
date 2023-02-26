@@ -1,7 +1,7 @@
 {
   "arbitrum": {
     "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -650,7 +650,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
