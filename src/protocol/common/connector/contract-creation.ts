@@ -157,7 +157,6 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
 }
 
 async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explorerUrl: string, chain: Chain) {
-  let url = explorerUrl + `/address/${contractAddress}/internal-transactions?type=JSON`;
   try {
     let data: { items: string[]; next_page_path: string | null } = {
       items: [],
@@ -165,12 +164,29 @@ async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explore
     };
     while (data.next_page_path) {
       const url = explorerUrl + data.next_page_path;
-      logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
+      logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
       const resp = await axios.get(url);
       data = resp.data;
-      await sleep(10_000);
+      await sleep(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS);
     }
-    logger.trace({ msg: "Found the first blockscout transaction", data: { contractAddress, url } });
+    // sometimes, the internal transaction log is empty
+    if (data.items.length === 0) {
+      logger.info({ msg: "No internal transactions found, fetching from trx log", data: { contractAddress, explorerUrl } });
+
+      data = {
+        items: [],
+        next_page_path: `/address/${contractAddress}/transactions?type=JSON`,
+      };
+      while (data.next_page_path) {
+        const url = explorerUrl + data.next_page_path;
+        logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
+        const resp = await axios.get(url);
+        data = resp.data;
+        await sleep(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS);
+      }
+    }
+
+    logger.trace({ msg: "Found the first blockscout transaction", data: { contractAddress } });
     const tx = data.items[data.items.length - 1];
     const blockNumberStr = tx.split(`href="/block/`)[1].split(`"`)[0];
     const blockNumber = parseInt(blockNumberStr);
@@ -181,7 +197,7 @@ async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explore
     logger.trace({ msg: "Fetched contract creation block", data: { chain, contractAddress, blockNumber, datetime } });
     return { blockNumber, datetime };
   } catch (error) {
-    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, url, chain, error: error } });
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
     logger.error(error);
     throw error;
   }
