@@ -420,7 +420,7 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
   );
 }
 
-function hydrateImportStateRangesFromDb(importState: DbImportState) {
+export function hydrateImportStateRangesFromDb(importState: DbImportState) {
   const type = importState.importData.type;
   // hydrate dates properly
   if (isProductInvestmentImportState(importState)) {

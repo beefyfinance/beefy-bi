@@ -15,6 +15,7 @@ import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline"
 import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { NoRpcRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyDataPrices$ } from "../../connector/prices";
+import { getPriceFeedImportStateKey } from "../../utils/import-state";
 
 type UnderlyingPriceFeedInput = {
   product: DbBeefyProduct;
@@ -23,13 +24,11 @@ type UnderlyingPriceFeedInput = {
 
 const logger = rootLogger.child({ module: "beefy", component: "import-underlying-prices" });
 
-const getImportStateKey = (item: UnderlyingPriceFeedInput) => `price:feed:${item.priceFeed.priceFeedId}`;
-
 export function createBeefyHistoricalUnderlyingPricesRunner(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
   return createHistoricalImportRunner<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical underlying prices" },
-    getImportStateKey,
+    getImportStateKey: (item) => getPriceFeedImportStateKey(item.priceFeed),
     isLiveItem: (target) => target.priceFeed.priceFeedData.active,
     generateQueries$: (ctx) =>
       Rx.pipe(
@@ -83,7 +82,7 @@ export function createBeefyRecentUnderlyingPricesRunner(options: { runnerConfig:
     runnerConfig: options.runnerConfig,
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },
-    getImportStateKey,
+    getImportStateKey: (item) => getPriceFeedImportStateKey(item.priceFeed),
     isLiveItem: (target) => target.priceFeed.priceFeedData.active,
     generateQueries$: ({ lastImported, formatOutput }) =>
       addLatestDateQuery$({

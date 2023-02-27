@@ -15,6 +15,7 @@ import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/impor
 import { createHistoricalImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
+import { getInvestmentsImportStateKey, getPriceFeedImportStateKey } from "../../utils/import-state";
 import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
@@ -27,7 +28,7 @@ export function createBeefyHistoricalShareRatePricesRunner(options: {
   return createHistoricalImportRunner<DbPriceFeed, number, DbProductShareRateImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
-    getImportStateKey: (priceFeed) => `price:feed:${priceFeed.priceFeedId}`,
+    getImportStateKey: getPriceFeedImportStateKey,
     isLiveItem: (target) => target.priceFeedData.active,
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
@@ -75,7 +76,7 @@ export function createBeefyHistoricalShareRatePricesRunner(options: {
         fetchImportState$({
           client: ctx.client,
           streamConfig: ctx.streamConfig,
-          getImportStateKey: (item) => `product:investment:${item.importState.importData.productId}`,
+          getImportStateKey: (item) => getInvestmentsImportStateKey(item.importState.importData),
           formatOutput: (item, parentImportState: DbProductInvestmentImportState | null) => ({ ...item, parentImportState }),
         }),
         excludeNullFields$("parentImportState"),

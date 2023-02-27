@@ -21,8 +21,8 @@ import { createHistoricalImportRunner } from "../../../common/utils/historical-r
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
 import { getProductContractAddress } from "../../utils/contract-accessors";
+import { getInvestmentsImportStateKey, getPendingRewardImportStateKey } from "../../utils/import-state";
 import { isBeefyBoost } from "../../utils/type-guard";
-import { getImportStateKey as getInvestmentImportStateKey } from "./import-investments";
 
 const logger = rootLogger.child({ module: "beefy", component: "pending-rewards-import" });
 
@@ -30,9 +30,6 @@ type PendingRewardSnapshotInput = {
   product: DbBeefyGovVaultProduct | DbBeefyBoostProduct;
   investor: DbInvestor;
 };
-
-const getImportStateKey = (item: PendingRewardSnapshotInput) =>
-  `product:investment:pending-reward:${item.product.productId}:${item.investor.investorId}`;
 
 export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
   chain: Chain;
@@ -42,7 +39,7 @@ export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
   return createHistoricalImportRunner<PendingRewardSnapshotInput, number, DbPendingRewardsImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing pending rewards snapshots", data: { chain: options.chain } },
-    getImportStateKey,
+    getImportStateKey: getPendingRewardImportStateKey,
     isLiveItem: (target) => !isProductDashboardEOL(target.product),
     createDefaultImportState$: (ctx) =>
       Rx.pipe(
@@ -52,7 +49,7 @@ export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
         fetchImportState$({
           client: ctx.client,
           streamConfig: ctx.streamConfig,
-          getImportStateKey: (item) => getInvestmentImportStateKey(item.obj.product),
+          getImportStateKey: (item) => getInvestmentsImportStateKey(item.obj.product),
           formatOutput: (item, parentImportState) => ({ ...item, parentImportState }),
         }),
 
