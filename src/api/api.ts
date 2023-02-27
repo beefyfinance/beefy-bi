@@ -8,7 +8,16 @@ import FastifyRateLimit from "@fastify/rate-limit";
 import FastifyRedis from "@fastify/redis";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify from "fastify";
-import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_LISTEN, API_PORT, API_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
+import {
+  API_DISABLE_HTTPS,
+  API_FRONTEND_URL,
+  API_LISTEN,
+  API_PORT,
+  API_URL,
+  APP_LOCAL_BUILDS_URL,
+  APP_PR_BUILDS_URL,
+  TIMESCALEDB_URL,
+} from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { getRedisClient } from "../utils/shared-resources/shared-lock";
 import routes from "./route";
@@ -53,7 +62,7 @@ server.register(async (instance, opts, done) => {
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)
-    .register(routes, { prefix: "/api/v0" });
+    .register(routes, { prefix: "/api/v1" });
 
   done();
 });

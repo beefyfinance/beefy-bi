@@ -8,16 +8,6 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   type TRoute = { Querystring: { address: string } };
   const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 
-  instance.get<TRoute>("/", routeOptions, async (req, reply) => {
-    const { address } = req.query;
-    const investorId = await instance.diContainer.cradle.investor.getInvestorId(address);
-    if (investorId === null) {
-      return reply.code(404).send({ error: "Investor not found" });
-    }
-    const productValues = await instance.diContainer.cradle.beefy.getInvestorPortfolioValue(investorId);
-    return reply.send(productValues);
-  });
-
   instance.get<TRoute>("/timeline", routeOptions, async (req, reply) => {
     const { address } = req.query;
     const investorId = await instance.diContainer.cradle.investor.getInvestorId(address);

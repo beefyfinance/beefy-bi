@@ -59,27 +59,4 @@ export class PriceService {
       price_close: new Decimal(row.price_close),
     }));
   }
-
-  async getLastPrices(priceFeedIds: number[]): Promise<Map<number, Decimal>> {
-    if (priceFeedIds.length === 0) return new Map();
-
-    const cacheKey = `api:price-service:last-price:${priceFeedIds.join(",")}`;
-    const ttl = 1000 * 60 * 5; // 5 min
-
-    const result = await this.services.cache.wrap(cacheKey, ttl, async () =>
-      db_query<{ price_feed_id: number; price: string }>(
-        `
-        SELECT 
-          price_feed_id,
-          last(price, datetime) as price
-        FROM price_ts
-        WHERE price_feed_id IN (%L)
-        group by 1
-      `,
-        [priceFeedIds],
-        this.services.db,
-      ),
-    );
-    return new Map(result.map((row) => [row.price_feed_id, new Decimal(row.price)]));
-  }
 }
