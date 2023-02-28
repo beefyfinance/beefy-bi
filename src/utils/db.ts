@@ -603,11 +603,6 @@ export async function db_migrate() {
       );
     `);
   }
-  if (!(await hasPolicy("public", "price_ts_cagg_1d", "continuous_aggregate", "policy_retention"))) {
-    await db_query(`
-      SELECT add_retention_policy('price_ts_cagg_1d', INTERVAL '18 months');
-    `);
-  }
 
   // a table to store which data we already imported and which range needs to be retried
   // we need this because if there is no data on some date range, maybe we already fetched it and there is no data
