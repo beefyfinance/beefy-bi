@@ -1,0 +1,439 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 18,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  p.chain,\n  p.product_key,\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as product_name,\n  c.datetime,\n  c.block_number,\n  --c.price_feed_1_id,\n  --c.price_feed_2_id,\n  --c.pending_rewards_price_feed_id,\n  c.balance::text,\n  c.balance_diff::text\nFROM investment_balance_ts c\n  JOIN product p ON c.product_id = p.product_id\nWHERE\n  $__timeFilter(datetime)\n  and investor_id = $_investor_id\n  and c.product_id in ($_product_ids)\nORDER BY datetime desc\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "investment_balance_ts",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  p.chain,\n  p.product_key,\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as product_name,\n  c.datetime,\n  c.block_number,\n  --c.price_feed_1_id,\n  --c.price_feed_2_id,\n  --c.pending_rewards_price_feed_id,\n  c.balance::text,\n  c.balance_diff::text,\n  pr.price::text as ppfs\nFROM investment_balance_ts c\n  JOIN product p ON c.product_id = p.product_id\n  JOIN price_ts pr on p.price_feed_1_id = pr.price_feed_id and c.datetime = pr.datetime and c.block_number = pr.block_number\nWHERE\n  $__timeFilter(c.datetime)\n  and investor_id = $_investor_id\n  and c.product_id in ($_product_ids)\nORDER BY c.datetime desc\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "investment_balance_ts with price_1_ts ",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 191
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 2,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  p.chain,\n  p.product_key,\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as product_name,\n  c.datetime,\n  c.block_number,\n  --c.price_feed_1_id,\n  --c.price_feed_2_id,\n  --c.pending_rewards_price_feed_id,\n  c.balance,\n  c.balance_diff,\n  c.share_to_underlying_price,\n  c.underlying_balance,\n  c.underlying_diff,\n  c.underlying_to_usd_price,\n  c.usd_balance,\n  c.usd_diff\nFROM beefy_investor_timeline_cache_ts c\n  JOIN product p ON c.product_id = p.product_id\nWHERE\n  $__timeFilter(datetime)\n  and investor_id = $_investor_id\n  and c.product_id in ($_product_ids)\nORDER BY datetime desc\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "beefy_investor_timeline_cache_ts",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
+          "value": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76"
+        },
+        "hide": 0,
+        "name": "investor_address",
+        "options": [
+          {
+            "selected": true,
+            "text": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
+            "value": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76"
+          }
+        ],
+        "query": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "definition": "select distinct chain from product",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "chains",
+        "options": [],
+        "query": "select distinct chain from product",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "definition": "select distinct product_key from product where product_id in (\n select product_id \n from beefy_investor_timeline_cache_ts\n where investor_id = $_investor_id\n)\nand product_id in (\n select product_id\n from product\n where chain in ($chains)\n)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_keys",
+        "options": [],
+        "query": "select distinct product_key from product where product_id in (\n select product_id \n from beefy_investor_timeline_cache_ts\n where investor_id = $_investor_id\n)\nand product_id in (\n select product_id\n from product\n where chain in ($chains)\n)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "6248",
+          "value": "6248"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select investor_id\nfrom investor\nwhere address = hexstr_to_bytea('$investor_address')",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "_investor_id",
+        "options": [],
+        "query": "select investor_id\nfrom investor\nwhere address = hexstr_to_bytea('$investor_address')",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "definition": "select product_id from product where product_key in ($product_keys)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_product_ids",
+        "options": [],
+        "query": "select product_id from product where product_key in ($product_keys)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "User transaction list debug",
+  "uid": "nyClgoxVz",
+  "version": 3,
+  "weekStart": ""
+}
