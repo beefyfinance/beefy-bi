@@ -18,6 +18,7 @@ export class PriceService {
       "1h_1w": "price_ts_cagg_1h",
       "1d_1M": "price_ts_cagg_1d",
       "1d_1Y": "price_ts_cagg_1d",
+      "1d_all": "price_ts_cagg_1d",
     };
     const matView = matViewMap[timeBucket];
     if (!matView) {

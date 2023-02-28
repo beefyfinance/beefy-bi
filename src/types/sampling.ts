@@ -11,7 +11,8 @@ export type SamplingPeriod =
   | "1day"
   | "1week"
   | "1month"
-  | "1year";
+  | "1year"
+  | "100year";
 export const allSamplingPeriods: SamplingPeriod[] = [
   "15sec",
   "30sec",
@@ -26,6 +27,7 @@ export const allSamplingPeriods: SamplingPeriod[] = [
   "1week",
   "1month",
   "1year",
+  "100year",
 ];
 export const samplingPeriodMs: { [period in SamplingPeriod]: number } = {
   "15sec": 15 * 1000,
@@ -41,4 +43,5 @@ export const samplingPeriodMs: { [period in SamplingPeriod]: number } = {
   "1week": 7 * 24 * 60 * 60 * 1000,
   "1month": 30 * 24 * 60 * 60 * 1000,
   "1year": 365 * 24 * 60 * 60 * 1000,
+  "100year": 100 * 365 * 24 * 60 * 60 * 1000,
 };
