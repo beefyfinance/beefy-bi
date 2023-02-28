@@ -106,40 +106,40 @@ runMain(main);
  * With this information, generate a config file we can use on execution
  **/
 async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)] = cloneDeep(defaultLimitations);
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)] = cloneDeep(defaultLimitations);
 
-  logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
   const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, { forceRpcUrl: rpcUrl, timeout: undefined });
 
   // copy manually set limitations
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableBatching = rpcLimitations.disableBatching;
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].disableRpc = rpcLimitations.disableRpc;
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].weight = rpcLimitations.weight;
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].restrictToMode = rpcLimitations.restrictToMode;
-  findings[chain][removeSecretsFromRpcUrl(rpcUrl)].minDelayBetweenCalls = rpcLimitations.minDelayBetweenCalls;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].disableBatching = rpcLimitations.disableBatching;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].disableRpc = rpcLimitations.disableRpc;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].weight = rpcLimitations.weight;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].restrictToMode = rpcLimitations.restrictToMode;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].minDelayBetweenCalls = rpcLimitations.minDelayBetweenCalls;
 
   // set the soft timeout, the delay after which we consider the rpc request to have failed
   const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
 
   // find out the latest block number
-  logger.info({ msg: "fetching latest block number", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  logger.info({ msg: "fetching latest block number", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
   const latestBlockNumber = await linearProvider.getBlockNumber();
 
   const createSaveFinding = (key: RpcCallMethod) => (n: number) => {
-    if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)].methods[key] || 0) < n) {
-      findings[chain][removeSecretsFromRpcUrl(rpcUrl)].methods[key] = n;
-      logger.debug({ msg: "Updated findings", data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: key, newValue: n } });
+    if ((findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].methods[key] || 0) < n) {
+      findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].methods[key] = n;
+      logger.debug({ msg: "Updated findings", data: { rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), chain, method: key, newValue: n } });
     }
   };
 
   if (tests.includes("minDelayBetweenCalls")) {
     // for now, only ankr with an API key is no-limit
-    const publicRpcUrl = removeSecretsFromRpcUrl(rpcUrl);
+    const publicRpcUrl = removeSecretsFromRpcUrl(chain, rpcUrl);
     if (publicRpcUrl.includes("ankr.com") && publicRpcUrl.includes("RPC_API_KEY_ANKR")) {
-      findings[chain][removeSecretsFromRpcUrl(rpcUrl)].minDelayBetweenCalls = "no-limit";
+      findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].minDelayBetweenCalls = "no-limit";
     }
   }
 
@@ -181,14 +181,14 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
         // we want to do an eth_call
         const balance = await linearProvider.getBalance(getChainWNativeTokenAddress(chain), wNativeCreationBlock[chain] + 1);
         if (balance) {
-          findings[chain][removeSecretsFromRpcUrl(rpcUrl)].isArchiveNode = true;
+          findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].isArchiveNode = true;
           break;
         }
       } catch (e) {
         if (isArchiveNodeNeededError(e)) {
-          logger.warn({ msg: "Failed to get first block", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+          logger.warn({ msg: "Failed to get first block", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), error: e } });
         } else {
-          logger.error({ msg: "Failed, this is not an archive node", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), error: e } });
+          logger.error({ msg: "Failed, this is not an archive node", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), error: e } });
           logger.error(e);
           break;
         }
@@ -205,18 +205,18 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   // maxGetLogsBlockSpan
   let maxBlocksPerQuery = 1;
   if (tests.includes("maxGetLogsBlockSpan")) {
-    logger.info({ msg: "Testing batch maxGetLogsBlockSpan limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing batch maxGetLogsBlockSpan limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(
       rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_GETLOGS_SPAN,
       (n: number) => {
-        if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsBlockSpan || 0) < n) {
-          findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsBlockSpan = n;
+        if ((findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].maxGetLogsBlockSpan || 0) < n) {
+          findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].maxGetLogsBlockSpan = n;
           logger.debug({
             msg: "Updated findings",
-            data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: "maxGetLogsBlockSpan", newValue: n },
+            data: { rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), chain, method: "maxGetLogsBlockSpan", newValue: n },
           });
           // also update current maxBlocksPerQuery
           maxBlocksPerQuery = Math.max(
@@ -242,7 +242,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   if (tests.includes("eth_getTransactionReceipt")) {
     // eth_getTransactionReceipt
-    logger.info({ msg: "testing eth_getTransactionReceipt", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "testing eth_getTransactionReceipt", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     let someTrxHashes: string[] = [];
     // find a block with transactions
     while (someTrxHashes.length <= 0) {
@@ -271,7 +271,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   // eth_getLogs
   if (tests.includes("eth_getLogs")) {
-    logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing batch eth_getLogs limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_getLogs"), (i) => {
       const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
       const eventFilter = contract.filters.Transfer();
@@ -286,7 +286,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   // eth_call
   if (tests.includes("eth_call")) {
-    logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing batch eth_call limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(rpcSoftTimeout, chain, rpcLimitations.minDelayBetweenCalls, MAX_RPC_BATCHING_SIZE, createSaveFinding("eth_call"), (i) => {
       const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
       const promises = Array.from({ length: i }).map((_, i) => {
@@ -299,7 +299,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   // eth_getBlockByNumber
   if (tests.includes("eth_getBlockByNumber")) {
-    logger.info({ msg: "Testing batch eth_getBlockByNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing batch eth_getBlockByNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(
       rpcSoftTimeout,
       chain,
@@ -318,7 +318,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   // eth_blockNumber
   if (tests.includes("eth_blockNumber")) {
-    logger.info({ msg: "Testing batch eth_blockNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing batch eth_blockNumber limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(
       rpcSoftTimeout,
       chain,
@@ -335,23 +335,23 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   }
 
   if (tests.includes("eth_getLogs_address_batching")) {
-    logger.info({ msg: "Testing eth_getLogs address batching limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+    logger.info({ msg: "Testing eth_getLogs address batching limitations", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
     await findTheLimit(
       rpcSoftTimeout,
       chain,
       rpcLimitations.minDelayBetweenCalls,
       MAX_RPC_BATCHING_SIZE,
       (n: number) => {
-        if ((findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsAddressBatchSize || 0) < n) {
-          findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsAddressBatchSize = n;
+        if ((findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].maxGetLogsAddressBatchSize || 0) < n) {
+          findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].maxGetLogsAddressBatchSize = n;
           logger.debug({
             msg: "Updated findings",
-            data: { rpcUrl: removeSecretsFromRpcUrl(rpcUrl), chain, method: "maxGetLogsAddressBatchSize", newValue: n },
+            data: { rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), chain, method: "maxGetLogsAddressBatchSize", newValue: n },
           });
         }
       },
       (i) => {
-        const maxGetLogsBlockSpan = findings[chain][removeSecretsFromRpcUrl(rpcUrl)].maxGetLogsBlockSpan || 1000;
+        const maxGetLogsBlockSpan = findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].maxGetLogsBlockSpan || 1000;
         const contract = new ethers.Contract(getChainWNativeTokenAddress(chain), ERC20AbiInterface, batchProvider);
         const eventFilter = contract.filters.Transfer();
         return linearProvider.send("eth_getLogs", [
@@ -368,7 +368,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   logger.info({
     msg: "Testing done for rpc",
-    data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl), findings: findings[chain][removeSecretsFromRpcUrl(rpcUrl)] },
+    data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl), findings: findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)] },
   });
 }
 

@@ -39,9 +39,9 @@ type CallLockProtectedRpcOptions = {
 };
 
 const rpcPublicUniqueIds = new Map<string, string>();
-function getRpcPublicUniqueId(rpcUrl: string): string {
+function getRpcPublicUniqueId(chain: Chain, rpcUrl: string): string {
   if (!rpcPublicUniqueIds.has(rpcUrl)) {
-    const publicRpcUrl = removeSecretsFromRpcUrl(rpcUrl);
+    const publicRpcUrl = removeSecretsFromRpcUrl(chain, rpcUrl);
     const hash = createHash("md5").update(rpcUrl).digest("hex");
     rpcPublicUniqueIds.set(rpcUrl, `${publicRpcUrl}:${hash}`);
   }
@@ -59,9 +59,9 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
 
   // create a string we can log as raw rpc url may contain an api key
   const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
-  const publicRpcUrl = removeSecretsFromRpcUrl(url);
-  const rpcLockId = `${options.chain}:rpc:lock:${getRpcPublicUniqueId(url)}`;
-  const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${getRpcPublicUniqueId(url)}`;
+  const publicRpcUrl = removeSecretsFromRpcUrl(options.chain, url);
+  const rpcLockId = `${options.chain}:rpc:lock:${getRpcPublicUniqueId(options.chain, url)}`;
+  const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${getRpcPublicUniqueId(options.chain, url)}`;
 
   async function waitUntilWeCanCallRPCAgain() {
     // find out the last time we called this explorer
@@ -146,7 +146,7 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
 async function callNoLimitRpc<TRes>(work: () => Promise<TRes>, options: CallLockProtectedRpcOptions) {
   // create a string we can log as raw rpc url may contain an api key
   const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
-  const publicRpcUrl = removeSecretsFromRpcUrl(url);
+  const publicRpcUrl = removeSecretsFromRpcUrl(options.chain, url);
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
 
   async function workBehindLockIfNeeded() {

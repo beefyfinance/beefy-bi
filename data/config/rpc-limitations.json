@@ -402,6 +402,24 @@
         "eth_blockNumber": 200,
         "eth_getTransactionReceipt": 100
       }
+    },
+    "<RPC_API_URL_CHAINSTACK_CRONOS>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": 300,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 6,
+        "eth_call": 128,
+        "eth_getBlockByNumber": 256,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
     }
   },
   "emerald": {

@@ -39,7 +39,7 @@ async function main(client: DbClient) {
   for (const productGroup of productGroups) {
     const url = `wss://rpc.ankr.com/${chain}/ws/${RPC_API_KEY_ANKR}`;
     const provider = new ethers.providers.WebSocketProvider(url);
-    addDebugLogsToProvider(provider);
+    addDebugLogsToProvider(provider, chain);
 
     for (const product of productGroup) {
       const contract = new ethers.Contract(product.productData.vault.contract_address, ERC20AbiInterface, provider);

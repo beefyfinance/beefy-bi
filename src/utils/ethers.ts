@@ -48,9 +48,10 @@ export type EthersProviderDebugEvent =
     };
 export function addDebugLogsToProvider(
   provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider,
+  chain: Chain,
 ) {
   const url = provider instanceof ethers.providers.EtherscanProvider ? provider.getBaseUrl() : provider.connection.url;
-  const safeToLogUrl = removeSecretsFromRpcUrl(url);
+  const safeToLogUrl = removeSecretsFromRpcUrl(chain, url);
   provider.on("debug", (event: EthersProviderDebugEvent) => {
     if (event.action === "request" || event.action === "requestBatch") {
       logger.trace({ msg: "RPC request", data: { request: event.request, rpcUrl: safeToLogUrl } });
@@ -69,8 +70,8 @@ export function addDebugLogsToProvider(
  * some RPC are in fact clusters of archive and non-archive nodes
  * sometimes we hit a non-archive node and it fails but we can retry to hope we hit an archive node
  */
-export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
-  logger.trace({ msg: "Monkey patching archive node RPC provider", data: { rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) } });
+export function monkeyPatchArchiveNodeRpcProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+  logger.trace({ msg: "Monkey patching archive node RPC provider", data: { rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) } });
   const originalSend = provider.send.bind(provider);
 
   provider.send = async (method: string, params: any[]) => {
@@ -89,7 +90,7 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
           lastError = e;
           logger.debug({
             msg: "RPC archive node error on an archive node, will retry",
-            data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+            data: { error: e, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
           });
           logger.debug(e);
           await sleep(retryDelay);
@@ -100,7 +101,7 @@ export function monkeyPatchArchiveNodeRpcProvider(provider: ethers.providers.Jso
     }
     logger.error({
       msg: "RPC archive node error after all retries, consider setting this rpc as being a non-archive node",
-      data: { error: lastError, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+      data: { error: lastError, attemptsRemaining, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
     });
     logger.error(lastError);
     throw lastError;
@@ -366,7 +367,11 @@ export function monkeyPatchMissingEffectiveGasPriceReceiptFormat(provider: ether
  * most likely some disconnect on the RPC side
  * we just retry the request
  */
-export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(
+  chain: Chain,
+  provider: ethers.providers.JsonRpcProvider,
+  retryDelay: number,
+) {
   logger.trace({ msg: "Patching provider to retry underlying network changed error" });
   const originalSend = provider.send.bind(provider);
   let attemptsRemaining = 10;
@@ -380,7 +385,7 @@ export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider
         lastError = error;
         logger.warn({
           msg: "Got underlying network changed error, retrying",
-          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
         });
         await sleep(retryDelay);
       } else {
@@ -389,7 +394,7 @@ export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider
     }
     logger.error({
       msg: "Got underlying network changed error, but no more attempts remaining",
-      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
     });
     throw lastError;
   };
@@ -433,7 +438,7 @@ export class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvi
  * Ankr has issues with their RPC, sometimes it returns an error like "we can't execute this request"
  * It turns out it's just a timeout, so we just retry the request
  */
-export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
+export function monkeyPatchAnkrBscLinearProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, retryDelay: number) {
   logger.trace({ msg: "Patching Ankr BSC linear provider" });
 
   const originalSend = provider.send.bind(provider);
@@ -448,7 +453,7 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
         lastError = error;
         logger.warn({
           msg: "Got we can't execute this request error, retrying",
-          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+          data: { attemptsRemaining, error, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
         });
         await sleep(retryDelay + 100);
       } else {
@@ -457,7 +462,7 @@ export function monkeyPatchAnkrBscLinearProvider(provider: ethers.providers.Json
     }
     logger.error({
       msg: "Got we can't execute this request, but no more attempts remaining",
-      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(provider.connection.url) },
+      data: { attemptsRemaining, error: lastError, rpcUrl: removeSecretsFromRpcUrl(chain, provider.connection.url) },
     });
     throw lastError;
   };

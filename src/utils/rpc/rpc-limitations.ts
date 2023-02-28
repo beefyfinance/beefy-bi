@@ -69,6 +69,7 @@ function getFindings(): ReturnType<typeof readRawLimitations> {
         if (countWithWeight > 0 && countWithoutWeight > 0) {
           throw new ProgrammerError(
             `Weights invalid for chain ${chain}. Please define the weight parameter for ALL rpc or none of them. Error on rpc: ${removeSecretsFromRpcUrl(
+              chain,
               rpcUrl,
             )}`,
           );
@@ -179,7 +180,7 @@ export interface RpcLimitations {
 }
 
 export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBlockSpan?: number | null): RpcLimitations {
-  let limitations = cloneDeep(getFindings()[chain][removeSecretsFromRpcUrl(rpcUrl)]);
+  let limitations = cloneDeep(getFindings()[chain][removeSecretsFromRpcUrl(chain, rpcUrl)]);
   if (!limitations) {
     if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
       limitations = cloneDeep(defaultLimitations);

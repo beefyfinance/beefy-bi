@@ -33,7 +33,7 @@ export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
           objAndData.map(({ data }) => [
             data.chain,
             data.datetime.toISOString(),
-            removeSecretsFromRpcUrl(data.rpc_url),
+            removeSecretsFromRpcUrl(options.ctx.chain, data.rpc_url),
             JSON.stringify(data.request),
             JSON.stringify(data.response),
           ]),

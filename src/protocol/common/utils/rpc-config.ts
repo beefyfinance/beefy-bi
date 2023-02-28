@@ -38,7 +38,7 @@ export function getMultipleRpcConfigsForChain(options: {
     throw new ProgrammerError({ msg: "No matching RPC", data: { chain: options.chain, mode: options.mode, rpcCount: options.rpcCount } });
   }
 
-  logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map(removeSecretsFromRpcUrl) } });
+  logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map((url) => removeSecretsFromRpcUrl(options.chain, url)) } });
 
   return rpcUrls.map((rpcUrl) =>
     createRpcConfig(options.chain, { forceRpcUrl: rpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan }),
@@ -72,7 +72,7 @@ export function createRpcConfig(
 ): RpcConfig {
   const rpcUrls = getBestRpcUrlsForChain(chain, mode);
   const rpcUrl = forceRpcUrl || rpcUrls[0];
-  logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
   const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
@@ -108,7 +108,7 @@ export function createRpcConfig(
         minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps with an api key */ : 5000 /* 1 call every 5s without an api key */,
       },
     };
-    addDebugLogsToProvider(rpcConfig.etherscan.provider);
+    addDebugLogsToProvider(rpcConfig.etherscan.provider, chain);
   }
 
   monkeyPatchProvider(chain, rpcConfig.linearProvider, rpcConfig.rpcLimitations);
@@ -119,7 +119,7 @@ export function createRpcConfig(
 
 export function cloneBatchProvider(chain: Chain, provider: ethers.providers.JsonRpcBatchProvider): ethers.providers.JsonRpcBatchProvider {
   const rpcUrl = provider.connection.url;
-  logger.debug({ msg: "Cloning batch RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(rpcUrl) } });
+  logger.debug({ msg: "Cloning batch RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
   const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: provider.connection.timeout };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
@@ -147,7 +147,7 @@ export function monkeyPatchProvider(chain: Chain, provider: ethers.providers.Jso
   // https://github.com/ethers-io/ethers.js/issues/901#issuecomment-647836318
   provider.detectNetwork = () => Promise.resolve(networkish);
 
-  addDebugLogsToProvider(provider);
+  addDebugLogsToProvider(provider, chain);
 
   if (isBatchProvider) {
     monkeyPatchEthersBatchProvider(provider);
@@ -169,12 +169,12 @@ export function monkeyPatchProvider(chain: Chain, provider: ethers.providers.Jso
 
   const retryDelay = limitations.minDelayBetweenCalls === "no-limit" ? 0 : limitations.minDelayBetweenCalls;
   if (limitations.isArchiveNode) {
-    monkeyPatchArchiveNodeRpcProvider(provider, retryDelay);
+    monkeyPatchArchiveNodeRpcProvider(chain, provider, retryDelay);
   }
 
   if (!isBatchProvider && chain === "bsc" && provider.connection.url.includes("ankr")) {
-    monkeyPatchAnkrBscLinearProvider(provider, retryDelay);
+    monkeyPatchAnkrBscLinearProvider(chain, provider, retryDelay);
   }
 
-  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(provider, retryDelay);
+  monkeyPatchProviderToRetryUnderlyingNetworkChangedError(chain, provider, retryDelay);
 }

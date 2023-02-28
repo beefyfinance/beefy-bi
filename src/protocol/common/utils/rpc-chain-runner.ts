@@ -259,7 +259,10 @@ function createRpcRunner<TInput>(options: {
   repeat: boolean;
   pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */>;
 }) {
-  const logData = { chain: options.rpcConfig.chain, rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.linearProvider.connection.url) };
+  const logData = {
+    chain: options.rpcConfig.chain,
+    rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.chain, options.rpcConfig.linearProvider.connection.url),
+  };
   let inputList: TInput[] = [];
   let stop: boolean = false;
 
