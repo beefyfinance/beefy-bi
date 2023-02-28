@@ -829,7 +829,7 @@ DO
 $$
 DECLARE
   refresh_interval INTERVAL = '10 days'::INTERVAL;
-  start_timestamp TIMESTAMPTZ = now() - '18 months'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = now() - '5 years'::INTERVAL;
   end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
 BEGIN
   WHILE start_timestamp < now() LOOP
