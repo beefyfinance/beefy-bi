@@ -416,9 +416,9 @@
       "methods": {
         "eth_getLogs": 6,
         "eth_call": 10,
-        "eth_getBlockByNumber": 256,
-        "eth_blockNumber": 10,
-        "eth_getTransactionReceipt": 100
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": null,
+        "eth_getTransactionReceipt": null
       }
     }
   },
