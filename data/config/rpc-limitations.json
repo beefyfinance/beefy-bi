@@ -417,7 +417,7 @@
         "eth_getLogs": 6,
         "eth_call": 50,
         "eth_getBlockByNumber": 256,
-        "eth_blockNumber": 100,
+        "eth_blockNumber": 10,
         "eth_getTransactionReceipt": 100
       }
     }
