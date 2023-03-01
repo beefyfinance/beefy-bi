@@ -375,7 +375,7 @@
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 10,
