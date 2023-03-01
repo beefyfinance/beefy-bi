@@ -1,7 +1,7 @@
 import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
+import { DISABLE_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
@@ -186,7 +186,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
         Rx.concatAll(),
         Rx.filter((item) => {
           // sometimes we want to manually re-import some data
-          if (DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED) {
+          if (DISABLE_SKIP_ALREADY_IMPORTED) {
             return true;
           }
           // is the import state has not been created, we still import the data
@@ -198,7 +198,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
           // if we already covered the range, skip it
           if (ranges.length === 0) {
             logger.debug({
-              msg: "skipping import query, already imported, set DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED=true to import anyway",
+              msg: "skipping import query, already imported, set DISABLE_SKIP_ALREADY_IMPORTED=true to import anyway",
               data: { chain: ctx.chain, range, importState: item.importState },
             });
             return false;

@@ -4,6 +4,7 @@ import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import {
   BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS,
+  DISABLE_SKIP_ALREADY_IMPORTED,
   LIMIT_INVESTMENT_QUERIES,
   LIMIT_PRICE_QUERIES,
   LIMIT_SHARES_QUERIES,
@@ -137,7 +138,10 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       // only if the item is live because we don't fetch recent data for eol items
       // so it's the historical script job to fetch the last data
       if (options.isLiveItem(item.obj)) {
-        ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+        // only if we are not in the test mode
+        if (!DISABLE_SKIP_ALREADY_IMPORTED) {
+          ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+        }
       }
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
@@ -383,11 +387,13 @@ export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(
   maxRangeLength: number,
   limitRangeCount: number,
 ): Range<T>[] {
-  // exclude covered ranges and retry ranges
-  const toExclude = [...(importState.importData.ranges.coveredRanges as Range<T>[]), ...(importState.importData.ranges.toRetry as Range<T>[])];
+  if (!DISABLE_SKIP_ALREADY_IMPORTED) {
+    // exclude covered ranges and retry ranges
+    const toExclude = [...(importState.importData.ranges.coveredRanges as Range<T>[]), ...(importState.importData.ranges.toRetry as Range<T>[])];
 
-  // exclude the ranges we already covered
-  ranges = rangeSortedArrayExclude(ranges, toExclude);
+    // exclude the ranges we already covered
+    ranges = rangeSortedArrayExclude(ranges, toExclude);
+  }
 
   // split in ranges no greater than the maximum allowed
   // order by new range first since it's more important and more likely to be available via RPC calls

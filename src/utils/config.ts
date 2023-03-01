@@ -31,7 +31,7 @@ export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beef
 export const BATCH_DB_INSERT_SIZE = process.env.BATCH_DB_INSERT_SIZE ? parseInt(process.env.BATCH_DB_INSERT_SIZE, 10) : 5000;
 export const BATCH_MAX_WAIT_MS = process.env.BATCH_MAX_WAIT_MS ? parseInt(process.env.BATCH_MAX_WAIT_MS, 10) : 5000;
 
-export const DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED = process.env.DISABLE_RECENT_IMPORT_SKIP_ALREADY_IMPORTED === "true";
+export const DISABLE_SKIP_ALREADY_IMPORTED = process.env.DISABLE_SKIP_ALREADY_IMPORTED === "true";
 export const USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND = process.env.USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true";
 
 // when a product is marked as EOL, wait this long before removing it from the dashboard and stopping rpc import
