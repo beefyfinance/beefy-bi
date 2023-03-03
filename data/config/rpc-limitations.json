@@ -350,7 +350,7 @@
   },
   "cronos": {
     "https://evm.cronos.org": {
-      "restrictToMode": "historical",
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 300,
       "maxGetLogsBlockSpan": 2000,
@@ -393,7 +393,7 @@
       "maxGetLogsAddressBatchSize": 300,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 36,
@@ -404,7 +404,7 @@
       }
     },
     "<RPC_API_URL_CHAINSTACK_CRONOS>": {
-      "restrictToMode": null,
+      "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 2000,
