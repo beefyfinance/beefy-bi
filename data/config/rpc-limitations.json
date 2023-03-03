@@ -538,7 +538,7 @@
   },
   "kava": {
     "https://evm.kava.io": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 256,
