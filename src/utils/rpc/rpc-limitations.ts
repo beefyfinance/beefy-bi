@@ -1,8 +1,9 @@
 import * as fs from "fs";
 import { cloneDeep, isNumber, merge } from "lodash";
+import { ImportBehavior } from "../../protocol/common/types/import-context";
 import { allChainIds, Chain } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
-import { CONFIG_DIRECTORY, USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND } from "../config";
+import { CONFIG_DIRECTORY } from "../config";
 import { rootLogger } from "../logger";
 import { ProgrammerError } from "../programmer-error";
 import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "./remove-secrets-from-rpc-url";
@@ -179,28 +180,28 @@ export interface RpcLimitations {
   };
 }
 
-export function getRpcLimitations(chain: Chain, rpcUrl: string, forceGetLogsBlockSpan?: number | null): RpcLimitations {
+export function getRpcLimitations(chain: Chain, rpcUrl: string, behavior: ImportBehavior): RpcLimitations {
   let limitations = cloneDeep(getFindings()[chain][removeSecretsFromRpcUrl(chain, rpcUrl)]);
   if (!limitations) {
-    if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+    if (behavior.useDefaultLimitationsIfNotFound) {
       limitations = cloneDeep(defaultLimitations);
     } else {
       throw new ProgrammerError({
-        msg: "No rpc limitations found for chain/rpcUrl. Set USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND=true to use default limitations",
+        msg: "No rpc limitations found for chain/rpcUrl",
         data: { chain, rpcUrl },
       });
     }
   }
-  if (forceGetLogsBlockSpan !== undefined && forceGetLogsBlockSpan !== null) {
-    limitations.maxGetLogsBlockSpan = forceGetLogsBlockSpan;
+  if (behavior.forceGetLogsBlockSpan !== undefined && behavior.forceGetLogsBlockSpan !== null) {
+    limitations.maxGetLogsBlockSpan = behavior.forceGetLogsBlockSpan;
   }
   return limitations;
 }
 
-export function getAllRpcUrlsForChain(chain: Chain): string[] {
+export function getAllRpcUrlsForChain(chain: Chain, behavior: ImportBehavior): string[] {
   const chainRpcs = getFindings()[chain];
   if (!chainRpcs) {
-    if (USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+    if (behavior.useDefaultLimitationsIfNotFound) {
       return [];
     } else {
       throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
@@ -209,9 +210,9 @@ export function getAllRpcUrlsForChain(chain: Chain): string[] {
   return Object.keys(chainRpcs).map(addSecretsToRpcUrl);
 }
 
-export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recent"): string[] {
+export function getBestRpcUrlsForChain(chain: Chain, behavior: ImportBehavior): string[] {
   const chainRpcs = getFindings()[chain];
-  if (!chainRpcs && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+  if (!chainRpcs && !behavior.useDefaultLimitationsIfNotFound) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
@@ -220,7 +221,7 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     limitations,
   }));
 
-  if (rpcConfigs.length === 0 && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+  if (rpcConfigs.length === 0 && !behavior.useDefaultLimitationsIfNotFound) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
@@ -230,14 +231,14 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
   // shortcut when there's only one RPC
   if (rpcConfigs.length === 1) {
     return [addSecretsToRpcUrl(rpcConfigs[0].rpcUrl)];
-  } else if (rpcConfigs.length === 0 && !USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND) {
+  } else if (rpcConfigs.length === 0 && !behavior.useDefaultLimitationsIfNotFound) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }
 
   // use archive node for historical mode
   // use non-archive node for recent mode
   // if no rpc matches, use all rpcs anyway
-  if (mode === "historical") {
+  if (behavior.mode === "historical") {
     const historicalRpcConfigs = rpcConfigs
       .filter((rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "historical")
       .filter((rpcConfig) => rpcConfig.limitations.isArchiveNode);
@@ -246,7 +247,7 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
     } else {
       logger.warn({ msg: "No archive nodes RPC found for chain", data: { chain } });
     }
-  } else if (mode === "recent") {
+  } else if (behavior.mode === "recent") {
     // remove archive nodes only if they have a limit on calls
     const recentRpcConfigs = rpcConfigs
       .filter((rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "recent")
@@ -260,7 +261,7 @@ export function getBestRpcUrlsForChain(chain: Chain, mode: "historical" | "recen
       logger.warn({ msg: "No non-archive nodes RPC found for chain", data: { chain } });
     }
   } else {
-    throw new ProgrammerError({ msg: "Unknown mode", data: { mode } });
+    throw new ProgrammerError({ msg: "Unknown mode", data: { mode: behavior.mode } });
   }
 
   // order by no-limit nodes first, then by minDelayBetweenCalls, then by the get logs block span

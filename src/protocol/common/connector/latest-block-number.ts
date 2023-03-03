@@ -10,7 +10,6 @@ const logger = rootLogger.child({ module: "common", component: "latest-block-num
 export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  forceCurrentBlockNumber: number | null;
   formatOutput: (obj: TObj, latestBlockNumber: number) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
@@ -28,9 +27,12 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
       getCacheKey: () => options.ctx.chain,
       logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
       operator$: Rx.mergeMap(async (objs) => {
-        if (options.forceCurrentBlockNumber) {
-          logger.info({ msg: "Using forced block number", data: { blockNumber: options.forceCurrentBlockNumber, chain: options.ctx.chain } });
-          return { input: objs, output: options.forceCurrentBlockNumber };
+        if (options.ctx.behavior.forceCurrentBlockNumber) {
+          logger.info({
+            msg: "Using forced block number",
+            data: { blockNumber: options.ctx.behavior.forceCurrentBlockNumber, chain: options.ctx.chain },
+          });
+          return { input: objs, output: options.ctx.behavior.forceCurrentBlockNumber };
         }
 
         try {

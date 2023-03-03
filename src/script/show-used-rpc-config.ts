@@ -1,4 +1,5 @@
 import yargs from "yargs";
+import { defaultImportBehavior } from "../protocol/common/types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
 import { rootLogger } from "../utils/logger";
@@ -34,13 +35,18 @@ async function main() {
     mode: argv.mode as "historical" | "recent",
   };
 
+  const behavior = {
+    ...defaultImportBehavior,
+    forceRpcUrl: options.forceRpcUrl,
+    mode: options.mode,
+    forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+  };
+
   const rpcConfigs = options.forceRpcUrl
-    ? [createRpcConfig(options.chain, { forceRpcUrl: options.forceRpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan })]
+    ? [createRpcConfig(options.chain, behavior)]
     : getMultipleRpcConfigsForChain({
         chain: options.chain,
-        mode: options.mode,
-        rpcCount: options.rpcCount,
-        forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+        behavior,
       });
 
   console.dir(

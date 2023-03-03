@@ -33,6 +33,7 @@ export function createBeefyHistoricalUnderlyingPricesRunner(options: { runnerCon
     generateQueries$: (ctx) =>
       Rx.pipe(
         addHistoricalDateQuery$({
+          ctx,
           getImport: (item) => item.importState,
           getFirstDate: (importState) => importState.importData.firstDate,
           formatOutput: (item, latestDate, queries) => queries.map((range) => ({ ...item, latest: latestDate, range })),
@@ -84,8 +85,9 @@ export function createBeefyRecentUnderlyingPricesRunner(options: { runnerConfig:
     logInfos: { msg: "Importing beefy recent underlying prices" },
     getImportStateKey: (item) => getPriceFeedImportStateKey(item.priceFeed),
     isLiveItem: (target) => target.priceFeed.priceFeedData.active,
-    generateQueries$: ({ lastImported, formatOutput }) =>
+    generateQueries$: ({ ctx, lastImported, formatOutput }) =>
       addLatestDateQuery$({
+        ctx,
         getLastImportedDate: () => lastImported,
         formatOutput: (item, latestDate, query) => formatOutput(item, latestDate, [query]),
       }),

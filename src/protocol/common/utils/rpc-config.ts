@@ -3,7 +3,6 @@ import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
 import { ETHERSCAN_API_KEY } from "../../../utils/config";
-
 import {
   addDebugLogsToProvider,
   JsonRpcProviderWithMultiAddressGetLogs,
@@ -21,28 +20,25 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { ImportBehavior } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
-export function getMultipleRpcConfigsForChain(options: {
-  chain: Chain;
-  mode: "recent" | "historical";
-  rpcCount: number | "all";
-  forceGetLogsBlockSpan: number | null;
-}): RpcConfig[] {
-  let rpcUrls = getBestRpcUrlsForChain(options.chain, options.mode);
-  if (options.rpcCount !== "all") {
-    rpcUrls = rpcUrls.slice(0, options.rpcCount);
+export function getMultipleRpcConfigsForChain(options: { chain: Chain; behavior: ImportBehavior }): RpcConfig[] {
+  let rpcUrls = getBestRpcUrlsForChain(options.chain, options.behavior);
+  if (options.behavior.rpcCount !== "all") {
+    rpcUrls = rpcUrls.slice(0, options.behavior.rpcCount);
   }
   if (rpcUrls.length === 0) {
-    throw new ProgrammerError({ msg: "No matching RPC", data: { chain: options.chain, mode: options.mode, rpcCount: options.rpcCount } });
+    throw new ProgrammerError({
+      msg: "No matching RPC",
+      data: { chain: options.chain, mode: options.behavior.mode, rpcCount: options.behavior.rpcCount },
+    });
   }
 
   logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map((url) => removeSecretsFromRpcUrl(options.chain, url)) } });
 
-  return rpcUrls.map((rpcUrl) =>
-    createRpcConfig(options.chain, { forceRpcUrl: rpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan }),
-  );
+  return rpcUrls.map((rpcUrl) => createRpcConfig(options.chain, { ...options.behavior, forceRpcUrl: rpcUrl }));
 }
 
 const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
@@ -61,26 +57,18 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
   skipFetchSetup: true,
 };
 
-export function createRpcConfig(
-  chain: Chain,
-  {
-    forceRpcUrl,
-    mode = "historical",
-    timeout = 120_000,
-    forceGetLogsBlockSpan = null,
-  }: { forceRpcUrl?: string; mode?: "recent" | "historical"; timeout?: number; forceGetLogsBlockSpan?: number | null } = {},
-): RpcConfig {
-  const rpcUrls = getBestRpcUrlsForChain(chain, mode);
-  const rpcUrl = forceRpcUrl || rpcUrls[0];
+export function createRpcConfig(chain: Chain, behavior: ImportBehavior): RpcConfig {
+  const rpcUrls = getBestRpcUrlsForChain(chain, behavior);
+  const rpcUrl = behavior.forceRpcUrl || rpcUrls[0];
   logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
-  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout };
+  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: behavior.rpcTimeoutMs };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
   const rpcConfig: RpcConfig = {
     chain,
     linearProvider: new JsonRpcProviderWithMultiAddressGetLogs(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
-    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, forceGetLogsBlockSpan),
+    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, behavior),
   };
 
   // instantiate etherscan provider
@@ -117,13 +105,17 @@ export function createRpcConfig(
   return rpcConfig;
 }
 
-export function cloneBatchProvider(chain: Chain, provider: ethers.providers.JsonRpcBatchProvider): ethers.providers.JsonRpcBatchProvider {
+export function cloneBatchProvider(
+  chain: Chain,
+  behavior: ImportBehavior,
+  provider: ethers.providers.JsonRpcBatchProvider,
+): ethers.providers.JsonRpcBatchProvider {
   const rpcUrl = provider.connection.url;
   logger.debug({ msg: "Cloning batch RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
   const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: provider.connection.timeout };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
-  const limitations = getRpcLimitations(chain, rpcOptions.url);
+  const limitations = getRpcLimitations(chain, rpcOptions.url, behavior);
 
   const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish);
   monkeyPatchProvider(chain, batchProvider, limitations);

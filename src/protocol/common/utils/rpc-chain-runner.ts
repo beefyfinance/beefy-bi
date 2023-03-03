@@ -2,9 +2,8 @@ import { get, random } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
-import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
+import { samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { BATCH_DB_INSERT_SIZE, BATCH_MAX_WAIT_MS, DISABLE_WORK_CONCURRENCY } from "../../../utils/config";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -12,67 +11,22 @@ import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeStoppableObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { saveRpcErrorToDb } from "../connector/rpc-error";
-import { ImportCtx } from "../types/import-context";
-import { BatchStreamConfig } from "./batch-rpc-calls";
+import { createBatchStreamConfig, ImportBehavior, ImportCtx } from "../types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" });
 
-export const defaultHistoricalStreamConfig: BatchStreamConfig = {
-  // since we are doing many historical queries at once, we cannot afford to do many at once
-  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 50,
-  // But we can afford to wait a bit longer before processing the next batch to be more efficient
-  maxInputWaitMs: 30 * 1000,
-  maxInputTake: 500,
-  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
-  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
-  // and we can afford longer retries
-  maxTotalRetryMs: 30_000,
-};
-export const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
-  // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
-  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 1,
-  maxInputWaitMs: 1000,
-  maxInputTake: 1,
-  dbMaxInputTake: 1,
-  dbMaxInputWaitMs: 1,
-  // and we can afford longer retries
-  maxTotalRetryMs: 30_000,
-};
-export const defaultRecentStreamConfig: BatchStreamConfig = {
-  // since we are doing live data on a small amount of queries (one per vault)
-  // we can afford some amount of concurrency
-  workConcurrency: DISABLE_WORK_CONCURRENCY ? 1 : 100,
-  // But we can not afford to wait before processing the next batch
-  maxInputWaitMs: 5_000,
-  maxInputTake: 500,
-
-  dbMaxInputTake: BATCH_DB_INSERT_SIZE,
-  dbMaxInputWaitMs: BATCH_MAX_WAIT_MS,
-  // and we cannot afford too long of a retry per product
-  maxTotalRetryMs: 10_000,
-};
-
 export interface ChainRunnerConfig<TInput> {
   chain: Chain;
   client: DbClient;
-  rpcCount: number | "all";
-  mode: "historical" | "recent";
-  forceGetLogsBlockSpan: number | null;
-  forceRpcUrl: string | null;
   getInputs: () => Promise<TInput[]>;
-  inputPollInterval: SamplingPeriod;
-  minWorkInterval: SamplingPeriod | null;
-  repeat: boolean;
+  behavior: ImportBehavior;
 }
 
 export interface NoRpcRunnerConfig<TInput> {
   client: DbClient;
-  mode: "historical" | "recent";
   getInputs: () => Promise<TInput[]>;
-  inputPollInterval: SamplingPeriod;
-  minWorkInterval: SamplingPeriod | null;
-  repeat: boolean;
+  behavior: ImportBehavior;
 }
 
 export type RunnerConfig<TInput> = ChainRunnerConfig<TInput> | NoRpcRunnerConfig<TInput>;
@@ -99,46 +53,36 @@ export function createChainRunner<TInput>(
     : {
         ..._options,
         chain: "bsc",
-        forceGetLogsBlockSpan: null,
-        forceRpcUrl: null,
-        rpcCount: 1,
       };
 
   // get our rpc configs and associated workers
-  const rpcConfigs = options.forceRpcUrl
-    ? [createRpcConfig(options.chain, { forceRpcUrl: options.forceRpcUrl, mode: options.mode, forceGetLogsBlockSpan: options.forceGetLogsBlockSpan })]
+  const rpcConfigs = options.behavior.forceRpcUrl
+    ? [createRpcConfig(options.chain, options.behavior)]
     : getMultipleRpcConfigsForChain({
         chain: options.chain,
-        mode: options.mode,
-        rpcCount: options.rpcCount,
-        forceGetLogsBlockSpan: options.forceGetLogsBlockSpan,
+        behavior: options.behavior,
       });
 
   logger.debug({ msg: "splitting inputs between rpcs", data: { rpcCount: rpcConfigs.length } });
 
-  const streamConfig =
-    options.mode === "recent"
-      ? defaultRecentStreamConfig
-      : options.chain === "moonbeam"
-      ? defaultMoonbeamHistoricalStreamConfig
-      : defaultHistoricalStreamConfig;
+  const streamConfig = createBatchStreamConfig(options.chain, options.behavior);
 
-  const workers = rpcConfigs.map((rpcConfig) => ({
-    runner: createRpcRunner({
-      rpcConfig,
-      mode: options.mode,
+  const workers = rpcConfigs.map((rpcConfig) => {
+    const ctx: ImportCtx = {
+      chain: options.chain,
       client: options.client,
-      minWorkInterval: options.minWorkInterval,
-      repeat: options.repeat,
-      pipeline$: createPipeline({
-        chain: options.chain,
-        client: options.client,
-        rpcConfig,
-        streamConfig,
+      rpcConfig,
+      streamConfig,
+      behavior: options.behavior,
+    };
+    return {
+      runner: createRpcRunner({
+        ctx,
+        pipeline$: createPipeline(ctx),
       }),
-    }),
-    weight: _getRpcWeight(rpcConfig),
-  }));
+      weight: _getRpcWeight(rpcConfig),
+    };
+  });
 
   const updateInputs = async () => {
     // pull some data
@@ -160,7 +104,7 @@ export function createChainRunner<TInput>(
   async function run() {
     // get inputs and make sure we poll them at regular interval
     await updateInputs();
-    pollerHandle = setInterval(updateInputs, samplingPeriodMs[options.inputPollInterval]);
+    pollerHandle = setInterval(updateInputs, samplingPeriodMs[options.behavior.inputPollInterval]);
 
     // start the thingy
     await Promise.all(workers.map((w) => w.runner.run()));
@@ -251,17 +195,10 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
  * - apply the pipeline to the input list
  * - When the pipeline ends, restart it with potentially updated input, but respect the `minInterval` param
  */
-function createRpcRunner<TInput>(options: {
-  mode: "historical" | "recent";
-  client: DbClient;
-  rpcConfig: RpcConfig;
-  minWorkInterval: SamplingPeriod | null;
-  repeat: boolean;
-  pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */>;
-}) {
+function createRpcRunner<TInput>(options: { ctx: ImportCtx; pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */> }) {
   const logData = {
-    chain: options.rpcConfig.chain,
-    rpcUrl: removeSecretsFromRpcUrl(options.rpcConfig.chain, options.rpcConfig.linearProvider.connection.url),
+    chain: options.ctx.rpcConfig.chain,
+    rpcUrl: removeSecretsFromRpcUrl(options.ctx.rpcConfig.chain, options.ctx.rpcConfig.linearProvider.connection.url),
   };
   let inputList: TInput[] = [];
   let stop: boolean = false;
@@ -276,7 +213,7 @@ function createRpcRunner<TInput>(options: {
 
   async function run() {
     while (!stop) {
-      if (!options.repeat) {
+      if (options.ctx.behavior.repeatAtMostEvery === null) {
         stop = true;
       }
       logger.debug({ msg: "Starting rpc work unit", data: logData });
@@ -285,16 +222,12 @@ function createRpcRunner<TInput>(options: {
       // handle rpc errors
       const errorObsComplete = [
         saveRpcErrorToDb({
-          chain: options.rpcConfig.chain,
-          client: options.client,
-          mode: options.mode,
-          rpc: options.rpcConfig.linearProvider,
+          ctx: options.ctx,
+          rpc: options.ctx.rpcConfig.linearProvider,
         }),
         saveRpcErrorToDb({
-          chain: options.rpcConfig.chain,
-          client: options.client,
-          mode: options.mode,
-          rpc: options.rpcConfig.batchProvider,
+          ctx: options.ctx,
+          rpc: options.ctx.rpcConfig.batchProvider,
         }),
       ];
 
@@ -309,8 +242,8 @@ function createRpcRunner<TInput>(options: {
       }
 
       logger.debug({ msg: "Done rpc work unit", data: logData });
-      if (options.minWorkInterval !== null) {
-        const sleepTime = samplingPeriodMs[options.minWorkInterval] - (now - start);
+      if (options.ctx.behavior.repeatAtMostEvery !== null) {
+        const sleepTime = samplingPeriodMs[options.ctx.behavior.repeatAtMostEvery] - (now - start);
         if (sleepTime > 0) {
           logger.info({ msg: "Sleeping after import", data: { sleepTime } });
           await sleep(sleepTime);

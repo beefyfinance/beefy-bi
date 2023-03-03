@@ -33,7 +33,6 @@ type PendingRewardSnapshotInput = {
 
 export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
   chain: Chain;
-  forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<PendingRewardSnapshotInput>;
 }) {
   return createHistoricalImportRunner<PendingRewardSnapshotInput, number, DbPendingRewardsImportState>({
@@ -148,7 +147,6 @@ export function createBeefyHistoricalPendingRewardsSnapshotsRunner(options: {
             throw new Error("Unable to generate snapshot queries");
           },
           timeStep: "4hour",
-          forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getEntryAndExitEvents: (item) =>
             item.entriesAndExits.map((row) => ({
               block_number: row.block_number,

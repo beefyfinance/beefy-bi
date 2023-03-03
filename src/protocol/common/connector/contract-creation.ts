@@ -3,13 +3,15 @@ import { isArray, isString } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
+import { samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { EXPLORER_URLS, MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS } from "../../../utils/config";
+import { EXPLORER_URLS } from "../../../utils/config";
 import { MultiChainEtherscanProvider } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
+import { ImportBehavior, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 
@@ -24,18 +26,18 @@ export interface ContractCreationInfos {
 }
 
 export function fetchContractCreationInfos$<TObj, TParams extends ContractCallParams, TRes>(options: {
-  rpcConfig: RpcConfig;
+  ctx: ImportCtx;
   getCallParams: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, blockDate: ContractCreationInfos | null) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // make sure we don't hit the rate limit of the explorers
-    rateLimit$(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS),
+    rateLimit$(samplingPeriodMs[options.ctx.behavior.minDelayBetweenExplorerCalls]),
 
     Rx.mergeMap(async (obj: TObj) => {
       const param = options.getCallParams(obj);
       try {
-        const result = await getContractCreationInfos(options.rpcConfig, param.contractAddress, param.chain);
+        const result = await getContractCreationInfos(options.ctx, param.contractAddress, param.chain);
         return options.formatOutput(obj, result);
       } catch (error) {
         logger.error({ msg: "Error while fetching contract creation block", data: { obj, error: error } });
@@ -46,7 +48,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
   );
 }
 
-async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
+async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string, chain: Chain): Promise<ContractCreationInfos> {
   const explorerType = EXPLORER_URLS[chain].type;
   if (explorerType === "blockscout") {
     logger.trace({
@@ -59,16 +61,16 @@ async function getContractCreationInfos(rpcConfig: RpcConfig, contractAddress: s
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
       data: { contractAddress, chain },
     });
-    return await getBlockScoutJSONAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
+    return await getBlockScoutJSONAPICreationInfo(ctx, contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
       data: { contractAddress, chain },
     });
-    return await getHarmonyRpcCreationInfos(rpcConfig, contractAddress, chain);
+    return await getHarmonyRpcCreationInfos(ctx.rpcConfig, contractAddress, chain);
   } else if (MultiChainEtherscanProvider.isChainSupported(chain)) {
     // we also use explorers for other things so we want to globally rate limit them
-    const etherscanConfig = rpcConfig.etherscan;
+    const etherscanConfig = ctx.rpcConfig.etherscan;
     if (!etherscanConfig) {
       throw new ProgrammerError("Etherscan is not configured for this chain");
     }
@@ -156,7 +158,7 @@ async function getBlockScoutScrapingContractCreationInfos(contractAddress: strin
   }
 }
 
-async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explorerUrl: string, chain: Chain) {
+async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress: string, explorerUrl: string, chain: Chain) {
   try {
     let data: { items: string[]; next_page_path: string | null } = {
       items: [],
@@ -167,7 +169,7 @@ async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explore
       logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
       const resp = await axios.get(url);
       data = resp.data;
-      await sleep(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS);
+      await sleep(samplingPeriodMs[ctx.behavior.minDelayBetweenExplorerCalls]);
     }
     // sometimes, the internal transaction log is empty
     if (data.items.length === 0) {
@@ -182,7 +184,7 @@ async function getBlockScoutJSONAPICreationInfo(contractAddress: string, explore
         logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
         const resp = await axios.get(url);
         data = resp.data;
-        await sleep(MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS);
+        await sleep(samplingPeriodMs[ctx.behavior.minDelayBetweenExplorerCalls]);
       }
     }
 

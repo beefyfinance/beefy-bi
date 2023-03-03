@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import * as path from "path";
 import { Chain } from "../types/chain";
 import { allLogLevels, LogLevels } from "../types/logger";
-import { SamplingPeriod } from "../types/sampling";
 dotenv.config();
 
 Decimal.set({
@@ -28,30 +27,10 @@ export const APP_PR_BUILDS_URL = process.env.APP_PR_BUILDS_URL ? new RegExp(proc
 export const APP_LOCAL_BUILDS_URL = process.env.APP_LOCAL_BUILDS_URL || "http://localhost:3001";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
-export const BATCH_DB_INSERT_SIZE = process.env.BATCH_DB_INSERT_SIZE ? parseInt(process.env.BATCH_DB_INSERT_SIZE, 10) : 5000;
-export const BATCH_MAX_WAIT_MS = process.env.BATCH_MAX_WAIT_MS ? parseInt(process.env.BATCH_MAX_WAIT_MS, 10) : 5000;
-
-export const DISABLE_SKIP_ALREADY_IMPORTED = process.env.DISABLE_SKIP_ALREADY_IMPORTED === "true";
-export const USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND = process.env.USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true";
-
-// when a product is marked as EOL, wait this long before removing it from the dashboard and stopping rpc import
-export const CONSIDER_PRODUCT_DASHBOARD_EOL_AFTER_X_AFTER_EOL: SamplingPeriod = "1month";
 
 // sometimes the programmer error dump is too large and interferes with the log buffers
 // this messes up the log output. set to true to disable the dump
 export const DISABLE_PROGRAMMER_ERROR_DUMP = process.env.DISABLE_PROGRAMMER_ERROR_DUMP === "true";
-
-// disable work concurrency to make debugging easier
-export const DISABLE_WORK_CONCURRENCY = process.env.DISABLE_WORK_CONCURRENCY === "true";
-
-// memory management configs
-// Since there is no backpressure system in rxjs, we need to limit the number of incoming items
-// Fetching investments is a large operation, so we need to limit the number of concurrent requests
-// but other operations are small, so we can allow more items to be streamed into the input queue
-export const LIMIT_INVESTMENT_QUERIES = process.env.LIMIT_INVESTMENT_QUERIES ? parseInt(process.env.LIMIT_INVESTMENT_QUERIES, 10) : 100;
-export const LIMIT_SHARES_QUERIES = process.env.LIMIT_SHARES_QUERIES ? parseInt(process.env.LIMIT_SHARES_QUERIES, 10) : 1000;
-export const LIMIT_SNAPSHOT_QUERIES = process.env.LIMIT_SNAPSHOT_QUERIES ? parseInt(process.env.LIMIT_SNAPSHOT_QUERIES, 10) : 1000;
-export const LIMIT_PRICE_QUERIES = process.env.LIMIT_PRICE_QUERIES ? parseInt(process.env.LIMIT_PRICE_QUERIES, 10) : 1000;
 
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
@@ -121,10 +100,6 @@ export const ETHERSCAN_API_KEY: {
   polygon: _getExplorerApiKey("polygon"),
   syscoin: _getExplorerApiKey("syscoin"),
 };
-
-export const MIN_DELAY_BETWEEN_EXPLORER_CALLS_MS = 10_000;
-
-export const BEEFY_PRICE_DATA_MAX_QUERY_RANGE_MS = 1000 * 60 * 60 * 24 * 7 * 4 * 3; // 3 * 4 week (~3 months)
 
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   arbitrum: 2200,

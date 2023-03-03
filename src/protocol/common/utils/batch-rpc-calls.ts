@@ -3,31 +3,12 @@ import * as Rx from "rxjs";
 import { RpcCallMethod } from "../../../types/rpc-config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 import { cloneBatchProvider } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
-
-export interface BatchStreamConfig {
-  // how many items to take from the input stream before making groups
-  maxInputTake: number;
-  // how long to wait before making groups
-  maxInputWaitMs: number;
-
-  // how many items to take from the input stream before making groups
-  dbMaxInputTake: number;
-  // how long to wait before making groups
-  dbMaxInputWaitMs: number;
-
-  // how many concurrent groups to process at the same time
-  workConcurrency: number;
-
-  // how long at most to attempt retries
-  maxTotalRetryMs: number;
-}
 
 export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQueryObj, TQueryResp>(options: {
   ctx: ImportCtx;
@@ -84,7 +65,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
         // if we don't clone the provider, we will have a to make lock on the provider to make sure our batch object is
         // not used by another call somewhere else
         if (options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit") {
-          provider = cloneBatchProvider(options.ctx.chain, options.ctx.rpcConfig.batchProvider);
+          provider = cloneBatchProvider(options.ctx.chain, options.ctx.behavior, options.ctx.rpcConfig.batchProvider);
         } else {
           provider = options.ctx.rpcConfig.batchProvider;
         }

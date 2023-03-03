@@ -1,7 +1,6 @@
 import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { DISABLE_SKIP_ALREADY_IMPORTED } from "../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
@@ -186,7 +185,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
         Rx.concatAll(),
         Rx.filter((item) => {
           // sometimes we want to manually re-import some data
-          if (DISABLE_SKIP_ALREADY_IMPORTED) {
+          if (ctx.behavior.ignoreImportState) {
             return true;
           }
           // is the import state has not been created, we still import the data

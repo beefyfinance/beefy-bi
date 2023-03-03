@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { cloneDeep, sample, set } from "lodash";
 import yargs from "yargs";
+import { defaultImportBehavior } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
@@ -60,10 +61,12 @@ async function main() {
     chain: { type: "string", demand: false, alias: "c", describe: "only use this chain" },
     write: { type: "boolean", demand: false, alias: "w", default: false, describe: "write findings to file" },
     tests: { type: "array", choices: allRpcTests, demand: false, alias: "t", describe: "only run these tests" },
+    useDefaultLimitationsIfNotFound: { type: "boolean", demand: false, default: false, describe: "use default limitations if not found" },
   }).argv;
   const rpcFilter = argv.rpc;
   const chainFilter = (argv.chain as Chain | undefined) || null;
   const writeToFile = argv.write;
+  const useDefaultLimitationsIfNotFound = argv.useDefaultLimitationsIfNotFound;
   let tests = allRpcTests;
   if (argv.tests) {
     if (writeToFile) {
@@ -81,7 +84,9 @@ async function main() {
   } else {
     const allParams = allChainIds
       .filter((chain) => chainFilter === null || chain === chainFilter)
-      .map((chain) => getAllRpcUrlsForChain(chain).map((rpcUrl) => ({ chain, rpcUrl })))
+      .map((chain) =>
+        getAllRpcUrlsForChain(chain, { ...defaultImportBehavior, useDefaultLimitationsIfNotFound }).map((rpcUrl) => ({ chain, rpcUrl })),
+      )
       .flat();
 
     for (const { chain } of allParams) {
@@ -111,7 +116,10 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
   logger.info({ msg: "testing rpc", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
-  const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, { forceRpcUrl: rpcUrl, timeout: undefined });
+  const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, {
+    ...defaultImportBehavior,
+    forceRpcUrl: rpcUrl,
+  });
 
   // copy manually set limitations
   findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].internalTimeoutMs = rpcLimitations.internalTimeoutMs;

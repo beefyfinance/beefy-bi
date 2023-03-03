@@ -22,7 +22,6 @@ const logger = rootLogger.child({ module: "beefy", component: "share-rate-import
 
 export function createBeefyHistoricalShareRatePricesRunner(options: {
   chain: Chain;
-  forceCurrentBlockNumber: number | null;
   runnerConfig: ChainRunnerConfig<DbPriceFeed>;
 }) {
   return createHistoricalImportRunner<DbPriceFeed, number, DbProductShareRateImportState>({
@@ -90,7 +89,6 @@ export function createBeefyHistoricalShareRatePricesRunner(options: {
           },
           chain: options.chain,
           timeStep: "15min",
-          forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImportState: (item) => item.importState,
           formatOutput: (item, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ ...item, range, latest: latestBlockNumber })),
         }),

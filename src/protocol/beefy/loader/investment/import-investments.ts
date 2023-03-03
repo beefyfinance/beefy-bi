@@ -16,11 +16,7 @@ import { importProductBlockRange$ } from "./product-block-range";
 
 const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
 
-export function createBeefyHistoricalInvestmentRunner(options: {
-  chain: Chain;
-  forceCurrentBlockNumber: number | null;
-  runnerConfig: ChainRunnerConfig<DbBeefyProduct>;
-}) {
+export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbBeefyProduct> }) {
   return createHistoricalImportRunner<DbBeefyProduct, number, DbProductInvestmentImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
@@ -32,7 +28,6 @@ export function createBeefyHistoricalInvestmentRunner(options: {
           ctx,
           emitError,
           isLiveItem: (p) => !isProductDashboardEOL(p.target),
-          forceCurrentBlockNumber: options.forceCurrentBlockNumber,
           getImport: (item) => item.importState,
           getFirstBlockNumber: (importState) => importState.importData.contractCreatedAtBlock,
           formatOutput: (item, latestBlockNumber, blockQueries) => blockQueries.map((range) => ({ ...item, range, latest: latestBlockNumber })),
@@ -44,7 +39,7 @@ export function createBeefyHistoricalInvestmentRunner(options: {
         // initialize the import state
         // find the contract creation block
         fetchContractCreationInfos$({
-          rpcConfig: ctx.rpcConfig,
+          ctx,
           getCallParams: (obj) => ({
             chain: ctx.chain,
             contractAddress: getProductContractAddress(obj),
@@ -94,11 +89,7 @@ export function createBeefyHistoricalInvestmentRunner(options: {
   });
 }
 
-export function createBeefyRecentInvestmentRunner(options: {
-  chain: Chain;
-  forceCurrentBlockNumber: number | null;
-  runnerConfig: ChainRunnerConfig<DbBeefyProduct>;
-}) {
+export function createBeefyRecentInvestmentRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbBeefyProduct> }) {
   return createRecentImportRunner<DbBeefyProduct, number>({
     runnerConfig: options.runnerConfig,
     cacheKey: "beefy:product:investment:recent",
@@ -109,7 +100,6 @@ export function createBeefyRecentInvestmentRunner(options: {
       addLatestBlockQuery$({
         ctx,
         emitError,
-        forceCurrentBlockNumber: options.forceCurrentBlockNumber,
         getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => formatOutput(item, latest, [range]),
       }),

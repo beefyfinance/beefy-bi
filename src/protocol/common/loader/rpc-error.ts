@@ -1,5 +1,4 @@
 import { Chain } from "../../../types/chain";
-import { BATCH_DB_INSERT_SIZE } from "../../../utils/config";
 import { db_query } from "../../../utils/db";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -21,7 +20,10 @@ export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
 }) {
   return dbBatchCall$({
     // those errors can be quite big, so we need to limit the number of errors we insert at once
-    ctx: { ...options.ctx, streamConfig: { ...options.ctx.streamConfig, dbMaxInputTake: BATCH_DB_INSERT_SIZE / 10 } },
+    ctx: {
+      ...options.ctx,
+      streamConfig: { ...options.ctx.streamConfig, dbMaxInputTake: Math.max(options.ctx.behavior.dbBatch.maxInputTake / 10, 1) },
+    },
     emitError: options.emitError,
     formatOutput: options.formatOutput,
     getData: options.getRpcErrorData,

@@ -1,4 +1,3 @@
-import { isEmpty } from "lodash";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
@@ -13,9 +12,8 @@ import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
-import { ErrorReport } from "../../common/types/import-context";
+import { createBatchStreamConfig, defaultImportBehavior, ErrorReport, ImportBehavior, ImportCtx } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
-import { defaultHistoricalStreamConfig, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
 import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
@@ -178,62 +176,55 @@ function getTasksToRun(cmdParams: CmdParams) {
 }
 
 async function importProducts(cmdParams: CmdParams) {
-  // now import data for those
-  const runnerConfig: NoRpcRunnerConfig<Chain> = {
+  const runner = createBeefyProductRunner({
+    runnerConfig: {
+      getInputs: async () => cmdParams.filterChains,
+      client: cmdParams.client,
+      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+    },
     client: cmdParams.client,
-    mode: "recent",
-    getInputs: async () => cmdParams.filterChains,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
-  const runner = createBeefyProductRunner({ runnerConfig, client: cmdParams.client });
+  });
 
   return runner.run();
 }
 
 async function importInvestorCache(cmdParams: CmdParams) {
-  // now import data for those
-  const runnerConfig: NoRpcRunnerConfig<null> = {
+  const runner = createBeefyInvestorCacheRunner({
+    runnerConfig: {
+      client: cmdParams.client,
+      getInputs: async () => [null],
+      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+    },
     client: cmdParams.client,
-    mode: "recent",
-    getInputs: async () => [null],
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
-  const runner = createBeefyInvestorCacheRunner({ runnerConfig, client: cmdParams.client });
+  });
 
   return runner.run();
 }
 
 async function importIgnoreAddress(cmdParams: CmdParams) {
-  // now import data for those
-  const runnerConfig: NoRpcRunnerConfig<Chain> = {
+  const runner = createBeefyIgnoreAddressRunner({
+    runnerConfig: {
+      client: cmdParams.client,
+      getInputs: async () => cmdParams.filterChains,
+      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+    },
     client: cmdParams.client,
-    mode: "recent",
-    getInputs: async () => cmdParams.filterChains,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
-  const runner = createBeefyIgnoreAddressRunner({ runnerConfig, client: cmdParams.client });
+  });
 
   return runner.run();
 }
 
 function importBeefyDataPrices(cmdParams: CmdParams) {
+  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
   async function getInputs() {
-    const rpcConfig = createRpcConfig("bsc"); // never used
-    const streamConfig = defaultHistoricalStreamConfig;
-    const ctx = {
+    const rpcConfig = createRpcConfig("bsc", behavior); // never used
+    const streamConfig = createBatchStreamConfig("bsc", behavior);
+    const ctx: ImportCtx = {
       chain: "bsc" as Chain, // not used here
       client: cmdParams.client,
       rpcConfig,
       streamConfig,
+      behavior,
     };
     const emitError = (item: { product: DbProduct }, report: ErrorReport) => {
       logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
@@ -278,15 +269,7 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
   }
 
   // now import data for those
-  const runnerConfig = {
-    client: cmdParams.client,
-    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
-    getInputs,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
+  const runnerConfig = { client: cmdParams.client, getInputs, behavior };
   const runner =
     cmdParams.task === "recent-prices"
       ? createBeefyRecentUnderlyingPricesRunner({ runnerConfig })
@@ -312,28 +295,20 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 
   // now import data for those
   const runnerConfig = {
-    mode: cmdParams.task === "recent-prices" || cmdParams.task === "recent" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
-    getInputs,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    client: cmdParams.client,
     chain,
-    forceRpcUrl: cmdParams.forceRpcUrl,
-    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-    rpcCount: cmdParams.rpcCount,
-    repeat: cmdParams.loopEvery !== null,
+    getInputs,
+    client: cmdParams.client,
+    behavior: _createImportBehaviorFromCmdParams(cmdParams),
   };
 
   const runner =
-    runnerConfig.mode === "recent"
+    runnerConfig.behavior.mode === "recent"
       ? createBeefyRecentInvestmentRunner({
           chain,
-          forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
           runnerConfig,
         })
       : createBeefyHistoricalInvestmentRunner({
           chain,
-          forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
           runnerConfig,
         });
 
@@ -341,13 +316,15 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 }
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
-  const rpcConfig = createRpcConfig(chain);
-  const streamConfig = defaultHistoricalStreamConfig;
-  const ctx = {
+  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
+  const rpcConfig = createRpcConfig(chain, behavior);
+  const streamConfig = createBatchStreamConfig(chain, behavior);
+  const ctx: ImportCtx = {
     chain,
     client: cmdParams.client,
     rpcConfig,
     streamConfig,
+    behavior,
   };
 
   const emitError = (item: DbProduct, report: ErrorReport) => {
@@ -381,36 +358,29 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   }
 
   // now import data for those
-  const runnerConfig = {
-    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
-    getInputs,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    client: cmdParams.client,
-    chain,
-    forceRpcUrl: cmdParams.forceRpcUrl,
-    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-    rpcCount: cmdParams.rpcCount,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
   const runner = createBeefyHistoricalShareRatePricesRunner({
     chain: chain,
-    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-    runnerConfig,
+    runnerConfig: {
+      client: cmdParams.client,
+      chain,
+      getInputs,
+      behavior,
+    },
   });
 
   return runner.run();
 }
 
 function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
-  const rpcConfig = createRpcConfig(chain);
-  const streamConfig = defaultHistoricalStreamConfig;
-  const ctx = {
+  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
+  const rpcConfig = createRpcConfig(chain, behavior);
+  const streamConfig = createBatchStreamConfig(chain, behavior);
+  const ctx: ImportCtx = {
     chain,
     client: cmdParams.client,
     rpcConfig,
     streamConfig,
+    behavior,
   };
 
   const emitError = (item: DbProduct, report: ErrorReport) => {
@@ -455,23 +425,14 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
   }
 
   // now import data for those
-  const runnerConfig = {
-    mode: cmdParams.task === "recent-prices" ? "recent" : ("historical" as NoRpcRunnerConfig<any>["mode"]),
-    getInputs,
-    inputPollInterval: cmdParams.productRefreshInterval,
-    minWorkInterval: cmdParams.loopEvery,
-    client: cmdParams.client,
-    chain,
-    forceRpcUrl: cmdParams.forceRpcUrl,
-    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-    rpcCount: cmdParams.rpcCount,
-    repeat: cmdParams.loopEvery !== null,
-  };
-
   const runner = createBeefyHistoricalPendingRewardsSnapshotsRunner({
     chain: chain,
-    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-    runnerConfig,
+    runnerConfig: {
+      getInputs,
+      client: cmdParams.client,
+      chain,
+      behavior,
+    },
   });
 
   return runner.run();
@@ -501,4 +462,28 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
       return cmdParams.filterContractAddress === null || contractAddress.toLocaleLowerCase() === cmdParams.filterContractAddress.toLocaleLowerCase();
     }),
   );
+}
+
+export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehavior {
+  const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
+    historical: "historical",
+    recent: "recent",
+    products: "recent",
+    "ignore-address": "recent",
+    "recent-prices": "recent",
+    "historical-prices": "historical",
+    "historical-share-rate": "historical",
+    "reward-snapshots": "historical",
+    "investor-cache": "recent",
+  };
+
+  return {
+    ...defaultImportBehavior,
+    mode: forceMode || defaultModeByTask[cmdParams.task],
+    inputPollInterval: cmdParams.productRefreshInterval,
+    repeatAtMostEvery: cmdParams.loopEvery,
+    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
+    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
+    forceRpcUrl: cmdParams.forceRpcUrl,
+  };
 }

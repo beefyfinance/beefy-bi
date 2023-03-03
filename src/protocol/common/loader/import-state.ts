@@ -17,9 +17,8 @@ import {
   rangeValueMax,
   SupportedRangeTypes,
 } from "../../../utils/range";
-import { ErrorEmitter, ImportCtx } from "../types/import-context";
+import { BatchStreamConfig, ErrorEmitter, ImportCtx } from "../types/import-context";
 import { ImportRangeResult } from "../types/import-query";
-import { BatchStreamConfig } from "../utils/batch-rpc-calls";
 import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
