@@ -1,3 +1,4 @@
+import { cloneDeep } from "lodash";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { allChainIds, Chain } from "../../../types/chain";
@@ -46,8 +47,11 @@ interface CmdParams {
   includeEol: boolean;
   forceCurrentBlockNumber: number | null;
   filterContractAddress: string | null;
-  productRefreshInterval: SamplingPeriod;
+  productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
+  ignoreImportState: boolean;
+  disableWorkConcurrency: boolean;
+  generateQueryCount: number | null;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -89,11 +93,30 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
         productRefreshInterval: {
           choices: allSamplingPeriods,
           demand: false,
-          default: "4hour",
           alias: "p",
           describe: "how often workers should refresh the product list and redispatch accross rpcs",
         },
         loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
+        ignoreImportState: {
+          type: "boolean",
+          demand: false,
+          default: false,
+          alias: "i",
+          describe: "ignore the existing import state when generating new queries",
+        },
+        disableWorkConcurrency: {
+          type: "boolean",
+          demand: false,
+          default: false,
+          alias: "C",
+          describe: "disable concurrency for work",
+        },
+        generateQueryCount: {
+          type: "number",
+          demand: false,
+          alias: "q",
+          describe: "generate a specific number of queries",
+        },
       }),
     handler: (argv): Promise<any> =>
       withDbClient(
@@ -112,8 +135,11 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             forceCurrentBlockNumber: argv.currentBlockNumber || null,
             forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
             forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
-            productRefreshInterval: argv.productRefreshInterval as SamplingPeriod,
+            productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
             loopEvery: argv.loopEvery || null,
+            ignoreImportState: argv.ignoreImportState,
+            disableWorkConcurrency: argv.disableWorkConcurrency,
+            generateQueryCount: argv.generateQueryCount || null,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
             throw new ProgrammerError({
@@ -477,13 +503,38 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
     "investor-cache": "recent",
   };
 
-  return {
-    ...defaultImportBehavior,
-    mode: forceMode || defaultModeByTask[cmdParams.task],
-    inputPollInterval: cmdParams.productRefreshInterval,
-    repeatAtMostEvery: cmdParams.loopEvery,
-    forceCurrentBlockNumber: cmdParams.forceCurrentBlockNumber,
-    forceGetLogsBlockSpan: cmdParams.forceGetLogsBlockSpan,
-    forceRpcUrl: cmdParams.forceRpcUrl,
-  };
+  const behavior = cloneDeep(defaultImportBehavior);
+  behavior.mode = forceMode || defaultModeByTask[cmdParams.task];
+  if (cmdParams.productRefreshInterval) {
+    behavior.inputPollInterval = cmdParams.productRefreshInterval;
+  }
+  if (cmdParams.loopEvery) {
+    behavior.repeatAtMostEvery = cmdParams.loopEvery;
+  }
+  if (cmdParams.forceCurrentBlockNumber) {
+    behavior.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
+  }
+  if (cmdParams.forceGetLogsBlockSpan) {
+    behavior.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
+  }
+  if (cmdParams.forceRpcUrl) {
+    behavior.forceRpcUrl = cmdParams.forceRpcUrl;
+  }
+  if (cmdParams.ignoreImportState) {
+    behavior.ignoreImportState = true;
+    behavior.skipRecentWindowWhenHistorical = true;
+  }
+  if (cmdParams.disableWorkConcurrency) {
+    behavior.disableConcurrency = true;
+  }
+  if (cmdParams.generateQueryCount) {
+    behavior.limitQueriesCountTo = {
+      investment: cmdParams.generateQueryCount,
+      price: cmdParams.generateQueryCount,
+      shareRate: cmdParams.generateQueryCount,
+      snapshot: cmdParams.generateQueryCount,
+    };
+  }
+
+  return behavior;
 }
