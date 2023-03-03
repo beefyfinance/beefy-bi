@@ -558,7 +558,7 @@
     "https://evm.data.kava.io": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 5000,
       "maxGetLogsBlockSpan": 500,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
