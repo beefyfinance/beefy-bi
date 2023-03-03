@@ -248,13 +248,9 @@ export function getBestRpcUrlsForChain(chain: Chain, behavior: ImportBehavior): 
       logger.warn({ msg: "No archive nodes RPC found for chain", data: { chain } });
     }
   } else if (behavior.mode === "recent") {
-    // remove archive nodes only if they have a limit on calls
-    const recentRpcConfigs = rpcConfigs
-      .filter((rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "recent")
-      .filter(
-        (rpcConfig) =>
-          !rpcConfig.limitations.isArchiveNode || (rpcConfig.limitations.isArchiveNode && rpcConfig.limitations.minDelayBetweenCalls === "no-limit"),
-      );
+    const recentRpcConfigs = rpcConfigs.filter(
+      (rpcConfig) => rpcConfig.limitations.restrictToMode === null || rpcConfig.limitations.restrictToMode === "recent",
+    );
     if (recentRpcConfigs.length > 0) {
       rpcConfigs = recentRpcConfigs;
     } else {
