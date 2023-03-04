@@ -52,6 +52,7 @@ interface CmdParams {
   ignoreImportState: boolean;
   disableWorkConcurrency: boolean;
   generateQueryCount: number | null;
+  skipRecentWindowWhenHistorical: boolean;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -117,6 +118,13 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           alias: "q",
           describe: "generate a specific number of queries",
         },
+        skipRecentWindowWhenHistorical: {
+          type: "boolean",
+          demand: false,
+          default: true,
+          alias: "S",
+          describe: "skip the recent window when running historical",
+        },
       }),
     handler: (argv): Promise<any> =>
       withDbClient(
@@ -140,6 +148,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             ignoreImportState: argv.ignoreImportState,
             disableWorkConcurrency: argv.disableWorkConcurrency,
             generateQueryCount: argv.generateQueryCount || null,
+            skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical,
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
             throw new ProgrammerError({
@@ -522,6 +531,9 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
   }
   if (cmdParams.ignoreImportState) {
     behavior.ignoreImportState = true;
+    behavior.skipRecentWindowWhenHistorical = true;
+  }
+  if (cmdParams.skipRecentWindowWhenHistorical) {
     behavior.skipRecentWindowWhenHistorical = true;
   }
   if (cmdParams.disableWorkConcurrency) {
