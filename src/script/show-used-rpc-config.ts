@@ -70,9 +70,9 @@ async function main() {
       describe: "generate a specific number of queries",
     },
     skipRecentWindowWhenHistorical: {
-      type: "boolean",
+      choices: ["all", "none", "live", "eol"],
       demand: false,
-      default: true,
+      default: "all",
       alias: "S",
       describe: "skip the recent window when running historical",
     },
@@ -101,7 +101,7 @@ async function main() {
     ignoreImportState: argv.ignoreImportState,
     disableWorkConcurrency: argv.disableWorkConcurrency,
     generateQueryCount: argv.generateQueryCount || null,
-    skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical,
+    skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as any,
   };
 
   const behavior = _createImportBehaviorFromCmdParams(cmdParams);

@@ -55,7 +55,11 @@ export interface ImportBehavior {
   // but sometimes we want to do that, for example when we want to re-import a range of blocks
   // that was already successfully imported but is missing some data
   // in that case, we want to include the recent scope to make the import simpler to reason about
-  skipRecentWindowWhenHistorical: boolean;
+  // all: skip recent window when historical for all products
+  // none: don't skip recent window when historical for any product
+  // live: skip recent window when historical for live products
+  // eol: skip recent window when historical for eol products
+  skipRecentWindowWhenHistorical: "all" | "none" | "live" | "eol";
 
   // when the rpc limitations config is not found, this config tells us what to do
   // if true we use a default config, if false we throw an error
@@ -105,7 +109,7 @@ export const defaultImportBehavior: ImportBehavior = {
   repeatAtMostEvery: null,
   forceCurrentBlockNumber: null,
   ignoreImportState: process.env.BEHAVIOR_IGNORE_IMPORT_STATE === "true",
-  skipRecentWindowWhenHistorical: process.env.BEHAVIOR_SKIP_RECENT_WHEN_HISTORICAL === "true",
+  skipRecentWindowWhenHistorical: "live", // by default, live products recent data is done by the recent import
   useDefaultLimitationsIfNotFound: process.env.BEHAVIOR_USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true",
   disableConcurrency: process.env.BEHAVIOR_DISABLE_WORK_CONCURRENCY === "true",
   productIsDashboardEolAfter: "1month",

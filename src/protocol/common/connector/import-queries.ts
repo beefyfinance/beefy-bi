@@ -4,6 +4,7 @@ import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import {
   Range,
   rangeArrayExclude,
@@ -121,8 +122,23 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       logger.trace({ msg: "Full range", data: { fullRange, importStateKey: importState.importKey } });
 
       let ranges = [fullRange];
+
       // exclude latest block query from the range
-      if (!options.ctx.behavior.skipRecentWindowWhenHistorical) {
+      const isLive = options.isLiveItem(item.obj);
+      const skipRecent = options.ctx.behavior.skipRecentWindowWhenHistorical;
+      let doSkip = false;
+      if (skipRecent === "all") {
+        doSkip = true;
+      } else if (skipRecent === "none") {
+        doSkip = false;
+      } else if (skipRecent === "live") {
+        doSkip = isLive;
+      } else if (skipRecent === "eol") {
+        doSkip = !isLive;
+      } else {
+        throw new ProgrammerError({ msg: "Invalid skipRecentWindowWhenHistorical value", data: { skipRecent } });
+      }
+      if (doSkip) {
         ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
       }
 

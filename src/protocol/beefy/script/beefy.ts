@@ -52,7 +52,7 @@ interface CmdParams {
   ignoreImportState: boolean;
   disableWorkConcurrency: boolean;
   generateQueryCount: number | null;
-  skipRecentWindowWhenHistorical: boolean;
+  skipRecentWindowWhenHistorical: "all" | "none" | "live" | "eol";
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -119,9 +119,9 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           describe: "generate a specific number of queries",
         },
         skipRecentWindowWhenHistorical: {
-          type: "boolean",
+          choices: ["all", "none", "live", "eol"],
           demand: false,
-          default: true,
+          default: "all",
           alias: "S",
           describe: "skip the recent window when running historical",
         },
@@ -148,7 +148,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             ignoreImportState: argv.ignoreImportState,
             disableWorkConcurrency: argv.disableWorkConcurrency,
             generateQueryCount: argv.generateQueryCount || null,
-            skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical,
+            skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as CmdParams["skipRecentWindowWhenHistorical"],
           };
           if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
             throw new ProgrammerError({
@@ -531,10 +531,10 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
   }
   if (cmdParams.ignoreImportState) {
     behavior.ignoreImportState = true;
-    behavior.skipRecentWindowWhenHistorical = true;
+    behavior.skipRecentWindowWhenHistorical = "none"; // make the import predictable
   }
   if (cmdParams.skipRecentWindowWhenHistorical) {
-    behavior.skipRecentWindowWhenHistorical = true;
+    behavior.skipRecentWindowWhenHistorical = cmdParams.skipRecentWindowWhenHistorical;
   }
   if (cmdParams.disableWorkConcurrency) {
     behavior.disableConcurrency = true;
