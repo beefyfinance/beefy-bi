@@ -25,6 +25,10 @@ export interface ImportBehavior {
   // if null, we use the default value from the RPC config
   forceRpcUrl: string | null;
 
+  // wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
+  // where the RPC don't know about the block number he just gave us
+  waitForBlockPropagation: number;
+
   // override the chain latest block number
   // if null we query the RPC provider to know the latest block
   // this is useful when we want to import a range of blocks that is not the latest blocks
@@ -104,6 +108,7 @@ export const defaultImportBehavior: ImportBehavior = {
   rpcCount: "all",
   forceRpcUrl: null,
   rpcTimeoutMs: 120_000,
+  waitForBlockPropagation: 5,
   forceGetLogsBlockSpan: null,
   inputPollInterval: "4hour",
   repeatAtMostEvery: null,

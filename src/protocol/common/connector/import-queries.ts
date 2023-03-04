@@ -58,12 +58,9 @@ export function addLatestBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       const fromBlock = objGroup.latestBlockNumber - blockCountToFetch;
       const toBlock = objGroup.latestBlockNumber;
 
-      // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
-      // where the RPC don't know about the block number he just gave us
-      const waitForBlockPropagation = 5;
       const query = {
-        from: fromBlock - waitForBlockPropagation,
-        to: toBlock - waitForBlockPropagation,
+        from: fromBlock - options.ctx.behavior.waitForBlockPropagation,
+        to: toBlock - options.ctx.behavior.waitForBlockPropagation,
       };
       logger.trace({
         msg: "latest block query generated",
@@ -95,13 +92,10 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
     Rx.map((item) => {
       const importState = options.getImport(item.obj);
 
-      // also wait some time to avoid errors like "cannot query with height in the future; please provide a valid height: invalid height"
-      // where the RPC don't know about the block number he just gave us
-      const waitForBlockPropagation = 5;
       // this is the whole range we have to cover
       let fullRange = {
         from: options.getFirstBlockNumber(importState),
-        to: item.latestBlockNumber - waitForBlockPropagation,
+        to: item.latestBlockNumber - options.ctx.behavior.waitForBlockPropagation,
       };
 
       // this can happen when we force the block number in the past and we are treating a recent product

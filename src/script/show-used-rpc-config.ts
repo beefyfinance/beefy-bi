@@ -76,6 +76,12 @@ async function main() {
       alias: "S",
       describe: "skip the recent window when running historical",
     },
+    waitForBlockPropagation: {
+      type: "number",
+      demand: false,
+      alias: "P",
+      describe: "Don't query too recent blocks",
+    },
   }).argv;
 
   const options = {
@@ -102,6 +108,7 @@ async function main() {
     disableWorkConcurrency: argv.disableWorkConcurrency,
     generateQueryCount: argv.generateQueryCount || null,
     skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as any,
+    waitForBlockPropagation: argv.waitForBlockPropagation || null,
   };
 
   const behavior = _createImportBehaviorFromCmdParams(cmdParams);

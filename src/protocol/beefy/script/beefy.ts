@@ -53,135 +53,194 @@ interface CmdParams {
   disableWorkConcurrency: boolean;
   generateQueryCount: number | null;
   skipRecentWindowWhenHistorical: "all" | "none" | "live" | "eol";
+  waitForBlockPropagation: number | null;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
-  return yargs.command({
-    command: "beefy:run",
-    describe: "Start a single beefy import",
-    builder: (yargs) =>
-      yargs.options({
-        chain: {
-          type: "array",
-          choices: [...allChainIds, "all"],
-          alias: "c",
-          demand: false,
-          default: "all",
-          describe: "only import data for this chain",
-        },
-        contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
-        currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
-        forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
-        forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
-        includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
-        task: {
-          choices: [
-            "historical",
-            "recent",
-            "products",
-            "ignore-address",
-            "recent-prices",
-            "historical-prices",
-            "historical-share-rate",
-            "reward-snapshots",
-            "investor-cache",
-          ],
-          demand: true,
-          alias: "t",
-          describe: "what to run",
-        },
-        rpcCount: { type: "number", demand: false, alias: "r", describe: "how many RPCs to use" },
-        productRefreshInterval: {
-          choices: allSamplingPeriods,
-          demand: false,
-          alias: "p",
-          describe: "how often workers should refresh the product list and redispatch accross rpcs",
-        },
-        loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
-        ignoreImportState: {
-          type: "boolean",
-          demand: false,
-          default: false,
-          alias: "i",
-          describe: "ignore the existing import state when generating new queries",
-        },
-        disableWorkConcurrency: {
-          type: "boolean",
-          demand: false,
-          default: false,
-          alias: "C",
-          describe: "disable concurrency for work",
-        },
-        generateQueryCount: {
-          type: "number",
-          demand: false,
-          alias: "q",
-          describe: "generate a specific number of queries",
-        },
-        skipRecentWindowWhenHistorical: {
-          choices: ["all", "none", "live", "eol"],
-          demand: false,
-          default: "all",
-          alias: "S",
-          describe: "skip the recent window when running historical",
-        },
-      }),
-    handler: (argv): Promise<any> =>
-      withDbClient(
-        async (client) => {
-          //await db_migrate();
+  return yargs
+    .command({
+      command: "beefy:reimport",
+      describe: "Reimport a product range",
+      builder: (yargs) =>
+        yargs.options({
+          chain: {
+            choices: allChainIds,
+            alias: "c",
+            demand: true,
+            default: "all",
+            describe: "only import data for this chain",
+          },
+          task: {
+            type: "string",
+            choices: ["historical", "recent"],
+            demand: true,
+            alias: "t",
+            describe: "what to run",
+          },
+          contractAddress: { type: "string", demand: true, alias: "a", describe: "only import data for this contract address" },
+          forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
+          rpcCount: { type: "number", demand: false, alias: "r", describe: "how many RPCs to use" },
+          fromBlock: { type: "number", demand: true, describe: "from block" },
+          toBlock: { type: "number", demand: true, describe: "to block" },
+        }),
+      handler: (argv): Promise<any> =>
+        withDbClient(
+          async (client) => {
+            //await db_migrate();
 
-          logger.info("Starting import script", { argv });
+            logger.info("Starting import script", { argv });
 
-          const cmdParams: CmdParams = {
-            client,
-            rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
-            task: argv.task as CmdParams["task"],
-            includeEol: argv.includeEol,
-            filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
-            filterContractAddress: argv.contractAddress || null,
-            forceCurrentBlockNumber: argv.currentBlockNumber || null,
-            forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
-            forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
-            productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
-            loopEvery: argv.loopEvery || null,
-            ignoreImportState: argv.ignoreImportState,
-            disableWorkConcurrency: argv.disableWorkConcurrency,
-            generateQueryCount: argv.generateQueryCount || null,
-            skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as CmdParams["skipRecentWindowWhenHistorical"],
-          };
-          if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({
-              msg: "Cannot force current block number without a chain filter",
-              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
-            });
-          }
-          if (cmdParams.forceRpcUrl !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({
-              msg: "Cannot force RPC URL without a chain filter",
-              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
-            });
-          }
-          if (cmdParams.forceRpcUrl !== null && cmdParams.rpcCount !== 1) {
-            throw new ProgrammerError({
-              msg: "Cannot force RPC URL with multiple RPCs",
-              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
-            });
-          }
-          if (cmdParams.filterContractAddress !== null && cmdParams.filterChains.length > 1) {
-            throw new ProgrammerError({
-              msg: "Cannot filter contract address without a chain filter",
-              data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
-            });
-          }
+            const fromBlock = argv.fromBlock;
+            const toBlock = argv.toBlock;
+            if (fromBlock > toBlock) {
+              throw new ProgrammerError("fromBlock > toBlock");
+            }
 
-          const tasks = getTasksToRun(cmdParams);
+            // we use the minimum block span accross all rpcs, this is not super efficient
+            // but will work for now until there is a way to query {from:to} block ranges
+            const minBlockSpan = 100;
+            const blockSpanToCover = toBlock - fromBlock;
+            const queriesToGenerate = Math.ceil(blockSpanToCover / minBlockSpan);
 
-          return Promise.all(tasks.map((task) => task()));
-        },
-        { appName: "beefy:run", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
-      )(),
-  });
+            const cmdParams: CmdParams = {
+              client,
+              rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
+              task: argv.task as CmdParams["task"],
+              includeEol: true,
+              filterChains: [argv.chain] as Chain[],
+              filterContractAddress: argv.contractAddress || null,
+              forceCurrentBlockNumber: argv.toBlock + 1,
+              forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
+              forceGetLogsBlockSpan: minBlockSpan,
+              productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
+              loopEvery: null,
+              ignoreImportState: true,
+              disableWorkConcurrency: true,
+              generateQueryCount: queriesToGenerate,
+              skipRecentWindowWhenHistorical: "none",
+              waitForBlockPropagation: 0,
+            };
+
+            _verifyCmdParams(cmdParams, argv);
+
+            const tasks = getTasksToRun(cmdParams);
+
+            return Promise.all(tasks.map((task) => task()));
+          },
+          { appName: "beefy:run", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+        )(),
+    })
+    .command({
+      command: "beefy:run",
+      describe: "Start a single beefy import",
+      builder: (yargs) =>
+        yargs.options({
+          chain: {
+            type: "array",
+            choices: [...allChainIds, "all"],
+            alias: "c",
+            demand: false,
+            default: "all",
+            describe: "only import data for this chain",
+          },
+          contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
+          currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+          forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
+          forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
+          includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
+          task: {
+            choices: [
+              "historical",
+              "recent",
+              "products",
+              "ignore-address",
+              "recent-prices",
+              "historical-prices",
+              "historical-share-rate",
+              "reward-snapshots",
+              "investor-cache",
+            ],
+            demand: true,
+            alias: "t",
+            describe: "what to run",
+          },
+          rpcCount: { type: "number", demand: false, alias: "r", describe: "how many RPCs to use" },
+          productRefreshInterval: {
+            choices: allSamplingPeriods,
+            demand: false,
+            alias: "p",
+            describe: "how often workers should refresh the product list and redispatch accross rpcs",
+          },
+          loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
+          ignoreImportState: {
+            type: "boolean",
+            demand: false,
+            default: false,
+            alias: "i",
+            describe: "ignore the existing import state when generating new queries",
+          },
+          disableWorkConcurrency: {
+            type: "boolean",
+            demand: false,
+            default: false,
+            alias: "C",
+            describe: "disable concurrency for work",
+          },
+          generateQueryCount: {
+            type: "number",
+            demand: false,
+            alias: "q",
+            describe: "generate a specific number of queries",
+          },
+          skipRecentWindowWhenHistorical: {
+            choices: ["all", "none", "live", "eol"],
+            demand: false,
+            default: "all",
+            alias: "S",
+            describe: "skip the recent window when running historical",
+          },
+          waitForBlockPropagation: {
+            type: "number",
+            demand: false,
+            alias: "P",
+            describe: "Don't query too recent blocks",
+          },
+        }),
+      handler: (argv): Promise<any> =>
+        withDbClient(
+          async (client) => {
+            //await db_migrate();
+
+            logger.info("Starting import script", { argv });
+
+            const cmdParams: CmdParams = {
+              client,
+              rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
+              task: argv.task as CmdParams["task"],
+              includeEol: argv.includeEol,
+              filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
+              filterContractAddress: argv.contractAddress || null,
+              forceCurrentBlockNumber: argv.currentBlockNumber || null,
+              forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
+              forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
+              productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
+              loopEvery: argv.loopEvery || null,
+              ignoreImportState: argv.ignoreImportState,
+              disableWorkConcurrency: argv.disableWorkConcurrency,
+              generateQueryCount: argv.generateQueryCount || null,
+              skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as CmdParams["skipRecentWindowWhenHistorical"],
+              waitForBlockPropagation: argv.waitForBlockPropagation || null,
+            };
+
+            _verifyCmdParams(cmdParams, argv);
+
+            const tasks = getTasksToRun(cmdParams);
+
+            return Promise.all(tasks.map((task) => task()));
+          },
+          { appName: "beefy:run", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+        )(),
+    });
 }
 
 function getTasksToRun(cmdParams: CmdParams) {
@@ -499,31 +558,31 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
   );
 }
 
-export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehavior {
-  const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
-    historical: "historical",
-    recent: "recent",
-    products: "recent",
-    "ignore-address": "recent",
-    "recent-prices": "recent",
-    "historical-prices": "historical",
-    "historical-share-rate": "historical",
-    "reward-snapshots": "historical",
-    "investor-cache": "recent",
-  };
+const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
+  historical: "historical",
+  recent: "recent",
+  products: "recent",
+  "ignore-address": "recent",
+  "recent-prices": "recent",
+  "historical-prices": "historical",
+  "historical-share-rate": "historical",
+  "reward-snapshots": "historical",
+  "investor-cache": "recent",
+};
 
+export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehavior {
   const behavior = cloneDeep(defaultImportBehavior);
   behavior.mode = forceMode || defaultModeByTask[cmdParams.task];
-  if (cmdParams.productRefreshInterval) {
+  if (cmdParams.productRefreshInterval !== null) {
     behavior.inputPollInterval = cmdParams.productRefreshInterval;
   }
-  if (cmdParams.loopEvery) {
+  if (cmdParams.loopEvery !== null) {
     behavior.repeatAtMostEvery = cmdParams.loopEvery;
   }
-  if (cmdParams.forceCurrentBlockNumber) {
+  if (cmdParams.forceCurrentBlockNumber !== null) {
     behavior.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
   }
-  if (cmdParams.forceGetLogsBlockSpan) {
+  if (cmdParams.forceGetLogsBlockSpan !== null) {
     behavior.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
   }
   if (cmdParams.forceRpcUrl) {
@@ -539,7 +598,7 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
   if (cmdParams.disableWorkConcurrency) {
     behavior.disableConcurrency = true;
   }
-  if (cmdParams.generateQueryCount) {
+  if (cmdParams.generateQueryCount !== null) {
     behavior.limitQueriesCountTo = {
       investment: cmdParams.generateQueryCount,
       price: cmdParams.generateQueryCount,
@@ -548,5 +607,42 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
     };
   }
 
+  if (cmdParams.waitForBlockPropagation !== null) {
+    behavior.waitForBlockPropagation = cmdParams.waitForBlockPropagation;
+  }
+
   return behavior;
+}
+
+function _verifyCmdParams(cmdParams: CmdParams, argv: any) {
+  if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
+    throw new ProgrammerError({
+      msg: "Cannot force current block number without a chain filter",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.forceRpcUrl !== null && cmdParams.filterChains.length > 1) {
+    throw new ProgrammerError({
+      msg: "Cannot force RPC URL without a chain filter",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.forceRpcUrl !== null && cmdParams.rpcCount !== 1) {
+    throw new ProgrammerError({
+      msg: "Cannot force RPC URL with multiple RPCs",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.filterContractAddress !== null && cmdParams.filterChains.length > 1) {
+    throw new ProgrammerError({
+      msg: "Cannot filter contract address without a chain filter",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.generateQueryCount !== null && defaultModeByTask[cmdParams.task] !== "historical") {
+    throw new ProgrammerError({
+      msg: "Cannot generate query count without historical mode",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
 }
