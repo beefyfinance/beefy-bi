@@ -11,7 +11,7 @@ import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeStoppableObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { saveRpcErrorToDb } from "../connector/rpc-error";
-import { createBatchStreamConfig, ImportBehavior, ImportCtx } from "../types/import-context";
+import { createBatchStreamConfig, ImportBehaviour, ImportCtx } from "../types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" });
@@ -20,13 +20,13 @@ export interface ChainRunnerConfig<TInput> {
   chain: Chain;
   client: DbClient;
   getInputs: () => Promise<TInput[]>;
-  behavior: ImportBehavior;
+  behaviour: ImportBehaviour;
 }
 
 export interface NoRpcRunnerConfig<TInput> {
   client: DbClient;
   getInputs: () => Promise<TInput[]>;
-  behavior: ImportBehavior;
+  behaviour: ImportBehaviour;
 }
 
 export type RunnerConfig<TInput> = ChainRunnerConfig<TInput> | NoRpcRunnerConfig<TInput>;
@@ -56,16 +56,16 @@ export function createChainRunner<TInput>(
       };
 
   // get our rpc configs and associated workers
-  const rpcConfigs = options.behavior.forceRpcUrl
-    ? [createRpcConfig(options.chain, options.behavior)]
+  const rpcConfigs = options.behaviour.forceRpcUrl
+    ? [createRpcConfig(options.chain, options.behaviour)]
     : getMultipleRpcConfigsForChain({
         chain: options.chain,
-        behavior: options.behavior,
+        behaviour: options.behaviour,
       });
 
   logger.debug({ msg: "splitting inputs between rpcs", data: { rpcCount: rpcConfigs.length } });
 
-  const streamConfig = createBatchStreamConfig(options.chain, options.behavior);
+  const streamConfig = createBatchStreamConfig(options.chain, options.behaviour);
 
   const workers = rpcConfigs.map((rpcConfig) => {
     const ctx: ImportCtx = {
@@ -73,7 +73,7 @@ export function createChainRunner<TInput>(
       client: options.client,
       rpcConfig,
       streamConfig,
-      behavior: options.behavior,
+      behaviour: options.behaviour,
     };
     return {
       runner: createRpcRunner({
@@ -104,7 +104,7 @@ export function createChainRunner<TInput>(
   async function run() {
     // get inputs and make sure we poll them at regular interval
     await updateInputs();
-    pollerHandle = setInterval(updateInputs, samplingPeriodMs[options.behavior.inputPollInterval]);
+    pollerHandle = setInterval(updateInputs, samplingPeriodMs[options.behaviour.inputPollInterval]);
 
     // start the thingy
     await Promise.all(workers.map((w) => w.runner.run()));
@@ -213,7 +213,7 @@ function createRpcRunner<TInput>(options: { ctx: ImportCtx; pipeline$: Rx.Operat
 
   async function run() {
     while (!stop) {
-      if (options.ctx.behavior.repeatAtMostEvery === null) {
+      if (options.ctx.behaviour.repeatAtMostEvery === null) {
         stop = true;
       }
       logger.debug({ msg: "Starting rpc work unit", data: logData });
@@ -242,8 +242,8 @@ function createRpcRunner<TInput>(options: { ctx: ImportCtx; pipeline$: Rx.Operat
       }
 
       logger.debug({ msg: "Done rpc work unit", data: logData });
-      if (options.ctx.behavior.repeatAtMostEvery !== null) {
-        const sleepTime = samplingPeriodMs[options.ctx.behavior.repeatAtMostEvery] - (now - start);
+      if (options.ctx.behaviour.repeatAtMostEvery !== null) {
+        const sleepTime = samplingPeriodMs[options.ctx.behaviour.repeatAtMostEvery] - (now - start);
         if (sleepTime > 0) {
           logger.info({ msg: "Sleeping after import", data: { sleepTime } });
           await sleep(sleepTime);

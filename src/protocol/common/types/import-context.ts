@@ -5,7 +5,7 @@ import { DbClient } from "../../../utils/db";
 import { LogInfos } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 
-export interface ImportBehavior {
+export interface ImportBehaviour {
   // recent import mode is optimized for speed, we strip down everything that is not needed
   // for example we wait less time before sending the next batch of queries to an rpc provider
   // the goal is to import the new blocks as fast as possible
@@ -103,7 +103,7 @@ export interface ImportBehavior {
   beefyPriceDataQueryRange: SamplingPeriod;
 }
 
-export const defaultImportBehavior: ImportBehavior = {
+export const defaultImportBehaviour: ImportBehaviour = {
   mode: "recent",
   rpcCount: "all",
   forceRpcUrl: null,
@@ -113,20 +113,20 @@ export const defaultImportBehavior: ImportBehavior = {
   inputPollInterval: "4hour",
   repeatAtMostEvery: null,
   forceCurrentBlockNumber: null,
-  ignoreImportState: process.env.BEHAVIOR_IGNORE_IMPORT_STATE === "true",
+  ignoreImportState: process.env.BEHAVIOUR_IGNORE_IMPORT_STATE === "true",
   skipRecentWindowWhenHistorical: "live", // by default, live products recent data is done by the recent import
-  useDefaultLimitationsIfNotFound: process.env.BEHAVIOR_USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true",
-  disableConcurrency: process.env.BEHAVIOR_DISABLE_WORK_CONCURRENCY === "true",
+  useDefaultLimitationsIfNotFound: process.env.BEHAVIOUR_USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true",
+  disableConcurrency: process.env.BEHAVIOUR_DISABLE_WORK_CONCURRENCY === "true",
   productIsDashboardEolAfter: "1month",
   dbBatch: {
-    maxInputTake: process.env.BEHAVIOR_BATCH_DB_INSERT_SIZE ? parseInt(process.env.BEHAVIOR_BATCH_DB_INSERT_SIZE, 10) : 5000,
-    maxInputWaitMs: process.env.BEHAVIOR_BATCH_MAX_WAIT_MS ? parseInt(process.env.BEHAVIOR_BATCH_MAX_WAIT_MS, 10) : 5000,
+    maxInputTake: process.env.BEHAVIOUR_BATCH_DB_INSERT_SIZE ? parseInt(process.env.BEHAVIOUR_BATCH_DB_INSERT_SIZE, 10) : 5000,
+    maxInputWaitMs: process.env.BEHAVIOUR_BATCH_MAX_WAIT_MS ? parseInt(process.env.BEHAVIOUR_BATCH_MAX_WAIT_MS, 10) : 5000,
   },
   limitQueriesCountTo: {
-    investment: process.env.BEHAVIOR_LIMIT_INVESTMENT_QUERIES ? parseInt(process.env.BEHAVIOR_LIMIT_INVESTMENT_QUERIES, 10) : 100,
-    shareRate: process.env.BEHAVIOR_LIMIT_SHARES_QUERIES ? parseInt(process.env.BEHAVIOR_LIMIT_SHARES_QUERIES, 10) : 1000,
-    snapshot: process.env.BEHAVIOR_LIMIT_SNAPSHOT_QUERIES ? parseInt(process.env.BEHAVIOR_LIMIT_SNAPSHOT_QUERIES, 10) : 1000,
-    price: process.env.BEHAVIOR_LIMIT_PRICE_QUERIES ? parseInt(process.env.BEHAVIOR_LIMIT_PRICE_QUERIES, 10) : 1000,
+    investment: process.env.BEHAVIOUR_LIMIT_INVESTMENT_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_INVESTMENT_QUERIES, 10) : 100,
+    shareRate: process.env.BEHAVIOUR_LIMIT_SHARES_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_SHARES_QUERIES, 10) : 1000,
+    snapshot: process.env.BEHAVIOUR_LIMIT_SNAPSHOT_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_SNAPSHOT_QUERIES, 10) : 1000,
+    price: process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES, 10) : 1000,
   },
   minDelayBetweenExplorerCalls: "10sec",
   beefyPriceDataQueryRange: "3months",
@@ -150,21 +150,21 @@ export interface BatchStreamConfig {
   maxTotalRetryMs: number;
 }
 
-export function createBatchStreamConfig(chain: Chain, behavior: ImportBehavior): BatchStreamConfig {
+export function createBatchStreamConfig(chain: Chain, behaviour: ImportBehaviour): BatchStreamConfig {
   const defaultHistoricalStreamConfig: BatchStreamConfig = {
     // since we are doing many historical queries at once, we cannot afford to do many at once
-    workConcurrency: behavior.disableConcurrency ? 1 : 50,
+    workConcurrency: behaviour.disableConcurrency ? 1 : 50,
     // But we can afford to wait a bit longer before processing the next batch to be more efficient
     maxInputWaitMs: 30 * 1000,
     maxInputTake: 500,
-    dbMaxInputTake: behavior.dbBatch.maxInputTake,
-    dbMaxInputWaitMs: behavior.dbBatch.maxInputWaitMs,
+    dbMaxInputTake: behaviour.dbBatch.maxInputTake,
+    dbMaxInputWaitMs: behaviour.dbBatch.maxInputWaitMs,
     // and we can afford longer retries
     maxTotalRetryMs: 30_000,
   };
   const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
     // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
-    workConcurrency: behavior.disableConcurrency ? 1 : 1,
+    workConcurrency: behaviour.disableConcurrency ? 1 : 1,
     maxInputWaitMs: 1000,
     maxInputTake: 1,
     // moonbeam can be very unreliable, so we write every single data point to the db asap
@@ -176,26 +176,26 @@ export function createBatchStreamConfig(chain: Chain, behavior: ImportBehavior):
   const defaultRecentStreamConfig: BatchStreamConfig = {
     // since we are doing live data on a small amount of queries (one per vault)
     // we can afford some amount of concurrency
-    workConcurrency: behavior.disableConcurrency ? 1 : 100,
+    workConcurrency: behaviour.disableConcurrency ? 1 : 100,
     // But we can not afford to wait before processing the next batch
     maxInputWaitMs: 5_000,
     maxInputTake: 500,
 
-    dbMaxInputTake: behavior.dbBatch.maxInputTake,
-    dbMaxInputWaitMs: behavior.dbBatch.maxInputWaitMs,
+    dbMaxInputTake: behaviour.dbBatch.maxInputTake,
+    dbMaxInputWaitMs: behaviour.dbBatch.maxInputWaitMs,
     // and we cannot afford too long of a retry per product
     maxTotalRetryMs: 10_000,
   };
 
-  if (behavior.mode === "historical") {
+  if (behaviour.mode === "historical") {
     if (chain === "moonbeam") {
       return defaultMoonbeamHistoricalStreamConfig;
     }
     return defaultHistoricalStreamConfig;
-  } else if (behavior.mode === "recent") {
+  } else if (behaviour.mode === "recent") {
     return defaultRecentStreamConfig;
   } else {
-    throw new ProgrammerError({ msg: "Invalid mode", data: { mode: behavior.mode } });
+    throw new ProgrammerError({ msg: "Invalid mode", data: { mode: behaviour.mode } });
   }
 }
 
@@ -215,5 +215,5 @@ export interface ImportCtx {
   // sometimes we don't need it, but it's simpler to pass it everywhere
   chain: Chain;
   rpcConfig: RpcConfig;
-  behavior: ImportBehavior;
+  behaviour: ImportBehaviour;
 }

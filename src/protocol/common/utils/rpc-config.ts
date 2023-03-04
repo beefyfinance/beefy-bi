@@ -20,25 +20,25 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../../../utils/rpc/rpc-limitations";
-import { ImportBehavior } from "../types/import-context";
+import { ImportBehaviour } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
-export function getMultipleRpcConfigsForChain(options: { chain: Chain; behavior: ImportBehavior }): RpcConfig[] {
-  let rpcUrls = getBestRpcUrlsForChain(options.chain, options.behavior);
-  if (options.behavior.rpcCount !== "all") {
-    rpcUrls = rpcUrls.slice(0, options.behavior.rpcCount);
+export function getMultipleRpcConfigsForChain(options: { chain: Chain; behaviour: ImportBehaviour }): RpcConfig[] {
+  let rpcUrls = getBestRpcUrlsForChain(options.chain, options.behaviour);
+  if (options.behaviour.rpcCount !== "all") {
+    rpcUrls = rpcUrls.slice(0, options.behaviour.rpcCount);
   }
   if (rpcUrls.length === 0) {
     throw new ProgrammerError({
       msg: "No matching RPC",
-      data: { chain: options.chain, mode: options.behavior.mode, rpcCount: options.behavior.rpcCount },
+      data: { chain: options.chain, mode: options.behaviour.mode, rpcCount: options.behaviour.rpcCount },
     });
   }
 
   logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map((url) => removeSecretsFromRpcUrl(options.chain, url)) } });
 
-  return rpcUrls.map((rpcUrl) => createRpcConfig(options.chain, { ...options.behavior, forceRpcUrl: rpcUrl }));
+  return rpcUrls.map((rpcUrl) => createRpcConfig(options.chain, { ...options.behaviour, forceRpcUrl: rpcUrl }));
 }
 
 const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
@@ -57,18 +57,18 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
   skipFetchSetup: true,
 };
 
-export function createRpcConfig(chain: Chain, behavior: ImportBehavior): RpcConfig {
-  const rpcUrls = getBestRpcUrlsForChain(chain, behavior);
-  const rpcUrl = behavior.forceRpcUrl || rpcUrls[0];
+export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcConfig {
+  const rpcUrls = getBestRpcUrlsForChain(chain, behaviour);
+  const rpcUrl = behaviour.forceRpcUrl || rpcUrls[0];
   logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
-  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: behavior.rpcTimeoutMs };
+  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: behaviour.rpcTimeoutMs };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
   const rpcConfig: RpcConfig = {
     chain,
     linearProvider: new JsonRpcProviderWithMultiAddressGetLogs(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
-    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, behavior),
+    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, behaviour),
   };
 
   // instantiate etherscan provider
@@ -107,7 +107,7 @@ export function createRpcConfig(chain: Chain, behavior: ImportBehavior): RpcConf
 
 export function cloneBatchProvider(
   chain: Chain,
-  behavior: ImportBehavior,
+  behaviour: ImportBehaviour,
   provider: ethers.providers.JsonRpcBatchProvider,
 ): ethers.providers.JsonRpcBatchProvider {
   const rpcUrl = provider.connection.url;
@@ -115,7 +115,7 @@ export function cloneBatchProvider(
 
   const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: provider.connection.timeout };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
-  const limitations = getRpcLimitations(chain, rpcOptions.url, behavior);
+  const limitations = getRpcLimitations(chain, rpcOptions.url, behaviour);
 
   const batchProvider = new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish);
   monkeyPatchProvider(chain, batchProvider, limitations);

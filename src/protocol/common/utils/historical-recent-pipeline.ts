@@ -185,7 +185,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
         Rx.concatAll(),
         Rx.filter((item) => {
           // sometimes we want to manually re-import some data
-          if (ctx.behavior.ignoreImportState) {
+          if (ctx.behaviour.ignoreImportState) {
             return true;
           }
           // is the import state has not been created, we still import the data

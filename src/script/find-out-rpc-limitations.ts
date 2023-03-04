@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { cloneDeep, sample, set } from "lodash";
 import yargs from "yargs";
-import { defaultImportBehavior } from "../protocol/common/types/import-context";
+import { defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
@@ -85,7 +85,7 @@ async function main() {
     const allParams = allChainIds
       .filter((chain) => chainFilter === null || chain === chainFilter)
       .map((chain) =>
-        getAllRpcUrlsForChain(chain, { ...defaultImportBehavior, useDefaultLimitationsIfNotFound }).map((rpcUrl) => ({ chain, rpcUrl })),
+        getAllRpcUrlsForChain(chain, { ...defaultImportBehaviour, useDefaultLimitationsIfNotFound }).map((rpcUrl) => ({ chain, rpcUrl })),
       )
       .flat();
 
@@ -117,7 +117,7 @@ async function testRpcLimits(chain: Chain, rpcUrl: string, tests: RpcTests[]) {
 
   // ethers timeout can't be caught so we need to test if the rpc responded in a reasonable time
   const { batchProvider, linearProvider, rpcLimitations } = createRpcConfig(chain, {
-    ...defaultImportBehavior,
+    ...defaultImportBehaviour,
     forceRpcUrl: rpcUrl,
   });
 

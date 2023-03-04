@@ -40,7 +40,7 @@ export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, T
         const contract = new ethers.Contract(param.contractAddress, ERC20AbiInterface, provider);
 
         // aurora RPC return the state before the transaction is applied
-        // todo: patch ethers.js to reflect this behavior
+        // todo: patch ethers.js to reflect this behaviour
         let blockTag = param.blockNumber;
         if (options.ctx.chain === "aurora") {
           blockTag = param.blockNumber + 1;

@@ -13,7 +13,7 @@ import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
-import { createBatchStreamConfig, defaultImportBehavior, ErrorReport, ImportBehavior, ImportCtx } from "../../common/types/import-context";
+import { createBatchStreamConfig, defaultImportBehaviour, ErrorReport, ImportBehaviour, ImportCtx } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
@@ -274,7 +274,7 @@ async function importProducts(cmdParams: CmdParams) {
     runnerConfig: {
       getInputs: async () => cmdParams.filterChains,
       client: cmdParams.client,
-      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
     },
     client: cmdParams.client,
   });
@@ -287,7 +287,7 @@ async function importInvestorCache(cmdParams: CmdParams) {
     runnerConfig: {
       client: cmdParams.client,
       getInputs: async () => [null],
-      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
     },
     client: cmdParams.client,
   });
@@ -300,7 +300,7 @@ async function importIgnoreAddress(cmdParams: CmdParams) {
     runnerConfig: {
       client: cmdParams.client,
       getInputs: async () => cmdParams.filterChains,
-      behavior: _createImportBehaviorFromCmdParams(cmdParams),
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
     },
     client: cmdParams.client,
   });
@@ -309,16 +309,16 @@ async function importIgnoreAddress(cmdParams: CmdParams) {
 }
 
 function importBeefyDataPrices(cmdParams: CmdParams) {
-  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
+  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
   async function getInputs() {
-    const rpcConfig = createRpcConfig("bsc", behavior); // never used
-    const streamConfig = createBatchStreamConfig("bsc", behavior);
+    const rpcConfig = createRpcConfig("bsc", behaviour); // never used
+    const streamConfig = createBatchStreamConfig("bsc", behaviour);
     const ctx: ImportCtx = {
       chain: "bsc" as Chain, // not used here
       client: cmdParams.client,
       rpcConfig,
       streamConfig,
-      behavior,
+      behaviour,
     };
     const emitError = (item: { product: DbProduct }, report: ErrorReport) => {
       logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
@@ -363,7 +363,7 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
   }
 
   // now import data for those
-  const runnerConfig = { client: cmdParams.client, getInputs, behavior };
+  const runnerConfig = { client: cmdParams.client, getInputs, behaviour };
   const runner =
     cmdParams.task === "recent-prices"
       ? createBeefyRecentUnderlyingPricesRunner({ runnerConfig })
@@ -392,11 +392,11 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
     chain,
     getInputs,
     client: cmdParams.client,
-    behavior: _createImportBehaviorFromCmdParams(cmdParams),
+    behaviour: _createImportBehaviourFromCmdParams(cmdParams),
   };
 
   const runner =
-    runnerConfig.behavior.mode === "recent"
+    runnerConfig.behaviour.mode === "recent"
       ? createBeefyRecentInvestmentRunner({
           chain,
           runnerConfig,
@@ -410,15 +410,15 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 }
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
-  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
-  const rpcConfig = createRpcConfig(chain, behavior);
-  const streamConfig = createBatchStreamConfig(chain, behavior);
+  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
+  const rpcConfig = createRpcConfig(chain, behaviour);
+  const streamConfig = createBatchStreamConfig(chain, behaviour);
   const ctx: ImportCtx = {
     chain,
     client: cmdParams.client,
     rpcConfig,
     streamConfig,
-    behavior,
+    behaviour,
   };
 
   const emitError = (item: DbProduct, report: ErrorReport) => {
@@ -458,7 +458,7 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
       client: cmdParams.client,
       chain,
       getInputs,
-      behavior,
+      behaviour,
     },
   });
 
@@ -466,15 +466,15 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
 }
 
 function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
-  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
-  const rpcConfig = createRpcConfig(chain, behavior);
-  const streamConfig = createBatchStreamConfig(chain, behavior);
+  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
+  const rpcConfig = createRpcConfig(chain, behaviour);
+  const streamConfig = createBatchStreamConfig(chain, behaviour);
   const ctx: ImportCtx = {
     chain,
     client: cmdParams.client,
     rpcConfig,
     streamConfig,
-    behavior,
+    behaviour,
   };
 
   const emitError = (item: DbProduct, report: ErrorReport) => {
@@ -525,7 +525,7 @@ function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
       getInputs,
       client: cmdParams.client,
       chain,
-      behavior,
+      behaviour,
     },
   });
 
@@ -570,36 +570,36 @@ const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
   "investor-cache": "recent",
 };
 
-export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehavior {
-  const behavior = cloneDeep(defaultImportBehavior);
-  behavior.mode = forceMode || defaultModeByTask[cmdParams.task];
+export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehaviour {
+  const behaviour = cloneDeep(defaultImportBehaviour);
+  behaviour.mode = forceMode || defaultModeByTask[cmdParams.task];
   if (cmdParams.productRefreshInterval !== null) {
-    behavior.inputPollInterval = cmdParams.productRefreshInterval;
+    behaviour.inputPollInterval = cmdParams.productRefreshInterval;
   }
   if (cmdParams.loopEvery !== null) {
-    behavior.repeatAtMostEvery = cmdParams.loopEvery;
+    behaviour.repeatAtMostEvery = cmdParams.loopEvery;
   }
   if (cmdParams.forceCurrentBlockNumber !== null) {
-    behavior.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
+    behaviour.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
   }
   if (cmdParams.forceGetLogsBlockSpan !== null) {
-    behavior.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
+    behaviour.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
   }
   if (cmdParams.forceRpcUrl) {
-    behavior.forceRpcUrl = cmdParams.forceRpcUrl;
+    behaviour.forceRpcUrl = cmdParams.forceRpcUrl;
   }
   if (cmdParams.ignoreImportState) {
-    behavior.ignoreImportState = true;
-    behavior.skipRecentWindowWhenHistorical = "none"; // make the import predictable
+    behaviour.ignoreImportState = true;
+    behaviour.skipRecentWindowWhenHistorical = "none"; // make the import predictable
   }
   if (cmdParams.skipRecentWindowWhenHistorical) {
-    behavior.skipRecentWindowWhenHistorical = cmdParams.skipRecentWindowWhenHistorical;
+    behaviour.skipRecentWindowWhenHistorical = cmdParams.skipRecentWindowWhenHistorical;
   }
   if (cmdParams.disableWorkConcurrency) {
-    behavior.disableConcurrency = true;
+    behaviour.disableConcurrency = true;
   }
   if (cmdParams.generateQueryCount !== null) {
-    behavior.limitQueriesCountTo = {
+    behaviour.limitQueriesCountTo = {
       investment: cmdParams.generateQueryCount,
       price: cmdParams.generateQueryCount,
       shareRate: cmdParams.generateQueryCount,
@@ -608,10 +608,10 @@ export function _createImportBehaviorFromCmdParams(cmdParams: CmdParams, forceMo
   }
 
   if (cmdParams.waitForBlockPropagation !== null) {
-    behavior.waitForBlockPropagation = cmdParams.waitForBlockPropagation;
+    behaviour.waitForBlockPropagation = cmdParams.waitForBlockPropagation;
   }
 
-  return behavior;
+  return behaviour;
 }
 
 function _verifyCmdParams(cmdParams: CmdParams, argv: any) {

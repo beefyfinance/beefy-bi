@@ -15,7 +15,7 @@ import {
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
-import { ErrorEmitter, ImportBehavior, ImportCtx } from "../types/import-context";
+import { ErrorEmitter, ImportBehaviour, ImportCtx } from "../types/import-context";
 import { latestBlockNumber$ } from "./latest-block-number";
 
 const logger = rootLogger.child({ module: "common", component: "import-queries" });
@@ -59,8 +59,8 @@ export function addLatestBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       const toBlock = objGroup.latestBlockNumber;
 
       const query = {
-        from: fromBlock - options.ctx.behavior.waitForBlockPropagation,
-        to: toBlock - options.ctx.behavior.waitForBlockPropagation,
+        from: fromBlock - options.ctx.behaviour.waitForBlockPropagation,
+        to: toBlock - options.ctx.behaviour.waitForBlockPropagation,
       };
       logger.trace({
         msg: "latest block query generated",
@@ -95,12 +95,12 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       // this is the whole range we have to cover
       let fullRange = {
         from: options.getFirstBlockNumber(importState),
-        to: item.latestBlockNumber - options.ctx.behavior.waitForBlockPropagation,
+        to: item.latestBlockNumber - options.ctx.behaviour.waitForBlockPropagation,
       };
 
       // this can happen when we force the block number in the past and we are treating a recent product
       if (fullRange.from > fullRange.to) {
-        if (options.ctx.behavior.forceCurrentBlockNumber !== null) {
+        if (options.ctx.behaviour.forceCurrentBlockNumber !== null) {
           logger.info({
             msg: "current block number set too far in the past to treat this product",
             data: { fullRange, importStateKey: importState.importKey },
@@ -119,7 +119,7 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
 
       // exclude latest block query from the range
       const isLive = options.isLiveItem(item.obj);
-      const skipRecent = options.ctx.behavior.skipRecentWindowWhenHistorical;
+      const skipRecent = options.ctx.behaviour.skipRecentWindowWhenHistorical;
       let doSkip = false;
       if (skipRecent === "all") {
         doSkip = true;
@@ -138,17 +138,17 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
       ranges = _restrictRangesWithImportState(
-        options.ctx.behavior,
+        options.ctx.behaviour,
         ranges,
         importState,
         maxBlocksPerQuery,
-        options.ctx.behavior.limitQueriesCountTo.investment,
+        options.ctx.behaviour.limitQueriesCountTo.investment,
       );
 
       // apply forced block number
-      if (options.ctx.behavior.forceCurrentBlockNumber !== null) {
-        logger.trace({ msg: "Forcing current block number", data: { blockNumber: options.ctx.behavior.forceCurrentBlockNumber } });
-        ranges = rangeArrayExclude(ranges, [{ from: options.ctx.behavior.forceCurrentBlockNumber, to: Infinity }]);
+      if (options.ctx.behaviour.forceCurrentBlockNumber !== null) {
+        logger.trace({ msg: "Forcing current block number", data: { blockNumber: options.ctx.behaviour.forceCurrentBlockNumber } });
+        ranges = rangeArrayExclude(ranges, [{ from: options.ctx.behaviour.forceCurrentBlockNumber, to: Infinity }]);
       }
       return options.formatOutput(item.obj, item.latestBlockNumber, ranges);
     }),
@@ -165,7 +165,7 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
     // we can now create the historical block query
     Rx.map((item) => {
       const importState = options.getImport(item);
-      const maxMsPerQuery = samplingPeriodMs[options.ctx.behavior.beefyPriceDataQueryRange];
+      const maxMsPerQuery = samplingPeriodMs[options.ctx.behaviour.beefyPriceDataQueryRange];
       const latestDate = new Date();
 
       // this is the whole range we have to cover
@@ -177,11 +177,11 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
       let ranges = [fullRange];
 
       ranges = _restrictRangesWithImportState(
-        options.ctx.behavior,
+        options.ctx.behaviour,
         ranges,
         importState,
         maxMsPerQuery,
-        options.ctx.behavior.limitQueriesCountTo.price,
+        options.ctx.behaviour.limitQueriesCountTo.price,
       );
       return options.formatOutput(item, latestDate, ranges);
     }),
@@ -200,7 +200,7 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
   return Rx.pipe(
     Rx.map((item) => {
       const latestDate = new Date();
-      const maxMsPerQuery = samplingPeriodMs[options.ctx.behavior.beefyPriceDataQueryRange];
+      const maxMsPerQuery = samplingPeriodMs[options.ctx.behaviour.beefyPriceDataQueryRange];
       const lastImportedDate = options.getLastImportedDate() || new Date(0);
       const fromMs = Math.max(lastImportedDate.getTime(), latestDate.getTime() - maxMsPerQuery);
       const recentDateQuery = {
@@ -291,11 +291,11 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
         const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
         const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
         const ranges = _restrictRangesWithImportState(
-          options.ctx.behavior,
+          options.ctx.behaviour,
           item.blockRanges,
           importState,
           rangeMaxLength,
-          options.ctx.behavior.limitQueriesCountTo.shareRate,
+          options.ctx.behaviour.limitQueriesCountTo.shareRate,
         );
         return { ...item, blockRanges: ranges };
       }),
@@ -381,11 +381,11 @@ export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends Err
       const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
 
       const ranges = _restrictRangesWithImportState(
-        options.ctx.behavior,
+        options.ctx.behaviour,
         investedRanges,
         importState,
         rangeMaxLength,
-        options.ctx.behavior.limitQueriesCountTo.snapshot,
+        options.ctx.behaviour.limitQueriesCountTo.snapshot,
       );
       return { ...item, investedRanges: ranges };
     }),
@@ -396,13 +396,13 @@ export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends Err
 }
 
 export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(
-  behavior: ImportBehavior,
+  behaviour: ImportBehaviour,
   ranges: Range<T>[],
   importState: DbImportState,
   maxRangeLength: number,
   limitRangeCount: number,
 ): Range<T>[] {
-  if (!behavior.ignoreImportState) {
+  if (!behaviour.ignoreImportState) {
     // exclude covered ranges and retry ranges
     const toExclude = [...(importState.importData.ranges.coveredRanges as Range<T>[]), ...(importState.importData.ranges.toRetry as Range<T>[])];
 

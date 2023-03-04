@@ -1,6 +1,6 @@
 import yargs from "yargs";
-import { _createImportBehaviorFromCmdParams } from "../protocol/beefy/script/beefy";
-import { defaultImportBehavior } from "../protocol/common/types/import-context";
+import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
+import { defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
 import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
@@ -111,16 +111,16 @@ async function main() {
     waitForBlockPropagation: argv.waitForBlockPropagation || null,
   };
 
-  const behavior = _createImportBehaviorFromCmdParams(cmdParams);
+  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
 
   const rpcConfigs = options.forceRpcUrl
-    ? [createRpcConfig(options.chain, behavior)]
+    ? [createRpcConfig(options.chain, behaviour)]
     : getMultipleRpcConfigsForChain({
         chain: options.chain,
-        behavior,
+        behaviour,
       });
 
-  console.dir(behavior);
+  console.dir(behaviour);
   console.dir(
     rpcConfigs.map((config) => ({
       rpcUrl: removeSecretsFromRpcUrl(options.chain, config.linearProvider.connection.url),

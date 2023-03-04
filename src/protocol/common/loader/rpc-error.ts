@@ -22,7 +22,7 @@ export function insertRpcError$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPa
     // those errors can be quite big, so we need to limit the number of errors we insert at once
     ctx: {
       ...options.ctx,
-      streamConfig: { ...options.ctx.streamConfig, dbMaxInputTake: Math.max(options.ctx.behavior.dbBatch.maxInputTake / 10, 1) },
+      streamConfig: { ...options.ctx.streamConfig, dbMaxInputTake: Math.max(options.ctx.behaviour.dbBatch.maxInputTake / 10, 1) },
     },
     emitError: options.emitError,
     formatOutput: options.formatOutput,

@@ -58,7 +58,7 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
     upsertBlock$({
       ctx: {
         ...options.ctx,
-        // make sure we are aligned with the RPC config so we have an overall consistent behavior
+        // make sure we are aligned with the RPC config so we have an overall consistent behaviour
         streamConfig: {
           ...options.ctx.streamConfig,
           dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
@@ -87,7 +87,7 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
         ...options.ctx,
         streamConfig: {
           ...options.ctx.streamConfig,
-          // make sure we are aligned with the RPC config so we have an overall consistent behavior
+          // make sure we are aligned with the RPC config so we have an overall consistent behaviour
           dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
           dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
         },

@@ -71,7 +71,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // from underlying amount
               toAssetKey: "fiat:USD", // to USD
               priceFeedData: {
-                active: !computeIsDashboardEOL(ctx.behavior, item.vault.eol, item.vault.eol_date),
+                active: !computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
                 externalId: item.vault.want_price_feed_key, // the id that the data api knows
               },
             };
@@ -104,7 +104,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
                     fromAssetKey: `${item.vault.chain}:${rewardToken}`,
                     toAssetKey: "fiat:USD", // to USD
                     priceFeedData: {
-                      active: !computeIsDashboardEOL(ctx.behavior, item.vault.eol, item.vault.eol_date),
+                      active: !computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
                       externalId: rewardToken, // the id that the data api knows
                     },
                   };
@@ -130,7 +130,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               chain: item.vault.chain,
               productData: {
                 type: isGov ? "beefy:gov-vault" : "beefy:vault",
-                dashboardEol: computeIsDashboardEOL(ctx.behavior, item.vault.eol, item.vault.eol_date),
+                dashboardEol: computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
                 vault: item.vault,
               },
             };
@@ -204,7 +204,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               fromAssetKey: `${item.boost.chain}:${rewardToken}`,
               toAssetKey: "fiat:USD", // to USD
               priceFeedData: {
-                active: !computeIsDashboardEOL(ctx.behavior, item.boost.eol, item.boost.eol_date),
+                active: !computeIsDashboardEOL(ctx.behaviour, item.boost.eol, item.boost.eol_date),
                 externalId: rewardToken, // the id that the data api knows
               },
             };
@@ -225,7 +225,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               chain: item.boost.chain,
               productData: {
                 type: "beefy:boost",
-                dashboardEol: computeIsDashboardEOL(ctx.behavior, item.boost.eol, item.boost.eol_date),
+                dashboardEol: computeIsDashboardEOL(ctx.behaviour, item.boost.eol, item.boost.eol_date),
                 boost: item.boost,
               },
             };

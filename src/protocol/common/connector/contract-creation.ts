@@ -11,7 +11,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ImportBehavior, ImportCtx } from "../types/import-context";
+import { ImportBehaviour, ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 
@@ -32,7 +32,7 @@ export function fetchContractCreationInfos$<TObj, TParams extends ContractCallPa
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // make sure we don't hit the rate limit of the explorers
-    rateLimit$(samplingPeriodMs[options.ctx.behavior.minDelayBetweenExplorerCalls]),
+    rateLimit$(samplingPeriodMs[options.ctx.behaviour.minDelayBetweenExplorerCalls]),
 
     Rx.mergeMap(async (obj: TObj) => {
       const param = options.getCallParams(obj);
@@ -169,7 +169,7 @@ async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress:
       logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
       const resp = await axios.get(url);
       data = resp.data;
-      await sleep(samplingPeriodMs[ctx.behavior.minDelayBetweenExplorerCalls]);
+      await sleep(samplingPeriodMs[ctx.behaviour.minDelayBetweenExplorerCalls]);
     }
     // sometimes, the internal transaction log is empty
     if (data.items.length === 0) {
@@ -184,7 +184,7 @@ async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress:
         logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
         const resp = await axios.get(url);
         data = resp.data;
-        await sleep(samplingPeriodMs[ctx.behavior.minDelayBetweenExplorerCalls]);
+        await sleep(samplingPeriodMs[ctx.behaviour.minDelayBetweenExplorerCalls]);
       }
     }
 

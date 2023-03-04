@@ -65,7 +65,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
         // if we don't clone the provider, we will have a to make lock on the provider to make sure our batch object is
         // not used by another call somewhere else
         if (options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit") {
-          provider = cloneBatchProvider(options.ctx.chain, options.ctx.behavior, options.ctx.rpcConfig.batchProvider);
+          provider = cloneBatchProvider(options.ctx.chain, options.ctx.behaviour, options.ctx.rpcConfig.batchProvider);
         } else {
           provider = options.ctx.rpcConfig.batchProvider;
         }

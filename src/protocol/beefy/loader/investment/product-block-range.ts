@@ -42,7 +42,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     fetchBeefyBoostTransfers$({
       ctx: options.ctx,
       emitError: options.emitBoostError,
-      batchAddressesIfPossible: options.ctx.behavior.mode === "recent",
+      batchAddressesIfPossible: options.ctx.behaviour.mode === "recent",
       getBoostTransfersCallParams: (item) => {
         const boost = item.target.productData.boost;
         return {
@@ -67,7 +67,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       emitError: options.emitStdVaultError,
       // we can batch the requests if we are in recent mode
       // since all the query ranges should be the same
-      batchAddressesIfPossible: options.ctx.behavior.mode === "recent",
+      batchAddressesIfPossible: options.ctx.behaviour.mode === "recent",
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {
