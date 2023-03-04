@@ -470,118 +470,118 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c arbitrum -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c arbitrum -l 15min -S none"
 
   importer-investment-historical-share-rate-aurora:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c aurora -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c aurora -l 15min -S none"
 
   importer-investment-historical-share-rate-avax:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c avax -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c avax -l 15sec -S none"
 
   importer-investment-historical-share-rate-canto:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c canto -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c canto -l 15sec -S none"
 
   importer-investment-historical-share-rate-bsc:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c bsc -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c bsc -l 15sec -S none"
 
   importer-investment-historical-share-rate-celo:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c celo -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c celo -l 15sec -S none"
 
   importer-investment-historical-share-rate-cronos:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c cronos -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c cronos -l 15min -S none"
 
   importer-investment-historical-share-rate-ethereum:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c ethereum -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c ethereum -l 15min -S none"
 
   importer-investment-historical-share-rate-emerald:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c emerald -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c emerald -l 15min -S none"
 
   importer-investment-historical-share-rate-fantom:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c fantom -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c fantom -l 15sec -S none"
 
   importer-investment-historical-share-rate-fuse:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c fuse -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c fuse -l 15min -S none"
 
   importer-investment-historical-share-rate-harmony:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c harmony -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c harmony -l 15min -S none"
 
   importer-investment-historical-share-rate-heco:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c heco -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c heco -l 15sec -S none"
 
   importer-investment-historical-share-rate-kava:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c kava -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c kava -l 15sec -S none"
 
   importer-investment-historical-share-rate-metis:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c metis -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c metis -l 15min -S none"
 
   importer-investment-historical-share-rate-moonbeam:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c moonbeam -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c moonbeam -l 15sec -S none"
 
   importer-investment-historical-share-rate-moonriver:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c moonriver -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c moonriver -l 15sec -S none"
 
   importer-investment-historical-share-rate-optimism:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c optimism -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c optimism -l 15sec -S none"
 
   importer-investment-historical-share-rate-polygon:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c polygon -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c polygon -l 15sec -S none"
 
   importer-investment-historical-share-rate-syscoin:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c syscoin -l 15min -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c syscoin -l 15min -S none"
