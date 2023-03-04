@@ -123,8 +123,13 @@ export function addHistoricalBlockQuery$<TObj, TErr extends ErrorEmitter<TObj>, 
       let ranges = [fullRange];
 
       // exclude latest block query from the range
-      if (!options.ctx.behavior.skipRecentWindowWhenHistorical) {
-        ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+      // only if the item is live because we don't fetch recent data for eol items
+      // so it's the historical script job to fetch the last data
+      if (options.isLiveItem(item.obj)) {
+        // exclude latest block query from the range
+        if (!options.ctx.behavior.skipRecentWindowWhenHistorical) {
+          ranges = rangeArrayExclude(ranges, [item.latestBlockQuery]);
+        }
       }
 
       const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;

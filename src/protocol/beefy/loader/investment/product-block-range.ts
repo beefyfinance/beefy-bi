@@ -35,7 +35,6 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
   emitBoostError: <T extends ImportRangeQuery<DbBeefyBoostProduct, number>>(obj: T, report: ErrorReport) => void;
   emitStdVaultError: <T extends ImportRangeQuery<DbBeefyStdVaultProduct, number>>(obj: T, report: ErrorReport) => void;
   emitGovVaultError: <T extends ImportRangeQuery<DbBeefyGovVaultProduct, number>>(obj: T, report: ErrorReport) => void;
-  mode: "recent" | "historical";
 }) {
   const boostTransfers$ = Rx.pipe(
     Rx.filter(isBeefyBoostProductImportQuery),
@@ -43,7 +42,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     fetchBeefyBoostTransfers$({
       ctx: options.ctx,
       emitError: options.emitBoostError,
-      batchAddressesIfPossible: options.mode === "recent",
+      batchAddressesIfPossible: options.ctx.behavior.mode === "recent",
       getBoostTransfersCallParams: (item) => {
         const boost = item.target.productData.boost;
         return {
@@ -68,7 +67,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
       emitError: options.emitStdVaultError,
       // we can batch the requests if we are in recent mode
       // since all the query ranges should be the same
-      batchAddressesIfPossible: options.mode === "recent",
+      batchAddressesIfPossible: options.ctx.behavior.mode === "recent",
       getQueryParams: (item) => {
         const vault = item.target.productData.vault;
         return {

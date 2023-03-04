@@ -85,7 +85,7 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
         })),
       ),
     processImportQuery$: (ctx, emitError) =>
-      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError, mode: "historical" }),
+      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError }),
   });
 }
 
@@ -104,6 +104,6 @@ export function createBeefyRecentInvestmentRunner(options: { chain: Chain; runne
         formatOutput: (item, latest, range) => formatOutput(item, latest, [range]),
       }),
     processImportQuery$: (ctx, emitError) =>
-      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError, mode: "recent" }),
+      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError }),
   });
 }
