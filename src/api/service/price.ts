@@ -16,6 +16,8 @@ export class PriceService {
     const matViewMap: { [key in TimeBucket]: string } = {
       "1h_1d": "price_ts_cagg_1h",
       "1h_1w": "price_ts_cagg_1h",
+      "1h_1M": "price_ts_cagg_1h",
+      "4h_3M": "VIRTUAL_price_ts_cagg_4h",
       "1d_1M": "price_ts_cagg_1d",
       "1d_1Y": "price_ts_cagg_1d",
       "1d_all": "price_ts_cagg_1d",
@@ -25,15 +27,37 @@ export class PriceService {
       throw new ProgrammerError("Unsupported time bucket: " + timeBucket);
     }
 
-    const result = await this.services.cache.wrap(cacheKey, ttl, async () =>
-      db_query<{
+    const result = await this.services.cache.wrap(cacheKey, ttl, async () => {
+      type Ret = {
         datetime: string;
         price_avg: string;
         price_high: string;
         price_low: string;
         price_open: string;
         price_close: string;
-      }>(
+      };
+      // this table does not exists, we fake it
+      if (matView === "VIRTUAL_price_ts_cagg_4h") {
+        return db_query<Ret>(
+          `
+          SELECT 
+            time_bucket('4 hour', datetime) as datetime,
+            AVG(price_avg), -- absolutely incorrect, but good enough
+            MAX(price_high) as price_high,
+            MIN(price_low) as price_low,
+            FIRST(price_open, datetime) as price_open,
+            LAST(price_close, datetime) as price_close
+          FROM price_ts_cagg_1h
+          WHERE price_feed_id = %L
+            AND datetime > NOW() - %L::INTERVAL
+          group by 1
+          order by 1 asc
+        `,
+          [priceFeedId, timeRange],
+          this.services.db,
+        );
+      }
+      return db_query<Ret>(
         `
         SELECT 
           datetime as datetime, 
@@ -49,8 +73,8 @@ export class PriceService {
       `,
         [priceFeedId, timeRange],
         this.services.db,
-      ),
-    );
+      );
+    });
     return result.map((row) => ({
       datetime: new Date(row.datetime),
       price_avg: new Decimal(row.price_avg),
