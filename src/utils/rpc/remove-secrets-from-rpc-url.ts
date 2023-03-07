@@ -12,6 +12,7 @@ import {
   RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_QUIKNODE,
   RPC_API_URL_CHAINSTACK_CRONOS,
+  RPC_API_URL_KAVA_BEEFY,
 } from "../config";
 import { ProgrammerError } from "../programmer-error";
 
@@ -53,6 +54,8 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
     publicRpcUrl += "/v3/<RPC_API_KEY_INFURA>";
   } else if (secretRpcUrl.includes(".quiknode.pro")) {
     publicRpcUrl += "/<RPC_API_KEY_QUIKNODE>";
+  } else if (secretRpcUrl.includes("kava") && secretRpcUrl.includes("beefy")) {
+    publicRpcUrl = "<RPC_API_URL_KAVA_BEEFY>";
   } else if (secretRpcUrl.includes("p2pify.com")) {
     if (chain === "cronos") {
       publicRpcUrl = "<RPC_API_URL_CHAINSTACK_CRONOS>";
@@ -93,6 +96,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE", RPC_API_KEY_QUIKNODE);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_CHAINSTACK_CRONOS", RPC_API_URL_CHAINSTACK_CRONOS);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
 
   return url;
 }

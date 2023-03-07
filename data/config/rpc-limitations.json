@@ -311,6 +311,26 @@
       }
     }
   },
+  "canto": {
+    "https://canto.slingshot.finance": {
+      "restrictToMode": null,
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 192,
+        "eth_getBlockByNumber": 500,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 500
+      }
+    }
+  },
   "celo": {
     "https://rpc.ankr.com/celo/<RPC_API_KEY_ANKR>": {
       "restrictToMode": null,
@@ -563,13 +583,31 @@
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 20,
         "eth_getBlockByNumber": 30,
         "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    },
+    "<RPC_API_URL_KAVA_BEEFY>": {
+      "restrictToMode": "historical",
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 4096,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 8,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 50,
         "eth_getTransactionReceipt": 50
       }
     }
@@ -812,26 +850,6 @@
         "eth_getBlockByNumber": 64,
         "eth_blockNumber": 32,
         "eth_getTransactionReceipt": 1
-      }
-    }
-  },
-  "canto": {
-    "https://canto.slingshot.finance": {
-      "restrictToMode": null,
-      "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 500,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 192,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
       }
     }
   }

@@ -135,8 +135,7 @@ npm run test -t 'multiplex' --watch
 Making a new RPC available for the importer means we add it to the rpc-limitations.json file:
 
 ```bash
-export USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND=true
-LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w
+LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w true -d true
 LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts --help
 ```
 
