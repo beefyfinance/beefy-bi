@@ -42,7 +42,7 @@ export class PriceService {
           `
           SELECT 
             time_bucket('4 hour', datetime) as datetime,
-            AVG(price_avg), -- absolutely incorrect, but good enough
+            AVG(price_avg) as price_avg, -- absolutely incorrect, but good enough
             MAX(price_high) as price_high,
             MIN(price_low) as price_low,
             FIRST(price_open, datetime) as price_open,
