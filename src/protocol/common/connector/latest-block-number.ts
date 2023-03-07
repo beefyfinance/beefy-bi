@@ -19,8 +19,11 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
 
     cacheOperatorResult$({
       cacheConfig: {
-        type: "global",
-        globalKey: "latest-block-number",
+        // it is absolutely necessary to use a local cache here
+        // this is because when using multiple RPC providers, they can desync and have different latest block numbers
+        // when this happens and we request for eth_getLogs, some unsynced providers will return an empty set instead of the correct logs
+        // this is because they are not synced yet and the block number is not yet available
+        type: "local",
         stdTTLSec: 10 /* 10 sec */,
         useClones: false,
       },
