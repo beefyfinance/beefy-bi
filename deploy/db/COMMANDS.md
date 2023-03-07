@@ -841,3 +841,20 @@ BEGIN
 END
 $$;
 ```
+
+```sql
+-- reimport all investment logs for some chains
+BEGIN;
+update import_state
+ set import_data = jsonb_set(import_data, '{ranges, toRetry}',
+        import_data->'ranges'->'toRetry' || jsonb_build_object('from', import_data->'contractCreatedAtBlock', 'to', import_data->'chainLatestBlockNumber')
+    )
+where import_key in (
+    select 'product:investment:' || product_id
+    from product p
+    where chain in (
+    'arbitrum', 'bsc', 'celo', 'cronos', 'kava', 'moonbeam', 'moonriver', 'optimism'
+    )
+);
+ROLLBACK;
+```
