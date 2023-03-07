@@ -602,7 +602,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 20,
