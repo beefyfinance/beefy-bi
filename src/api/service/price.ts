@@ -77,11 +77,11 @@ export class PriceService {
     });
     return result.map((row) => ({
       datetime: new Date(row.datetime),
-      price_avg: new Decimal(row.price_avg),
-      price_high: new Decimal(row.price_high),
-      price_low: new Decimal(row.price_low),
-      price_open: new Decimal(row.price_open),
-      price_close: new Decimal(row.price_close),
+      price_avg: row.price_avg,
+      price_high: row.price_high,
+      price_low: row.price_low,
+      price_open: row.price_open,
+      price_close: row.price_close,
     }));
   }
 }
