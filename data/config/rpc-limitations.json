@@ -406,7 +406,7 @@
     "<RPC_API_URL_CHAINSTACK_CRONOS>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 60,
       "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": 300,
       "internalTimeoutMs": 120000,
