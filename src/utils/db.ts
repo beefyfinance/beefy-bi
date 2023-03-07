@@ -569,7 +569,7 @@ export async function db_migrate() {
   }
   if (!(await hasPolicy("public", "price_ts_cagg_1h", "continuous_aggregate", "policy_retention"))) {
     await db_query(`
-      SELECT add_retention_policy('price_ts_cagg_1h', INTERVAL '2 months');
+      SELECT add_retention_policy('price_ts_cagg_1h', INTERVAL '6 months');
     `);
   }
 
