@@ -55,7 +55,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
   avax: { type: "etherscan", url: "https://api.snowtrace.io/api" },
   bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
-  canto: { type: "blockscout-json", url: "https://evm.explorer.canto.io" },
+  canto: { type: "blockscout-json", url: "https://tuber.build" },
   celo: { type: "blockscout", url: "https://explorer.celo.org/" },
   cronos: { type: "etherscan", url: "https://api.cronoscan.com/api" },
   emerald: { type: "blockscout", url: "https://explorer.emerald.oasis.dev/" },

@@ -165,7 +165,11 @@ async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress:
       next_page_path: `/address/${contractAddress}/internal-transactions?type=JSON`,
     };
     while (data.next_page_path) {
-      const url = explorerUrl + data.next_page_path;
+      let url = explorerUrl + data.next_page_path;
+      if (!url.includes("type=JSON")) {
+        url = url + "&type=JSON";
+      }
+
       logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
       const resp = await axios.get(url);
       data = resp.data;
@@ -180,7 +184,10 @@ async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress:
         next_page_path: `/address/${contractAddress}/transactions?type=JSON`,
       };
       while (data.next_page_path) {
-        const url = explorerUrl + data.next_page_path;
+        let url = explorerUrl + data.next_page_path;
+        if (!url.includes("type=JSON")) {
+          url = url + "&type=JSON";
+        }
         logger.trace({ msg: "Fetching blockscout transactions", data: { contractAddress, url } });
         const resp = await axios.get(url);
         data = resp.data;
