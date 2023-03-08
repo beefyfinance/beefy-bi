@@ -426,13 +426,13 @@
     "<RPC_API_URL_CHAINSTACK_CRONOS>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 60,
+      "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": 300,
       "internalTimeoutMs": 120000,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 4,
       "methods": {
         "eth_getLogs": 6,
         "eth_call": 10,
@@ -583,7 +583,7 @@
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 1,
       "methods": {
         "eth_getLogs": 10,
