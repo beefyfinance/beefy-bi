@@ -116,7 +116,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT \n  time_bucket('30d', datetime) as \"time\",\n  count(*)\nFROM beefy_investor_timeline_cache_ts\nWHERE\n  $__timeFilter(datetime)\n  and underlying_to_usd_price is null\ngroup by 1\nORDER BY 1",
+          "rawSql": "SELECT \n  time_bucket('30d', datetime) as \"time\",\n  count(*)\nFROM beefy_investor_timeline_cache_ts\nWHERE\n  $__timeFilter(datetime)\n  and underlying_to_usd_price is null\n  and product_id in ($_product_ids)\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -597,7 +597,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select count(*)\nfrom product p\n  left join import_state i on (i.import_data->'productId')::integer = p.product_id and i.import_data->>'type' = 'product:investment'\nwhere product_id in ($_product_ids)\nand i.import_key is null",
+          "rawSql": "select count(*)\nfrom product p\nwhere p.product_id not in (\n  select (i.import_data->'productId')::integer \n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n)\nand product_id in ($_product_ids)",
           "refId": "A",
           "select": [
             [
@@ -1054,8 +1054,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1113,6 +1112,154 @@
         "h": 15,
         "w": 12,
         "x": 0,
+        "y": 34
+      },
+      "id": 70,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "percent",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "9.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with max_block_number_by_chain as materialized (\n  select \n    (i.import_data->>'chain')::chain_enum as chain,\n    max((import_data->>'chainLatestBlockNumber')::integer) as last_covered\n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n  group by 1\n),\nprocuct_block_stats as (\n  select \n    p.chain,\n    product_key, \n    i.import_data is not null as has_import_status,\n    (import_data->>'contractCreatedAtBlock')::integer as contract_creation_block,\n    import_data->'ranges'->'coveredRanges' as covered_range,\n    b.last_covered as chain_last_block,\n    b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,\n    (b.last_covered - (import_data->>'contractCreatedAtBlock')::integer) + 1\n    -\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges')\n    as rest_to_cover,\n    jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry\n  from product p\n  left join import_state i on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  left join max_block_number_by_chain b on p.chain = b.chain\n  where p.product_id in ($_product_ids)\n)\nselect \n  chain,\n  case when (sum(blocks_to_retry)) = 0 then 0 else sum(blocks_to_retry) end as errors_count,\n  case when (sum(blocks_covered)::double precision - sum(blocks_to_retry)) = 0 then 0 else log(sum(blocks_covered)::double precision - sum(blocks_to_retry)) end as success_count,\n  case when (sum(total_blocks_to_cover)::double precision - sum(blocks_covered)) = 0 then 0 else log(sum(total_blocks_to_cover)::double precision - sum(blocks_covered)) end as not_covered_yet\nfrom procuct_block_stats\ngroup by 1\norder by chain::text",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "log block coverage status",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "errors_count"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "success_count"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 15,
+        "w": 12,
+        "x": 12,
         "y": 34
       },
       "id": 51,
@@ -1215,8 +1362,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -1295,8 +1441,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -2291,8 +2436,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2545,8 +2689,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "#EAB839",
@@ -2758,8 +2901,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2903,8 +3045,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -3039,8 +3180,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -4290,6 +4430,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 5,
+  "version": 8,
   "weekStart": ""
 }

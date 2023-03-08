@@ -11,7 +11,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ImportBehaviour, ImportCtx } from "../types/import-context";
+import { ImportCtx } from "../types/import-context";
 
 const logger = rootLogger.child({ module: "connector-common", component: "contract-creation" });
 

@@ -4,12 +4,10 @@ import yargs from "yargs";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { fetchContractCreationInfos$ } from "../protocol/common/connector/contract-creation";
 import { createBatchStreamConfig, defaultImportBehaviour, ImportBehaviour, ImportCtx } from "../protocol/common/types/import-context";
-import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
+import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
-import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
-import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 
 const logger = rootLogger.child({ module: "show-used-rpc-config", component: "main" });
@@ -39,7 +37,7 @@ async function main() {
     contractAddress: argv.contractAddress,
     disableWorkConcurrency: argv.disableWorkConcurrency,
   };
-  const behaviour: ImportBehaviour = { ...cloneDeep(defaultImportBehaviour) };
+  const behaviour: ImportBehaviour = { ...cloneDeep(defaultImportBehaviour), mode: "historical" };
   const rpcConfig = getMultipleRpcConfigsForChain({ chain: options.chain, behaviour })[0];
 
   const ctx: ImportCtx = {
