@@ -137,7 +137,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n      time_bucket(INTERVAL '1 hour', datetime) AS \"time\",\n      AVG(price) as price_avg,\n      MAX(price) as price_high,\n      MIN(price) as price_low,\n      FIRST(price, datetime) as price_open,\n      LAST(price, datetime) as price_close\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_1_id\ngroup by 1\nORDER BY 1",
+          "rawSql": "SELECT\n      time_bucket(INTERVAL '$interval', datetime) AS \"time\",\n      AVG(price) as price_avg,\n      MAX(price) as price_high,\n      MIN(price) as price_low,\n      FIRST(price, datetime) as price_open,\n      LAST(price, datetime) as price_close\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_1_id\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -258,7 +258,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n      time_bucket(INTERVAL '1 hour', datetime) AS \"time\",\n      AVG(price) as price_avg,\n      MAX(price) as price_high,\n      MIN(price) as price_low,\n      FIRST(price, datetime) as price_open,\n      LAST(price, datetime) as price_close\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_2_id\ngroup by 1\nORDER BY 1",
+          "rawSql": "SELECT\n      time_bucket(INTERVAL '$interval', datetime) AS \"time\",\n      AVG(price) as price_avg,\n      MAX(price) as price_high,\n      MIN(price) as price_low,\n      FIRST(price, datetime) as price_open,\n      LAST(price, datetime) as price_close\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_2_id\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -280,8 +280,230 @@
           ]
         }
       ],
-      "title": "PPFS Candles",
+      "title": "LP Price Candles",
       "type": "candlestick"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n      datetime AS \"time\",\n      price\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_1_id\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "PPFS price points",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n      datetime AS \"time\",\n      price\nFROM price_ts\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id = $_price_feed_2_id\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "LP Price points",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -289,7 +511,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 19
       },
       "id": 11,
       "panels": [],
@@ -357,7 +579,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 20
       },
       "id": 2,
       "options": {
@@ -478,7 +700,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 11
+        "y": 20
       },
       "id": 7,
       "options": {
@@ -544,7 +766,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 29
       },
       "id": 9,
       "panels": [],
@@ -596,7 +818,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -611,7 +834,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 21
+        "y": 30
       },
       "id": 6,
       "options": {
@@ -716,7 +939,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -731,7 +955,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 21
+        "y": 30
       },
       "id": 3,
       "options": {
@@ -792,6 +1016,7 @@
       "type": "candlestick"
     }
   ],
+  "refresh": false,
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],
@@ -823,8 +1048,8 @@
       {
         "current": {
           "selected": false,
-          "text": "beefy:vault:optimism:0x3532b6f723948ef39d5dcf44c16855239af81082",
-          "value": "beefy:vault:optimism:0x3532b6f723948ef39d5dcf44c16855239af81082"
+          "text": "beefy:vault:optimism:0xcccebc4551ff20aca4e0356dad8875806ce8df10",
+          "value": "beefy:vault:optimism:0xcccebc4551ff20aca4e0356dad8875806ce8df10"
         },
         "datasource": {
           "type": "postgres",
@@ -844,10 +1069,63 @@
         "type": "query"
       },
       {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
         "current": {
           "selected": false,
-          "text": "4020",
-          "value": "4020"
+          "text": "15m",
+          "value": "15m"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": true,
+            "text": "15m",
+            "value": "15m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "4h",
+            "value": "4h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "15m,1h,4h,1d,7d,14d,30d",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "4076",
+          "value": "4076"
         },
         "datasource": {
           "type": "postgres",
@@ -869,8 +1147,8 @@
       {
         "current": {
           "selected": false,
-          "text": "4510",
-          "value": "4510"
+          "text": "4565",
+          "value": "4565"
         },
         "datasource": {
           "type": "postgres",
@@ -892,13 +1170,13 @@
     ]
   },
   "time": {
-    "from": "now-90d",
-    "to": "now"
+    "from": "2022-06-27T00:00:00.000Z",
+    "to": "2022-06-28T00:00:00.000Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Price debug",
   "uid": "C-jvaLJVz",
-  "version": 10,
+  "version": 13,
   "weekStart": ""
 }

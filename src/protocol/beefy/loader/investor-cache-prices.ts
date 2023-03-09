@@ -9,7 +9,7 @@ const logger = rootLogger.child({ module: "beefy", component: "import-investor-c
 export function createBeefyInvestorCacheRunner(options: { client: DbClient; runnerConfig: NoRpcRunnerConfig<null> }) {
   return createChainRunner(options.runnerConfig, (ctx) =>
     Rx.pipe(
-      addMissingInvestorCacheUsdInfos$({ client: options.client }),
+      addMissingInvestorCacheUsdInfos$({ ctx }),
       Rx.tap(() => logger.info("imported investor cache")),
     ),
   );

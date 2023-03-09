@@ -1,12 +1,16 @@
 import Decimal from "decimal.js";
-import { groupBy, keyBy, uniqBy } from "lodash";
+import { groupBy, keyBy, uniq, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { Nullable } from "../../../../types/ts";
-import { DbClient, db_query, strAddressToPgBytea } from "../../../../utils/db";
+import { db_query, strAddressToPgBytea } from "../../../../utils/db";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
+import { isInRange, rangeSortedArrayExclude } from "../../../../utils/range";
+import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
+import { fetchImportState$, isOraclePriceImportState } from "../../../common/loader/import-state";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
+import { getPriceFeedImportStateKey } from "../../utils/import-state";
 
 const logger = rootLogger.child({ module: "common", component: "investment" });
 
@@ -133,12 +137,84 @@ export function upsertInvestorCacheChainInfos$<
   });
 }
 
-export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) {
+export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
+  const LIMIT_BATCH_SIZE = 50000;
+  type PricedRowType = { product_id: number; investor_id: number; block_number: number; datetime: Date; price: string };
+  type UnpricedRowType = { product_id: number; investor_id: number; block_number: number; datetime: Date; price_feed_2_id: number };
+
+  const updatePriceCache$ = Rx.pipe(
+    Rx.concatMap((rows: PricedRowType[]) => {
+      // batch them by investor ID so updates only modify one partition at a time
+      const rowsByInvestor = groupBy(rows, (row) => `${row.investor_id}`);
+      // yield each batch to be processed
+      return Object.values(rowsByInvestor);
+    }),
+    // do the actual update, it's better to use this when all rows hit the same partition
+    Rx.concatMap(async (rows: PricedRowType[]) => {
+      if (rows.length === 0) {
+        return [];
+      }
+
+      await db_query<never>(
+        `
+        update beefy_investor_timeline_cache_ts
+        set
+          underlying_to_usd_price = to_update.price::evm_decimal_256,
+          usd_balance = underlying_balance * to_update.price::evm_decimal_256,
+          usd_diff = underlying_diff * to_update.price::evm_decimal_256
+        from (VALUES %L) to_update(investor_id, product_id, datetime, block_number, price)
+        where to_update.investor_id::integer = beefy_investor_timeline_cache_ts.investor_id
+          and to_update.product_id::integer = beefy_investor_timeline_cache_ts.product_id
+          and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
+          and to_update.block_number::integer = beefy_investor_timeline_cache_ts.block_number;
+        `,
+        [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
+        options.ctx.client,
+      );
+
+      return rows;
+    }),
+  );
+
+  const findFirstPrice$ = Rx.pipe(
+    Rx.concatMap(async (item: { priceFeed2Ids: number[]; rows: UnpricedRowType[] }) => {
+      // now, find every price feed first price
+      const firstPrices = await db_query<{ price_feed_id: number; datetime: Date; price: string }>(
+        `
+          select
+            pr2.price_feed_id,
+            first(pr2.datetime, pr2.datetime) as datetime,
+            first(pr2.price, pr2.datetime) as price
+          from price_ts pr2
+          where pr2.price_feed_id in (%L)
+          group by 1
+      `,
+        [item.priceFeed2Ids],
+        options.ctx.client,
+      );
+      const firstPricesByFeedId = keyBy(firstPrices, (row) => row.price_feed_id);
+
+      // only keep the rows where the trx datetime is before the first price
+      const rowsToUpdate = item.rows
+        .filter((row) => {
+          const firstPrice = firstPricesByFeedId[row.price_feed_2_id];
+          return firstPrice && row.datetime <= firstPrice.datetime;
+        })
+        // map the new price
+        .map((row) => ({ ...row, price: firstPricesByFeedId[row.price_feed_2_id].price }));
+
+      return { ...item, rows: rowsToUpdate };
+    }),
+    Rx.filter(({ rows }) => rows.length > 0),
+  );
+
   return Rx.pipe(
-    Rx.concatMap(async () => {
-      // find rows with missing usd infoss
-      const rowsMissingPrice = await db_query<{ product_id: number; investor_id: number; block_number: number; datetime: Date; price: string }>(
-        ` 
+    Rx.pipe(
+      Rx.concatMap(async () => {
+        // find rows with missing usd infos where we have a price
+        // the price feed has a point every 15min so we try to match the prices using `time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)`
+        return db_query<PricedRowType>(
+          ` 
           select
             c.investor_id,
             c.product_id,
@@ -150,36 +226,106 @@ export function addMissingInvestorCacheUsdInfos$(options: { client: DbClient }) 
             and time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)
           where c.underlying_to_usd_price is null
           group by 1,2,3,4
-          limit 50000
+          limit ${LIMIT_BATCH_SIZE} -- limit to avoid locking the table for too long
       `,
-        [],
-        options.client,
-      );
+          [],
+          options.ctx.client,
+        );
+      }),
+      // update investor rows
+      updatePriceCache$,
+    ),
+    Rx.pipe(
+      /*
+       * add a heuristic to account for the delay between contract creation and the first price we can get
+       * the price feed we use can start to record a few minutes after the contract is created
+       * in that case, we can have a transaction that doesn't match the `time_bucket('15min', pr2.datetime) = time_bucket('15min', c.datetime)`
+       * condition above, so we need to update those rows as well. It's safe to use the first price in the price series when this happens
+       * only if we know that the date range between the contract creation and the trx have been successfully imported
+       * for example:
+       * - contract created at datetime 2021-08-01 00:01:00 -> 15min bucket is 2021-08-01 00:00:00
+       * - first price recorded at datetime 2021-08-01 00:25:00 -> 15min bucket is 2021-08-01 00:15:00
+       * these 2 won't be matched by the above query, but we can safely use the first price in the series
+       */
+      Rx.pipe(
+        Rx.concatMap(async (updatedRows) => {
+          // skip this heuristic if we think we still have missing prices to update
+          if (updatedRows.length >= LIMIT_BATCH_SIZE) {
+            return [];
+          }
+          // find rows with missing usd infos where we don't have a price
+          const missingUsdRows = await db_query<UnpricedRowType>(
+            ` 
+            select
+              c.investor_id,
+              c.product_id,
+              c.datetime,
+              c.block_number,
+              c.price_feed_2_id
+            from beefy_investor_timeline_cache_ts c
+            where c.underlying_to_usd_price is null
+            limit ${LIMIT_BATCH_SIZE} -- limit to avoid locking the table for too long
+        `,
+            [],
+            options.ctx.client,
+          );
 
-      // batch them by investor ID so updates only modify one partition at a time
-      const missingRowsByInvestor = groupBy(rowsMissingPrice, (row) => `${row.investor_id}`);
-      // yield each batch to be processed
-      return Object.values(missingRowsByInvestor);
-    }),
-    Rx.concatAll(),
-    // update investor rows
-    Rx.concatMap(async (rows) => {
-      await db_query<never>(
-        `
-          update beefy_investor_timeline_cache_ts
-          set
-            underlying_to_usd_price = to_update.price::evm_decimal_256,
-            usd_balance = underlying_balance * to_update.price::evm_decimal_256,
-            usd_diff = underlying_diff * to_update.price::evm_decimal_256
-          from (VALUES %L) to_update(investor_id, product_id, datetime, block_number, price)
-          where to_update.investor_id::integer = beefy_investor_timeline_cache_ts.investor_id
-            and to_update.product_id::integer = beefy_investor_timeline_cache_ts.product_id
-            and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
-            and to_update.block_number::integer = beefy_investor_timeline_cache_ts.block_number;
-          `,
-        [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
-        options.client,
-      );
-    }),
+          if (missingUsdRows.length === 0) {
+            return [];
+          }
+          logger.debug({ msg: "found rows with missing usd infos where we don't have a matching price", data: { rowCount: missingUsdRows.length } });
+          logger.trace({ msg: "found rows with missing usd infos where we don't have a matching price", data: { missingUsdRows } });
+          return missingUsdRows;
+        }),
+        // create an item we can add properties to
+        Rx.filter((rows) => rows.length > 0),
+        Rx.map((rows) => ({ rows })),
+      ),
+
+      Rx.pipe(
+        // find the price feed IDs
+        Rx.map((item) => ({ ...item, priceFeed2Ids: uniq(item.rows.map((row) => row.price_feed_2_id)) })),
+
+        // fetch first prices a first time just to filter out rows where the trx is after the first price
+        findFirstPrice$,
+      ),
+
+      // only keep those where the import is successful between the contract creation and the first price
+      // this is really inefficient to fetch them one by one, but it shouldn't happen very often
+      Rx.pipe(
+        Rx.concatMap((item) => item.rows),
+        fetchImportState$({
+          client: options.ctx.client,
+          streamConfig: options.ctx.streamConfig,
+          getImportStateKey: (row) => getPriceFeedImportStateKey({ priceFeedId: row.price_feed_2_id }),
+          formatOutput: (row, importState) => ({ row, importState }),
+        }),
+        excludeNullFields$("importState"),
+        Rx.filter(({ row, importState }) => {
+          // we should have an oracle price import state here
+          if (!isOraclePriceImportState(importState)) {
+            logger.error({ msg: "Unexpected import state type", data: { importState, row } });
+            return false;
+          }
+
+          const successRanges = rangeSortedArrayExclude(importState.importData.ranges.coveredRanges, importState.importData.ranges.toRetry);
+          const trxDatetime = row.datetime;
+          return successRanges.some((successRange) => isInRange<Date>(successRange, trxDatetime));
+        }),
+        Rx.toArray(),
+        Rx.map((rows) => ({ rows: rows.map((row) => row.row), priceFeed2Ids: uniq(rows.map((row) => row.row.price_feed_2_id)) })),
+      ),
+
+      Rx.pipe(
+        // now, re-fetch price because it could have changed since the first fetch
+        findFirstPrice$,
+        Rx.concatMap((item) => item.rows),
+        Rx.toArray(),
+        Rx.tap((rows) => logger.debug({ msg: "found rows with missing usd infos where we have a matching price", data: { rowCount: rows.length } })),
+
+        // update investor rows with the first prices
+        updatePriceCache$,
+      ),
+    ),
   );
 }
