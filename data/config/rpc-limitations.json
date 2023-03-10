@@ -761,7 +761,7 @@
       }
     },
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
-      "restrictToMode": "historical",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 5000,
@@ -779,7 +779,7 @@
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
