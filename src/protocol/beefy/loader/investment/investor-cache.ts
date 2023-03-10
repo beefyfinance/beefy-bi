@@ -150,13 +150,8 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
     Rx.concatMap(async (rows) => {
       logger.debug({ msg: "Updating price cache", data: { rowCount: rows.length } });
       // batch them by investor ID so updates only modify one partition at a time
-      const rowsByInvestor = groupBy(rows, (row) => `${row.investor_id}`);
-
-      // do the actual update, it's better to use this when all rows hit the same partition
-      for (const [investor, rows] of Object.entries(rowsByInvestor)) {
-        logger.debug({ msg: "Updating price cache batch", data: { investor, rowCount: rows.length } });
-        await db_query<never>(
-          `
+      await db_query<never>(
+        `
             update beefy_investor_timeline_cache_ts
             set
               underlying_to_usd_price = to_update.price::evm_decimal_256,
@@ -168,15 +163,12 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
               and to_update.datetime::timestamp with time zone = beefy_investor_timeline_cache_ts.datetime
               and to_update.block_number::integer = beefy_investor_timeline_cache_ts.block_number;
             `,
-          [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
-          options.ctx.client,
-        );
-      }
+        [rows.map((row) => [row.investor_id, row.product_id, row.datetime.toISOString(), row.block_number, row.price])],
+        options.ctx.client,
+      );
 
       return rows;
     }),
-    Rx.toArray(),
-    Rx.map((rows) => rows.flat()),
   );
 
   const findFirstPrice$ = Rx.pipe(
