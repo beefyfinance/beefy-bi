@@ -209,7 +209,7 @@ export function findClosestPriceData$<TObj, TErr extends ErrorEmitter<TObj>, TRe
 }
 
 export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
-  const LIMIT_BATCH_SIZE = 5000;
+  const LIMIT_BATCH_SIZE = 50000;
   const emitError: ErrorEmitter<any> = (obj, report) => {
     logger.error({ msg: "Error updating cache price", data: { obj, report } });
   };
@@ -301,7 +301,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
               c.datetime,
               c.block_number,
               c.price_feed_2_id
-          from beefy_investor_timeline_cache_ts c
+          from beefy_investor_timeline_cache_ts c TABLESAMPLE BERNOULLI (1) -- sample on 1% of the rows to randomize the order
           where c.underlying_to_usd_price is null
           limit ${LIMIT_BATCH_SIZE};`,
           [],
