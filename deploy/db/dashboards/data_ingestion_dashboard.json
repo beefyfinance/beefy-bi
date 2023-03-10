@@ -350,7 +350,7 @@
         ]
       },
       "gridPos": {
-        "h": 5,
+        "h": 6,
         "w": 4,
         "x": 12,
         "y": 9
@@ -361,7 +361,7 @@
         "legend": {
           "displayMode": "list",
           "placement": "right",
-          "showLegend": true
+          "showLegend": false
         },
         "pieType": "pie",
         "reduceOptions": {
@@ -370,7 +370,7 @@
           "values": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -478,8 +478,8 @@
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
+        "h": 6,
+        "w": 4,
         "x": 16,
         "y": 9
       },
@@ -568,9 +568,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 19,
+        "h": 3,
+        "w": 4,
+        "x": 20,
         "y": 9
       },
       "id": 32,
@@ -618,6 +618,90 @@
         }
       ],
       "title": "Products without a data import object",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 12
+      },
+      "id": 71,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "select count(*) price_cache_without_price\nfrom beefy_investor_timeline_cache_ts \nwhere underlying_to_usd_price is null",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["value"],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Cache without a price",
       "type": "stat"
     },
     {
@@ -827,7 +911,7 @@
         "h": 20,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 15
       },
       "id": 65,
       "options": {
@@ -1260,7 +1344,7 @@
         "h": 15,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 35
       },
       "id": 51,
       "options": {
@@ -1373,7 +1457,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 50
       },
       "id": 20,
       "options": {
@@ -1503,7 +1587,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 54
       },
       "id": 6,
       "options": {
@@ -1560,7 +1644,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 64
+        "y": 65
       },
       "id": 24,
       "panels": [
@@ -1737,7 +1821,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 66
       },
       "id": 34,
       "panels": [
@@ -2120,7 +2204,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 67
       },
       "id": 47,
       "panels": [
@@ -2417,7 +2501,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 67
+        "y": 68
       },
       "id": 42,
       "panels": [
@@ -3678,7 +3762,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 69
       },
       "id": 62,
       "panels": [
@@ -3979,7 +4063,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 69
+        "y": 70
       },
       "id": 12,
       "panels": [
@@ -4430,6 +4514,6 @@
   "timezone": "",
   "title": "Data Ingestion follow up",
   "uid": "rpL7jwV4k",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }

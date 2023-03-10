@@ -170,8 +170,8 @@
         ]
       },
       "gridPos": {
-        "h": 6,
-        "w": 10,
+        "h": 5,
+        "w": 12,
         "x": 0,
         "y": 1
       },
@@ -247,9 +247,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 4,
-        "x": 10,
+        "x": 12,
         "y": 1
       },
       "id": 898,
@@ -330,9 +330,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 4,
-        "x": 14,
+        "x": 16,
         "y": 1
       },
       "id": 899,
@@ -413,9 +413,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 4,
-        "x": 18,
+        "x": 20,
         "y": 1
       },
       "id": 900,
@@ -472,88 +472,6 @@
       ],
       "title": "$chains share rate total work",
       "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "P1A7A05C63CAD1F73"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 2,
-        "x": 22,
-        "y": 1
-      },
-      "id": 907,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "P1A7A05C63CAD1F73"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "select count(*)\nfrom product p\nwhere p.product_id not in (\n  select (i.import_data->'productId')::integer \n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n)",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": ["balance"],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "beefy_investor_timeline_cache_ts",
-          "timeColumn": "datetime",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Products without a data import object",
-      "type": "stat"
     },
     {
       "datasource": {
@@ -671,7 +589,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 7
+        "y": 6
       },
       "id": 756,
       "options": {
@@ -779,7 +697,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 7
+        "y": 6
       },
       "id": 905,
       "options": {
@@ -835,7 +753,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 16
       },
       "id": 829,
       "panels": [],
@@ -976,7 +894,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 17
       },
       "id": 492,
       "options": {
@@ -1161,7 +1079,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 17
       },
       "id": 634,
       "options": {
@@ -1328,7 +1246,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 25
+        "y": 24
       },
       "id": 143,
       "options": {
@@ -1494,7 +1412,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 25
+        "y": 24
       },
       "id": 370,
       "options": {
@@ -1550,7 +1468,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 33
       },
       "id": 2,
       "panels": [],
@@ -1675,7 +1593,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 34
       },
       "id": 371,
       "options": {
@@ -1841,7 +1759,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 34
       },
       "id": 372,
       "options": {
@@ -1927,7 +1845,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 43
       },
       "id": 687,
       "options": {
@@ -1984,8 +1902,8 @@
       {
         "current": {
           "selected": true,
-          "text": ["cronos"],
-          "value": ["cronos"]
+          "text": ["All"],
+          "value": ["$__all"]
         },
         "datasource": {
           "type": "postgres",
@@ -2014,6 +1932,6 @@
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 43,
+  "version": 44,
   "weekStart": ""
 }
