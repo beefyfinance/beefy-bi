@@ -59,17 +59,30 @@ export function upsertInvestorCacheChainInfos$<
   getInvestorCacheChainInfos: (obj: TObj) => TParams;
   formatOutput: (obj: TObj, investment: DbInvestorCacheChainInfos) => TRes;
 }) {
-  return dbBatchCall$({
-    ctx: options.ctx,
-    emitError: options.emitError,
-    formatOutput: options.formatOutput,
-    getData: options.getInvestorCacheChainInfos,
-    logInfos: { msg: "upsertInvestorCache" },
-    processBatch: async (objAndData) => {
-      // data should come from investment_balance_ts upsert so it should be ok and not need further processing
+  return Rx.pipe(
+    Rx.map((obj: TObj) => ({ obj, params: options.getInvestorCacheChainInfos(obj) })),
 
-      const result = await db_query<{ product_id: number; investor_id: number; block_number: number }>(
-        `INSERT INTO beefy_investor_timeline_cache_ts (
+    // fetch the closest price if we have it so we don't have to update the cache later on
+    findClosestPriceData$({
+      ctx: options.ctx,
+      emitError: (err, report) => options.emitError(err.obj, report),
+      getParams: (item) => ({
+        datetime: item.params.datetime,
+        priceFeedId: item.params.priceFeed2Id,
+      }),
+      formatOutput: (item, priceData) => ({ ...item, priceData }),
+    }),
+
+    dbBatchCall$({
+      ctx: options.ctx,
+      emitError: (err, report) => options.emitError(err.obj, report),
+      formatOutput: (item) => item,
+      getData: (item) => ({ ...item.params, priceData: item.priceData }),
+      logInfos: { msg: "upsertInvestorCache" },
+      processBatch: async (objAndData) => {
+        // data should come from investment_balance_ts upsert so it should be ok and not need further processing
+        const result = await db_query<{ product_id: number; investor_id: number; block_number: number }>(
+          `INSERT INTO beefy_investor_timeline_cache_ts (
             investor_id,
             product_id,
             datetime,
@@ -84,7 +97,10 @@ export function upsertInvestorCacheChainInfos$<
             underlying_balance,
             underlying_diff,
             pending_rewards,
-            pending_rewards_diff
+            pending_rewards_diff,
+            underlying_to_usd_price,
+            usd_balance,
+            usd_diff
           ) VALUES %L
             ON CONFLICT (product_id, investor_id, block_number, datetime) 
             DO UPDATE SET 
@@ -96,45 +112,58 @@ export function upsertInvestorCacheChainInfos$<
                 underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
                 underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
                 pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
-                pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff)
+                pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff),
+                usd_balance = coalesce(EXCLUDED.usd_balance, beefy_investor_timeline_cache_ts.usd_balance),
+                usd_diff = coalesce(EXCLUDED.usd_diff, beefy_investor_timeline_cache_ts.usd_diff)
             RETURNING product_id, investor_id, block_number
           `,
-        [
-          uniqBy(objAndData, ({ data }) => `${data.productId}:${data.investorId}:${data.blockNumber}`).map(({ data }) => [
-            data.investorId,
-            data.productId,
-            data.datetime.toISOString(),
-            data.blockNumber,
-            strAddressToPgBytea(data.transactionHash),
-            data.priceFeed1Id,
-            data.priceFeed2Id,
-            data.pendingRewardsPriceFeedId,
-            data.balance ? data.balance.toString() : null,
-            data.balanceDiff ? data.balanceDiff.toString() : null,
-            data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
-            data.underlyingBalance ? data.underlyingBalance.toString() : null,
-            data.underlyingDiff ? data.underlyingDiff.toString() : null,
-            data.pendingRewards ? data.pendingRewards.toString() : null,
-            data.pendingRewardsDiff ? data.pendingRewardsDiff.toString() : null,
-          ]),
-        ],
-        options.ctx.client,
-      );
+          [
+            uniqBy(objAndData, ({ data }) => `${data.productId}:${data.investorId}:${data.blockNumber}`).map(({ data }) => {
+              return [
+                data.investorId,
+                data.productId,
+                data.datetime.toISOString(),
+                data.blockNumber,
+                strAddressToPgBytea(data.transactionHash),
+                data.priceFeed1Id,
+                data.priceFeed2Id,
+                data.pendingRewardsPriceFeedId,
+                data.balance ? data.balance.toString() : null,
+                data.balanceDiff ? data.balanceDiff.toString() : null,
+                data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
+                data.underlyingBalance ? data.underlyingBalance.toString() : null,
+                data.underlyingDiff ? data.underlyingDiff.toString() : null,
+                data.pendingRewards ? data.pendingRewards.toString() : null,
+                data.pendingRewardsDiff ? data.pendingRewardsDiff.toString() : null,
+                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff ? data.priceData.price.toString() : null,
+                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff
+                  ? data.priceData.price.mul(data.underlyingBalance).toString()
+                  : null,
+                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff
+                  ? data.priceData.price.mul(data.underlyingDiff).toString()
+                  : null,
+              ];
+            }),
+          ],
+          options.ctx.client,
+        );
 
-      // update debug data
-      const idMap = keyBy(result, (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
-      return new Map(
-        objAndData.map(({ data }) => {
-          const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
-          const result = idMap[key];
-          if (!result) {
-            throw new ProgrammerError({ msg: "Upserted investment cache not found", data });
-          }
-          return [data, data];
-        }),
-      );
-    },
-  });
+        // update debug data
+        const idMap = keyBy(result, (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
+        return new Map(
+          objAndData.map(({ data }) => {
+            const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
+            const result = idMap[key];
+            if (!result) {
+              throw new ProgrammerError({ msg: "Upserted investment cache not found", data });
+            }
+            return [data, data];
+          }),
+        );
+      },
+    }),
+    Rx.map((item) => item.obj),
+  );
 }
 
 export function findClosestPriceData$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends { datetime: Date; priceFeedId: number }>(options: {
