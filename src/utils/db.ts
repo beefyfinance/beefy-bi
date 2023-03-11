@@ -450,34 +450,6 @@ export async function db_migrate() {
   }
 
   await db_query(`
-    CREATE TABLE IF NOT EXISTS debug_data_ts (
-      debug_data_uuid uuid not null, -- unique id, use uuids so we can generate them without having to query the db
-      datetime timestamptz not null, -- any datetime to make it a hypertable
-      origin_table debug_origin_table_enum not null, -- the table this debug data comes from
-      debug_data jsonb not null -- the actual debug data
-    );
-
-    create index if not exists debug_data_ts_uuid_idx on debug_data_ts (origin_table, debug_data_uuid);
-    
-    SELECT create_hypertable(
-      relation => 'debug_data_ts', 
-      time_column_name => 'datetime',
-      chunk_time_interval => INTERVAL '30 days',
-      if_not_exists => true
-    );
-  `);
-  if (!(await hasPolicy("public", "debug_data_ts", "hypertable", "policy_compression"))) {
-    await db_query(`
-      ALTER TABLE debug_data_ts SET (
-        timescaledb.compress,
-        timescaledb.compress_segmentby = 'origin_table'
-      );
-
-      SELECT add_compression_policy('debug_data_ts', INTERVAL '7 days');
-    `);
-  }
-
-  await db_query(`
     CREATE TABLE IF NOT EXISTS investment_balance_ts (
       datetime timestamptz not null,
 
@@ -493,10 +465,7 @@ export async function db_migrate() {
       balance evm_decimal_256 not null, -- balance of the investment after the block was applied
       balance_diff evm_decimal_256 not null, -- how much the investment changed at this block
       pending_rewards evm_decimal_256_nullable null, -- how much rewards are pending to be claimed
-      pending_rewards_diff evm_decimal_256_nullable null, -- how much rewards changed at this block
-
-      -- link to more debug data
-      debug_data_uuid uuid not null
+      pending_rewards_diff evm_decimal_256_nullable null -- how much rewards changed at this block
     );
     CREATE UNIQUE INDEX IF NOT EXISTS investment_balance_ts_uniq ON investment_balance_ts(product_id, investor_id, block_number, datetime);
 
@@ -519,10 +488,7 @@ export async function db_migrate() {
       -- if the prices do not comes from a chain, we put the timestamp in here
       block_number integer not null,
 
-      price evm_decimal_256 not null,
-
-      -- link to more debug data
-      debug_data_uuid uuid not null
+      price evm_decimal_256 not null
     );
 
     -- make sure we don't create a unique index on a null value because all nulls are considered different
@@ -619,10 +585,7 @@ export async function db_migrate() {
     CREATE TABLE IF NOT EXISTS block_ts (
       datetime timestamptz not null,
       chain chain_enum not null,
-      block_number integer not null,
-      
-      -- link to more debug data
-      debug_data_uuid uuid not null
+      block_number integer not null
     );
     CREATE UNIQUE INDEX IF NOT EXISTS block_ts_uniq ON block_ts(chain, block_number, datetime);
 

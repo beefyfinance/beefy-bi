@@ -48,7 +48,7 @@ export function upsertPrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
         ) VALUES %L
             ON CONFLICT (price_feed_id, block_number, datetime) 
             DO UPDATE SET 
-              price = EXCLUDED.price, 
+              price = EXCLUDED.price
         `,
         [
           uniqBy(objAndData, ({ data }) => `${data.priceFeedId}-${data.blockNumber}`).map(({ data }) => [
