@@ -286,7 +286,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
     Rx.filter(({ row, firstPrice }) => {
       const keep = row.datetime < firstPrice.datetime;
       if (!keep) {
-        logger.trace({ msg: "Excluding row which is after the first price we have" });
+        logger.trace({ msg: "Excluding row which is after the first price we have", data: { row, firstPrice } });
       }
       return keep;
     }),
