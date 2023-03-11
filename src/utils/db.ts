@@ -489,6 +489,7 @@ export async function db_migrate() {
       investor_id integer not null references investor(investor_id),
 
       -- the investment details, all numbers have decimal applied
+      transaction_hash evm_trx_hash,
       balance evm_decimal_256 not null, -- balance of the investment after the block was applied
       balance_diff evm_decimal_256 not null, -- how much the investment changed at this block
       pending_rewards evm_decimal_256_nullable null, -- how much rewards are pending to be claimed
@@ -651,6 +652,7 @@ export async function db_migrate() {
       pending_rewards_price_feed_id integer references price_feed(price_feed_id),
 
       -- store everything as double precision as we can afford to lose some precision for speed
+      transaction_hash evm_trx_hash,
       balance double precision,
       balance_diff double precision,
       share_to_underlying_price double precision,

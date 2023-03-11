@@ -318,7 +318,8 @@ export function loadTransfers$<
     }),
 
     // fetch the transaction cost in gas so we can calculate the gas cost of the transfer and ROI/APY better
-    fetchTransactionGas$({
+    // not in use right now
+    /*fetchTransactionGas$({
       ctx: options.ctx,
       emitError: options.emitError,
       getQueryParams: (item) => ({
@@ -326,7 +327,7 @@ export function loadTransfers$<
         transactionHash: item.target.transfer.transactionHash,
       }),
       formatOutput: (item, gas) => ({ ...item, gas }),
-    }),
+    }),*/
 
     // ==============================
     // now we are ready for the insertion
@@ -352,16 +353,6 @@ export function loadTransfers$<
         blockNumber: item.target.transfer.blockNumber,
         price: item.ppfs,
         datetime: item.blockDatetime,
-        priceData: {
-          chain: options.ctx.chain,
-          trxHash: item.target.transfer.transactionHash,
-          sharesRate: item.ppfs.toString(),
-          productType:
-            item.target.product.productData.type === "beefy:vault"
-              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.target.product.productData.type,
-          query: { range: item.target.range, latest: item.target.latest, date: new Date().toISOString() },
-        },
       }),
       formatOutput: (item, priceRow) => ({ ...item, priceRow }),
     }),
@@ -375,34 +366,12 @@ export function loadTransfers$<
         blockNumber: item.target.transfer.blockNumber,
         productId: item.target.product.productId,
         investorId: item.investorId,
+        transactionHash: item.target.transfer.transactionHash,
         // balance is expressed in vault shares
         balance: item.vaultSharesBalance,
         balanceDiff: item.target.transfer.amountTransferred,
         pendingRewards: item.pendingRewards,
         pendingRewardsDiff: null,
-        investmentData: {
-          chain: options.ctx.chain,
-          balance: item.vaultSharesBalance.toString(),
-          balanceDiff: item.target.transfer.amountTransferred.toString(),
-          trxHash: item.target.transfer.transactionHash,
-          sharesRate: item.ppfs.toString(),
-          productType:
-            item.target.product.productData.type === "beefy:vault"
-              ? item.target.product.productData.type + (item.target.product.productData.vault.is_gov_vault ? ":gov" : ":standard")
-              : item.target.product.productData.type,
-          query: { range: item.target.range, latest: item.target.latest },
-          gas: {
-            cumulativeGasUsed: item.gas.cumulativeGasUsed.toString(),
-            effectiveGasPrice: item.gas.effectiveGasPrice.toString(),
-            gasUsed: item.gas.gasUsed.toString(),
-            l1Fee: item.gas.l1Fee?.toString(),
-            l1FeeScalar: item.gas.l1FeeScalar?.toString(),
-            l1GasPrice: item.gas.l1GasPrice?.toString(),
-            l1GasUsed: item.gas.l1GasUsed?.toString(),
-          },
-          importDate: new Date().toISOString(),
-          lineage: { log: item.target.transfer.logLineage },
-        },
       }),
       formatOutput: (item, investment) => ({ ...item, investment, result: true }),
     }),

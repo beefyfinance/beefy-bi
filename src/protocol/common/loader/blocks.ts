@@ -10,7 +10,6 @@ export interface DbBlock {
   datetime: Date;
   chain: Chain;
   blockNumber: number;
-  blockData: object;
 }
 
 // upsert the address of all objects and return the id in the specified field
@@ -27,38 +26,25 @@ export function upsertBlock$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParam
     getData: options.getBlockData,
     logInfos: { msg: "upsert block" },
     processBatch: async (objAndData) => {
-      // generate debug data uuid for each object
-      const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
-
-      const upsertPromise = db_query(
+      await db_query(
         `INSERT INTO block_ts (
             datetime,
             chain,
-            block_number,
-            debug_data_uuid
+            block_number
         ) VALUES %L
             ON CONFLICT (block_number, chain, datetime) 
-            DO UPDATE SET 
-            debug_data_uuid = coalesce(block_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+            DO NOTHING
         `,
         [
-          uniqBy(objAndDataAndUuid, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(
-            ({ data, debugDataUuid }) => [data.datetime.toISOString(), data.chain, data.blockNumber, debugDataUuid],
-          ),
+          uniqBy(objAndData, ({ data }) => `${options.ctx.chain}-${data.blockNumber}-${data.datetime.toISOString()}`).map(({ data }) => [
+            data.datetime.toISOString(),
+            data.chain,
+            data.blockNumber,
+          ]),
         ],
         options.ctx.client,
       );
 
-      const debugData = objAndDataAndUuid
-        .filter(({ data }) => !isEmpty(data.blockData)) // don't insert empty data
-        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "block_ts", data.blockData]);
-
-      const debugPromise =
-        debugData.length <= 0
-          ? Promise.resolve()
-          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
-
-      await Promise.all([upsertPromise, debugPromise]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });

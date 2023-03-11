@@ -18,7 +18,7 @@ export interface DbInvestment {
   balanceDiff: Decimal;
   pendingRewards: Decimal | null;
   pendingRewardsDiff: Decimal | null;
-  investmentData: object;
+  transactionHash: string;
 }
 
 export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbInvestment>(options: {
@@ -66,7 +66,6 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             obj: group[0].obj,
             data: {
               ...group[0].data,
-              investmentData: group.reduce((acc, objAndData) => merge(acc, objAndData.data.investmentData), {}),
             },
           });
         } else {
@@ -75,10 +74,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         }
       }
 
-      // generate debug data uuid for each object
-      const investmentsAndUuid = investments.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
-
-      const upsertPromise = db_query<{
+      await db_query<{
         datetime: Date;
         product_id: number;
         investor_id: number;
@@ -97,7 +93,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             balance_diff,
             pending_rewards,
             pending_rewards_diff,
-            debug_data_uuid
+            transaction_hash
         ) VALUES %L
             ON CONFLICT (product_id, investor_id, block_number, datetime) 
             DO UPDATE SET 
@@ -105,11 +101,11 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
               balance_diff = EXCLUDED.balance_diff,
               pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
               pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-              debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+              transaction_hash = EXCLUDED.transaction_hash
           RETURNING datetime, product_id, investor_id, block_number, balance, balance_diff, pending_rewards, pending_rewards_diff
         `,
         [
-          investmentsAndUuid.map(({ data, debugDataUuid }) => [
+          investments.map(({ data }) => [
             data.datetime.toISOString(),
             data.blockNumber,
             data.productId,
@@ -118,48 +114,14 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             data.balanceDiff.toString(),
             data.pendingRewards?.toString() || null,
             data.pendingRewardsDiff?.toString() || null,
-            debugDataUuid,
+            data.transactionHash,
           ]),
         ],
         options.ctx.client,
       );
 
-      const debugData = investmentsAndUuid
-        .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
-        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]);
-
-      const debugPromise =
-        debugData.length <= 0
-          ? Promise.resolve()
-          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
-
-      const results = await Promise.all([upsertPromise, debugPromise]);
-
       // update debug data
-      const idMap = keyBy(results[0], (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
-      return new Map(
-        objAndData.map(({ data }): [typeof data, DbInvestment] => {
-          const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
-          const result = idMap[key];
-          if (!result) {
-            throw new ProgrammerError({ msg: "Upserted investment not found", data });
-          }
-          return [
-            data,
-            {
-              investorId: result.investor_id,
-              productId: result.product_id,
-              blockNumber: result.block_number,
-              datetime: result.datetime,
-              balance: new Decimal(result.balance),
-              balanceDiff: new Decimal(result.balance_diff),
-              pendingRewards: result.pending_rewards ? new Decimal(result.pending_rewards) : null,
-              pendingRewardsDiff: result.pending_rewards_diff ? new Decimal(result.pending_rewards_diff) : null,
-              investmentData: data.investmentData,
-            },
-          ];
-        }),
-      );
+      return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });
 }
@@ -188,10 +150,7 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
     getData: options.getInvestmentData,
     logInfos: { msg: "upsertInvestmentRewards" },
     processBatch: async (objAndData) => {
-      // generate debug data uuid for each object
-      const objAndDataAndUuid = objAndData.map(({ obj, data }) => ({ obj, data, debugDataUuid: uuid() }));
-
-      const upsertPromise = db_query(
+      await db_query(
         `INSERT INTO investment_balance_ts (
               datetime,
               block_number,
@@ -200,17 +159,15 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
               balance,
               balance_diff,
               pending_rewards,
-              pending_rewards_diff,
-              debug_data_uuid
+              pending_rewards_diff
           ) VALUES %L
               ON CONFLICT (product_id, investor_id, block_number, datetime) 
               DO UPDATE SET 
                 pending_rewards = coalesce(investment_balance_ts.pending_rewards, EXCLUDED.pending_rewards),
-                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff),
-                debug_data_uuid = coalesce(investment_balance_ts.debug_data_uuid, EXCLUDED.debug_data_uuid)
+                pending_rewards_diff = coalesce(investment_balance_ts.pending_rewards_diff, EXCLUDED.pending_rewards_diff)
           `,
         [
-          objAndDataAndUuid.map(({ data, debugDataUuid }) => [
+          objAndData.map(({ data }) => [
             data.datetime.toISOString(),
             data.blockNumber,
             data.productId,
@@ -219,23 +176,11 @@ export function upsertInvestmentRewards$<TObj, TErr extends ErrorEmitter<TObj>, 
             "0", // balance_diff
             data.pendingRewards?.toString() || null,
             data.pendingRewardsDiff?.toString() || null,
-            debugDataUuid,
           ]),
         ],
         options.ctx.client,
       );
 
-      const debugData = objAndDataAndUuid
-        .filter(({ data }) => !isEmpty(data.investmentData)) // don't insert empty data
-        .map(({ data, debugDataUuid }) => [debugDataUuid, data.datetime.toISOString(), "investment_balance_ts", data.investmentData]);
-
-      const debugPromise =
-        debugData.length <= 0
-          ? Promise.resolve()
-          : db_query(`INSERT INTO debug_data_ts (debug_data_uuid, datetime, origin_table, debug_data) VALUES %L`, [debugData], options.ctx.client);
-
-      // insert into db
-      await Promise.all([upsertPromise, debugPromise]);
       return new Map(objAndData.map(({ data }) => [data, data]));
     },
   });
