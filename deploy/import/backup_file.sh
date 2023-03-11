@@ -23,5 +23,5 @@ BACKUP_FILE_NAME=beefy.`date +'%u'`.pg_dump.gz
 BACKUP_SERVER=storage-box
 
 cd $BACKUP_DIR
-docker run --rm --network container:$DB_CONTAINER -e PGPASSWORD=$PGPASSWORD -u root -w /data -v $PWD:/data $DOCKER_IMAGE pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -Fc $DB_DB | gzip > $BACKUP_FILE_NAME
+docker run --rm --network container:$DB_CONTAINER -e PGPASSWORD=$PGPASSWORD -u root -w /data -v $PWD:/data $DOCKER_IMAGE pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -Fc $DB_DB --exclude-table rpc_error_ts --exclude-table price_ts_cagg_1h --exclude-table price_ts_cagg_1d | gzip > $BACKUP_FILE_NAME
 cd -
