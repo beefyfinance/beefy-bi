@@ -283,7 +283,13 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
     excludeNullFields$("firstPrice"),
 
     // only keep the rows where the trx datetime is before the first price
-    Rx.filter(({ row, firstPrice }) => row.datetime < firstPrice.datetime),
+    Rx.filter(({ row, firstPrice }) => {
+      const keep = row.datetime < firstPrice.datetime;
+      if (!keep) {
+        logger.trace({ msg: "Excluding row which is after the first price we have" });
+      }
+      return keep;
+    }),
 
     // set this row price
     Rx.map(({ row, firstPrice }) => ({ ...row, price: firstPrice.price })),
