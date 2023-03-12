@@ -609,11 +609,6 @@ export async function db_migrate() {
       datetime timestamptz not null,
       block_number integer not null,
 
-      -- denormalized product field to facilitate joins on price_ts
-      price_feed_1_id integer not null references price_feed(price_feed_id),
-      price_feed_2_id integer not null references price_feed(price_feed_id),
-      pending_rewards_price_feed_id integer references price_feed(price_feed_id),
-
       -- store everything as double precision as we can afford to lose some precision for speed
       transaction_hash evm_trx_hash,
       balance double precision,

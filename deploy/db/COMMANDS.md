@@ -858,3 +858,16 @@ where import_key in (
 );
 ROLLBACK;
 ```
+
+```sql
+
+alter table beefy_investor_timeline_cache_ts
+  drop column price_feed_1_id;
+alter table beefy_investor_timeline_cache_ts
+  drop column price_feed_2_id;
+alter table beefy_investor_timeline_cache_ts
+  drop column pending_rewards_price_feed_id;
+
+DROP INDEX beefy_investor_cache_empty_uprice_idx;
+DROP INDEX beefy_investor_cache_empty_rprice_idx;
+```

@@ -8,8 +8,9 @@ import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { rangeInclude, rangeMerge, rangeSortedArrayExclude } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
-import { DbDateRangeImportState, fetchImportState$, isOraclePriceImportState } from "../../../common/loader/import-state";
+import { DbOraclePriceImportState, fetchImportState$, isOraclePriceImportState } from "../../../common/loader/import-state";
 import { findFirstPriceData$, findMatchingPriceData$, interpolatePrice$ } from "../../../common/loader/prices";
+import { DbProduct, fetchProduct$ } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
 import { getPriceFeedImportStateKey } from "../../utils/import-state";
@@ -22,10 +23,6 @@ interface DbInvestorCacheDimensions {
   datetime: Date;
   blockNumber: number;
   transactionHash: string;
-  // denormalized fiels
-  priceFeed1Id: number;
-  priceFeed2Id: number;
-  pendingRewardsPriceFeedId: number | null;
 }
 
 type DbInvestorCacheChainInfos = Nullable<{
@@ -54,7 +51,7 @@ export function upsertInvestorCacheChainInfos$<
   TObj,
   TErr extends ErrorEmitter<TObj>,
   TRes,
-  TParams extends DbInvestorCacheDimensions & DbInvestorCacheChainInfos,
+  TParams extends { data: DbInvestorCacheDimensions & DbInvestorCacheChainInfos; product: DbProduct },
 >(options: {
   ctx: ImportCtx;
   emitError: TErr;
@@ -70,8 +67,8 @@ export function upsertInvestorCacheChainInfos$<
       bucketSize: "15min", // since we only have a 15min precision on the LP price data
       emitError: (err, report) => options.emitError(err.obj, report),
       getParams: (item) => ({
-        datetime: item.params.datetime,
-        priceFeedId: item.params.priceFeed2Id,
+        datetime: item.params.data.datetime,
+        priceFeedId: item.params.product.priceFeedId2,
       }),
       formatOutput: (item, priceData) => ({ ...item, priceData }),
     }),
@@ -91,9 +88,6 @@ export function upsertInvestorCacheChainInfos$<
             datetime,
             block_number,
             transaction_hash,
-            price_feed_1_id,
-            price_feed_2_id,
-            pending_rewards_price_feed_id,
             balance,
             balance_diff,
             share_to_underlying_price,
@@ -121,32 +115,31 @@ export function upsertInvestorCacheChainInfos$<
             RETURNING product_id, investor_id, block_number
           `,
           [
-            uniqBy(objAndData, ({ data }) => `${data.productId}:${data.investorId}:${data.blockNumber}`).map(({ data }) => {
-              return [
-                data.investorId,
-                data.productId,
-                data.datetime.toISOString(),
-                data.blockNumber,
-                strAddressToPgBytea(data.transactionHash),
-                data.priceFeed1Id,
-                data.priceFeed2Id,
-                data.pendingRewardsPriceFeedId,
-                data.balance ? data.balance.toString() : null,
-                data.balanceDiff ? data.balanceDiff.toString() : null,
-                data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
-                data.underlyingBalance ? data.underlyingBalance.toString() : null,
-                data.underlyingDiff ? data.underlyingDiff.toString() : null,
-                data.pendingRewards ? data.pendingRewards.toString() : null,
-                data.pendingRewardsDiff ? data.pendingRewardsDiff.toString() : null,
-                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff ? data.priceData.price.toString() : null,
-                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff
-                  ? data.priceData.price.mul(data.underlyingBalance).toString()
-                  : null,
-                data.priceData && data.priceData.price && data.underlyingBalance && data.underlyingDiff
-                  ? data.priceData.price.mul(data.underlyingDiff).toString()
-                  : null,
-              ];
-            }),
+            uniqBy(objAndData, ({ data: { data, product } }) => `${data.productId}:${data.investorId}:${data.blockNumber}`).map(
+              ({ data: { data, product, priceData } }) => {
+                return [
+                  data.investorId,
+                  data.productId,
+                  data.datetime.toISOString(),
+                  data.blockNumber,
+                  strAddressToPgBytea(data.transactionHash),
+                  data.balance ? data.balance.toString() : null,
+                  data.balanceDiff ? data.balanceDiff.toString() : null,
+                  data.shareToUnderlyingPrice ? data.shareToUnderlyingPrice.toString() : null,
+                  data.underlyingBalance ? data.underlyingBalance.toString() : null,
+                  data.underlyingDiff ? data.underlyingDiff.toString() : null,
+                  data.pendingRewards ? data.pendingRewards.toString() : null,
+                  data.pendingRewardsDiff ? data.pendingRewardsDiff.toString() : null,
+                  priceData && priceData.price && data.underlyingBalance && data.underlyingDiff ? priceData.price.toString() : null,
+                  priceData && priceData.price && data.underlyingBalance && data.underlyingDiff
+                    ? priceData.price.mul(data.underlyingBalance).toString()
+                    : null,
+                  priceData && priceData.price && data.underlyingBalance && data.underlyingDiff
+                    ? priceData.price.mul(data.underlyingDiff).toString()
+                    : null,
+                ];
+              },
+            ),
           ],
           options.ctx.client,
         );
@@ -155,7 +148,7 @@ export function upsertInvestorCacheChainInfos$<
         const idMap = keyBy(result, (result) => `${result.product_id}:${result.investor_id}:${result.block_number}`);
         return new Map(
           objAndData.map(({ data }) => {
-            const key = `${data.productId}:${data.investorId}:${data.blockNumber}`;
+            const key = `${data.data.productId}:${data.data.investorId}:${data.data.blockNumber}`;
             const result = idMap[key];
             if (!result) {
               throw new ProgrammerError({ msg: "Upserted investment cache not found", data });
@@ -175,7 +168,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
     logger.error({ msg: "Error updating cache price", data: { obj, report } });
   };
   type PricedRowType = { product_id: number; investor_id: number; block_number: number; datetime: Date; price: Decimal };
-  type UnpricedRowType = { product_id: number; investor_id: number; block_number: number; datetime: Date; price_feed_2_id: number };
+  type UnpricedRowType = { product_id: number; investor_id: number; block_number: number; datetime: Date };
 
   return Rx.pipe(
     Rx.pipe(
@@ -187,8 +180,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
               c.investor_id,
               c.product_id,
               c.datetime,
-              c.block_number,
-              c.price_feed_2_id
+              c.block_number
           from beefy_investor_timeline_cache_ts c TABLESAMPLE BERNOULLI (10) -- sample on 1% of the rows to randomize the order
           where c.underlying_to_usd_price is null
           limit ${LIMIT_BATCH_SIZE};`,
@@ -198,13 +190,21 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
       }),
       Rx.concatAll(),
 
+      fetchProduct$({
+        ctx: options.ctx,
+        emitError,
+        getProductId: (row) => row.product_id,
+        formatOutput: (row, product) => ({ row, product }),
+      }),
+      excludeNullFields$("product"),
+
       // now, try to match it with an existing price
       findMatchingPriceData$({
         ctx: options.ctx,
         bucketSize: "15min",
         emitError,
-        getParams: (row) => ({ datetime: row.datetime, priceFeedId: row.price_feed_2_id }),
-        formatOutput: (row, matchingPrice) => ({ row, matchingPrice }),
+        getParams: ({ row, product }) => ({ datetime: row.datetime, priceFeedId: product.priceFeedId2 }),
+        formatOutput: (item, matchingPrice) => ({ ...item, matchingPrice }),
       }),
 
       // now we can take 2 paths either we found a price or we didn't
@@ -219,7 +219,6 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
           // if we didn't, use a heuristic
           items$.pipe(
             Rx.filter((item) => item.matchingPrice === null),
-            Rx.map(({ row }) => row),
 
             // for any heuristic we have, we'll have to check the import state, so we fetch it first
             Rx.pipe(
@@ -230,11 +229,11 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                   // since import state is using SELECT FOR UPDATE locks, we are better off fetching them in small amounts
                   dbMaxInputTake: 10,
                 },
-                getImportStateKey: (row) => getPriceFeedImportStateKey({ priceFeedId: row.price_feed_2_id }),
-                formatOutput: (row, importState) => ({ row, importState }),
+                getImportStateKey: (item) => getPriceFeedImportStateKey({ priceFeedId: item.product.priceFeedId2 }),
+                formatOutput: (item, importState) => ({ ...item, importState }),
               }),
               excludeNullFields$("importState"),
-              Rx.filter((item): item is { row: UnpricedRowType; importState: DbDateRangeImportState } => {
+              Rx.filter((item) => {
                 // we should have an oracle price import state here
                 if (!isOraclePriceImportState(item.importState)) {
                   logger.error({ msg: "Unexpected import state type", data: item });
@@ -242,20 +241,22 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                 }
                 return true;
               }),
-              Rx.map((item) => ({
-                ...item,
-                successRanges: rangeMerge(
-                  rangeSortedArrayExclude(item.importState.importData.ranges.coveredRanges, item.importState.importData.ranges.toRetry),
-                ),
-                contractCreation: item.importState.importData.firstDate,
-              })),
+              Rx.map((item) => {
+                const importState = item.importState as DbOraclePriceImportState;
+                const ranges = importState.importData.ranges;
+                return {
+                  ...item,
+                  successRanges: rangeMerge(rangeSortedArrayExclude(ranges.coveredRanges, ranges.toRetry)),
+                  contractCreation: importState.importData.firstDate,
+                };
+              }),
             ),
 
             // fetch first price a first time
             findFirstPriceData$({
               ctx: options.ctx,
               emitError,
-              getParams: (item) => ({ priceFeedId: item.row.price_feed_2_id }),
+              getParams: (item) => ({ priceFeedId: item.product.priceFeedId2 }),
               formatOutput: (item, firstPrice) => ({ ...item, firstPrice }),
             }),
 
@@ -338,7 +339,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                           emitError,
                           getQueryParams: (item) => ({
                             datetime: item.row.datetime,
-                            priceFeedId: item.row.price_feed_2_id,
+                            priceFeedId: item.product.priceFeedId2,
                           }),
                           formatOutput: (item, interpolatedPrice) => ({ ...item, interpolatedPrice }),
                         }),
