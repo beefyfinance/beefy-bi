@@ -331,7 +331,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                         interpolatePrice$({
                           ctx: options.ctx,
                           bucketSize: "15min",
-                          windowSize: "1day",
+                          windowSize: "3days",
                           emitError,
                           getQueryParams: (item) => ({
                             datetime: item.row.datetime,
