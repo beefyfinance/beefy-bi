@@ -285,7 +285,10 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                 items$.pipe(
                   Rx.filter(({ firstPrice }) => firstPrice === null),
                   Rx.filter(({ row, successRanges, contractCreation }) => {
-                    const shouldInclude = { from: contractCreation, to: new Date(row.datetime.getTime() + samplingPeriodMs["1month"]) };
+                    const shouldInclude = {
+                      from: contractCreation,
+                      to: new Date(Math.min(row.datetime.getTime() + samplingPeriodMs["1month"], new Date().getTime())),
+                    };
                     const hasDefinitelyNoPrices = successRanges.some((range) => rangeInclude(range, shouldInclude));
                     if (!hasDefinitelyNoPrices) {
                       logger.warn({
@@ -346,10 +349,10 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                         }),
                         excludeNullFields$("interpolatedPrice"),
 
-                        Rx.filter(({ row, successRanges }) => {
+                        Rx.filter(({ row, successRanges, firstPrice }) => {
                           const shouldInclude = {
-                            from: new Date(row.datetime.getTime() - samplingPeriodMs["1day"]),
-                            to: new Date(row.datetime.getTime() + samplingPeriodMs["1day"]),
+                            from: new Date(Math.max(row.datetime.getTime() - samplingPeriodMs["1day"], firstPrice.datetime.getTime())),
+                            to: new Date(Math.min(row.datetime.getTime() + samplingPeriodMs["1day"], new Date().getTime())),
                           };
                           const isDefinitelyInterpolated = successRanges.some((range) => rangeInclude(range, shouldInclude));
 
