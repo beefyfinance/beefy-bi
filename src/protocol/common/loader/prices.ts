@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { flatten, groupBy, keyBy, uniq, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { SamplingPeriod } from "../../../types/sampling";
+import { Nullable } from "../../../types/ts";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -215,7 +216,11 @@ export function interpolatePrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
           ]);
         }
 
-        const interpolatedPrice = await db_query<{ id: number } & DbPrice>(queries.join(" UNION ALL "), flatten(params), options.ctx.client);
+        const interpolatedPrice = await db_query<{ id: number } & Nullable<DbPrice>>(
+          queries.join(" UNION ALL "),
+          flatten(params),
+          options.ctx.client,
+        );
         const interpolatedPriceByIndex = keyBy(interpolatedPrice, (row) => row.id);
 
         return new Map(
@@ -223,7 +228,7 @@ export function interpolatePrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             const price = interpolatedPriceByIndex[index];
             return [
               data,
-              price
+              price && price.price && price.priceFeedId && price.datetime && price.blockNumber
                 ? { priceFeedId: price.priceFeedId, datetime: price.datetime, blockNumber: price.blockNumber, price: new Decimal(price.price) }
                 : null,
             ];
