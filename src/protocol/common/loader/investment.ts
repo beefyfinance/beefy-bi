@@ -1,7 +1,7 @@
 import Decimal from "decimal.js";
 import { groupBy, isEmpty, keyBy, merge } from "lodash";
 import { v4 as uuid } from "uuid";
-import { db_query } from "../../../utils/db";
+import { db_query, strAddressToPgBytea } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
@@ -114,7 +114,7 @@ export function upsertInvestment$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
             data.balanceDiff.toString(),
             data.pendingRewards?.toString() || null,
             data.pendingRewardsDiff?.toString() || null,
-            data.transactionHash,
+            strAddressToPgBytea(data.transactionHash),
           ]),
         ],
         options.ctx.client,
