@@ -200,7 +200,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t investor-cache -l 15sec"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t investor-cache -l 5min"
 
   importer-prices-historical:
     <<: *importer

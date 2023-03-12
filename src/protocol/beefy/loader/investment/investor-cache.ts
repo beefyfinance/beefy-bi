@@ -181,7 +181,7 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
               c.product_id,
               c.datetime,
               c.block_number
-          from beefy_investor_timeline_cache_ts c TABLESAMPLE BERNOULLI (10) -- sample on 1% of the rows to randomize the order
+          from beefy_investor_timeline_cache_ts c
           where c.underlying_to_usd_price is null
           limit ${LIMIT_BATCH_SIZE};`,
           [],
