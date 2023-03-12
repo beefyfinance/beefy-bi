@@ -1,4 +1,6 @@
+import { defaultImportBehaviour } from "../types/import-context";
 import { _restrictRangesWithImportState } from "./import-queries";
+
 describe("import-queries", () => {
   it("should restrict import ranges using import state", async () => {
     const ranges = [{ from: 1, to: 1000 }];
@@ -8,7 +10,7 @@ describe("import-queries", () => {
     const limitRangeCount = 10;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    const res = _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
       // first, try to import new data
       { from: 800, to: 899 },
@@ -33,7 +35,7 @@ describe("import-queries", () => {
     const limitRangeCount = 10;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    const res = _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
       { from: 890, to: 899 },
       { from: 880, to: 889 },
@@ -56,7 +58,7 @@ describe("import-queries", () => {
     const limitRangeCount = 3;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    const res = _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
       { from: 400, to: 899 },
       { from: 1, to: 399 },
@@ -78,7 +80,7 @@ describe("import-queries", () => {
     const limitRangeCount = 3;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    const res = _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
       { from: 400, to: 899 },
       { from: 1, to: 399 },
@@ -94,7 +96,7 @@ describe("import-queries", () => {
     const limitRangeCount = 6;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    const res = _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    const res = _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
     expect(res).toEqual([
       { from: 861, to: 899 },
       { from: 750, to: 849 },
@@ -114,7 +116,7 @@ describe("import-queries", () => {
     const limitRangeCount = 6;
 
     const importState: any = { importData: { ranges: { coveredRanges, toRetry } } };
-    _restrictRangesWithImportState(ranges, importState, maxRangeLength, limitRangeCount);
+    _restrictRangesWithImportState(defaultImportBehaviour, ranges, importState, maxRangeLength, limitRangeCount);
 
     expect(ranges).toEqual([{ from: 500, to: 1000 }]);
     expect(coveredRanges).toEqual([{ from: 900, to: 1000 }]);

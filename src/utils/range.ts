@@ -85,6 +85,22 @@ export function isInRange<T extends SupportedRangeTypes>(range: Range<T>, value:
   return strat.compare(range.from, value) <= 0 && strat.compare(value, range.to) <= 0;
 }
 
+/**
+ * True if A includes B
+ * True if B is included in A
+ */
+export function rangeInclude<T extends SupportedRangeTypes>(a: Range<T>, b: Range<T>, strategy?: RangeStrategy<T>): boolean {
+  const strat = strategy || getRangeStrategy(a);
+
+  if (strat.compare(a.from, b.from) > 0) {
+    return false;
+  }
+  if (strat.compare(b.to, a.to) > 0) {
+    return false;
+  }
+  return true;
+}
+
 export function rangeOverlap<T extends SupportedRangeTypes>(a: Range<T>, b: Range<T>, strategy?: RangeStrategy<T>): boolean {
   const strat = strategy || getRangeStrategy(a);
   if (strat.compare(a.from, b.to) > 0) {

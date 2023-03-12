@@ -7,6 +7,7 @@ import {
   rangeEqual,
   rangeExclude,
   rangeExcludeMany,
+  rangeInclude,
   rangeManyOverlap,
   rangeMerge,
   rangeOverlap,
@@ -254,6 +255,19 @@ describe("range utils: numbers", () => {
       { from: 20, to: 24 },
       { from: 25, to: 27 },
     ]);
+  });
+
+  it("should test for range inclusion", () => {
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 1, to: 10 })).toBe(true);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 1, to: 9 })).toBe(true);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 2, to: 10 })).toBe(true);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 2, to: 9 })).toBe(true);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 0, to: 11 })).toBe(false);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 11, to: 12 })).toBe(false);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 0, to: 10 })).toBe(false);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: 0, to: 11 })).toBe(false);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: -1, to: 0 })).toBe(false);
+    expect(rangeInclude({ from: 1, to: 10 }, { from: -1, to: 3 })).toBe(false);
   });
 
   it("should test for range strict overlap", () => {
@@ -802,6 +816,43 @@ describe("range utils: dates", () => {
       { from: new Date("2000-01-05"), to: new Date("2000-01-05T02:59:59.999Z") },
     ]);
   });
+
+  it("should test for range inclusion", () => {
+    expect(
+      rangeInclude(
+        { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+        { from: new Date("2000-01-01"), to: new Date("2000-01-01T23:59:59.999Z") },
+      ),
+    ).toBe(true);
+    expect(
+      rangeInclude(
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-01T10:00:00.000Z"), to: new Date("2000-01-01T12:00:00.000Z") },
+      ),
+    ).toBe(true);
+    expect(
+      rangeInclude({ from: new Date("2000-01-01"), to: new Date("2000-01-02") }, { from: new Date("1999-01-01"), to: new Date("2022-01-01") }),
+    ).toBe(false);
+    expect(
+      rangeInclude(
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-01"), to: new Date("2000-01-01T10:00:00.000Z") },
+      ),
+    ).toBe(true);
+    expect(
+      rangeInclude(
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-01T10:00:00.000Z"), to: new Date("2000-01-02") },
+      ),
+    ).toBe(true);
+    expect(
+      rangeInclude(
+        { from: new Date("2000-01-01"), to: new Date("2000-01-02") },
+        { from: new Date("2000-01-02T00:00:00.001Z"), to: new Date("2000-01-03") },
+      ),
+    ).toBe(false);
+  });
+
   it("should test for range strict overlap", () => {
     expect(
       rangeOverlap(
