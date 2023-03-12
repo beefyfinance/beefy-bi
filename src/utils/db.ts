@@ -642,8 +642,7 @@ export async function db_migrate() {
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_query_idx ON beefy_investor_timeline_cache_ts (investor_id);
 
     -- find empty price index
-    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_uprice_idx ON beefy_investor_timeline_cache_ts (price_feed_2_id, time_bucket('15min', datetime)) where underlying_to_usd_price is null;
-    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_rprice_idx ON beefy_investor_timeline_cache_ts (pending_rewards_price_feed_id, time_bucket('15min', datetime)) where pending_rewards_to_usd_price is null and pending_rewards_price_feed_id is not null;
+    CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_price_idx ON beefy_investor_timeline_cache_ts (time_bucket('15min', datetime)) where underlying_to_usd_price is null;
   `);
 
   // track down rpc errors to be able to understand what's going on without looking at logs
