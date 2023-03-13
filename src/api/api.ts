@@ -56,12 +56,12 @@ server.register(async (instance, opts, done) => {
     })
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
-    // rate limit disabled globally because I don't know how to disable it just for swagger ui
-    .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100 })
     .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)
+    // rate limit disabled globally because I don't know how to disable it just for swagger ui
+    .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100 })
     .register(routes, { prefix: "/api/v1" });
 
   done();
