@@ -62,7 +62,7 @@ server.register(async (instance, opts, done) => {
     .register(FastifyEtag)
     .register(FastifyCaching, cacheOptions)
     // rate limit disabled globally because I don't know how to disable it just for swagger ui
-    .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100 })
+    .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100, redis: redisClient })
     .register(routes, { prefix: "/api/v1" });
 
   done();
