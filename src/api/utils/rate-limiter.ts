@@ -1,8 +1,9 @@
+import { RateLimitOptions, RateLimitPluginOptions } from "@fastify/rate-limit";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
 
 export async function getRateLimitOpts() {
   const redisClient = await getRedisClient();
-  return {
+  const opts: RateLimitOptions & RateLimitPluginOptions = {
     max: 5,
     timeWindow: 5000,
     cache: 10000,
@@ -10,14 +11,11 @@ export async function getRateLimitOpts() {
     continueExceeding: true,
     skipOnError: false,
     enableDraftSpec: true, // default false. Uses IEFT draft header standard
-    addHeaders: {
-      // default config
-      "x-ratelimit-limit": true,
-      "x-ratelimit-remaining": true,
-      "x-ratelimit-reset": true,
-      "retry-after": true,
-      // avoid caching 429s
-      "cache-control": "no-cache",
+
+    // don't cache 429s
+    onExceeding: function (req, key) {
+      req.headers["cache-control"] = "no-cache";
     },
   };
+  return opts;
 }
