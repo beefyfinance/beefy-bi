@@ -65,6 +65,11 @@ server.register(async (instance, opts, done) => {
     .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100, redis: redisClient })
     .register(routes, { prefix: "/api/v1" });
 
+  // don't cache 429s
+  instance.addHook("onError", (_, reply) => {
+    reply.header("cache-control", "no-cache");
+  });
+
   done();
 });
 
