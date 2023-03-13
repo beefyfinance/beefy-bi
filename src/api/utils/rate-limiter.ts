@@ -10,5 +10,14 @@ export async function getRateLimitOpts() {
     continueExceeding: true,
     skipOnError: false,
     enableDraftSpec: true, // default false. Uses IEFT draft header standard
+    addHeaders: {
+      // default config
+      "x-ratelimit-limit": true,
+      "x-ratelimit-remaining": true,
+      "x-ratelimit-reset": true,
+      "retry-after": true,
+      // avoid caching 429s
+      "cache-control": "no-cache",
+    },
   };
 }
