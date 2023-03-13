@@ -26,6 +26,7 @@ import { registerDI } from "./service"; // register DI services
 const logger = rootLogger.child({ module: "api", component: "main" });
 const server = fastify({
   logger,
+  trustProxy: true, // cloudflare or nginx http termination
 });
 
 // register anything that connects to redis (caching mostly)
