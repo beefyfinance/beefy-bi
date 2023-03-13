@@ -1,6 +1,6 @@
 import { RateLimitOptions } from "@fastify/rate-limit";
 
-export async function getRateLimitOpts(): RateLimitOptions {
+export async function getRateLimitOpts(): Promise<RateLimitOptions> {
   return {
     max: 5,
     timeWindow: 5000,
