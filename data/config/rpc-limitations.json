@@ -558,6 +558,7 @@
   },
   "kava": {
     "https://evm.kava.io": {
+      "comment": "DO NOT ENABLE, sending out-of-sync data",
       "restrictToMode": "recent",
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
@@ -565,7 +566,7 @@
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 56,
@@ -576,6 +577,7 @@
       }
     },
     "https://evm.data.kava.io": {
+      "comment": "DO NOT ENABLE, sending out-of-sync data",
       "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 5000,
@@ -583,7 +585,7 @@
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
       "disableBatching": true,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 10,
@@ -594,7 +596,7 @@
       }
     },
     "<RPC_API_URL_KAVA_BEEFY>": {
-      "restrictToMode": "historical",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 4096,
