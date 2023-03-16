@@ -1,7 +1,5 @@
 import FastifyDI from "@fastify/awilix";
-import FastifyCaching, { FastifyCachingPluginOptions } from "@fastify/caching";
 import FastifyCors from "@fastify/cors";
-import FastifyEtag from "@fastify/etag";
 import FastifyHelmet from "@fastify/helmet";
 import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit from "@fastify/rate-limit";
@@ -33,22 +31,6 @@ const server = fastify({
 server.register(async (instance, opts, done) => {
   await registerDI(instance);
   const redisClient = await getRedisClient();
-  const AbstractCache: any = require("abstract-cache"); // todo: add or install types
-  const abcache = AbstractCache({
-    useAwait: false,
-    driver: {
-      name: "abstract-cache-redis", // must be installed via `npm i`
-      options: { client: redisClient },
-    },
-  });
-  const cacheOptions: FastifyCachingPluginOptions = {
-    privacy: FastifyCaching.privacy.PUBLIC,
-    expiresIn: 5 * 60,
-    cache: abcache,
-    serverExpiresIn: 5 * 60,
-    etagMaxLife: 5 * 60,
-  };
-
   instance
     .register(FastifyRedis, { client: redisClient })
     .register(FastifyPostgres, {
@@ -59,16 +41,14 @@ server.register(async (instance, opts, done) => {
     .register(FastifyUnderPressure)
     .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
-    .register(FastifyEtag)
-    .register(FastifyCaching, cacheOptions)
     // rate limit disabled globally because I don't know how to disable it just for swagger ui
-    .register(FastifyRateLimit, { global: false, timeWindow: "1 minute", max: 100, redis: redisClient })
+    .register(FastifyRateLimit, {
+      global: false,
+      timeWindow: "1 minute",
+      max: 100,
+      redis: redisClient,
+    })
     .register(routes, { prefix: "/api/v1" });
-
-  // don't cache 429s
-  instance.addHook("onError", (_, reply) => {
-    reply.header("cache-control", "no-cache");
-  });
 
   done();
 });
