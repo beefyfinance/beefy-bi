@@ -188,7 +188,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 1day"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t products -l 2hour"
 
   importer-ignore-addresses:
     <<: *importer
