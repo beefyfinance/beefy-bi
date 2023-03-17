@@ -745,7 +745,7 @@
   },
   "optimism": {
     "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
+      "restrictToMode": "recent",
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 3000,
@@ -770,7 +770,7 @@
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 1,
       "methods": {
         "eth_getLogs": 20,
