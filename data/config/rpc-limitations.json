@@ -763,7 +763,7 @@
       }
     },
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
-      "restrictToMode": null,
+      "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 5000,
