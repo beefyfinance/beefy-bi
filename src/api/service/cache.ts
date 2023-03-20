@@ -39,9 +39,11 @@ export class AsyncCache {
     }
     logger.trace({ msg: "wrap: cache miss", data: { key, ttlMs } });
     const value = await fn();
-    logger.trace({ msg: "wrap: setting cache value", data: { key, ttlMs } });
-    await this.set(key, value, ttlMs);
-    logger.trace({ msg: "wrap: cache value set", data: { key, ttlMs } });
+    if (value !== null && value !== undefined) {
+      logger.trace({ msg: "wrap: setting non null cache value", data: { key, ttlMs } });
+      await this.set(key, value, ttlMs);
+      logger.trace({ msg: "wrap: cache value set", data: { key, ttlMs } });
+    }
     return value;
   }
 }
