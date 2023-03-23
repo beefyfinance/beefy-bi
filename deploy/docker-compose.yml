@@ -348,7 +348,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c arbitrum -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c arbitrum -l 15min -S live"
 
   importer-investment-historical-aurora:
     <<: *importer
@@ -366,7 +366,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c bsc -l 15sec -S all" # recent import is also importing eol, so we can exclude recent range totally
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c bsc -l 15min -S all" # recent import is also importing eol, so we can exclude recent range totally
 
   importer-investment-historical-canto:
     <<: *importer
@@ -450,7 +450,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c optimism -l 15sec -S live"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c optimism -l 15min -S live"
 
   importer-investment-historical-polygon:
     <<: *importer
@@ -494,7 +494,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c bsc -l 15sec -S none"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c bsc -l 15min -S none"
 
   importer-investment-historical-share-rate-celo:
     <<: *importer
@@ -572,7 +572,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c optimism -l 15sec -S none"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c optimism -l 15min -S none"
 
   importer-investment-historical-share-rate-polygon:
     <<: *importer
