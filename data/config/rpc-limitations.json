@@ -106,7 +106,7 @@
       "weight": 4,
       "methods": {
         "eth_getLogs": null,
-        "eth_call": 100,
+        "eth_call": 10,
         "eth_getBlockByNumber": 100,
         "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 100
