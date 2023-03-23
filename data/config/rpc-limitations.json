@@ -21,7 +21,7 @@
     "https://arb-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
@@ -97,7 +97,7 @@
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 25000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
@@ -765,7 +765,7 @@
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
