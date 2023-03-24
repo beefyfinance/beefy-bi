@@ -49,5 +49,6 @@
     "Unretryable",
     "WNATIVE",
     "wtoken"
-  ]
+  ],
+  "typescript.tsdk": "./node_modules/typescript/lib"
 }
