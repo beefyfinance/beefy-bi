@@ -1,18 +1,10 @@
-import { ContractCallContext, ContractCallResults, Multicall } from "ethereum-multicall";
+import { ContractCallContext, Multicall } from "ethereum-multicall";
 import { ethers } from "ethers";
-import yargs from "yargs";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
-import { defaultImportBehaviour } from "../protocol/common/types/import-context";
-import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
-import { allChainIds, Chain } from "../types/chain";
-import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
-import { BeefyVaultV6AbiInterface, ERC20AbiInterface } from "../utils/abi";
+import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
+import { Chain } from "../types/chain";
 import { getBeefyMulticallAddress } from "../utils/addressbook";
-import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
-import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
-
-const logger = rootLogger.child({ module: "show-used-rpc-config", component: "main" });
 
 async function main() {
   const chain = "ethereum" as Chain;
@@ -36,7 +28,6 @@ async function main() {
   };
 
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
-
   const rpcConfigs = getMultipleRpcConfigsForChain({ chain: chain, behaviour });
   const rpcConfig = rpcConfigs[0];
   const provider = rpcConfig.linearProvider;
@@ -48,6 +39,14 @@ async function main() {
   // other context like wallet, signer etc all can be passed in as well.
   const multicall = new Multicall({ ethersProvider: provider, tryAggregate: true, multicallCustomContractAddress: multicallAddress });
 
+  const ppfsAbi = {
+    inputs: [],
+    name: "getPricePerFullShare",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  };
+
   const vaults = [
     "0x83BE6565c0758f746c09f95559B45Cfb9a0FFFc4",
     "0xCc19786F91BB1F3F3Fd9A2eA9fD9a54F7743039E",
@@ -56,13 +55,6 @@ async function main() {
 
   const calls: ContractCallContext[] = [];
   for (const vaultAddress of vaults) {
-    const ppfsAbi = {
-      inputs: [],
-      name: "getPricePerFullShare",
-      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-      stateMutability: "view",
-      type: "function",
-    };
     const reference = vaultAddress.toLocaleLowerCase();
     calls.push({
       reference: reference,
