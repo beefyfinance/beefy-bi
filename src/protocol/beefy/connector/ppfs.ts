@@ -108,6 +108,14 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
         logger.error({ msg: "Could not find reference in MultiCall result", data: { contractCall, reference, res: mcRes } });
         throw new Error("Could not find reference in MultiCall result");
       }
+
+      // when vault is empty, we get an empty result array
+      // but this happens when the RPC returns an error too so we can't process this
+      // the sad story is that we don't get any details about the error
+      if (value.returnValues.length === 0 || value.decoded === false || value.success === false) {
+        logger.error({ msg: "PPFS result coming from multicall could not be parsed", data: { contractCall, reference, res: mcRes } });
+        throw new Error("PPFS result coming from multicall could not be parsed");
+      }
       const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = value.returnValues[0];
       const ppfs = "hex" in rawPpfs ? ethers.BigNumber.from(rawPpfs.hex) : rawPpfs instanceof ethers.BigNumber ? rawPpfs : null;
       if (!ppfs) {

@@ -8,7 +8,7 @@ import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
 import { runMain } from "../utils/process";
 
 async function main() {
-  const chain = "ethereum" as Chain;
+  const chain = "bsc" as Chain;
   const cmdParams = {
     client: {} as any,
     rpcCount: "all" as const,
@@ -49,9 +49,15 @@ async function main() {
 
   const blockNumber = 16896415;
   const vaults = [
-    "0x83BE6565c0758f746c09f95559B45Cfb9a0FFFc4",
-    "0xCc19786F91BB1F3F3Fd9A2eA9fD9a54F7743039E",
-    "0x5Bcd31a28D77a1A5Ef5e0146Ab91e6f43D7100b7",
+    // eth
+    //"0x83BE6565c0758f746c09f95559B45Cfb9a0FFFc4",
+    //"0xCc19786F91BB1F3F3Fd9A2eA9fD9a54F7743039E",
+    //"0x5Bcd31a28D77a1A5Ef5e0146Ab91e6f43D7100b7",
+    // bsc
+    "0xF80d1196119B65aFc91357Daebb02F368F3Bca02",
+    "0x6A3B5A4952791F15Da5763745AfEA8366Ad06C7d",
+    "0x3C3bFaFe7c4570eF6061AaaB6dac576aB1896B7d",
+    "0x92E586d7dB14483C103c2e0FE6A596F8b55DA752", // this one has zero TVL so ppfs will throw
   ];
   /*
   // check that we can indeed fetch ppfs normally
@@ -85,6 +91,12 @@ async function main() {
     console.log({ value });
     if (!value) {
       throw new Error("Call return not found");
+    }
+    // when vault is empty, we get an empty result array
+    // but this happens when the RPC returns an error too so we can't process this
+    // the sad story is that we don't get any details about the error
+    if (value.returnValues.length === 0 || value.decoded === false || value.success === false) {
+      throw new Error("PPFS result coming from multicall could not be parsed");
     }
     const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = value.returnValues[0];
     const ppfs = "hex" in rawPpfs ? ethers.BigNumber.from(rawPpfs.hex) : rawPpfs instanceof ethers.BigNumber ? rawPpfs : null;
