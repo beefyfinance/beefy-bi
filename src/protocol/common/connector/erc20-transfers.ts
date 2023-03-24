@@ -11,7 +11,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
-import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
+import { batchRpcCalls$, RPCBatchCallResult } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -163,9 +163,9 @@ async function fetchERC20TransferEventsFromRpc(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: GetTransferCallParams[],
-): Promise<Map<GetTransferCallParams, ERC20Transfer[]>> {
+): Promise<RPCBatchCallResult<GetTransferCallParams, ERC20Transfer[]>> {
   if (contractCalls.length === 0) {
-    return new Map();
+    return { successes: new Map(), errors: new Map() };
   }
 
   logger.debug({
@@ -204,12 +204,15 @@ async function fetchERC20TransferEventsFromRpc(
     });
   }
 
-  return new Map(
-    zipWith(contractCalls, eventsRes, (contractCall, events) => {
-      const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
-      return [contractCall, transfers];
-    }),
-  );
+  return {
+    successes: new Map(
+      zipWith(contractCalls, eventsRes, (contractCall, events) => {
+        const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
+        return [contractCall, transfers];
+      }),
+    ),
+    errors: new Map(),
+  };
 }
 
 /**

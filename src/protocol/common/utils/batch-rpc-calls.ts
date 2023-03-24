@@ -10,6 +10,8 @@ import { cloneBatchProvider } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "utils", component: "batch-rpc-calls" });
 
+export type RPCBatchCallResult<TQueryObj, TQueryResp> = { successes: Map<TQueryObj, TQueryResp>; errors: Map<TQueryObj, ErrorReport> };
+
 export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQueryObj, TQueryResp>(options: {
   ctx: ImportCtx;
   emitError: TErr;
@@ -17,7 +19,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
   processBatch: (
     provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider,
     queryObjs: TQueryObj[],
-  ) => Promise<Map<TQueryObj, TQueryResp>>;
+  ) => Promise<RPCBatchCallResult<TQueryObj, TQueryResp>>;
   // we are doing this much rpc calls per input object
   // this is used to calculate the input batch to send to the client
   // and to know if we can inject the batch provider or if we should use the regular provider
@@ -97,16 +99,24 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
           noLockIfNoLimit: canUseBatchProvider, // no lock when using batch provider because we are using a copy of the provider
         });
 
-        return objAndCallParams.map(({ obj, query }) => {
-          if (!resultMap.has(query)) {
+        const outputs: TRes[] = [];
+        for (const { obj, query } of objAndCallParams) {
+          const errorReport = resultMap.errors.get(query);
+          if (errorReport) {
+            options.emitError(obj, errorReport);
+            continue;
+          }
+
+          if (!resultMap.successes.has(query)) {
             logger.error(mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.chain, obj, query, resultMap } }, options.logInfos));
             throw new ProgrammerError(
               mergeLogsInfos({ msg: "result not found", data: { chain: options.ctx.chain, obj, query, resultMap } }, options.logInfos),
             );
           }
-          const res = resultMap.get(query) as TQueryResp;
-          return options.formatOutput(obj, res);
-        });
+          const res = resultMap.successes.get(query) as TQueryResp;
+          outputs.push(options.formatOutput(obj, res));
+        }
+        return outputs;
       } catch (error: any) {
         // here, none of the retrying worked, so we emit all the objects as in error
         const report: ErrorReport = {

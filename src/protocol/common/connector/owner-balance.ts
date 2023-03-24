@@ -51,7 +51,7 @@ export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, T
         return params.map((p) => [p, balance] as const);
       });
       const results = await Promise.all(calls);
-      return new Map(results.flat());
+      return { successes: new Map(results.flat()), errors: new Map() };
     },
   });
 }

@@ -7,9 +7,10 @@ import { Chain } from "../../../types/chain";
 import { BeefyVaultV6AbiInterface } from "../../../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
+import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
-import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
-import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
+import { batchRpcCalls$, RPCBatchCallResult } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -48,10 +49,10 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: TParams[],
-): Promise<Map<TParams, Decimal>> {
+): Promise<RPCBatchCallResult<TParams, Decimal>> {
   // short circuit if no calls
   if (contractCalls.length === 0) {
-    return new Map();
+    return { successes: new Map(), errors: new Map() };
   }
 
   logger.debug({
@@ -59,9 +60,6 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     data: { chain, contractCalls: contractCalls.length },
   });
 
-  type PPFSEntry = [TParams, ethers.BigNumber];
-  type MapEntry = [TParams, Decimal];
-  let shareRatePromises: Promise<MapEntry>[] = [];
   const manualPpfsCallOn: Chain[] = ["harmony", "heco"];
 
   // if all contract call have the same block number, we can use a multicall contract to spare some rpc calls
@@ -100,36 +98,46 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     const multicall = new Multicall({ ethersProvider: provider, tryAggregate: true, multicallCustomContractAddress: mcMap.multicallAddress });
     const mcRes = await multicall.call(calls, { blockNumber: ethers.utils.hexValue(blockNumber) });
 
-    const res: Map<TParams, Decimal> = new Map();
+    const successes: Map<TParams, Decimal> = new Map();
+    const errors: Map<TParams, ErrorReport> = new Map();
     for (const contractCall of contractCalls) {
       const reference = contractCall.vaultAddress.toLocaleLowerCase();
       const value = mcRes.results[reference]?.callsReturnContext.find((c) => c.reference === reference);
       if (!value) {
-        logger.error({ msg: "Could not find reference in MultiCall result", data: { contractCall, reference, res: mcRes } });
-        throw new Error("Could not find reference in MultiCall result");
+        errors.set(contractCall, { infos: { msg: "Could not find reference in MultiCall result", data: { contractCall, reference, res: mcRes } } });
+        continue;
       }
 
       // when vault is empty, we get an empty result array
       // but this happens when the RPC returns an error too so we can't process this
       // the sad story is that we don't get any details about the error
       if (value.returnValues.length === 0 || value.decoded === false || value.success === false) {
-        logger.error({ msg: "PPFS result coming from multicall could not be parsed", data: { contractCall, reference, res: mcRes } });
-        throw new Error("PPFS result coming from multicall could not be parsed");
+        errors.set(contractCall, {
+          infos: { msg: "PPFS result coming from multicall could not be parsed", data: { contractCall, reference, res: mcRes } },
+        });
+        continue;
       }
       const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = value.returnValues[0];
       const ppfs = "hex" in rawPpfs ? ethers.BigNumber.from(rawPpfs.hex) : rawPpfs instanceof ethers.BigNumber ? rawPpfs : null;
       if (!ppfs) {
-        logger.error({ msg: "Could not parse MultiCall result into a ppfs data point", data: { contractCall, reference, rawPpfs } });
-        throw new Error("Could not parse MultiCall result into a ppfs data point");
+        errors.set(contractCall, {
+          infos: { msg: "Could not parse MultiCall result into a ppfs data point", data: { contractCall, reference, rawPpfs } },
+        });
+        continue;
       }
       const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
-      res.set(contractCall, vaultShareRate);
+      successes.set(contractCall, vaultShareRate);
     }
 
-    return res;
+    return { successes, errors };
   }
 
   // fetch all ppfs in one go, this will batch calls using jsonrpc batching
+  type PPFSEntry = [TParams, ethers.BigNumber];
+  type MapEntry = [TParams, Decimal];
+  type ErrEntry = [TParams, ErrorReport];
+  type CallResult<T> = { type: "success"; data: T } | { type: "error"; data: ErrEntry };
+  let shareRatePromises: Promise<CallResult<MapEntry>>[] = [];
   for (const contractCall of contractCalls) {
     let rawPromise: Promise<[ethers.BigNumber]>;
 
@@ -143,24 +151,42 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     }
 
     const shareRatePromise = rawPromise
-      .then(([ppfs]) => [contractCall, ppfs] as PPFSEntry)
-      .catch((err) => {
+      .then(
+        ([ppfs]): CallResult<PPFSEntry> => ({
+          type: "success",
+          data: [contractCall, ppfs] as PPFSEntry,
+        }),
+      )
+      // empty vaults WILL throw an error
+      .catch((err): CallResult<PPFSEntry> => {
         if (isEmptyVaultPPFSError(err)) {
-          return [contractCall, ethers.BigNumber.from(0)] as PPFSEntry;
+          return { type: "success", data: [contractCall, ethers.BigNumber.from(0)] as PPFSEntry };
         } else {
-          // otherwise, we pass the error through
-          throw err;
+          return {
+            type: "error",
+            data: [contractCall, { error: err, infos: { msg: "Unrecoverable error while fetching ppfs", data: { contractCall } } }] as ErrEntry,
+          };
         }
       })
-      .then(([contractCall, ppfs]) => {
-        const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
-        return [contractCall, vaultShareRate] as MapEntry;
+      .then((res): CallResult<MapEntry> => {
+        if (res.type === "success") {
+          const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, res.data[1]);
+          return { type: "success", data: [contractCall, vaultShareRate] };
+        } else if (res.type === "error") {
+          return res;
+        } else {
+          throw new ProgrammerError({ msg: "Unmapped type", data: { res } });
+        }
       });
 
     shareRatePromises.push(shareRatePromise);
   }
 
-  return new Map(await Promise.all(shareRatePromises));
+  const batchResults = await Promise.all(shareRatePromises);
+  return {
+    successes: new Map(batchResults.filter((r): r is { type: "success"; data: MapEntry } => r.type === "success").map((r) => r.data)),
+    errors: new Map(batchResults.filter((r): r is { type: "error"; data: ErrEntry } => r.type === "error").map((r) => r.data)),
+  };
 }
 
 // sometimes, we get this error: "execution reverted: SafeMath: division by zero"

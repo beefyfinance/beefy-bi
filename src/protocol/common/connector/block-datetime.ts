@@ -63,7 +63,7 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
             }
           }),
         );
-        return new Map(entries);
+        return { successes: new Map(entries), errors: new Map() };
       },
       formatOutput: (obj, blockDate) => ({ obj, blockDate }),
       logInfos: { msg: "Fetching block datetime", data: {} },
