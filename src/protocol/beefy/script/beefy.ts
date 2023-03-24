@@ -20,7 +20,7 @@ import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
 import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
 import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
 import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
-import { createBeefyHistoricalShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
+import { createBeefyHistoricalShareRatePricesRunner, createBeefyRecentShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
 import { getProductContractAddress } from "../utils/contract-accessors";
@@ -40,6 +40,7 @@ interface CmdParams {
     | "ignore-address"
     | "recent-prices"
     | "historical-prices"
+    | "recent-share-rate"
     | "historical-share-rate"
     | "reward-snapshots"
     | "investor-cache";
@@ -156,6 +157,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               "ignore-address",
               "recent-prices",
               "historical-prices",
+              "recent-share-rate",
               "historical-share-rate",
               "reward-snapshots",
               "investor-cache",
@@ -258,6 +260,7 @@ function getTasksToRun(cmdParams: CmdParams) {
       return [() => importBeefyDataPrices(cmdParams)];
     case "ignore-address":
       return [() => importIgnoreAddress(cmdParams)];
+    case "recent-share-rate":
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
     case "reward-snapshots":
@@ -452,15 +455,11 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   }
 
   // now import data for those
-  const runner = createBeefyHistoricalShareRatePricesRunner({
-    chain: chain,
-    runnerConfig: {
-      client: cmdParams.client,
-      chain,
-      getInputs,
-      behaviour,
-    },
-  });
+  const runnerConfig = { client: cmdParams.client, chain, getInputs, behaviour };
+  const runner =
+    behaviour.mode === "recent"
+      ? createBeefyRecentShareRatePricesRunner({ chain, runnerConfig })
+      : createBeefyHistoricalShareRatePricesRunner({ chain, runnerConfig });
 
   return runner.run();
 }
@@ -565,6 +564,7 @@ const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
   "ignore-address": "recent",
   "recent-prices": "recent",
   "historical-prices": "historical",
+  "recent-share-rate": "recent",
   "historical-share-rate": "historical",
   "reward-snapshots": "historical",
   "investor-cache": "recent",

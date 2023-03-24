@@ -45,7 +45,21 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
 
     // for each batch, fetch the transfers
     Rx.mergeMap(async (objs) => {
-      logger.trace(mergeLogsInfos({ msg: "batchRpcCalls$ - batch", data: { objsCount: objs.length } }, options.logInfos));
+      logger.trace(
+        mergeLogsInfos(
+          {
+            msg: "batchRpcCalls$ - batch",
+            data: {
+              objsCount: objs.length,
+              maxInputObjsPerBatch,
+              canUseBatchProvider,
+              workConcurrency,
+              maxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
+            },
+          },
+          options.logInfos,
+        ),
+      );
 
       const objAndCallParams = objs.map((obj) => ({ obj, query: options.getQuery(obj) }));
 

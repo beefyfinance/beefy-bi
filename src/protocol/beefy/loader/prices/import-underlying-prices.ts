@@ -79,7 +79,7 @@ export function createBeefyHistoricalUnderlyingPricesRunner(options: { runnerCon
 }
 
 export function createBeefyRecentUnderlyingPricesRunner(options: { runnerConfig: NoRpcRunnerConfig<UnderlyingPriceFeedInput> }) {
-  return createRecentImportRunner<UnderlyingPriceFeedInput, Date>({
+  return createRecentImportRunner<UnderlyingPriceFeedInput, Date, DbOraclePriceImportState>({
     runnerConfig: options.runnerConfig,
     cacheKey: "beefy:underlying:prices:recent",
     logInfos: { msg: "Importing beefy recent underlying prices" },

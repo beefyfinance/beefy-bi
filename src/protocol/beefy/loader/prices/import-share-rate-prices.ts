@@ -5,6 +5,7 @@ import { ProgrammerError } from "../../../../utils/programmer-error";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { addRegularIntervalBlockRangesQueries } from "../../../common/connector/import-queries";
+import { latestBlockNumber$ } from "../../../common/connector/latest-block-number";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { DbProductInvestmentImportState, DbProductShareRateImportState, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
@@ -12,7 +13,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { fetchProduct$ } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
-import { createHistoricalImportRunner } from "../../../common/utils/historical-recent-pipeline";
+import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { fetchBeefyPPFS$ } from "../../connector/ppfs";
 import { getInvestmentsImportStateKey, getPriceFeedImportStateKey } from "../../utils/import-state";
@@ -20,10 +21,34 @@ import { isBeefyBoost, isBeefyGovVault } from "../../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "share-rate-import" });
 
-export function createBeefyHistoricalShareRatePricesRunner(options: {
-  chain: Chain;
-  runnerConfig: ChainRunnerConfig<DbPriceFeed>;
-}) {
+export function createBeefyRecentShareRatePricesRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbPriceFeed> }) {
+  return createRecentImportRunner<DbPriceFeed, number, DbProductShareRateImportState>({
+    runnerConfig: options.runnerConfig,
+    logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },
+    getImportStateKey: getPriceFeedImportStateKey,
+    isLiveItem: (target) => target.priceFeedData.active,
+    cacheKey: "beefy:product:share-rate:recent",
+    generateQueries$: ({ ctx, emitError, lastImported, formatOutput }) =>
+      Rx.pipe(
+        latestBlockNumber$({
+          ctx,
+          emitError,
+          formatOutput: (obj, latestBlockNumber) =>
+            formatOutput(obj, latestBlockNumber, [
+              lastImported
+                ? { from: lastImported, to: latestBlockNumber - options.runnerConfig.behaviour.waitForBlockPropagation }
+                : {
+                    from: latestBlockNumber - options.runnerConfig.behaviour.waitForBlockPropagation * 2,
+                    to: latestBlockNumber - options.runnerConfig.behaviour.waitForBlockPropagation,
+                  },
+            ]),
+        }),
+      ),
+    processImportQuery$: (ctx, emitError) => Rx.pipe(excludeNullFields$("importState"), processShareRateQuery$({ ctx, emitError })),
+  });
+}
+
+export function createBeefyHistoricalShareRatePricesRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbPriceFeed> }) {
   return createHistoricalImportRunner<DbPriceFeed, number, DbProductShareRateImportState>({
     runnerConfig: options.runnerConfig,
     logInfos: { msg: "Importing historical share rate prices", data: { chain: options.chain } },

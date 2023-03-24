@@ -1,4 +1,6 @@
-import { keyBy, uniq } from "lodash";
+import { Block } from "@ethersproject/abstract-provider";
+import { uniq } from "lodash";
+import NodeCache from "node-cache";
 import * as Rx from "rxjs";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -16,6 +18,13 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
   formatOutput: (obj: TObj, blockDate: Date) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const chain = options.ctx.chain;
+
+  // avoid re-fetching the same block datetime again and again
+  // if many requests arrive with the same blockNumber at once
+  const cache = new NodeCache({
+    stdTTL: 5,
+    useClones: false,
+  });
 
   const fetchFromRPC$ = Rx.pipe(
     // add TS typings
@@ -35,20 +44,26 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
       getQuery: options.getBlockNumber,
       processBatch: async (provider, params: TParams[]) => {
         const uniqBlockNumbers = uniq(params);
-        const blocks = await Promise.all(uniqBlockNumbers.map((blockNumber) => provider.getBlock(blockNumber)));
-        const blockByNumberMap = keyBy(blocks, "number");
 
-        const result = new Map(
-          params.map((blockNumber) => {
-            const block = blockByNumberMap[blockNumber];
-            if (block === undefined) {
-              logger.error({ msg: "block date not found", data: { blockNumber, blockByNumberMap, params } });
-              throw new Error(`Block ${blockNumber} not found`);
+        const entries = await Promise.all(
+          uniqBlockNumbers.map(async (blockNumber) => {
+            // cache the promise directly so that we don't have to wait for the call to end to cache the value
+            // this increases the cache hit rate
+            const cachedPromise = cache.get<Promise<[TParams, Date]>>(blockNumber);
+            if (cachedPromise) {
+              return cachedPromise;
+            } else {
+              const prom = (async () => {
+                const block: Block = await provider.getBlock(blockNumber);
+                const date = new Date(block.timestamp * 1000);
+                return [blockNumber, date] as const;
+              })();
+              cache.set(blockNumber, prom);
+              return prom;
             }
-            return [blockNumber, new Date(block.timestamp * 1000)];
           }),
         );
-        return result;
+        return new Map(entries);
       },
       formatOutput: (obj, blockDate) => ({ obj, blockDate }),
       logInfos: { msg: "Fetching block datetime", data: {} },

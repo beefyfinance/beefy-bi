@@ -1,9 +1,11 @@
 import axios from "axios";
 import Decimal from "decimal.js";
+import { ContractCallContext, Multicall } from "ethereum-multicall";
 import { ethers } from "ethers";
-import { get } from "lodash";
+import { get, uniq } from "lodash";
 import { Chain } from "../../../types/chain";
 import { BeefyVaultV6AbiInterface } from "../../../utils/abi";
+import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
@@ -60,6 +62,64 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   type PPFSEntry = [TParams, ethers.BigNumber];
   type MapEntry = [TParams, Decimal];
   let shareRatePromises: Promise<MapEntry>[] = [];
+  const manualPpfsCallOn: Chain[] = ["harmony", "heco"];
+
+  // if all contract call have the same block number, we can use a multicall contract to spare some rpc calls
+  const mcMap = MULTICALL3_ADDRESS_MAP[chain];
+  const uniqBlockNumbers = uniq(contractCalls.map((c) => c.blockNumber));
+  if (
+    // all contract calls have the same block number
+    contractCalls.length > 1 &&
+    uniqBlockNumbers.length === 1 &&
+    // we are not in the special case of a manual call chain
+    !manualPpfsCallOn.includes(chain) &&
+    // this chain has the Multicall3 contract deployed
+    mcMap &&
+    // the block number we work on is after the mc contract creation
+    mcMap.createdAtBlock < uniqBlockNumbers[0]
+  ) {
+    const blockNumber = uniqBlockNumbers[0];
+    const ppfsAbi = {
+      inputs: [],
+      name: "getPricePerFullShare",
+      outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+      stateMutability: "view",
+      type: "function",
+    };
+    const calls: ContractCallContext[] = [];
+    for (const contractCall of contractCalls) {
+      const reference = contractCall.vaultAddress.toLocaleLowerCase();
+      calls.push({
+        reference: reference,
+        contractAddress: contractCall.vaultAddress,
+        abi: [ppfsAbi] as any[],
+        calls: [{ reference: reference, methodName: "getPricePerFullShare", methodParameters: [] }],
+      });
+    }
+
+    const multicall = new Multicall({ ethersProvider: provider, tryAggregate: true, multicallCustomContractAddress: mcMap.multicallAddress });
+    const mcRes = await multicall.call(calls, { blockNumber: ethers.utils.hexValue(blockNumber) });
+
+    const res: Map<TParams, Decimal> = new Map();
+    for (const contractCall of contractCalls) {
+      const reference = contractCall.vaultAddress.toLocaleLowerCase();
+      const value = mcRes.results[reference]?.callsReturnContext.find((c) => c.reference === reference);
+      if (!value) {
+        logger.error({ msg: "Could not find reference in MultiCall result", data: { contractCall, reference, res: mcRes } });
+        throw new Error("Could not find reference in MultiCall result");
+      }
+      const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = value.returnValues[0];
+      const ppfs = "hex" in rawPpfs ? ethers.BigNumber.from(rawPpfs.hex) : rawPpfs instanceof ethers.BigNumber ? rawPpfs : null;
+      if (!ppfs) {
+        logger.error({ msg: "Could not parse MultiCall result into a ppfs data point", data: { contractCall, reference, rawPpfs } });
+        throw new Error("Could not parse MultiCall result into a ppfs data point");
+      }
+      const vaultShareRate = ppfsToVaultSharesRate(contractCall.vaultDecimals, contractCall.underlyingDecimals, ppfs);
+      res.set(contractCall, vaultShareRate);
+    }
+
+    return res;
+  }
 
   // fetch all ppfs in one go, this will batch calls using jsonrpc batching
   for (const contractCall of contractCalls) {
@@ -67,7 +127,7 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
 
     // it looks like ethers doesn't yet support harmony's special format or something
     // same for heco
-    if (chain === "harmony" || chain === "heco") {
+    if (manualPpfsCallOn.includes(chain)) {
       rawPromise = fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall);
     } else {
       const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6AbiInterface, provider);

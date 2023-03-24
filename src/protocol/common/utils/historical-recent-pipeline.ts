@@ -139,7 +139,7 @@ export function createHistoricalImportRunner<TInput, TRange extends SupportedRan
 }
 
 const recentImportCache: Record<string, SupportedRangeTypes> = {};
-export function createRecentImportRunner<TInput, TRange extends SupportedRangeTypes>(options: {
+export function createRecentImportRunner<TInput, TRange extends SupportedRangeTypes, TImport extends DbImportState>(options: {
   logInfos: LogInfos;
   runnerConfig: RunnerConfig<TInput>;
   cacheKey: string;
@@ -154,7 +154,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
   processImportQuery$: (
     ctx: ImportCtx,
     emitError: ErrorEmitter<ImportRangeQuery<TInput, TRange>>,
-  ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange>, ImportRangeResult<TInput, TRange>>;
+  ) => Rx.OperatorFunction<ImportRangeQuery<TInput, TRange> & { importState: TImport | null }, ImportRangeResult<TInput, TRange>>;
 }) {
   const createPipeline = (ctx: ImportCtx) =>
     Rx.pipe(
@@ -166,7 +166,7 @@ export function createRecentImportRunner<TInput, TRange extends SupportedRangeTy
         client: ctx.client,
         streamConfig: ctx.streamConfig,
         getImportStateKey: (item) => options.getImportStateKey(item.target),
-        formatOutput: (item, importState) => ({ ...item, importState }),
+        formatOutput: (item, importState) => ({ ...item, importState: importState as TImport }),
       }),
 
       Rx.pipe(
