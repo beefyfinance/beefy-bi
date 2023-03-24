@@ -12,6 +12,11 @@ export function getChainNetworkId(chain: Chain): number {
   return addressbook.ChainId[addrBookChain];
 }
 
+export function getBeefyMulticallAddress(chain: Chain): string {
+  const addrBookChain = chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
+  return addressbook.addressBook[addrBookChain].platforms.beefyfinance.multicall;
+}
+
 export function getChainWNativeTokenAddress(chain: Chain): string {
   const tokens = getAddressBookTokensConfig(chain);
   return normalizeAddressOrThrow(tokens.WNATIVE.address);
