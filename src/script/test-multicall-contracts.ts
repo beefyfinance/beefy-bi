@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
+import { BeefyVaultV6AbiInterface } from "../utils/abi";
 import { getBeefyMulticallAddress } from "../utils/addressbook";
 import { runMain } from "../utils/process";
 
@@ -47,12 +48,22 @@ async function main() {
     type: "function",
   };
 
+  const blockNumber = 16896415;
   const vaults = [
     "0x83BE6565c0758f746c09f95559B45Cfb9a0FFFc4",
     "0xCc19786F91BB1F3F3Fd9A2eA9fD9a54F7743039E",
     "0x5Bcd31a28D77a1A5Ef5e0146Ab91e6f43D7100b7",
   ];
 
+  // check that we can indeed fetch ppfs normally
+  for (const vaultAddress of vaults) {
+    const contract = new ethers.Contract(vaultAddress, BeefyVaultV6AbiInterface, provider);
+    const ppfss = await contract.functions.getPricePerFullShare({ blockTag: blockNumber });
+    const ppfs = ppfss[0].toString();
+    console.dir({ vaultAddress, ppfs });
+  }
+
+  // now use a multicall
   const calls: ContractCallContext[] = [];
   for (const vaultAddress of vaults) {
     const reference = vaultAddress.toLocaleLowerCase();
@@ -64,7 +75,7 @@ async function main() {
     });
   }
 
-  const res = await multicall.call(calls, { blockNumber: ethers.utils.hexValue(16896415) });
+  const res = await multicall.call(calls, { blockNumber: ethers.utils.hexValue(blockNumber) });
   console.dir(res);
 
   /*
