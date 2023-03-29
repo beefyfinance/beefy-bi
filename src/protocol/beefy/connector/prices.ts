@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as Rx from "rxjs";
 import { SamplingPeriod } from "../../../types/sampling";
-import { BEEFY_DATA_URL } from "../../../utils/config";
+import { BEEFY_DATA_KEY, BEEFY_DATA_URL } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
@@ -66,26 +66,24 @@ export async function fetchBeefyPrices(
   if (samplingPeriod !== "15min") {
     throw new Error(`Unsupported sampling period: ${samplingPeriod}`);
   }
-  const apiPeriod = samplingPeriod === "15min" ? "minute" : "minute";
   const startDate = options?.startDate || new Date(0);
   const endDate = options?.endDate || new Date(new Date().getTime() + 10000000);
 
   const params = {
-    name: oracleId,
-    period: apiPeriod,
+    oracle: oracleId,
     from: Math.floor(startDate.getTime() / 1000),
     to: Math.ceil(endDate.getTime() / 1000),
-    limit: 1000000000,
+    key: BEEFY_DATA_KEY
   };
   logger.debug({ msg: "Fetching prices", data: { params } });
 
-  const res = await axios.get<{ ts: number; name: string; v: number }[]>(BEEFY_DATA_URL + "/price", { params });
+  const res = await axios.get<{ t: number; v: number }[]>(BEEFY_DATA_URL + "/api/v2/prices/range", { params });
 
   return res.data.map(
     (price) =>
       ({
-        datetime: new Date(price.ts),
-        oracleId: price.name,
+        datetime: new Date(price.t * 1000),
+        oracleId: oracleId,
         value: price.v,
       } as PriceSnapshot),
   );

@@ -35,6 +35,7 @@ export const DISABLE_PROGRAMMER_ERROR_DUMP = process.env.DISABLE_PROGRAMMER_ERRO
 export const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.finance";
+export const BEEFY_DATA_KEY = process.env.BEEFY_DATA_KEY || null;
 
 export const RPC_API_KEY_AURORA = process.env.RPC_API_KEY_AURORA || null;
 export const RPC_API_KEY_ANKR = process.env.RPC_API_KEY_ANKR || null;
