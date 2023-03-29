@@ -73,7 +73,6 @@ export async function fetchBeefyPrices(
     oracle: oracleId,
     from: Math.floor(startDate.getTime() / 1000),
     to: Math.ceil(endDate.getTime() / 1000),
-    limit: 1000000000,
     key: BEEFY_DATA_KEY
   };
   logger.debug({ msg: "Fetching prices", data: { params } });
@@ -83,7 +82,7 @@ export async function fetchBeefyPrices(
   return res.data.map(
     (price) =>
       ({
-        datetime: new Date(price.t),
+        datetime: new Date(price.t * 1000),
         oracleId: oracleId,
         value: price.v,
       } as PriceSnapshot),
