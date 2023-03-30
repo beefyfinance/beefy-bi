@@ -13,7 +13,6 @@ import {
   API_PORT,
   API_URL,
   APP_LOCAL_BUILDS_URL,
-  APP_LOCAL_VITE,
   APP_PR_BUILDS_URL,
   TIMESCALEDB_URL,
 } from "../utils/config";
@@ -40,7 +39,7 @@ server.register(async (instance, opts, done) => {
     })
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
-    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL, APP_LOCAL_VITE] })
+    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     // rate limit disabled globally because I don't know how to disable it just for swagger ui
     .register(FastifyRateLimit, {
