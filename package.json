@@ -1,7 +1,7 @@
 {
   "name": "beefy-bi",
   "scripts": {
-    "test": "TZ=UTC jest",
+    "test": "TZ=UTC jest --maxConcurrency=1",
     "build": "tsc",
     "infra:start": "cd ./deploy && docker compose -p dev -f docker-compose.dev.yml up -d",
     "infra:logs": "cd ./deploy && docker compose -p dev -f docker-compose.dev.yml logs -f",
@@ -33,13 +33,11 @@
   },
   "dependencies": {
     "@fastify/awilix": "^3.0.1",
-    "@fastify/caching": "^8.2.0",
+    "@fastify/caching": "^8.3.0",
     "@fastify/cors": "^8.2.1",
-    "@fastify/etag": "^4.2.0",
     "@fastify/helmet": "^10.1.0",
     "@fastify/postgres": "^5.2.0",
     "@fastify/rate-limit": "^8.0.0",
-    "@fastify/redis": "^6.1.0",
     "@fastify/swagger": "^8.3.1",
     "@fastify/swagger-ui": "^1.5.0",
     "@fastify/type-provider-json-schema-to-ts": "^2.2.2",

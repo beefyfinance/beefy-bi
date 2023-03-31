@@ -1,14 +1,12 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { addressSchema } from "../../schema/address";
-import { getRateLimitOpts } from "../../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
   const schema = { querystring: S.object().prop("address", addressSchema.required()) };
   type TRoute = { Querystring: { address: string } };
-  const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 
-  instance.get<TRoute>("/timeline", routeOptions, async (req, reply) => {
+  instance.get<TRoute>("/timeline", { schema }, async (req, reply) => {
     const { address } = req.query;
     const investorId = await instance.diContainer.cradle.investor.getInvestorId(address);
     if (investorId === null) {

@@ -4,11 +4,11 @@ import { rootLogger } from "../../utils/logger";
 const logger = rootLogger.child({ module: "api", component: "cache" });
 
 export class AsyncCache {
-  constructor(protected services: { abcache: AbstractCacheCompliantObject }) {}
+  constructor(protected services: { abCache: AbstractCacheCompliantObject }) {}
 
   async get<T>(key: string): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.services.abcache.get(key, (err, value) => {
+      this.services.abCache.get(key, (err, value) => {
         if (err) {
           reject(err);
         } else {
@@ -20,7 +20,7 @@ export class AsyncCache {
 
   async set<T>(key: string, value: T, ttlMs: number): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.services.abcache.set(key, value, ttlMs, (err, value) => {
+      this.services.abCache.set(key, value, ttlMs, (err, value) => {
         if (err) {
           reject(err);
         } else {
