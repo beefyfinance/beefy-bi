@@ -82,7 +82,7 @@ export function fetchTransactionGas$<TObj, TErr extends ErrorEmitter<TObj>, TRes
       });
       const resultByHash = new Map(await Promise.all(resultByHashPromises));
 
-      return new Map(params.map((param) => [param, resultByHash.get(param.transactionHash)!]));
+      return { successes: new Map(params.map((param) => [param, resultByHash.get(param.transactionHash)!])), errors: new Map() };
     },
     formatOutput: options.formatOutput,
   });

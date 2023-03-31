@@ -74,6 +74,29 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   syscoin: { type: "etherscan", url: "https://explorer.syscoin.org/api" },
 };
 
+export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
+  arbitrum: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 7654707 },
+  aurora: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 62907816 },
+  avax: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 11907934 },
+  bsc: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 15921452 },
+  canto: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 2905789 },
+  celo: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 13112599 },
+  cronos: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1963112 },
+  emerald: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1481392 },
+  ethereum: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14353601 },
+  fantom: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 33001987 },
+  fuse: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 16146628 },
+  harmony: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 24185753 },
+  heco: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14413501 },
+  kava: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 3661165 },
+  metis: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 2338552 },
+  moonbeam: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 609002 },
+  moonriver: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1597904 },
+  optimism: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 4286263 },
+  polygon: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 25770160 },
+  syscoin: null,
+};
+
 function _getExplorerApiKey(chain: Chain) {
   const apiKey = process.env[`ETHERSCAN_API_KEY_${chain.toLocaleUpperCase()}`];
   return apiKey || null;

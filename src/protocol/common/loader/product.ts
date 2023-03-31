@@ -203,6 +203,7 @@ export function fetchProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TPara
         objAndData.map(({ data }) => {
           const product = idMap[data];
           if (!product) {
+            logger.error({ msg: "Could not find product", data: { productId: data, results } });
             throw new Error("Could not find product");
           }
           return [data, product];

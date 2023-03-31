@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { Chain } from "../../../types/chain";
 import { rootLogger } from "../../../utils/logger";
 import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
-import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
+import { batchRpcCalls$, RPCBatchCallResult } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -65,10 +65,10 @@ async function fetchBeefyGovOrBoostPendingRewards<TParams extends BeefyPendingRe
   provider: ethers.providers.JsonRpcProvider,
   chain: Chain,
   contractCalls: TParams[],
-): Promise<Map<TParams, Decimal>> {
+): Promise<RPCBatchCallResult<TParams, Decimal>> {
   // short circuit if no calls
   if (contractCalls.length === 0) {
-    return new Map();
+    return { successes: new Map(), errors: new Map() };
   }
 
   logger.debug({
@@ -93,5 +93,5 @@ async function fetchBeefyGovOrBoostPendingRewards<TParams extends BeefyPendingRe
     pendingRewardsPromises.push(rewardsPromise);
   }
 
-  return new Map(await Promise.all(pendingRewardsPromises));
+  return { successes: new Map(await Promise.all(pendingRewardsPromises)), errors: new Map() };
 }

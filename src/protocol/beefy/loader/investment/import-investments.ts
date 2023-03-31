@@ -90,7 +90,7 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
 }
 
 export function createBeefyRecentInvestmentRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbBeefyProduct> }) {
-  return createRecentImportRunner<DbBeefyProduct, number>({
+  return createRecentImportRunner<DbBeefyProduct, number, DbProductInvestmentImportState>({
     runnerConfig: options.runnerConfig,
     cacheKey: "beefy:product:investment:recent",
     logInfos: { msg: "Importing recent beefy investments", data: { chain: options.chain } },
