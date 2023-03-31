@@ -28,7 +28,7 @@ export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRe
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // be nice with beefy api plz
-    rateLimit$(300),
+    rateLimit$(1000),
 
     // now we fetch
     Rx.concatMap(async (item) => {
@@ -73,7 +73,7 @@ export async function fetchBeefyPrices(
     oracle: oracleId,
     from: Math.floor(startDate.getTime() / 1000),
     to: Math.ceil(endDate.getTime() / 1000),
-    key: BEEFY_DATA_KEY
+    key: BEEFY_DATA_KEY,
   };
   logger.debug({ msg: "Fetching prices", data: { params } });
 
