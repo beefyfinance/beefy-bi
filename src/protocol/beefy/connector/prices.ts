@@ -28,7 +28,7 @@ export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRe
 }): Rx.OperatorFunction<TObj, TRes> {
   return Rx.pipe(
     // be nice with beefy api plz
-    rateLimit$(1000),
+    rateLimit$(300),
 
     // now we fetch
     Rx.concatMap(async (item) => {
