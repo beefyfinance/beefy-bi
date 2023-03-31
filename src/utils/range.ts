@@ -17,6 +17,7 @@ interface RangeStrategy<T extends SupportedRangeTypes> {
   diff: (a: T, b: T) => T;
   add: (a: T, b: number) => T;
   clone: (value: T) => T;
+  toNumber: (value: T) => number;
 }
 const rangeStrategies = {
   number: {
@@ -28,6 +29,7 @@ const rangeStrategies = {
     diff: (a: number, b: number) => a - b,
     add: (a: number, b: number) => a + b,
     clone: (value: number) => value,
+    toNumber: (value: number) => value,
   } as RangeStrategy<number>,
   date: {
     nextValue: (value: Date) => new Date(value.getTime() + 1),
@@ -38,6 +40,7 @@ const rangeStrategies = {
     diff: (a: Date, b: Date) => new Date(a.getTime() - b.getTime()),
     add: (a: Date, b: number) => new Date(a.getTime() + b),
     clone: (value: Date) => new Date(value.getTime()),
+    toNumber: (value: Date) => value.getTime(),
   } as RangeStrategy<Date>,
 };
 
@@ -327,7 +330,7 @@ export function rangeSlitToMaxLength<T extends SupportedRangeTypes>(range: Range
   const ranges: Range<T>[] = [];
   let currentRange: Range<T> = rangeClone(range);
 
-  while (strat.nextValue(strat.diff(currentRange.to, currentRange.from)) > maxLength) {
+  while (strat.toNumber(strat.nextValue(strat.diff(currentRange.to, currentRange.from))) > maxLength) {
     ranges.push({ from: currentRange.from, to: strat.previousValue(strat.add(currentRange.from, maxLength)) });
     currentRange.from = strat.add(currentRange.from, maxLength);
   }
@@ -371,7 +374,7 @@ export function rangeSortedSplitManyToMaxLengthAndTakeSome<T extends SupportedRa
   const result: Range<T>[] = [];
 
   // helper methods
-  const isTooBig = (range: Range<T>) => strat.nextValue(strat.diff(range.to, range.from)) > maxLength;
+  const isTooBig = (range: Range<T>) => strat.toNumber(strat.nextValue(strat.diff(range.to, range.from))) > maxLength;
   const enough = () => result.length >= take;
   const addToResult = (range: Range<T>) => {
     // some temporary checks until we are sure this is working
