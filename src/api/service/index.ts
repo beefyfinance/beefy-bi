@@ -1,6 +1,8 @@
 import { diContainer } from "@fastify/awilix";
+import { AbstractCacheCompliantObject } from "@fastify/caching";
 import { asClass, asFunction, asValue, Lifetime } from "awilix";
 import { FastifyInstance } from "fastify";
+import { Redis } from "ioredis";
 import { DbClient } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
@@ -21,20 +23,22 @@ declare module "@fastify/awilix" {
     product: ProductService;
     price: PriceService;
     importState: ImportStateService;
+    abCache: AbstractCacheCompliantObject;
     cache: AsyncCache;
+    redis: Redis;
   }
 }
 
 export async function registerDI(instance: FastifyInstance) {
   const redisClient = await getRedisClient();
-  const abcache = AbstractCache({
+  const abCache = AbstractCache({
     useAwait: false,
     driver: {
       name: "abstract-cache-redis",
       options: { client: redisClient },
     },
   });
-  const cache = new AsyncCache({ abcache: abcache });
+  const cache = new AsyncCache({ abCache: abCache });
 
   diContainer.register({
     db: asFunction(
@@ -70,5 +74,7 @@ export async function registerDI(instance: FastifyInstance) {
       lifetime: Lifetime.SINGLETON,
     }),
     cache: asValue(cache),
+    abCache: asValue(abCache),
+    redis: asValue(redisClient),
   });
 }

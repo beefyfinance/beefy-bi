@@ -107,7 +107,7 @@ node -r ts-node/register ./src/script/run.ts beefy:run --help
 Start the API:
 
 ```bash
-LOG_LEVEL=trace npx ts-node ./src/api/api.ts
+LOG_LEVEL=trace npx ts-node ./src/api/server.ts
 ```
 
 Then, you can access the API at http://localhost:3001.
@@ -115,7 +115,7 @@ Then, you can access the API at http://localhost:3001.
 Since the API is heavily using redis as a cache, you might want to clear redis cache before running the api again.
 
 ```bash
-npm run redis:clear; LOG_LEVEL=trace npx ts-node ./src/api/api.ts
+npm run redis:clear; LOG_LEVEL=trace npx ts-node ./src/api/server.ts
 ```
 
 ## Common actions

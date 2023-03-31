@@ -2,7 +2,6 @@ import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { productKeySchema } from "../schema/product";
 import { TimeBucket, timeBucketSchema } from "../schema/time-bucket";
-import { getRateLimitOpts } from "../utils/rate-limiter";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
   const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"]).required();
@@ -20,9 +19,8 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       time_bucket: TimeBucket;
     };
   };
-  const routeOptions = { schema, config: { rateLimit: await getRateLimitOpts() } };
 
-  instance.get<TRoute>("/", routeOptions, async (req, reply) => {
+  instance.get<TRoute>("/", { schema }, async (req, reply) => {
     const { product_key, price_type, time_bucket } = req.query;
     const product = await instance.diContainer.cradle.product.getProductByProductKey(product_key);
     if (!product) {

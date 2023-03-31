@@ -80,7 +80,7 @@ services:
   #    REDIS_URL: redis://redis:6379
   #    TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
   #    API_LISTEN: "::" # listen on all interfaces inside the container
-  #    WORK_CMD: "./dist/src/api/api.js"
+  #    WORK_CMD: "./dist/src/api/server.js"
   #    API_URL: "http://localhost:8080"
   #    API_FRONTEND_URL: "http://localhost:3001"
   #  networks:
