@@ -50,7 +50,6 @@ export class BeefyPortfolioService {
             from beefy_investor_timeline_cache_ts b
             join product p on p.product_id = b.product_id
             where b.investor_id = %L
-              and coalesce(p.product_data->>'dashboardEol')::text = 'false'
             order by product_key asc, datetime asc
         `,
         [investorId],
