@@ -115,7 +115,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:9.2.3
+    image: grafana/grafana:9.2.15
     expose:
       - "3000"
     deploy:
