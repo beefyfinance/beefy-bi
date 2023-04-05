@@ -44,7 +44,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:9.0.2
+    image: grafana/grafana:9.2.15
     ports:
       - "3000:3000"
     env_file: ../.env
