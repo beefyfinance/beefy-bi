@@ -1,8 +1,8 @@
-import { cloneDeep } from "lodash";
+import { cloneDeep, isNumber } from "lodash";
 import * as Rx from "rxjs";
 import yargs from "yargs";
-import { allChainIds, Chain } from "../../../types/chain";
-import { allSamplingPeriods, SamplingPeriod } from "../../../types/sampling";
+import { Chain, allChainIds } from "../../../types/chain";
+import { SamplingPeriod, allSamplingPeriods } from "../../../types/sampling";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -13,7 +13,7 @@ import { fetchAllInvestorIds$ } from "../../common/loader/investment";
 import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
-import { createBatchStreamConfig, defaultImportBehaviour, ErrorReport, ImportBehaviour, ImportCtx } from "../../common/types/import-context";
+import { ErrorReport, ImportBehaviour, ImportCtx, createBatchStreamConfig, defaultImportBehaviour } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
@@ -50,6 +50,7 @@ interface CmdParams {
   filterContractAddress: string | null;
   productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
+  loopEveryRandomizeRatio: number;
   ignoreImportState: boolean;
   disableWorkConcurrency: boolean;
   generateQueryCount: number | null;
@@ -115,6 +116,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               forceGetLogsBlockSpan: minBlockSpan,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
               loopEvery: null,
+              loopEveryRandomizeRatio: 0,
               ignoreImportState: true,
               disableWorkConcurrency: true,
               generateQueryCount: queriesToGenerate,
@@ -174,6 +176,14 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             describe: "how often workers should refresh the product list and redispatch accross rpcs",
           },
           loopEvery: { choices: allSamplingPeriods, demand: false, alias: "l", describe: "repeat the task from time to time" },
+          loopEveryRandomizeRatio: {
+            type: "number",
+            demand: false,
+            alias: "L",
+            default: 0.05, // set a default to 5% jitter
+            describe:
+              "Add a random delay to the loop, in the [0; `loopEveryRandomizeRatio` * `loopEvery`] range. It's expressed in % (between 0 and 1) and is used to avoid perfect synchronization with monitoring",
+          },
           ignoreImportState: {
             type: "boolean",
             demand: false,
@@ -227,6 +237,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
               loopEvery: argv.loopEvery || null,
+              loopEveryRandomizeRatio: argv.loopEveryRandomizeRatio,
               ignoreImportState: argv.ignoreImportState,
               disableWorkConcurrency: argv.disableWorkConcurrency,
               generateQueryCount: argv.generateQueryCount || null,
@@ -579,6 +590,9 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
   if (cmdParams.loopEvery !== null) {
     behaviour.repeatAtMostEvery = cmdParams.loopEvery;
   }
+  if (cmdParams.loopEveryRandomizeRatio !== null) {
+    behaviour.repeatJitter = cmdParams.loopEveryRandomizeRatio;
+  }
   if (cmdParams.forceCurrentBlockNumber !== null) {
     behaviour.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
   }
@@ -642,6 +656,12 @@ function _verifyCmdParams(cmdParams: CmdParams, argv: any) {
   if (cmdParams.generateQueryCount !== null && defaultModeByTask[cmdParams.task] !== "historical") {
     throw new ProgrammerError({
       msg: "Cannot generate query count without historical mode",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (!isNumber(cmdParams.loopEveryRandomizeRatio) || cmdParams.loopEveryRandomizeRatio < 0 || cmdParams.loopEveryRandomizeRatio > 1) {
+    throw new ProgrammerError({
+      msg: "loopEveryRandomizeRatio should be a number between 0 and 1",
       data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
     });
   }

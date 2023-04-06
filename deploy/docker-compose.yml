@@ -538,100 +538,100 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c arbitrum -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c arbitrum -L 0 -l 15min"
 
   importer-investment-recent-share-rate-aurora:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c aurora -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c aurora -L 0 -l 15min"
 
   importer-investment-recent-share-rate-avax:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c avax -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c avax -L 0 -l 15min"
 
   importer-investment-recent-share-rate-canto:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c canto -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c canto -L 0 -l 15min"
 
   importer-investment-recent-share-rate-bsc:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c bsc -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c bsc -L 0 -l 15min"
 
   importer-investment-recent-share-rate-celo:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c celo -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c celo -L 0 -l 15min"
 
   importer-investment-recent-share-rate-cronos:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c cronos -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c cronos -L 0 -l 15min"
 
   importer-investment-recent-share-rate-ethereum:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c ethereum -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c ethereum -L 0 -l 15min"
 
   importer-investment-recent-share-rate-emerald:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c emerald -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c emerald -L 0 -l 15min"
 
   importer-investment-recent-share-rate-fantom:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -L 0 -l 15min"
 
   importer-investment-recent-share-rate-fuse:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fuse -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fuse -L 0 -l 15min"
 
   importer-investment-recent-share-rate-kava:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c kava -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c kava -L 0 -l 15min"
 
   importer-investment-recent-share-rate-metis:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c metis -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c metis -L 0 -l 15min"
 
   importer-investment-recent-share-rate-moonbeam:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c moonbeam -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c moonbeam -L 0 -l 15min"
 
   importer-investment-recent-share-rate-moonriver:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c moonriver -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c moonriver -L 0 -l 15min"
 
   importer-investment-recent-share-rate-optimism:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c optimism -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c optimism -L 0 -l 15min"
 
   importer-investment-recent-share-rate-polygon:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c polygon -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c polygon -L 0 -l 15min"

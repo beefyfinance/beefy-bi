@@ -11,7 +11,7 @@ import { rangeMerge, rangeOverlap } from "../../../utils/range";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeStoppableObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { saveRpcErrorToDb } from "../connector/rpc-error";
-import { createBatchStreamConfig, ImportBehaviour, ImportCtx } from "../types/import-context";
+import { ImportBehaviour, ImportCtx, createBatchStreamConfig } from "../types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "./rpc-config";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-runner" });
@@ -243,8 +243,12 @@ function createRpcRunner<TInput>(options: { ctx: ImportCtx; pipeline$: Rx.Operat
 
       logger.debug({ msg: "Done rpc work unit", data: logData });
       if (options.ctx.behaviour.repeatAtMostEvery !== null) {
-        const sleepTime = samplingPeriodMs[options.ctx.behaviour.repeatAtMostEvery] - (now - start);
+        const repeatAtMosEverytMs = samplingPeriodMs[options.ctx.behaviour.repeatAtMostEvery];
+        // make sure we don't repeat too often
+        let sleepTime = repeatAtMosEverytMs - (now - start);
         if (sleepTime > 0) {
+          // apply jitter
+          sleepTime += options.ctx.behaviour.repeatJitter * repeatAtMosEverytMs;
           logger.info({ msg: "Sleeping after import", data: { sleepTime } });
           await sleep(sleepTime);
         }

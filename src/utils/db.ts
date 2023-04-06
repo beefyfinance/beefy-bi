@@ -743,7 +743,7 @@ export async function db_migrate() {
       $$
         LANGUAGE SQL;
       
-      SELECT add_job('snapshot_import_metrics', '15min', config => null);
+      SELECT add_job('snapshot_import_metrics', '1min', config => null);
     `);
   }
 
