@@ -2,8 +2,8 @@ import yargs from "yargs";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
-import { allChainIds, Chain } from "../types/chain";
-import { allSamplingPeriods, SamplingPeriod } from "../types/sampling";
+import { Chain, allChainIds } from "../types/chain";
+import { SamplingPeriod, allSamplingPeriods } from "../types/sampling";
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
@@ -104,6 +104,7 @@ async function main() {
     forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
     productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
     loopEvery: argv.loopEvery || null,
+    loopEveryRandomizeRatio: 0,
     ignoreImportState: argv.ignoreImportState,
     disableWorkConcurrency: argv.disableWorkConcurrency,
     generateQueryCount: argv.generateQueryCount || null,

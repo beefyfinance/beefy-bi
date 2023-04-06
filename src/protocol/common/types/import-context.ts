@@ -50,6 +50,14 @@ export interface ImportBehaviour {
   // if null, we don't repeat the import
   repeatAtMostEvery: SamplingPeriod | null;
 
+  // we don't want the import loop to be exactly the same each time
+  // one time, we had 15min repeat and the monitoring was also snapshotting every 15min
+  // the 2 import got synchronized and the monitoring missed the underlying behaviour
+  // our "total work" grew big for 15min, then the import script triggered, which reduced it to almost nothing
+  // and then the monitoring snapshot happenned like clockwork, just after the import was done
+  // in the end, the monitoring reported a super low "total work" but the reality was that our users might have waited 15min to get their data
+  repeatJitter: number;
+
   // if true, we don't exclude the current successful import from the queries
   // we often to this to re-import a block range that was already successfully imported but is missing some data
   ignoreImportState: boolean;
@@ -112,6 +120,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
   forceGetLogsBlockSpan: null,
   inputPollInterval: "4hour",
   repeatAtMostEvery: null,
+  repeatJitter: 0.05, // default to 5% jitter
   forceCurrentBlockNumber: null,
   ignoreImportState: process.env.BEHAVIOUR_IGNORE_IMPORT_STATE === "true",
   skipRecentWindowWhenHistorical: "live", // by default, live products recent data is done by the recent import

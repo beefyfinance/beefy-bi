@@ -21,6 +21,7 @@ async function main() {
     forceGetLogsBlockSpan: null,
     productRefreshInterval: null,
     loopEvery: null,
+    loopEveryRandomizeRatio: 0,
     ignoreImportState: true,
     disableWorkConcurrency: true,
     generateQueryCount: null,
