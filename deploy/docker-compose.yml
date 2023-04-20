@@ -288,17 +288,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c fuse -l 15sec"
 
-  importer-investment-recent-harmony:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c harmony -l 15sec"
+  #importer-investment-recent-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c harmony -l 15sec"
 
-  importer-investment-recent-heco:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c heco -l 15sec"
+  #importer-investment-recent-heco:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t recent -c heco -l 15sec"
 
   importer-investment-recent-kava:
     <<: *importer
@@ -410,17 +410,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c fuse -l 15sec -S live"
 
-  importer-investment-historical-harmony:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c harmony -l 15sec -S live"
+  #importer-investment-historical-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c harmony -l 15sec -S live"
 
-  importer-investment-historical-heco:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c heco -l 15sec -S live"
+  #importer-investment-historical-heco:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical -c heco -l 15sec -S live"
 
   importer-investment-historical-kava:
     <<: *importer
@@ -532,17 +532,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c fuse -l 15min -S none"
 
-  importer-investment-historical-share-rate-harmony:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c harmony -l 15min -S none"
+  #importer-investment-historical-share-rate-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c harmony -l 15min -S none"
 
-  importer-investment-historical-share-rate-heco:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c heco -l 15min -S none"
+  #importer-investment-historical-share-rate-heco:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t historical-share-rate -c heco -l 15min -S none"
 
   importer-investment-historical-share-rate-kava:
     <<: *importer
@@ -654,17 +654,17 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t recent-share-rate -c fuse -l 15min -S none"
 
-  importer-investment-recent-share-rate-harmony:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t recent-share-rate -c harmony -l 15min -S none"
+  #importer-investment-recent-share-rate-harmony:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t recent-share-rate -c harmony -l 15min -S none"
 
-  importer-investment-recent-share-rate-heco:
-    <<: *importer
-    environment:
-      <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t recent-share-rate -c heco -l 15min -S none"
+  #importer-investment-recent-share-rate-heco:
+  #  <<: *importer
+  #  environment:
+  #    <<: *importer-env
+  #    WORK_CMD: "./dist/src/script/run.js beefy:run -e true -t recent-share-rate -c heco -l 15min -S none"
 
   importer-investment-recent-share-rate-kava:
     <<: *importer

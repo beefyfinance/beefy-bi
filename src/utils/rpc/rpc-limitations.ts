@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { cloneDeep, isNumber, merge } from "lodash";
 import { ImportBehaviour } from "../../protocol/common/types/import-context";
-import { allChainIds, Chain } from "../../types/chain";
+import { Chain, allChainIds } from "../../types/chain";
 import { allRpcCallMethods } from "../../types/rpc-config";
 import { CONFIG_DIRECTORY } from "../config";
 import { rootLogger } from "../logger";
@@ -20,7 +20,7 @@ const safetyMargin = {
 };
 export const MAX_RPC_BATCHING_SIZE = 500;
 export const MAX_RPC_GETLOGS_SPAN = 5_000;
-export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 30;
+export const MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS = 3;
 // when detecting limitations, we consider a call failed if it takes more than this constant
 export const RPC_SOFT_TIMEOUT_MS = 15_000;
 
