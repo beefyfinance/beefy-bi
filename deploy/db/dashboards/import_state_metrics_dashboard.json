@@ -71,24 +71,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#f2495c80",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -102,24 +86,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "blue",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#5795f280",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -133,7 +101,25 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "orange",
+                  "fixedColor": "#ff983080",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*progress.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "color",
+                "value": {
                   "mode": "thresholds"
                 }
               },
@@ -154,28 +140,16 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": ".*progress.*"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              }
-            ]
           }
         ]
       },
       "gridPos": {
         "h": 5,
-        "w": 12,
+        "w": 15,
         "x": 0,
         "y": 1
       },
-      "id": 757,
+      "id": 1296,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -188,7 +162,7 @@
         },
         "textMode": "value_and_name"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -199,7 +173,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n), first_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain and l.import_type = f.import_type",
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n), first_chain_stats as (\n  SELECT\n    chain,\n    import_type,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  sum(f.errors_count) as errors_count_before,\n  sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  sum(f.not_covered_yet) as not_covered_yet_before,\n  sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  sum(f.total_work) as total_work_before,\n  sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain and l.import_type = f.import_type",
           "refId": "A",
           "select": [
             [
@@ -221,7 +195,7 @@
           ]
         }
       ],
-      "title": "$chains investments & share rate",
+      "title": "$chains investments: Import Stats ",
       "type": "stat"
     },
     {
@@ -248,8 +222,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 12,
+        "w": 3,
+        "x": 15,
         "y": 1
       },
       "id": 898,
@@ -282,7 +256,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
           "refId": "A",
           "select": [
             [
@@ -331,8 +305,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 16,
+        "w": 3,
+        "x": 18,
         "y": 1
       },
       "id": 899,
@@ -365,7 +339,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ('product:investment')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
           "refId": "A",
           "select": [
             [
@@ -414,8 +388,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 20,
+        "w": 3,
+        "x": 21,
         "y": 1
       },
       "id": 900,
@@ -448,7 +422,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type in ( 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
+          "rawSql": "with last_metrics as (\n  SELECT\n    chain,\n    import_type,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ( 'product:share-rate')\n  group by 1,2\n)\nselect \n  chain,\n  sum(total_work) as total_work\nfrom last_metrics\ngroup by 1",
           "refId": "A",
           "select": [
             [
@@ -528,14 +502,25 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "errors_count"
+              "id": "byRegexp",
+              "options": ".+_total_work"
             },
             "properties": [
               {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".+_errors_count"
+            },
+            "properties": [
               {
                 "id": "color",
                 "value": {
@@ -547,14 +532,10 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
+              "id": "byRegexp",
+              "options": ".+_not_covered_yet"
             },
             "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
               {
                 "id": "color",
                 "value": {
@@ -566,20 +547,95 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "total_work"
+              "id": "byRegexp",
+              "options": "min_.+"
             },
             "properties": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "max_.+"
+            },
+            "properties": [
               {
                 "id": "custom.lineWidth",
-                "value": 2
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_total_work"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_total_work"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_errors_count"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_not_covered_yet"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "avg_total_work",
+                  "min_errors_count",
+                  "min_not_covered_yet",
+                  "min_total_work",
+                  "max_errors_count",
+                  "max_not_covered_yet",
+                  "max_total_work"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           }
@@ -614,7 +670,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type in ('product:investment', 'product:share-rate')\ngroup by 1\nORDER BY 1",
+          "rawSql": "with stats as (\n  SELECT\n    datetime,\n    sum(errors_count) as errors_count,\n    sum(success_count) as success_count,\n    sum(not_covered_yet) as not_covered_yet,\n    sum(errors_count) + sum(not_covered_yet) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment', 'product:share-rate')\n  group by 1\n)\nselect \n  time_bucket('$interval'::interval, datetime) AS \"time\",\n  min(errors_count) as min_errors_count,\n  avg(errors_count) as avg_errors_count,\n  max(errors_count) as max_errors_count,\n  min(not_covered_yet) as min_not_covered_yet,\n  avg(not_covered_yet) as avg_not_covered_yet,\n  max(not_covered_yet) as max_not_covered_yet,\n  min(total_work) as min_total_work,\n  avg(total_work) as avg_total_work,\n  max(total_work) as max_total_work\nfrom stats\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -722,7 +778,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  chain,\n  datetime AS \"time\",\n  --sum(errors_count) as errors_count,\n  --success_count as success_count,\n  --sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type in ('product:investment', 'product:share-rate')\ngroup by 1, 2\nORDER BY 2",
+          "rawSql": "SELECT\n  chain,\n  datetime AS \"time\",\n  --sum(errors_count) as errors_count,\n  --success_count as success_count,\n  --sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n  and import_type in ('product:investment', 'product:share-rate')\ngroup by 1, 2\nORDER BY 2",
           "refId": "A",
           "select": [
             [
@@ -792,24 +848,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#f2495c80",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -823,24 +863,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "blue",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#5795f280",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -854,7 +878,25 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "orange",
+                  "fixedColor": "#ff983080",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*progress.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "color",
+                "value": {
                   "mode": "thresholds"
                 }
               },
@@ -875,23 +917,11 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": ".*progress.*"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              }
-            ]
           }
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 3,
         "w": 12,
         "x": 0,
         "y": 17
@@ -909,7 +939,7 @@
         },
         "textMode": "value_and_name"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -920,7 +950,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:investment'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:investment'\n  group by 1\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type = 'product:investment'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type = 'product:investment'\n  group by 1\n)\nselect \n  sum(f.errors_count) as errors_count_before,\n  sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  sum(f.not_covered_yet) as not_covered_yet_before,\n  sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  sum(f.total_work) as total_work_before,\n  sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
           "refId": "A",
           "select": [
             [
@@ -977,24 +1007,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#f2495c80",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -1008,24 +1022,8 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "blue",
-                  "mode": "thresholds"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 0
-                    }
-                  ]
+                  "fixedColor": "#5795f280",
+                  "mode": "fixed"
                 }
               }
             ]
@@ -1039,7 +1037,25 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "orange",
+                  "fixedColor": "#ff983080",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*progress.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "color",
+                "value": {
                   "mode": "thresholds"
                 }
               },
@@ -1060,28 +1076,16 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": ".*progress.*"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percentunit"
-              }
-            ]
           }
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 3,
         "w": 12,
         "x": 12,
         "y": 17
       },
-      "id": 634,
+      "id": 1231,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -1094,7 +1098,7 @@
         },
         "textMode": "value_and_name"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -1105,7 +1109,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:share-rate'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and import_type = 'product:share-rate'\n  group by 1\n)\nselect \n  --sum(f.errors_count) as errors_count_before,\n  --sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  --sum(f.not_covered_yet) as not_covered_yet_before,\n  --sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  --sum(f.total_work) as total_work_before,\n  --sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
+          "rawSql": "with last_chain_stats as (\n  SELECT\n    chain,\n    last(errors_count, datetime) as errors_count,\n    last(not_covered_yet, datetime) as not_covered_yet,\n    last(success_count, datetime) as success_count,\n    last(errors_count, datetime) + last(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type = 'product:share-rate'\n  group by 1\n), first_chain_stats as (\n  SELECT\n    chain,\n    first(errors_count, datetime) as errors_count,\n    first(not_covered_yet, datetime) as not_covered_yet,\n    first(success_count, datetime) as success_count,\n    first(errors_count, datetime) + first(not_covered_yet, datetime) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type = 'product:share-rate'\n  group by 1\n)\nselect \n  sum(f.errors_count) as errors_count_before,\n  sum(l.errors_count) as errors_count_now,\n  case when sum(f.errors_count) = 0 then 0 else (sum(l.errors_count) - sum(f.errors_count))/sum(f.errors_count) end as error_progress,\n  --sum(f.success_count) as success_count_before,\n  --sum(l.success_count) as success_count_now,\n  --case when sum(f.success_count) = 0 then 0 else (sum(l.success_count) - sum(f.success_count))/sum(f.success_count) end as success_count_progress,\n  sum(f.not_covered_yet) as not_covered_yet_before,\n  sum(l.not_covered_yet) as not_covered_yet_now,\n  case when sum(f.not_covered_yet) = 0 then 0 else (sum(l.not_covered_yet) - sum(f.not_covered_yet))/sum(f.not_covered_yet) end as not_covered_yet_progress,\n  sum(f.total_work) as total_work_before,\n  sum(l.total_work) as total_work_now,\n  case when sum(f.total_work) = 0 then 0 else (sum(l.total_work) - sum(f.total_work))/sum(f.total_work) end as total_work_progress\nfrom last_chain_stats l\n left join first_chain_stats f on l.chain = f.chain",
           "refId": "A",
           "select": [
             [
@@ -1127,7 +1131,7 @@
           ]
         }
       ],
-      "title": "$chains share rate: Import Stats ",
+      "title": "$chains investments: Import Stats ",
       "type": "stat"
     },
     {
@@ -1185,14 +1189,25 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "errors_count"
+              "id": "byRegexp",
+              "options": ".+_total_work"
             },
             "properties": [
               {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".+_errors_count"
+            },
+            "properties": [
               {
                 "id": "color",
                 "value": {
@@ -1204,14 +1219,10 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
+              "id": "byRegexp",
+              "options": ".+_not_covered_yet"
             },
             "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
               {
                 "id": "color",
                 "value": {
@@ -1223,32 +1234,107 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "total_work"
+              "id": "byRegexp",
+              "options": "min_.+"
             },
             "properties": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "max_.+"
+            },
+            "properties": [
               {
                 "id": "custom.lineWidth",
-                "value": 2
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_total_work"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_total_work"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_errors_count"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_not_covered_yet"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "avg_total_work",
+                  "min_errors_count",
+                  "min_not_covered_yet",
+                  "min_total_work",
+                  "max_errors_count",
+                  "max_not_covered_yet",
+                  "max_total_work"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 20
       },
-      "id": 143,
+      "id": 970,
       "options": {
         "legend": {
           "calcs": [],
@@ -1271,7 +1357,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:investment'\ngroup by 1\nORDER BY 1",
+          "rawSql": "with stats as (\n  SELECT\n    datetime,\n    sum(errors_count) as errors_count,\n    sum(success_count) as success_count,\n    sum(not_covered_yet) as not_covered_yet,\n    sum(errors_count) + sum(not_covered_yet) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment')\n  group by 1\n)\nselect \n  time_bucket('$interval'::interval, datetime) AS \"time\",\n  min(errors_count) as min_errors_count,\n  avg(errors_count) as avg_errors_count,\n  max(errors_count) as max_errors_count,\n  min(not_covered_yet) as min_not_covered_yet,\n  avg(not_covered_yet) as avg_not_covered_yet,\n  max(not_covered_yet) as max_not_covered_yet,\n  min(total_work) as min_total_work,\n  avg(total_work) as avg_total_work,\n  max(total_work) as max_total_work\nfrom stats\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -1293,7 +1379,7 @@
           ]
         }
       ],
-      "title": "$chains investments: Import Stats ",
+      "title": "$chains investments",
       "type": "timeseries"
     },
     {
@@ -1351,14 +1437,25 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "errors_count"
+              "id": "byRegexp",
+              "options": ".+_total_work"
             },
             "properties": [
               {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".+_errors_count"
+            },
+            "properties": [
               {
                 "id": "color",
                 "value": {
@@ -1370,14 +1467,10 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
+              "id": "byRegexp",
+              "options": ".+_not_covered_yet"
             },
             "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
               {
                 "id": "color",
                 "value": {
@@ -1389,32 +1482,107 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "total_work"
+              "id": "byRegexp",
+              "options": "min_.+"
             },
             "properties": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "max_.+"
+            },
+            "properties": [
               {
                 "id": "custom.lineWidth",
-                "value": 2
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_total_work"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_total_work"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_errors_count"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_not_covered_yet"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "avg_total_work",
+                  "min_errors_count",
+                  "min_not_covered_yet",
+                  "min_total_work",
+                  "max_errors_count",
+                  "max_not_covered_yet",
+                  "max_total_work"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 20
       },
-      "id": 370,
+      "id": 1035,
       "options": {
         "legend": {
           "calcs": [],
@@ -1437,7 +1605,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:share-rate'\ngroup by 1\nORDER BY 1",
+          "rawSql": "with stats as (\n  SELECT\n    datetime,\n    sum(errors_count) as errors_count,\n    sum(success_count) as success_count,\n    sum(not_covered_yet) as not_covered_yet,\n    sum(errors_count) + sum(not_covered_yet) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:share-rate')\n  group by 1\n)\nselect \n  time_bucket('$interval'::interval, datetime) AS \"time\",\n  min(errors_count) as min_errors_count,\n  avg(errors_count) as avg_errors_count,\n  max(errors_count) as max_errors_count,\n  min(not_covered_yet) as min_not_covered_yet,\n  avg(not_covered_yet) as avg_not_covered_yet,\n  max(not_covered_yet) as max_not_covered_yet,\n  min(total_work) as min_total_work,\n  avg(total_work) as avg_total_work,\n  max(total_work) as max_total_work\nfrom stats\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -1459,7 +1627,7 @@
           ]
         }
       ],
-      "title": "$chains ppfs: Import Stats ",
+      "title": "$chains share rate",
       "type": "timeseries"
     },
     {
@@ -1468,7 +1636,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 30
       },
       "id": 2,
       "panels": [],
@@ -1532,14 +1700,25 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "errors_count"
+              "id": "byRegexp",
+              "options": ".+_total_work"
             },
             "properties": [
               {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".+_errors_count"
+            },
+            "properties": [
               {
                 "id": "color",
                 "value": {
@@ -1551,14 +1730,10 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
+              "id": "byRegexp",
+              "options": ".+_not_covered_yet"
             },
             "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
               {
                 "id": "color",
                 "value": {
@@ -1570,32 +1745,107 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "total_work"
+              "id": "byRegexp",
+              "options": "min_.+"
             },
             "properties": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "max_.+"
+            },
+            "properties": [
               {
                 "id": "custom.lineWidth",
-                "value": 2
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_total_work"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_total_work"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_errors_count"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_not_covered_yet"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "avg_total_work",
+                  "min_errors_count",
+                  "min_not_covered_yet",
+                  "min_total_work",
+                  "max_errors_count",
+                  "max_not_covered_yet",
+                  "max_total_work"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 34
+        "y": 31
       },
-      "id": 371,
+      "id": 1100,
       "options": {
         "legend": {
           "calcs": [],
@@ -1618,7 +1868,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:investment'\ngroup by 1\nORDER BY 1",
+          "rawSql": "with stats as (\n  SELECT\n    datetime,\n    sum(errors_count) as errors_count,\n    sum(success_count) as success_count,\n    sum(not_covered_yet) as not_covered_yet,\n    sum(errors_count) + sum(not_covered_yet) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:investment')\n  group by 1\n)\nselect \n  time_bucket('$interval'::interval, datetime) AS \"time\",\n  min(errors_count) as min_errors_count,\n  avg(errors_count) as avg_errors_count,\n  max(errors_count) as max_errors_count,\n  min(not_covered_yet) as min_not_covered_yet,\n  avg(not_covered_yet) as avg_not_covered_yet,\n  max(not_covered_yet) as max_not_covered_yet,\n  min(total_work) as min_total_work,\n  avg(total_work) as avg_total_work,\n  max(total_work) as max_total_work\nfrom stats\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -1640,7 +1890,7 @@
           ]
         }
       ],
-      "title": "$chains investments: Import Stats ",
+      "title": "$chains investments",
       "type": "timeseries"
     },
     {
@@ -1698,14 +1948,25 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "errors_count"
+              "id": "byRegexp",
+              "options": ".+_total_work"
             },
             "properties": [
               {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".+_errors_count"
+            },
+            "properties": [
               {
                 "id": "color",
                 "value": {
@@ -1717,14 +1978,10 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "not_covered_yet"
+              "id": "byRegexp",
+              "options": ".+_not_covered_yet"
             },
             "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "left"
-              },
               {
                 "id": "color",
                 "value": {
@@ -1736,32 +1993,107 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "total_work"
+              "id": "byRegexp",
+              "options": "min_.+"
             },
             "properties": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              },
+                "id": "custom.lineWidth",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "max_.+"
+            },
+            "properties": [
               {
                 "id": "custom.lineWidth",
-                "value": 2
+                "value": 0
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 31
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_total_work"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_total_work"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_errors_count"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_errors_count"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max_not_covered_yet"
+            },
+            "properties": [
+              {
+                "id": "custom.fillBelowTo",
+                "value": "min_not_covered_yet"
+              }
+            ]
+          },
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "avg_total_work",
+                  "min_errors_count",
+                  "min_not_covered_yet",
+                  "min_total_work",
+                  "max_errors_count",
+                  "max_not_covered_yet",
+                  "max_total_work"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 9,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 31
       },
-      "id": 372,
+      "id": 1101,
       "options": {
         "legend": {
           "calcs": [],
@@ -1784,7 +2116,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  sum(errors_count) as errors_count,\n  --success_count as success_count,\n  sum(not_covered_yet) as not_covered_yet,\n  sum(errors_count) + sum(not_covered_yet) as total_work\nFROM import_state_metrics_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\n  and import_type = 'product:share-rate'\ngroup by 1\nORDER BY 1",
+          "rawSql": "with stats as (\n  SELECT\n    datetime,\n    sum(errors_count) as errors_count,\n    sum(success_count) as success_count,\n    sum(not_covered_yet) as not_covered_yet,\n    sum(errors_count) + sum(not_covered_yet) as total_work\n  FROM import_state_metrics_ts\n  WHERE\n    $__timeFilter(datetime)\n    and chain in ($chains)\n    and eol in (select unnest(Array[$dashboard_eol]::boolean[]))\n    and import_type in ('product:share-rate')\n  group by 1\n)\nselect \n  time_bucket('$interval'::interval, datetime) AS \"time\",\n  min(errors_count) as min_errors_count,\n  avg(errors_count) as avg_errors_count,\n  max(errors_count) as max_errors_count,\n  min(not_covered_yet) as min_not_covered_yet,\n  avg(not_covered_yet) as avg_not_covered_yet,\n  max(not_covered_yet) as max_not_covered_yet,\n  min(total_work) as min_total_work,\n  avg(total_work) as avg_total_work,\n  max(total_work) as max_total_work\nfrom stats\ngroup by 1\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -1806,7 +2138,7 @@
           ]
         }
       ],
-      "title": "$chains ppfs: Import Stats ",
+      "title": "$chains share rate",
       "type": "timeseries"
     },
     {
@@ -1845,7 +2177,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 41
       },
       "id": 687,
       "options": {
@@ -1856,7 +2188,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -1901,9 +2233,45 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "selected": false,
+          "text": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "canto",
+            "celo",
+            "cronos",
+            "emerald",
+            "ethereum",
+            "fantom",
+            "fuse",
+            "kava",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ],
+          "value": [
+            "arbitrum",
+            "aurora",
+            "avax",
+            "bsc",
+            "canto",
+            "celo",
+            "cronos",
+            "emerald",
+            "ethereum",
+            "fantom",
+            "fuse",
+            "kava",
+            "metis",
+            "moonbeam",
+            "moonriver",
+            "optimism",
+            "polygon"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -1921,17 +2289,123 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": ["false"],
+          "value": ["false"]
+        },
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "dashboard_eol",
+        "options": [
+          {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "true",
+            "value": "true"
+          },
+          {
+            "selected": true,
+            "text": "false",
+            "value": "false"
+          }
+        ],
+        "query": "true, false",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "auto": true,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "1m",
+          "value": "1m"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "auto",
+            "value": "$__auto_interval_interval"
+          },
+          {
+            "selected": true,
+            "text": "1m",
+            "value": "1m"
+          },
+          {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          {
+            "selected": false,
+            "text": "30m",
+            "value": "30m"
+          },
+          {
+            "selected": false,
+            "text": "1h",
+            "value": "1h"
+          },
+          {
+            "selected": false,
+            "text": "6h",
+            "value": "6h"
+          },
+          {
+            "selected": false,
+            "text": "12h",
+            "value": "12h"
+          },
+          {
+            "selected": false,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "1m,10m,30m,1h,6h,12h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
       }
     ]
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-2d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 44,
+  "version": 49,
   "weekStart": ""
 }
