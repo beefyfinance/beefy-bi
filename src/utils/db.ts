@@ -708,38 +708,38 @@ export async function db_migrate() {
         success_count,
         not_covered_yet
       )
-        with max_block_number_by_chain as materialized (
+          with max_block_number_by_chain as materialized (
+            select 
+              (i.import_data->>'chain')::chain_enum as chain,
+              max((import_data->>'chainLatestBlockNumber')::integer) as last_covered
+            from import_state i
+            where i.import_data->>'type' = 'product:investment'
+            group by 1
+          ),
+          procuct_block_stats as (
+            select 
+              p.chain,
+              p.product_id,
+              i.import_data->>'type' as import_type,
+              (p.product_data->>'dashboardEol') = 'true' as eol,
+              b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
+              jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
+              jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
+            from product p
+            left join import_state i on p.product_id = (i.import_data->>'productId')::integer
+            left join max_block_number_by_chain b on p.chain = b.chain
+          )
           select 
-            (i.import_data->>'chain')::chain_enum as chain,
-            max((import_data->>'chainLatestBlockNumber')::integer) as last_covered
-          from import_state i
-          where i.import_data->>'type' = 'product:investment'
-          group by 1
-        ),
-        procuct_block_stats as (
-          select 
-            p.chain,
-            p.product_id,
-            i.import_data->>'type' as import_type,
-            (p.product_data->>'dashboardEol') = 'true' as eol,
-            b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
-            jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
-            jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
-          from product p
-          left join import_state i on p.product_id = (i.import_data->>'productId')::integer
-          left join max_block_number_by_chain b on p.chain = b.chain
-        )
-        select 
-          now(),
-          chain,
-          import_type,
-          eol,
-          sum(blocks_to_retry) as errors_count,
-          sum(blocks_covered) - sum(blocks_to_retry) as success_count,
-          sum(total_blocks_to_cover) - sum(blocks_covered) as not_covered_yet
-        from procuct_block_stats
-        where import_type is not null
-        group by 1, 2, 3, 4
+            now(),
+            chain,
+            import_type,
+            eol,
+            sum(blocks_to_retry) as errors_count,
+            sum(blocks_covered) - sum(blocks_to_retry) as success_count,
+            sum(total_blocks_to_cover) - sum(blocks_covered) as not_covered_yet
+          from procuct_block_stats
+          where import_type is not null
+          group by 1, 2, 3, 4
       $$
         LANGUAGE SQL;
       
