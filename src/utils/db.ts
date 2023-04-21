@@ -681,6 +681,7 @@ export async function db_migrate() {
         datetime timestamptz not null,
         chain chain_enum not null,
         import_type text not null,
+        eol boolean not null,
         errors_count bigint not null,
         success_count bigint not null,
         not_covered_yet bigint not null
@@ -702,6 +703,7 @@ export async function db_migrate() {
         datetime,
         chain,
         import_type,
+        eol,
         errors_count,
         success_count,
         not_covered_yet
@@ -719,6 +721,7 @@ export async function db_migrate() {
               p.chain,
               p.product_id,
               i.import_data->>'type' as import_type,
+              (p.product_data->>'dashboardEol') = 'true' as eol,
               b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
@@ -730,12 +733,13 @@ export async function db_migrate() {
             now(),
             chain,
             import_type,
+            eol,
             sum(blocks_to_retry) as errors_count,
             sum(blocks_covered) - sum(blocks_to_retry) as success_count,
             sum(total_blocks_to_cover) - sum(blocks_covered) as not_covered_yet
           from procuct_block_stats
           where import_type is not null
-          group by 1, 2, 3
+          group by 1, 2, 3, 4
       $$
         LANGUAGE SQL;
       
