@@ -196,26 +196,27 @@ export function loadTransfers$<
     Rx.map((item) => ({ ...item, ppfs: new Decimal(1) })),
 
     // find out the user rewards at that block
-    fetchBeefyPendingRewards$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getPendingRewardsParams: (item) => {
-        if (!isBeefyGovVault(item.target.product)) {
-          throw new ProgrammerError("Expected gov vault");
-        }
-        const vault = item.target.product;
-        if (!vault.productData.vault.gov_vault_reward_token_decimals) {
-          throw new ProgrammerError("Expected gov vault reward token decimals");
-        }
-        return {
-          blockNumber: item.target.transfer.blockNumber,
-          tokenDecimals: vault.productData.vault.gov_vault_reward_token_decimals,
-          contractAddress: vault.productData.vault.contract_address,
-          ownerAddress: item.target.transfer.ownerAddress,
-        };
-      },
-      formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
-    }),
+    //fetchBeefyPendingRewards$({
+    //  ctx: options.ctx,
+    //  emitError: options.emitError,
+    //  getPendingRewardsParams: (item) => {
+    //    if (!isBeefyGovVault(item.target.product)) {
+    //      throw new ProgrammerError("Expected gov vault");
+    //    }
+    //    const vault = item.target.product;
+    //    if (!vault.productData.vault.gov_vault_reward_token_decimals) {
+    //      throw new ProgrammerError("Expected gov vault reward token decimals");
+    //    }
+    //    return {
+    //      blockNumber: item.target.transfer.blockNumber,
+    //      tokenDecimals: vault.productData.vault.gov_vault_reward_token_decimals,
+    //      contractAddress: vault.productData.vault.contract_address,
+    //      ownerAddress: item.target.transfer.ownerAddress,
+    //    };
+    //  },
+    //  formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
+    //}),
+    Rx.map((item) => ({ ...item, pendingRewards: null })),
   );
 
   const stdVaultPipeline$ = Rx.pipe(
@@ -267,23 +268,24 @@ export function loadTransfers$<
     }),
 
     // find out the user rewards at that block
-    fetchBeefyPendingRewards$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getPendingRewardsParams: (item) => {
-        if (!isBeefyBoost(item.target.product)) {
-          throw new ProgrammerError("Expected boost product");
-        }
-        const boost = item.target.product;
-        return {
-          blockNumber: item.target.transfer.blockNumber,
-          tokenDecimals: boost.productData.boost.reward_token_decimals,
-          contractAddress: boost.productData.boost.contract_address,
-          ownerAddress: item.target.transfer.ownerAddress,
-        };
-      },
-      formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
-    }),
+    //fetchBeefyPendingRewards$({
+    //  ctx: options.ctx,
+    //  emitError: options.emitError,
+    //  getPendingRewardsParams: (item) => {
+    //    if (!isBeefyBoost(item.target.product)) {
+    //      throw new ProgrammerError("Expected boost product");
+    //    }
+    //    const boost = item.target.product;
+    //    return {
+    //      blockNumber: item.target.transfer.blockNumber,
+    //      tokenDecimals: boost.productData.boost.reward_token_decimals,
+    //      contractAddress: boost.productData.boost.contract_address,
+    //      ownerAddress: item.target.transfer.ownerAddress,
+    //    };
+    //  },
+    //  formatOutput: (item, pendingRewards) => ({ ...item, pendingRewards }),
+    //}),
+    Rx.map((item) => ({ ...item, pendingRewards: null })),
   );
 
   return Rx.pipe(
