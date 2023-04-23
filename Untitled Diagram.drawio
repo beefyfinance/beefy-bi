@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2023-04-23T11:51:39.617Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36" etag="W7AFyulQLRmONId7FfsZ" version="21.2.1" type="github">
+<mxfile host="app.diagrams.net" modified="2023-04-23T11:57:04.330Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36" etag="y09FwY1XeUV8uNZF8vBA" version="21.2.1" type="github">
   <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
-    <mxGraphModel dx="5043" dy="2354" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="4368" dy="1893" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="WIyWlLk6GJQsqaUBKTNV-0" />
         <mxCell id="WIyWlLk6GJQsqaUBKTNV-1" parent="WIyWlLk6GJQsqaUBKTNV-0" />
@@ -281,7 +281,7 @@
         <mxCell id="ZiqXiyuxJ9c71-WuivR--134" value="git call" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-2910" y="-410" width="108.12" height="32.2" as="geometry" />
         </mxCell>
-        <mxCell id="ZiqXiyuxJ9c71-WuivR--135" value="db call" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--135" value="batched db call" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-2910" y="-290" width="108.12" height="32.2" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--141" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--138" target="ZiqXiyuxJ9c71-WuivR--140">
@@ -826,6 +826,9 @@
         <mxCell id="ZiqXiyuxJ9c71-WuivR--333" value="PPFS snapshot script" style="shape=ellipse;html=1;fillColor=strokeColor;strokeWidth=2;verticalLabelPosition=top;verticalAlignment=top;perimeter=ellipsePerimeter;labelPosition=center;align=center;verticalAlign=bottom;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="2060.56" y="-40.9200000000001" width="40" height="40" as="geometry" />
         </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--460" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--334" target="ZiqXiyuxJ9c71-WuivR--457">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--334" value="Investor price cache script" style="shape=ellipse;html=1;fillColor=strokeColor;strokeWidth=2;verticalLabelPosition=top;verticalAlignment=top;perimeter=ellipsePerimeter;labelPosition=center;align=center;verticalAlign=bottom;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-190" y="-39.9200000000001" width="40" height="40" as="geometry" />
         </mxCell>
@@ -1178,6 +1181,57 @@
             <mxPoint x="2327.85" y="1100.5" as="sourcePoint" />
             <mxPoint x="2327.85" y="1295.5" as="targetPoint" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--463" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--457" target="ZiqXiyuxJ9c71-WuivR--461">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--457" value="find missing prices in cache table" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-223.44" y="57.08" width="106.88" height="29.92" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--459" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=none;endFill=0;dashed=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--458" target="ZiqXiyuxJ9c71-WuivR--457">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--458" value="&lt;font size=&quot;1&quot;&gt;cache table has a conditional index to make is super fast&lt;/font&gt;" style="shape=note;strokeWidth=2;fontSize=14;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-40" y="43.97" width="160" height="56.13" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--464" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--461" target="ZiqXiyuxJ9c71-WuivR--462">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--461" value="fetch linked product" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-226.44" y="125.5" width="113.44" height="24.5" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--466" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--462" target="ZiqXiyuxJ9c71-WuivR--465">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--462" value="find a &quot;matching&quot; price" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-232.72" y="197.33" width="126.72" height="22.67" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--470" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--465" target="ZiqXiyuxJ9c71-WuivR--469">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--465" value="Apply some heuristics for remaining missing prices" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-241.54000000000002" y="264.63" width="144.36" height="46.18" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--468" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=none;endFill=0;dashed=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--467" target="ZiqXiyuxJ9c71-WuivR--462">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--467" value="&lt;font size=&quot;1&quot;&gt;try to find an &quot;exact&quot; match&lt;/font&gt;" style="shape=note;strokeWidth=2;fontSize=14;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-40" y="193.35" width="150" height="30.63" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--474" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--469" target="ZiqXiyuxJ9c71-WuivR--473">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--469" value="update cache table prices" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-245.13" y="347.82" width="151.54" height="27.68" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--472" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=none;endFill=0;dashed=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--471" target="ZiqXiyuxJ9c71-WuivR--465">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--471" value="&lt;font size=&quot;1&quot;&gt;account for missing prices and interpolate missing prices when possible&lt;/font&gt;" style="shape=note;strokeWidth=2;fontSize=14;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-40" y="258.88" width="170" height="58.38" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--473" value="Repeat every ~5min" style="html=1;shape=mxgraph.sysml.actFinal;strokeWidth=2;verticalLabelPosition=bottom;verticalAlignment=top;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-189.3599999999999" y="430.74" width="40" height="40" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
