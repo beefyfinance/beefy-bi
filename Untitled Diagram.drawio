@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2023-04-23T17:12:41.715Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36" etag="DqUpbxj1SKRJTHUmV-E4" version="21.2.1" type="github">
+<mxfile host="app.diagrams.net" modified="2023-04-23T17:13:55.240Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36" etag="HrC1-bmHACw-Rzcdr7Fg" version="21.2.1" type="github">
   <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
-    <mxGraphModel dx="4601" dy="2618" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="3844" dy="2100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="WIyWlLk6GJQsqaUBKTNV-0" />
         <mxCell id="WIyWlLk6GJQsqaUBKTNV-1" parent="WIyWlLk6GJQsqaUBKTNV-0" />
@@ -1272,13 +1272,13 @@
           <mxGeometry x="-840.6299999999994" y="2370" width="108.12" height="32.2" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--483" value="eth_getLog call, multiple address, same block range" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
-          <mxGeometry x="-1268" y="2780" width="187.81" height="60" as="geometry" />
+          <mxGeometry x="-1370" y="2780" width="187.81" height="60" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--484" value="eth_getLogs per contract, json-rpc batched, indifferent block ranges" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
-          <mxGeometry x="-1021.5000000000002" y="2780" width="189.99" height="60" as="geometry" />
+          <mxGeometry x="-1123.5000000000002" y="2780" width="189.99" height="60" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--490" value="single eth_getLog call, small range, not filtered by address, filtered by topic" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
-          <mxGeometry x="-759.31" y="2780" width="187.81" height="60" as="geometry" />
+          <mxGeometry x="-861.31" y="2780" width="187.81" height="60" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--493" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--492" target="ZiqXiyuxJ9c71-WuivR--479">
           <mxGeometry relative="1" as="geometry" />
@@ -1306,6 +1306,9 @@
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--495" value="getLogs&lt;br&gt;ERC20 Transfer(null, product) + ERC20 Transfer(product, null)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-875.93" y="2533.1" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--519" style="edgeStyle=orthogonalEdgeStyle;shape=connector;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;labelBackgroundColor=default;strokeColor=default;fontFamily=Helvetica;fontSize=11;fontColor=default;endArrow=classicThin;endFill=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="ZiqXiyuxJ9c71-WuivR--498" target="ZiqXiyuxJ9c71-WuivR--518">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--498" value="Any log request:&lt;br&gt;topic + block range" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-981.2599999999994" y="2650" width="108.12" height="32.2" as="geometry" />
@@ -1353,6 +1356,9 @@
         </mxCell>
         <mxCell id="ZiqXiyuxJ9c71-WuivR--516" value="eth_call, multicall" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
           <mxGeometry x="-1668.7499999999998" y="2660" width="163.02" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ZiqXiyuxJ9c71-WuivR--518" value="explorer call, one address, one range (but can be very large)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="-622.29" y="2780" width="187.81" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
