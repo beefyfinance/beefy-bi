@@ -168,8 +168,8 @@ services:
       TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/server.js"
-      LETSENCRYPT_HOST: databarn.beefy.com
-      VIRTUAL_HOST: databarn.beefy.com
+      LETSENCRYPT_HOST: databarn.beefy.com,databarn.beefy.finance
+      VIRTUAL_HOST: databarn.beefy.com,databarn.beefy.finance
       VIRTUAL_PORT: 8080
       TRUST_DOWNSTREAM_PROXY: true
     logging:
