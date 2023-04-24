@@ -6,4 +6,5 @@ export * from "./script/show-used-rpc-config";
 export * from "./script/test-multicall-contracts";
 export * from "./script/test-ppfs";
 export * from "./script/test-redis-con";
+export * from "./script/test-viem";
 export * from "./script/test-ws";
