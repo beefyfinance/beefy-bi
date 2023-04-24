@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 import { cloneDeep, sample, set } from "lodash";
 import yargs from "yargs";
-import { defaultImportBehaviour, ImportBehaviour } from "../protocol/common/types/import-context";
+import { ImportBehaviour, defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
-import { allChainIds, Chain } from "../types/chain";
+import { Chain, allChainIds } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
 import { BeefyVaultV6AbiInterface, ERC20AbiInterface } from "../utils/abi";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
@@ -14,13 +14,13 @@ import { ProgrammerError } from "../utils/programmer-error";
 import { isArchiveNodeNeededError } from "../utils/rpc/archive-node-needed";
 import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
 import {
-  defaultLimitations,
-  getAllRpcUrlsForChain,
   MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS,
   MAX_RPC_BATCHING_SIZE,
   MAX_RPC_GETLOGS_SPAN,
-  RpcLimitations,
   RPC_SOFT_TIMEOUT_MS,
+  RpcLimitations,
+  defaultLimitations,
+  getAllRpcUrlsForChain,
   updateRawLimitations,
 } from "../utils/rpc/rpc-limitations";
 
@@ -190,6 +190,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       optimism: 12334163, // beefy first contract is at 13334163
       polygon: 4931456,
       syscoin: 1523,
+      zksync: 9648,
     };
     // disable the baked in retry logic just temporarily
     set(linearProvider, "__disableRetryArchiveNodeErrors", true);

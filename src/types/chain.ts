@@ -18,7 +18,8 @@ export type Chain =
   | "moonriver"
   | "optimism"
   | "polygon"
-  | "syscoin";
+  | "syscoin"
+  | "zksync";
 
 export const allChainIds: Chain[] = [
   "arbitrum",
@@ -41,6 +42,7 @@ export const allChainIds: Chain[] = [
   "optimism",
   "polygon",
   "syscoin",
+  "zksync",
 ];
 
 export interface ContractBlockInfos {

@@ -220,7 +220,7 @@ services:
   #    <<: *importer-env
   #    WORK_CMD: "./dist/src/script/run.js beefy:run -t reward-snapshots -c all -l 4hour"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
   importer-investment-recent-arbitrum:
     <<: *importer
@@ -324,7 +324,13 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c polygon -l 1min"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon
+  importer-investment-recent-zksync:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c zksync -l 1min"
+
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
   importer-investment-historical-arbitrum:
     <<: *importer
@@ -428,7 +434,13 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c polygon -l 15min -S all"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon
+  importer-investment-historical-zksync:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c zksync -l 15min -S all"
+
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
   importer-investment-historical-share-rate-arbitrum:
     <<: *importer
@@ -532,7 +544,13 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c polygon -l 15min -S all"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon
+  importer-investment-historical-share-rate-zksync:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c zksync -l 15min -S all"
+
+  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
   importer-investment-recent-share-rate-arbitrum:
     <<: *importer
@@ -635,3 +653,9 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c polygon -L 0 -l 15min"
+
+  importer-investment-recent-share-rate-zksync:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c zksync -L 0 -l 15min"

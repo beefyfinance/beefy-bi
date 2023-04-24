@@ -26,7 +26,7 @@ async function main() {
     disableWorkConcurrency: {
       type: "boolean",
       demand: false,
-      default: false,
+      default: true,
       alias: "C",
       describe: "disable concurrency for work",
     },
