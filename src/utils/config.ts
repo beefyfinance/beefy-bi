@@ -51,7 +51,7 @@ export const RPC_API_KEY_QUIKNODE = process.env.RPC_API_KEY_QUIKNODE || null;
 export const RPC_API_URL_CHAINSTACK_CRONOS = process.env.RPC_API_URL_CHAINSTACK_CRONOS || null;
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
 
-export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony"; url: string } } = {
+export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony" | "zksync"; url: string } } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
   avax: { type: "etherscan", url: "https://api.snowtrace.io/api" },
@@ -72,6 +72,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },
   polygon: { type: "etherscan", url: "https://api.polygonscan.com/api" },
   syscoin: { type: "etherscan", url: "https://explorer.syscoin.org/api" },
+  zksync: { type: "zksync", url: "https://zksync2-mainnet-explorer.zksync.io" },
 };
 
 export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
@@ -95,6 +96,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   optimism: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 4286263 },
   polygon: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 25770160 },
   syscoin: null,
+  zksync: null,
 };
 
 function _getExplorerApiKey(chain: Chain) {
@@ -124,6 +126,7 @@ export const ETHERSCAN_API_KEY: {
   optimism: _getExplorerApiKey("optimism"),
   polygon: _getExplorerApiKey("polygon"),
   syscoin: _getExplorerApiKey("syscoin"),
+  zksync: _getExplorerApiKey("zksync"),
 };
 
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
@@ -147,6 +150,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   optimism: 1500,
   polygon: 2170,
   syscoin: 100000,
+  zksync: 600, // 10 min -> 1k blocks
 };
 
 export const CONFIG_DIRECTORY = process.env.CONFIG_DIRECTORY || path.join(__dirname, "..", "..", "data", "config");

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { isArray, isString } from "lodash";
+import { get, isArray, isString } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
@@ -84,10 +84,13 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
     });
   } else if (explorerType === "etherscan") {
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url);
+  } else if (explorerType === "zksync") {
+    return await getFromZksyncExplorerApi(contractAddress, EXPLORER_URLS[chain].url);
   } else {
     throw new Error("Unsupported explorer type: " + explorerType);
   }
 }
+
 async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string) {
   const params = {
     module: "account",
@@ -250,6 +253,40 @@ async function getHarmonyRpcCreationInfos(rpcConfig: RpcConfig, contractAddress:
     return { blockNumber: tx0.blockNumber, datetime: new Date(tx0.timestamp * 1000) };
   } catch (error) {
     logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, params, chain, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function getFromZksyncExplorerApi(contractAddress: string, explorerUrl: string) {
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, explorerUrl } });
+
+  const callUrl = new URL(explorerUrl);
+  callUrl.pathname = `/address/${contractAddress}`;
+
+  try {
+    const contractResp = await axios.get<{ info: { createdInBlockNumber: number } }>(callUrl.href);
+    const blockNumber = contractResp.data?.info?.createdInBlockNumber;
+    if (!blockNumber) {
+      logger.error({
+        msg: "Could not find a valid block number",
+        data: { contractAddress, explorerUrl: callUrl.href, data: contractResp.data },
+      });
+      throw new Error("Could not find a valid block number");
+    }
+
+    callUrl.pathname = `/block/${blockNumber}`;
+    const blockResp = await axios.get<{ timestamp: number }>(callUrl.href);
+    const timeStamp = blockResp.data?.timestamp;
+    if (!timeStamp) {
+      logger.error({ msg: "Could not find a valid timestamp", data: { contractAddress, explorerUrl: callUrl.href, data: blockResp.data } });
+      throw new Error("Could not find a valid block number");
+    }
+    const datetime = new Date(timeStamp * 1000);
+
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, explorerUrl, error: error } });
     logger.error(error);
     throw error;
   }
