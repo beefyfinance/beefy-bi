@@ -162,8 +162,8 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
                 vault,
               },
             });
-            continue;
           }
+          acc[vaultAddress].foundInCurrentBatch = true;
 
           const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
           acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
