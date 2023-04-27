@@ -14,7 +14,7 @@ import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
-interface BeefyPPFSCallParams {
+export interface BeefyPPFSCallParams {
   vaultDecimals: number;
   underlyingDecimals: number;
   vaultAddress: string;

@@ -5,7 +5,7 @@ import { ERC20AbiInterface } from "../../../utils/abi";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
-interface GetBalanceCallParams {
+export interface GetBalanceCallParams {
   contractAddress: string;
   decimals: number;
   ownerAddress: string;

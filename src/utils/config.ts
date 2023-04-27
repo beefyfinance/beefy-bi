@@ -1,7 +1,6 @@
 import Decimal from "decimal.js";
 import dotenv from "dotenv";
 import * as path from "path";
-import { Hex } from "../types/address";
 import { Chain } from "../types/chain";
 import { allLogLevels, LogLevels } from "../types/logger";
 dotenv.config();
@@ -76,7 +75,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   zksync: { type: "zksync", url: "https://zksync2-mainnet-explorer.zksync.io" },
 };
 
-export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: Hex; createdAtBlock: number } | null } = {
+export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
   arbitrum: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 7654707 },
   aurora: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 62907816 },
   avax: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 11907934 },
