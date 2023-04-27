@@ -1,18 +1,45 @@
 import { ethers } from "ethers";
+import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
+import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Hex } from "../types/address";
+import { Chain } from "../types/chain";
 import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../utils/abi";
+import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
 import { runMain } from "../utils/process";
-import { RpcRequestBatch, jsonRpcBatchEthCall } from "../utils/rpc/jsonrpc-batch";
 
 async function main() {
-  const chain = "bsc";
-  const multicallAddress = "0xcA11bde05977b3631167028862bE2a173976CA11";
+  const chain: Chain = "bsc";
+  const mcMap = MULTICALL3_ADDRESS_MAP[chain];
+  if (!mcMap) {
+    throw new Error("No multicall");
+  }
+  const multicallAddress = mcMap.multicallAddress;
 
-  type MulticallCall = {
-    allowFailure: boolean;
-    callData: string;
-    target: Hex;
+  const cmdParams = {
+    client: {} as any,
+    rpcCount: "all" as const,
+    task: "historical" as const,
+    includeEol: true,
+    filterChains: [chain],
+    filterContractAddress: null,
+    forceCurrentBlockNumber: null,
+    forceRpcUrl: null, //"https://rpc.ankr.com/bsc",
+    forceGetLogsBlockSpan: null,
+    productRefreshInterval: null,
+    loopEvery: null,
+    loopEveryRandomizeRatio: 0,
+    ignoreImportState: true,
+    disableWorkConcurrency: true,
+    generateQueryCount: null,
+    skipRecentWindowWhenHistorical: "none" as const,
+    waitForBlockPropagation: null,
   };
+
+  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
+  const rpcConfigs = getMultipleRpcConfigsForChain({ chain: chain, behaviour });
+  const rpcConfig = rpcConfigs[0];
+  const provider = rpcConfig.batchProvider;
+
   const transfers: { blockNumber: number; vaultAddress: Hex; investorAddress: Hex }[] = [
     {
       blockNumber: 27544612,
@@ -32,52 +59,41 @@ async function main() {
     },
   ];
 
-  const jsonRpcBatch: RpcRequestBatch<[MulticallCall[]], { success: boolean; returnData: Hex }[], (typeof transfers)[0]> = [];
-  for (const transferIdx in transfers) {
-    const transfer = transfers[transferIdx];
+  const multicallContract = new ethers.Contract(multicallAddress, Multicall3AbiInterface, provider);
 
-    // create the multicall function call
-    const multicallData: MulticallCall[] = [
-      {
-        allowFailure: true,
-        callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
-        target: transfer.vaultAddress,
-      },
-      {
-        allowFailure: false,
-        callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [transfer.investorAddress]),
-        target: transfer.vaultAddress,
-      },
-      {
-        allowFailure: false,
-        callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
-        target: multicallAddress,
-      },
-    ];
+  const batch = transfers.map((transfer) =>
+    multicallContract.callStatic.aggregate3(
+      [
+        {
+          allowFailure: true,
+          callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
+          target: transfer.vaultAddress,
+        },
+        {
+          allowFailure: false,
+          callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [transfer.investorAddress]),
+          target: transfer.vaultAddress,
+        },
+        {
+          allowFailure: false,
+          callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
+          target: multicallAddress,
+        },
+      ],
+      { blockTag: transfer.blockNumber },
+    ),
+  );
+  const result: { success: boolean; returnData: string }[][] = await Promise.all(batch);
 
-    // create the multicall eth_call call at the right block number
-    jsonRpcBatch.push({
-      interface: Multicall3AbiInterface,
-      contractAddress: multicallAddress,
-      params: [multicallData],
-      function: "aggregate3",
-      blockTag: transfer.blockNumber,
-      originalRequest: transfer,
-    });
-  }
-
-  const result = await jsonRpcBatchEthCall({ url: "https://rpc.ankr.com/bsc", requests: jsonRpcBatch });
-
-  for (const [_, res] of result.entries()) {
-    const itemData = await res;
-    console.dir({ itemData }, { depth: null });
+  transfers.map((transfer, i) => {
+    const itemData = result[i];
 
     const ppfs = BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", itemData[0].returnData)[0] as ethers.BigNumber;
     const balance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", itemData[1].returnData)[0] as ethers.BigNumber;
     const blockTimestamp = Multicall3AbiInterface.decodeFunctionResult("getCurrentBlockTimestamp", itemData[2].returnData)[0] as ethers.BigNumber;
 
     console.log({ ppfs: ppfs.toString(), balance: balance.toString(), blockTimestamp: new Date(blockTimestamp.toNumber() * 1000) });
-  }
+  });
 }
 
 runMain(main);

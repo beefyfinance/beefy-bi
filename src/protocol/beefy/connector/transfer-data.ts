@@ -21,6 +21,7 @@ type BeefyTransferCallParams = {
   investorAddress: Hex;
   underlyingDecimals: number;
   blockNumber: number;
+  
 };
 
 type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDatetime: Date };
