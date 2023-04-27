@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { Hex } from "../types/address";
 import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../utils/abi";
 import { runMain } from "../utils/process";
 import { RpcRequestBatch, jsonRpcBatchEthCall } from "../utils/rpc/jsonrpc-batch";
@@ -7,7 +8,6 @@ async function main() {
   const chain = "bsc";
   const multicallAddress = "0xcA11bde05977b3631167028862bE2a173976CA11";
 
-  type Hex = `0x${string}`;
   type MulticallCall = {
     allowFailure: boolean;
     callData: string;
@@ -26,7 +26,7 @@ async function main() {
     },
   ];
 
-  const jsonRpcBatch: RpcRequestBatch = [];
+  const jsonRpcBatch: RpcRequestBatch<[MulticallCall[]], { success: boolean; returnData: Hex }[]> = [];
   for (const transferIdx in transfers) {
     const transfer = transfers[transferIdx];
 
@@ -53,7 +53,7 @@ async function main() {
     jsonRpcBatch.push({
       interface: Multicall3AbiInterface,
       contractAddress: multicallAddress,
-      callData: [multicallData],
+      params: [multicallData],
       function: "aggregate3",
       blockTag: transfer.blockNumber,
     });
@@ -62,7 +62,7 @@ async function main() {
   const result = await jsonRpcBatchEthCall({ url: "https://rpc.ankr.com/bsc", requests: jsonRpcBatch });
 
   for (const [_, res] of result.entries()) {
-    const itemData = (await res) as { success: boolean; returnData: Hex }[];
+    const itemData = await res;
     console.dir({ itemData }, { depth: null });
 
     const ppfs = BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", itemData[0].returnData)[0] as ethers.BigNumber;
