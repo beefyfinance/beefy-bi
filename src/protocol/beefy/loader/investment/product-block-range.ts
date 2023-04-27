@@ -1,12 +1,8 @@
-import Decimal from "decimal.js";
 import * as Rx from "rxjs";
 import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range } from "../../../../utils/range";
-import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
-import { fetchERC20TokenBalance$ } from "../../../common/connector/owner-balance";
-import { fetchTransactionGas$ } from "../../../common/connector/transaction-gas";
 import { createShouldIgnoreFn } from "../../../common/loader/ignore-address";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
@@ -16,8 +12,7 @@ import { ErrorEmitter, ErrorReport, ImportCtx } from "../../../common/types/impo
 import { ImportRangeQuery } from "../../../common/types/import-query";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { fetchBeefyBoostTransfers$ } from "../../connector/boost-transfers";
-import { fetchBeefyPPFS$ } from "../../connector/ppfs";
-import { fetchBeefyPendingRewards$ } from "../../connector/rewards";
+import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import {
   isBeefyBoost,
   isBeefyBoostProductImportQuery,
@@ -190,100 +185,53 @@ export function loadTransfers$<
   TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> },
   TErr extends ErrorEmitter<TInput>,
 >(options: { ctx: ImportCtx; emitError: TErr }) {
-  const govVaultPipeline$ = Rx.pipe(
-    Rx.filter((item: TInput) => isBeefyGovVault(item.target.product)),
-    // simulate a ppfs of 1 so we can treat gov vaults like standard vaults after that
-    Rx.map((item) => ({ ...item, ppfs: new Decimal(1) })),
-  );
-
-  const stdVaultPipeline$ = Rx.pipe(
-    Rx.filter((item: TInput) => isBeefyStandardVault(item.target.product)),
-
-    // fetch the ppfs
-    fetchBeefyPPFS$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getPPFSCallParams: (item) => {
-        if (!isBeefyStandardVault(item.target.product)) {
-          throw new ProgrammerError("Expected gov vault");
-        }
-        const vault = item.target.product;
-        return {
-          vaultAddress: vault.productData.vault.contract_address,
-          underlyingDecimals: vault.productData.vault.want_decimals,
-          vaultDecimals: vault.productData.vault.token_decimals,
-          blockNumber: item.target.transfer.blockNumber,
-        };
-      },
-      formatOutput: (item, ppfs) => ({ ...item, ppfs }),
-    }),
-  );
-
-  const boostPipeline$ = Rx.pipe(
-    Rx.filter((item: TInput) => isBeefyBoost(item.target.product)),
-
-    // fetch the ppfs
-    fetchBeefyPPFS$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getPPFSCallParams: (item) => {
-        if (!isBeefyBoost(item.target.product)) {
-          throw new ProgrammerError("Expected gov vault");
-        }
-        const boostData = item.target.product.productData.boost;
-        return {
-          vaultAddress: boostData.staked_token_address,
-          underlyingDecimals: boostData.vault_want_decimals,
-          vaultDecimals: boostData.staked_token_decimals,
-          blockNumber: item.target.transfer.blockNumber,
-        };
-      },
-      formatOutput: (item, ppfs) => ({ ...item, ppfs }),
-    }),
-  );
-
   return Rx.pipe(
     Rx.tap((item: TInput) => logger.trace({ msg: "loading transfer", data: { chain: options.ctx.chain, transferData: item } })),
 
-    // ==============================
-    // fetch additional transfer data
-    // ==============================
-
-    // fetch the ppfs
-    Rx.connect((items$) => Rx.merge(items$.pipe(govVaultPipeline$), items$.pipe(stdVaultPipeline$), items$.pipe(boostPipeline$))),
-
-    // we need the balance of each owner
-    fetchERC20TokenBalance$({
+    fetchBeefyTransferData$({
       ctx: options.ctx,
       emitError: options.emitError,
-      getQueryParams: (item) => ({
-        blockNumber: item.target.transfer.blockNumber,
-        decimals: item.target.transfer.tokenDecimals,
-        contractAddress: item.target.transfer.tokenAddress,
-        ownerAddress: item.target.transfer.ownerAddress,
-      }),
-      formatOutput: (item, vaultSharesBalance) => ({ ...item, vaultSharesBalance }),
+      getCallParams: (item) => {
+        const balance = {
+          decimals: item.target.transfer.tokenDecimals,
+          contractAddress: item.target.transfer.tokenAddress,
+          ownerAddress: item.target.transfer.ownerAddress,
+        };
+        const blockNumber = item.target.transfer.blockNumber;
+        if (isBeefyStandardVault(item.target.product)) {
+          return {
+            ppfs: {
+              vaultAddress: item.target.product.productData.vault.contract_address,
+              underlyingDecimals: item.target.product.productData.vault.want_decimals,
+              vaultDecimals: item.target.product.productData.vault.token_decimals,
+            },
+            balance,
+            blockNumber,
+            fetchPpfs: true,
+          };
+        } else if (isBeefyBoost(item.target.product)) {
+          return {
+            ppfs: {
+              vaultAddress: item.target.product.productData.boost.staked_token_address,
+              underlyingDecimals: item.target.product.productData.boost.vault_want_decimals,
+              vaultDecimals: item.target.product.productData.boost.staked_token_decimals,
+            },
+            balance,
+            blockNumber,
+            fetchPpfs: true,
+          };
+        } else if (isBeefyGovVault(item.target.product)) {
+          return {
+            balance,
+            blockNumber,
+            fetchPpfs: false,
+          };
+        }
+        logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
+        throw new Error("Unsupported product type");
+      },
+      formatOutput: (item, { balance, blockDatetime, shareRate }) => ({ ...item, blockDatetime, balance, shareRate }),
     }),
-
-    // we also need the date of each block
-    fetchBlockDatetime$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getBlockNumber: (t) => t.target.transfer.blockNumber,
-      formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
-    }),
-
-    // fetch the transaction cost in gas so we can calculate the gas cost of the transfer and ROI/APY better
-    // not in use right now
-    /*fetchTransactionGas$({
-      ctx: options.ctx,
-      emitError: options.emitError,
-      getQueryParams: (item) => ({
-        blockNumber: item.target.transfer.blockNumber,
-        transactionHash: item.target.transfer.transactionHash,
-      }),
-      formatOutput: (item, gas) => ({ ...item, gas }),
-    }),*/
 
     // ==============================
     // now we are ready for the insertion
@@ -307,7 +255,7 @@ export function loadTransfers$<
       getPriceData: (item) => ({
         priceFeedId: item.target.product.priceFeedId1,
         blockNumber: item.target.transfer.blockNumber,
-        price: item.ppfs,
+        price: item.shareRate,
         datetime: item.blockDatetime,
       }),
       formatOutput: (item, priceRow) => ({ ...item, priceRow }),
@@ -324,7 +272,7 @@ export function loadTransfers$<
         investorId: item.investorId,
         transactionHash: item.target.transfer.transactionHash,
         // balance is expressed in vault shares
-        balance: item.vaultSharesBalance,
+        balance: item.shareRate,
         balanceDiff: item.target.transfer.amountTransferred,
         pendingRewards: null,
         pendingRewardsDiff: null,
@@ -348,9 +296,9 @@ export function loadTransfers$<
           balanceDiff: item.investment.balanceDiff,
           pendingRewards: null,
           pendingRewardsDiff: null,
-          shareToUnderlyingPrice: item.ppfs,
-          underlyingBalance: item.investment.balance.mul(item.ppfs),
-          underlyingDiff: item.investment.balanceDiff.mul(item.ppfs),
+          shareToUnderlyingPrice: item.shareRate,
+          underlyingBalance: item.investment.balance.mul(item.shareRate),
+          underlyingDiff: item.investment.balanceDiff.mul(item.shareRate),
         },
       }),
       formatOutput: (item, investorCacheChainInfos) => ({ ...item, investorCacheChainInfos }),

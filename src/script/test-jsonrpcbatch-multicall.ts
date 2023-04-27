@@ -1,7 +1,6 @@
 import { ethers } from "ethers";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
-import { Hex } from "../types/address";
 import { Chain } from "../types/chain";
 import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
@@ -40,7 +39,7 @@ async function main() {
   const rpcConfig = rpcConfigs[0];
   const provider = rpcConfig.batchProvider;
 
-  const transfers: { blockNumber: number; vaultAddress: Hex; investorAddress: Hex }[] = [
+  const transfers: { blockNumber: number; vaultAddress: string; investorAddress: string }[] = [
     {
       blockNumber: 27544612,
       vaultAddress: "0xF80d1196119B65aFc91357Daebb02F368F3Bca02",

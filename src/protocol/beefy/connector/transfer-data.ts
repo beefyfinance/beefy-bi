@@ -1,28 +1,30 @@
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
-import { min, uniq } from "lodash";
-import { Hex } from "../../../types/address";
+import { min } from "lodash";
+import * as Rx from "rxjs";
 import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../../../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
-import { MulticallCallOneCallParamStructure } from "../../../utils/rpc/call";
-import { RpcRequestBatch, jsonRpcBatchEthCall } from "../../../utils/rpc/jsonrpc-batch";
-import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { vaultRawBalanceToBalance } from "../../common/connector/owner-balance";
-import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
+import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
+import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance } from "../../common/connector/owner-balance";
+import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
-import { ppfsToVaultSharesRate } from "./ppfs";
+import { BeefyPPFSCallParams, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
 
 const logger = rootLogger.child({ module: "beefy", component: "transfer-data" });
 
-type BeefyTransferCallParams = {
-  vaultAddress: Hex;
-  vaultDecimals: number;
-  investorAddress: Hex;
-  underlyingDecimals: number;
+interface NoPpfsCallParams {
+  balance: Omit<GetBalanceCallParams, "blockNumber">;
   blockNumber: number;
-  
-};
+  fetchPpfs: false;
+}
+interface WithPpfsCallParams {
+  ppfs: Omit<BeefyPPFSCallParams, "blockNumber">;
+  balance: Omit<GetBalanceCallParams, "blockNumber">;
+  blockNumber: number;
+  fetchPpfs: true;
+}
+type BeefyTransferCallParams = NoPpfsCallParams | WithPpfsCallParams;
 
 type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDatetime: Date };
 
@@ -31,154 +33,182 @@ type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDate
  * @param options
  * @returns
  */
-export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends BeefyTransferCallParams>(options: {
+export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getPPFSCallParams: (obj: TObj) => TParams;
+  getCallParams: (obj: TObj) => BeefyTransferCallParams;
   formatOutput: (obj: TObj, data: BeefyTransferCallResult) => TRes;
 }) {
-  const logInfos = { msg: "Fetching Beefy PPFS", data: { chain: options.ctx.chain } };
+  const mcMap = MULTICALL3_ADDRESS_MAP[options.ctx.chain];
 
-  return batchRpcCalls$({
-    ctx: options.ctx,
-    emitError: options.emitError,
-    logInfos,
-    rpcCallsPerInputObj: {
-      eth_call: 3,
-      eth_blockNumber: 0,
-      eth_getBlockByNumber: 0,
-      eth_getLogs: 0,
-      eth_getTransactionReceipt: 0,
-    },
-    getQuery: options.getPPFSCallParams,
-    processBatch: async (provider, params) => {
-      const mcMap = MULTICALL3_ADDRESS_MAP[options.ctx.chain];
-      // find out if we can use multicall
-      const minBlockNumber = min(params.map((c) => c.blockNumber)) || 0;
-      if (
-        // this chain has the Multicall3 contract deployed
-        mcMap &&
-        // the block number we work on is after the mc contract creation
-        mcMap.createdAtBlock < minBlockNumber
-      ) {
-        const multicallAddress = mcMap.multicallAddress;
-        const jsonRpcBatch: RpcRequestBatch<[MulticallCallOneCallParamStructure[]], { success: boolean; returnData: Hex }[], (typeof params)[0]> = [];
+  const noMulticallPipeline = Rx.pipe(
+    Rx.tap((obj: TObj) => logger.trace({ msg: "loading transfer data, no multicall", data: { chain: options.ctx.chain, transferData: obj } })),
+    Rx.map((obj) => ({ obj, param: options.getCallParams(obj) })),
 
-        for (const param of params) {
-          // create the multicall function call
-          const multicallData: MulticallCallOneCallParamStructure[] = [
-            {
-              allowFailure: false, // don't account for division by zero errors for now
-              callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
-              target: param.vaultAddress,
+    // fetch the ppfs if needed
+    Rx.connect((items$) =>
+      Rx.merge(
+        items$.pipe(
+          Rx.filter((item): item is { obj: TObj; param: WithPpfsCallParams } => item.param.fetchPpfs),
+          fetchBeefyPPFS$({
+            ctx: options.ctx,
+            emitError: (item, errReport) => options.emitError(item.obj, errReport),
+            getPPFSCallParams: (item) => {
+              return {
+                vaultAddress: item.param.ppfs.vaultAddress,
+                underlyingDecimals: item.param.ppfs.underlyingDecimals,
+                vaultDecimals: item.param.ppfs.vaultDecimals,
+                blockNumber: item.param.blockNumber,
+              };
             },
-            {
-              allowFailure: false,
-              callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [param.investorAddress]),
-              target: param.vaultAddress,
-            },
-            {
-              allowFailure: false,
-              callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
-              target: multicallAddress,
-            },
-          ];
+            formatOutput: (item, shareRate) => ({ ...item, shareRate }),
+          }),
+        ),
+        items$.pipe(
+          Rx.filter((item) => !item.param.fetchPpfs),
+          Rx.map((item) => ({ ...item, shareRate: new Decimal(1) })),
+        ),
+      ),
+    ),
 
-          // create the multicall eth_call call at the right block number
-          jsonRpcBatch.push({
-            interface: Multicall3AbiInterface,
-            contractAddress: multicallAddress,
-            params: [multicallData],
-            function: "aggregate3",
-            blockTag: param.blockNumber,
-            originalRequest: param,
-          });
+    // we need the balance of each owner
+    fetchERC20TokenBalance$({
+      ctx: options.ctx,
+      emitError: (item, errReport) => options.emitError(item.obj, errReport),
+      getQueryParams: (item) => ({
+        blockNumber: item.param.blockNumber,
+        decimals: item.param.balance.decimals,
+        contractAddress: item.param.balance.contractAddress,
+        ownerAddress: item.param.balance.ownerAddress,
+      }),
+      formatOutput: (item, balance) => ({ ...item, balance }),
+    }),
+
+    // we also need the date of each block
+    fetchBlockDatetime$({
+      ctx: options.ctx,
+      emitError: (item, errReport) => options.emitError(item.obj, errReport),
+      getBlockNumber: (item) => item.param.blockNumber,
+      formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
+    }),
+
+    Rx.map((item) => options.formatOutput(item.obj, { balance: item.balance, blockDatetime: item.blockDatetime, shareRate: item.shareRate })),
+  );
+
+  type CouldDoMulticallResult = BeefyTransferCallResult & { couldMulticall: true };
+  type CouldNotDoMulticallResult = { couldMulticall: false };
+  type MaybeMulticallResult = CouldDoMulticallResult | CouldNotDoMulticallResult;
+  const maybeMulticallPipeline = Rx.pipe(
+    Rx.tap((obj: TObj) =>
+      logger.trace({ msg: "loading transfer data, maybe using multicall", data: { chain: options.ctx.chain, transferData: obj } }),
+    ),
+
+    batchRpcCalls$<TObj, TErr, { obj: TObj } & MaybeMulticallResult, BeefyTransferCallParams, MaybeMulticallResult>({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      logInfos: { msg: "Fetching transfer data, maybe using multicall" },
+      rpcCallsPerInputObj: {
+        eth_call: 3,
+        eth_blockNumber: 0,
+        eth_getBlockByNumber: 0,
+        eth_getLogs: 0,
+        eth_getTransactionReceipt: 0,
+      },
+      getQuery: options.getCallParams,
+      processBatch: async (provider, params) => {
+        // find out if we can use multicall
+        const minBlockNumber = min(params.map((c) => c.blockNumber)) || 0;
+        if (!mcMap || mcMap.createdAtBlock >= minBlockNumber) {
+          // we couldn't do multicall so we handle it later on
+          return {
+            successes: new Map(params.map((param) => [param, { couldMulticall: false }] as const)),
+            errors: new Map(),
+          };
         }
 
+        const multicallAddress = mcMap.multicallAddress;
+        const multicallContract = new ethers.Contract(multicallAddress, Multicall3AbiInterface, provider);
+
         try {
-          const successResults: [TParams, BeefyTransferCallResult][] = [];
-          const result = await callLockProtectedRpc(() => jsonRpcBatchEthCall({ url: provider.connection.url, requests: jsonRpcBatch }), {
-            chain: options.ctx.chain,
-            logInfos: { msg: "Fetching transfer data using batched multicall", data: { callCount: jsonRpcBatch.length } },
-            provider: provider,
-            rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
-            noLockIfNoLimit: true,
-            maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+          const batch = params.map((param) => {
+            const calls = [
+              {
+                allowFailure: false,
+                callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [param.balance.ownerAddress]),
+                target: param.balance.contractAddress,
+              },
+              {
+                allowFailure: false,
+                callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
+                target: multicallAddress,
+              },
+            ];
+            if (param.fetchPpfs) {
+              calls.push({
+                allowFailure: false,
+                callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
+                target: param.ppfs.vaultAddress,
+              });
+            }
+            return multicallContract.callStatic.aggregate3(calls, { blockTag: param.blockNumber });
           });
 
-          for (const [call, res] of result.entries()) {
-            const param = call.originalRequest;
-            const itemData = await res;
+          const result: { success: boolean; returnData: string }[][] = await Promise.all(batch);
 
-            const rawPpfs = BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", itemData[0].returnData)[0] as ethers.BigNumber;
-            const shareRate = ppfsToVaultSharesRate(param.vaultDecimals, param.underlyingDecimals, rawPpfs);
-            const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", itemData[1].returnData)[0] as ethers.BigNumber;
-            const balance = vaultRawBalanceToBalance(param.vaultDecimals, rawBalance);
-            const blockTimestamp = Multicall3AbiInterface.decodeFunctionResult(
-              "getCurrentBlockTimestamp",
-              itemData[2].returnData,
-            )[0] as ethers.BigNumber;
+          const successResults = params.map((param, i) => {
+            const r = result[i];
 
+            const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", r[0].returnData)[0] as ethers.BigNumber;
+            const balance = vaultRawBalanceToBalance(param.balance.decimals, rawBalance);
+            const blockTimestamp = Multicall3AbiInterface.decodeFunctionResult("getCurrentBlockTimestamp", r[1].returnData)[0] as ethers.BigNumber;
             const blockDatetime = new Date(blockTimestamp.toNumber() * 1000);
-            successResults.push([param, { balance, blockDatetime, shareRate }]);
-          }
+
+            let shareRate = new Decimal(1);
+            if (param.fetchPpfs) {
+              const rawPpfs = BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[2].returnData)[0] as ethers.BigNumber;
+              shareRate = ppfsToVaultSharesRate(param.ppfs.vaultDecimals, param.ppfs.underlyingDecimals, rawPpfs);
+            }
+
+            return [param, { couldMulticall: true, balance, blockDatetime, shareRate }] as const;
+          });
 
           return {
             successes: new Map(successResults),
             errors: new Map(),
           };
-        } catch (err) {
+        } catch (err: any) {
           logger.error({ msg: "Error fetching transfer data with custom batch builder", data: { err } });
           logger.error(err);
+          const report: ErrorReport = { error: err, infos: { msg: "Error fetching transfer data with custom batch builder" } };
 
           return {
             successes: new Map(),
-            errors: new Map(
-              params.map((p) => [
-                p,
-                {
-                  error: err,
-                  infos: { msg: "Error fetching transfer data with custom batch builder" },
-                },
-              ]),
-            ),
+            errors: new Map(params.map((p) => [p, report] as const)),
           };
         }
-      } else {
-        // here, we don't have access to multicall so we'll have to make a single call per data per contract
+      },
+      formatOutput: (obj, res) => ({ obj, ...res }),
+    }),
 
-        const jsonRpcBatch: RpcRequestBatch<[MulticallCallOneCallParamStructure[]], { success: boolean; returnData: Hex }[], (typeof params)[0]> = [];
+    // handle those calls where multicall is available but was not created yet
+    Rx.connect((items$) =>
+      Rx.merge(
+        items$.pipe(
+          Rx.filter((item): item is { obj: TObj } & CouldNotDoMulticallResult => !item.couldMulticall),
+          Rx.map((item) => item.obj),
+          noMulticallPipeline,
+        ),
+        items$.pipe(
+          Rx.filter((item): item is { obj: TObj } & CouldDoMulticallResult => item.couldMulticall),
+          Rx.map((item) => options.formatOutput(item.obj, item)),
+        ),
+      ),
+    ),
+  );
 
-        for (const param of params) {
-          jsonRpcBatch.push({
-            interface: BeefyVaultV6AbiInterface,
-            contractAddress: param.vaultAddress,
-            params: undefined,
-            function: "getPricePerFullShare",
-            blockTag: param.blockNumber,
-            originalRequest: param,
-          });
-
-          jsonRpcBatch.push({
-            interface: BeefyVaultV6AbiInterface,
-            contractAddress: param.vaultAddress,
-            params: [param.investorAddress],
-            function: "balanceOf",
-            blockTag: param.blockNumber,
-            originalRequest: param,
-          });
-
-          jsonRpcBatch.push({
-            interface: Multicall3AbiInterface,
-            contractAddress: param.multicallAddress,
-            params: undefined,
-            function: "getCurrentBlockTimestamp",
-            blockTag: param.blockNumber,
-            originalRequest: param,
-          });
-        }
-      }
-    },
-    formatOutput: options.formatOutput,
-  });
+  if (!mcMap) {
+    return noMulticallPipeline;
+  } else {
+    return maybeMulticallPipeline;
+  }
 }
