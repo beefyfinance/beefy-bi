@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 import { keyBy } from "lodash";
 import type { FunctionCall } from "./call";
 
-export type RpcRequestBatch<TParams, TResult> = FunctionCall<TParams, TResult>[];
+export type RpcRequestBatch<TParams, TResult, TMap = any> = FunctionCall<TParams, TResult, TMap>[];
 
 interface SuccessResponse {
   jsonrpc: `${number}`;
@@ -21,13 +21,13 @@ interface ErrorResponse {
 type Response = SuccessResponse | ErrorResponse;
 
 let globalId = 1;
-export async function jsonRpcBatchEthCall<TParams extends undefined | any[], TResult>({
+export async function jsonRpcBatchEthCall<TParams extends undefined | any[], TResult, TMap = any>({
   url,
   requests,
   timeout = 10_000,
 }: {
   url: string;
-  requests: RpcRequestBatch<TParams, TResult>;
+  requests: RpcRequestBatch<TParams, TResult, TMap>;
   timeout?: number;
 }) {
   const requestsAndId = requests.map((request) => {

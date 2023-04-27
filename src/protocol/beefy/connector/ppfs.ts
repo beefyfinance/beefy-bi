@@ -197,7 +197,7 @@ function extractRawPpfsFromFunctionResult<T>(returnData: [T] | T): T {
 
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance
 // this is derived from mooAmountToOracleAmount in beefy-v2 repo
-function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
+export function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
   const mooTokenAmount = new Decimal("1.0");
 
   // go to chain representation
