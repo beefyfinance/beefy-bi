@@ -120,6 +120,7 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
         const minBlockNumber = min(params.map((c) => c.blockNumber)) || 0;
         if (!mcMap || mcMap.createdAtBlock >= minBlockNumber) {
           // we couldn't do multicall so we handle it later on
+          logger.trace({ msg: "Could not use multicall, fallback to batch by call type", data: { mcMap, minBlockNumber } });
           return {
             successes: new Map(params.map((param) => [param, { couldMulticall: false }] as const)),
             errors: new Map(),
@@ -195,6 +196,7 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
       Rx.merge(
         items$.pipe(
           Rx.filter((item): item is { obj: TObj } & CouldNotDoMulticallResult => !item.couldMulticall),
+          Rx.tap((item) => logger.trace({ msg: "Could not use multicall, fallback to batch by call type", data: { mcMap, item } })),
           Rx.map((item) => item.obj),
           noMulticallPipeline,
         ),
