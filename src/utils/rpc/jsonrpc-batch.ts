@@ -2,15 +2,9 @@ import { BlockTag } from "@ethersproject/abstract-provider";
 import axios from "axios";
 import { ethers } from "ethers";
 import { keyBy } from "lodash";
+import type { FunctionCall } from "./call";
 
-interface RpcRequest {
-  interface: ethers.utils.Interface;
-  function: ethers.utils.FunctionFragment | string;
-  contractAddress: string;
-  blockTag: BlockTag;
-  callData: undefined | any[];
-}
-export type RpcRequestBatch = RpcRequest[];
+export type RpcRequestBatch<TParams, TResult> = FunctionCall<TParams, TResult>[];
 
 interface SuccessResponse {
   jsonrpc: `${number}`;
@@ -27,7 +21,15 @@ interface ErrorResponse {
 type Response = SuccessResponse | ErrorResponse;
 
 let globalId = 1;
-export async function jsonRpcBatchEthCall({ url, requests, timeout = 10_000 }: { url: string; requests: RpcRequestBatch; timeout?: number }) {
+export async function jsonRpcBatchEthCall<TParams extends undefined | any[], TResult>({
+  url,
+  requests,
+  timeout = 10_000,
+}: {
+  url: string;
+  requests: RpcRequestBatch<TParams, TResult>;
+  timeout?: number;
+}) {
   const requestsAndId = requests.map((request) => {
     const id = globalId++;
     return {
@@ -41,7 +43,7 @@ export async function jsonRpcBatchEthCall({ url, requests, timeout = 10_000 }: {
           {
             from: null,
             to: request.contractAddress,
-            data: request.interface.encodeFunctionData(request.function, request.callData),
+            data: request.interface.encodeFunctionData(request.function, request.params),
           },
           ethers.utils.hexValue(request.blockTag),
         ],
@@ -82,7 +84,10 @@ export async function jsonRpcBatchEthCall({ url, requests, timeout = 10_000 }: {
       } else if (result.error) {
         return [originalRequest, Promise.reject(result.error)];
       }
-      return [originalRequest, Promise.resolve(originalRequest.interface.decodeFunctionResult(originalRequest.function, result.result)[0])];
+      return [
+        originalRequest,
+        Promise.resolve(originalRequest.interface.decodeFunctionResult(originalRequest.function, result.result)[0] as TResult),
+      ];
     }),
   );
 }
