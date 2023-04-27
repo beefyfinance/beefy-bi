@@ -24,16 +24,22 @@ async function main() {
       vaultAddress: "0x6A3B5A4952791F15Da5763745AfEA8366Ad06C7d",
       investorAddress: "0x643e1004dcb9b37d00442438f69d306473fdf58d",
     },
+    // last withdraw from a now empty vault
+    {
+      blockNumber: 23956036,
+      vaultAddress: "0x213526BEF0fA40c7FEAB26304c4260c5CF7e841d",
+      investorAddress: "0xd927ce147f098ce634301e6c4281541b1939a132",
+    },
   ];
 
-  const jsonRpcBatch: RpcRequestBatch<[MulticallCall[]], { success: boolean; returnData: Hex }[]> = [];
+  const jsonRpcBatch: RpcRequestBatch<[MulticallCall[]], { success: boolean; returnData: Hex }[], (typeof transfers)[0]> = [];
   for (const transferIdx in transfers) {
     const transfer = transfers[transferIdx];
 
     // create the multicall function call
     const multicallData: MulticallCall[] = [
       {
-        allowFailure: true, // can fail when vault is empty
+        allowFailure: true,
         callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
         target: transfer.vaultAddress,
       },
@@ -56,6 +62,7 @@ async function main() {
       params: [multicallData],
       function: "aggregate3",
       blockTag: transfer.blockNumber,
+      originalRequest: transfer,
     });
   }
 

@@ -36,7 +36,6 @@ export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, T
       const paramsByCalls = groupBy(params, (p) => `${p.contractAddress}-${p.ownerAddress}-${p.blockNumber}`);
       const calls = Object.values(paramsByCalls).map(async (params) => {
         const param = params[0];
-        const valueMultiplier = new Decimal(10).pow(-param.decimals);
         const contract = new ethers.Contract(param.contractAddress, ERC20AbiInterface, provider);
 
         // aurora RPC return the state before the transaction is applied
@@ -47,11 +46,16 @@ export function fetchERC20TokenBalance$<TObj, TErr extends ErrorEmitter<TObj>, T
         }
 
         const rawBalance = await contract.balanceOf(param.ownerAddress, { blockTag });
-        const balance = valueMultiplier.mul(rawBalance.toString() ?? "0");
+        const balance = vaultRawBalanceToBalance(param.decimals, rawBalance);
         return params.map((p) => [p, balance] as const);
       });
       const results = await Promise.all(calls);
       return { successes: new Map(results.flat()), errors: new Map() };
     },
   });
+}
+
+export function vaultRawBalanceToBalance(vaultDecimals: number, rawBalance: ethers.BigNumber) {
+  const valueMultiplier = new Decimal(10).pow(-vaultDecimals);
+  return valueMultiplier.mul(rawBalance.toString() ?? "0");
 }
