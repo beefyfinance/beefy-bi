@@ -9,7 +9,7 @@ import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance } from "../../common/connector/owner-balance";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
-import { BeefyPPFSCallParams, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
+import { BeefyPPFSCallParams, extractRawPpfsFromFunctionResult, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
 
 const logger = rootLogger.child({ module: "beefy", component: "transfer-data" });
 
@@ -166,7 +166,9 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
 
             let shareRate = new Decimal(1);
             if (param.fetchPpfs) {
-              const rawPpfs = BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[2].returnData)[0] as ethers.BigNumber;
+              const rawPpfs = extractRawPpfsFromFunctionResult(
+                BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[2].returnData),
+              ) as ethers.BigNumber;
               shareRate = ppfsToVaultSharesRate(param.ppfs.vaultDecimals, param.ppfs.underlyingDecimals, rawPpfs);
             }
 
