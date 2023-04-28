@@ -2,7 +2,7 @@ import axios from "axios";
 import Decimal from "decimal.js";
 import { ContractCallContext, Multicall } from "ethereum-multicall";
 import { ethers } from "ethers";
-import { get, uniq } from "lodash";
+import { get, isArray, uniq } from "lodash";
 import { Chain } from "../../../types/chain";
 import { BeefyVaultV6AbiInterface } from "../../../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
@@ -10,7 +10,7 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
-import { batchRpcCalls$, RPCBatchCallResult } from "../../common/utils/batch-rpc-calls";
+import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "ppfs" });
 
@@ -60,17 +60,14 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
     data: { chain, contractCalls: contractCalls.length },
   });
 
-  const manualPpfsCallOn: Chain[] = ["harmony", "heco"];
-
   // if all contract call have the same block number, we can use a multicall contract to spare some rpc calls
   const mcMap = MULTICALL3_ADDRESS_MAP[chain];
   const uniqBlockNumbers = uniq(contractCalls.map((c) => c.blockNumber));
+  console.log(contractCalls.length, uniqBlockNumbers.length, mcMap);
   if (
     // all contract calls have the same block number
     contractCalls.length > 1 &&
     uniqBlockNumbers.length === 1 &&
-    // we are not in the special case of a manual call chain
-    !manualPpfsCallOn.includes(chain) &&
     // this chain has the Multicall3 contract deployed
     mcMap &&
     // the block number we work on is after the mc contract creation
@@ -117,7 +114,7 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
         });
         continue;
       }
-      const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = value.returnValues[0];
+      const rawPpfs: { type: "BigNumber"; hex: string } | ethers.BigNumber = extractRawPpfsFromFunctionResult(value.returnValues);
       const ppfs = "hex" in rawPpfs ? ethers.BigNumber.from(rawPpfs.hex) : rawPpfs instanceof ethers.BigNumber ? rawPpfs : null;
       if (!ppfs) {
         errors.set(contractCall, {
@@ -141,20 +138,14 @@ async function fetchBeefyVaultPPFS<TParams extends BeefyPPFSCallParams>(
   for (const contractCall of contractCalls) {
     let rawPromise: Promise<[ethers.BigNumber]>;
 
-    // it looks like ethers doesn't yet support harmony's special format or something
-    // same for heco
-    if (manualPpfsCallOn.includes(chain)) {
-      rawPromise = fetchBeefyPPFSWithManualRPCCall(provider, chain, contractCall);
-    } else {
-      const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6AbiInterface, provider);
-      rawPromise = contract.functions.getPricePerFullShare({ blockTag: contractCall.blockNumber });
-    }
+    const contract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6AbiInterface, provider);
+    rawPromise = contract.callStatic.getPricePerFullShare({ blockTag: contractCall.blockNumber });
 
     const shareRatePromise = rawPromise
       .then(
-        ([ppfs]): CallResult<PPFSEntry> => ({
+        (ppfs): CallResult<PPFSEntry> => ({
           type: "success",
-          data: [contractCall, ppfs] as PPFSEntry,
+          data: [contractCall, extractRawPpfsFromFunctionResult(ppfs)] as PPFSEntry,
         }),
       )
       // empty vaults WILL throw an error
@@ -199,6 +190,11 @@ export function isEmptyVaultPPFSError(err: any) {
   return errorMessage.includes("SafeMath: division by zero");
 }
 
+function extractRawPpfsFromFunctionResult<T>(returnData: [T] | T): T {
+  // some chains don't return an array (harmony, heco)
+  return isArray(returnData) ? returnData[0] : returnData;
+}
+
 // takes ppfs and compute the actual rate which can be directly multiplied by the vault balance
 // this is derived from mooAmountToOracleAmount in beefy-v2 repo
 function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: number, ppfs: ethers.BigNumber) {
@@ -215,57 +211,4 @@ function ppfsToVaultSharesRate(mooTokenDecimals: number, depositTokenDecimals: n
   const oracleAmount = oracleChainAmount.div(new Decimal(10).pow(mooTokenDecimals + depositTokenDecimals)).toDecimalPlaces(mooTokenDecimals);
 
   return oracleAmount;
-}
-
-/**
- * I don't know why this is needed but seems like ethers.js is not doing the right rpc call
- */
-async function fetchBeefyPPFSWithManualRPCCall(
-  provider: ethers.providers.JsonRpcProvider,
-  chain: Chain,
-  contractCall: BeefyPPFSCallParams,
-): Promise<[ethers.BigNumber]> {
-  const url = provider.connection.url;
-
-  // get the function call hash
-  const abi = ["function getPricePerFullShare()"];
-  const iface = new ethers.utils.Interface(abi);
-  const callData = iface.encodeFunctionData("getPricePerFullShare");
-
-  // somehow block tag has to be hex encoded for heco
-  const batchParams = {
-    method: "eth_call",
-    params: [
-      {
-        from: null,
-        to: contractCall.vaultAddress,
-        data: callData,
-      },
-      ethers.utils.hexValue(contractCall.blockNumber),
-    ],
-    id: 1,
-    jsonrpc: "2.0",
-  };
-
-  type ResItem =
-    | {
-        jsonrpc: "2.0";
-        id: number;
-        result: string;
-      }
-    | {
-        jsonrpc: "2.0";
-        id: number;
-        error: string;
-      };
-  const result = await axios.post<ResItem>(url, batchParams);
-  const res = result.data;
-
-  if (isErrorDueToMissingDataFromNode(res)) {
-    throw new ArchiveNodeNeededError(chain, res);
-  } else if ("error" in res) {
-    throw new Error("Error in fetching PPFS: " + JSON.stringify(res));
-  }
-  const ppfs = ethers.utils.defaultAbiCoder.decode(["uint256"], res.result) as any as [ethers.BigNumber];
-  return ppfs;
 }
