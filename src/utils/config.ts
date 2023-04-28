@@ -96,7 +96,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   optimism: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 4286263 },
   polygon: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 25770160 },
   syscoin: null,
-  zksync: null,
+  zksync: { multicallAddress: "0x47898B2C52C957663aE9AB46922dCec150a2272c", createdAtBlock: 1536804 },
 };
 
 function _getExplorerApiKey(chain: Chain) {
