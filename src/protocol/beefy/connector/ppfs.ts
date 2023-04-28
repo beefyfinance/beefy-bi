@@ -190,7 +190,7 @@ export function isEmptyVaultPPFSError(err: any) {
   return errorMessage.includes("SafeMath: division by zero");
 }
 
-function extractRawPpfsFromFunctionResult<T>(returnData: [T] | T): T {
+export function extractRawPpfsFromFunctionResult<T>(returnData: [T] | T): T {
   // some chains don't return an array (harmony, heco)
   return isArray(returnData) ? returnData[0] : returnData;
 }
