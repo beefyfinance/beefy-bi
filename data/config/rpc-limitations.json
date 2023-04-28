@@ -752,7 +752,8 @@
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
+      "comment": "Ankr do not work properly on optimism and is generating lots of \"missing trie node\" errors.",
       "weight": 1,
       "methods": {
         "eth_getLogs": 400,
@@ -763,7 +764,7 @@
       }
     },
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
-      "restrictToMode": "historical",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
