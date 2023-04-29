@@ -436,19 +436,6 @@ export async function db_migrate() {
     CREATE UNIQUE INDEX IF NOT EXISTS ignore_address_chain_address_idx ON ignore_address (chain, address);
   `);
 
-  // this is used to store import meta data for debug purpose, this can grow big and is separated from other ts
-  // tables to keep them small and lean. Also, we want to be able to use compression on most of this debug data
-  // but as of now, it's not possible to do `INSERT ... ON CONFLICT` on a compressed hypertable
-  // separating this debug data allows us to compress it
-  if (!(await typeExists("debug_origin_table_enum"))) {
-    await db_query(`
-        CREATE TYPE debug_origin_table_enum AS ENUM ('price_ts');
-    `);
-  }
-  for (const tsName of ["price_ts", "investment_balance_ts", "block_ts"]) {
-    await db_query(`ALTER TYPE debug_origin_table_enum ADD VALUE IF NOT EXISTS %L`, [tsName]);
-  }
-
   await db_query(`
     CREATE TABLE IF NOT EXISTS investment_balance_ts (
       datetime timestamptz not null,
@@ -746,6 +733,76 @@ export async function db_migrate() {
       SELECT add_job('snapshot_import_metrics', '1min', config => null);
     `);
   }
+
+  await db_query(`
+    create table if not exists rpc (
+      rpc_id serial PRIMARY KEY,
+
+      -- the chain this rpc is for
+      chain chain_enum not null,
+
+      -- the rpc unique external key
+      rpc_key varchar UNIQUE NOT NULL,
+
+      -- rpc url where secrets are template variables
+      rpc_template_url varchar not null
+    );
+  `);
+
+  if (!(await typeExists("rpc_call_reason_enum"))) {
+    await db_query(`
+        CREATE TYPE rpc_call_reason_enum AS ENUM ();
+    `);
+  }
+  for (const chain of allChainIds) {
+    await db_query(`ALTER TYPE chain_enum ADD VALUE IF NOT EXISTS %L`, [chain]);
+  }
+
+  await db_query(`
+    create table if not exists rpc_call_ts (
+      datetime timestamptz not null, -- when was this call initiated
+      rpc_id integer not null references rpc(rpc_id),
+
+      -- performance fields
+      waiting_for_lock_ms integer not null,
+      call_duration_ms integer not null,
+      request_bytes integer not null,
+      response_bytes integer not null,
+
+      -- why was this call made
+      reason varchar not null, -- include mode (historical, recent), importer (ppfs snapshot, investments, etc)
+
+      -- what was inside this call
+
+      block_number integer, -- the block number targeted by this call, null if not relevant
+      json_rpc_batch_size smallint not null, -- set to zero if not a batch call
+      internal_batch_size smallint not null, -- multicall3 count or getLogs address batch
+      internal_result_count smallint not null, -- getLogs event count
+
+      eth_getlogs_avg_size smallint not null,
+      eth_getlogs_count smallint not null,
+      eth_call_count smallint not null, 
+      eth_blocknumber_count smallint not null,
+      eth_getblock_count smallint not null,
+      eth_gettransactionreceipt_count smallint not null,
+
+      -- result
+      got_lock boolean,
+      got_response boolean,
+      success_response boolean,
+      all_success_in_batch boolean,
+
+      -- other interesting data?
+      rpc_call_data jsonb not null
+    );
+    
+    SELECT create_hypertable(
+      relation => 'rpc_call_ts', 
+      time_column_name => 'datetime',
+      chunk_time_interval => INTERVAL '1 days',
+      if_not_exists => true
+    );
+  `);
 
   logger.info({ msg: "Migrate done" });
 }
