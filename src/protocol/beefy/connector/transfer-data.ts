@@ -132,6 +132,11 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
 
         try {
           const batch = params.map((param) => {
+            // read the next block for those chains who can't read their own writes
+            let blockTag = param.blockNumber;
+            if (!options.ctx.rpcConfig.rpcLimitations.stateChangeReadsOnSameBlock) {
+              blockTag = param.blockNumber + 1;
+            }
             const calls = [
               {
                 allowFailure: false,
@@ -151,7 +156,7 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
                 target: param.ppfs.vaultAddress,
               });
             }
-            return multicallContract.callStatic.aggregate3(calls, { blockTag: param.blockNumber });
+            return multicallContract.callStatic.aggregate3(calls, { blockTag });
           });
 
           const result: { success: boolean; returnData: string }[][] = await Promise.all(batch);
