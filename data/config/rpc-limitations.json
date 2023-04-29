@@ -10,6 +10,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -28,6 +29,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 20,
@@ -46,6 +48,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 18,
         "eth_call": 500,
@@ -65,6 +68,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": false,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 150,
@@ -84,6 +88,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 50,
@@ -104,6 +109,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 4,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 10,
@@ -122,6 +128,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": 6,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 200,
@@ -140,6 +147,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 2,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": null,
@@ -158,6 +166,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 3,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 200,
@@ -176,6 +185,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -194,6 +204,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -212,6 +223,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -230,6 +242,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -248,6 +261,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -266,6 +280,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -284,6 +299,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -302,6 +318,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 10,
@@ -322,6 +339,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 192,
@@ -342,6 +360,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 24,
         "eth_call": 200,
@@ -359,6 +378,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 1,
@@ -379,6 +399,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 4,
         "eth_call": 4,
@@ -397,6 +418,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 1,
@@ -415,6 +437,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 36,
         "eth_call": 200,
@@ -433,6 +456,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 6,
         "eth_call": 10,
@@ -452,6 +476,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 32,
@@ -471,6 +496,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 500,
@@ -490,6 +516,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 300,
@@ -509,6 +536,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 256,
@@ -528,6 +556,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 128,
         "eth_call": 389,
@@ -547,6 +576,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 32,
         "eth_call": 1,
@@ -568,6 +598,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 56,
         "eth_call": 58,
@@ -587,6 +618,7 @@
       "disableBatching": true,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 20,
@@ -605,6 +637,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 20,
@@ -624,6 +657,7 @@
       "internalTimeoutMs": 5000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 1,
@@ -644,6 +678,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": 2,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 378,
@@ -662,6 +697,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 2,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 28,
@@ -681,6 +717,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": null,
@@ -698,6 +735,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": true,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 2,
@@ -716,6 +754,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 80,
@@ -734,6 +773,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 36,
         "eth_call": 500,
@@ -755,6 +795,7 @@
       "disableRpc": true,
       "comment": "Ankr do not work properly on optimism and is generating lots of \"missing trie node\" errors.",
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 400,
         "eth_call": 120,
@@ -773,6 +814,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 20,
@@ -791,6 +833,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": null,
@@ -809,6 +852,7 @@
       "disableBatching": false,
       "disableRpc": true,
       "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 84,
         "eth_call": 500,
@@ -828,6 +872,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": 64,
@@ -847,6 +892,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 128,
         "eth_call": 6,
@@ -867,6 +913,7 @@
       "disableBatching": false,
       "disableRpc": false,
       "weight": null,
+      "stateChangeReadsOnSameBlock": true,
       "methods": {
         "eth_getLogs": 42,
         "eth_call": 108,

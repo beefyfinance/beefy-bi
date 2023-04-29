@@ -31,6 +31,7 @@ export const defaultLimitations: RpcLimitations = {
   maxGetLogsBlockSpan: 10,
   maxGetLogsAddressBatchSize: null,
   internalTimeoutMs: null,
+  stateChangeReadsOnSameBlock: true,
   disableBatching: false,
   disableRpc: false,
   weight: null,
@@ -169,6 +170,13 @@ export interface RpcLimitations {
   // weight must be defined for all rpc of a chain or none
   // if not defined, some heuristic on `minDelayBetweenCalls` is used instead
   weight: number | null;
+  // this tells us if the rpc allow us to read the state change of a transaction
+  // on the same block it was submitted or not. For example if a user has 0 token
+  // on block 0, buys 10 on block 1. We query balanceOf on block 1, sometimes the
+  // rpc will return 0, sometimes 1, it depends on the ability of the RPC to include
+  // the transaction on block 1. More often than not, set this to true since most
+  // rpc will be able to return the updated state to us.
+  stateChangeReadsOnSameBlock: boolean;
   // maximum batching allowed for each method
   // null means batching is not allowed
   methods: {
