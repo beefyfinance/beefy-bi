@@ -3,7 +3,13 @@ import { Chain } from "../../../types/chain";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { Range } from "../../../utils/range";
-import { fetchImportState$, updateImportState$ } from "../../common/loader/import-state";
+import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import {
+  DbProductInvestmentImportState,
+  fetchImportState$,
+  isProductInvestmentImportState,
+  updateImportState$,
+} from "../../common/loader/import-state";
 import { chainProductIds$, fetchProduct$ } from "../../common/loader/product";
 import { ImportCtx } from "../../common/types/import-context";
 import { NoRpcRunnerConfig, createChainRunner } from "../../common/utils/rpc-chain-runner";
@@ -55,16 +61,21 @@ export function createScheduleReimportInvestmentsRunner(options: { client: DbCli
           formatOutput: (item, importState) => ({ ...item, importState }),
         }),
 
-        Rx.filter(({ importState }) => importState !== null),
+        excludeNullFields$("importState"),
       ),
 
       // schedule the reimport of data
       Rx.pipe(
-        Rx.map(({ chain, product, reimport }) => ({
-          target: product,
-          range: reimport,
-          success: false,
-        })),
+        Rx.map(({ importState, product, reimport }) => {
+          if (!isProductInvestmentImportState(importState)) {
+            throw new Error("Import state is not a product investment");
+          }
+          return {
+            target: product,
+            range: { from: Math.max(reimport.from, importState.importData.contractCreatedAtBlock + 1), to: reimport.to },
+            success: false,
+          };
+        }),
 
         // schedule the product re-import
         updateImportState$({
