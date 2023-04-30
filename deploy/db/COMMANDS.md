@@ -872,6 +872,32 @@ DROP INDEX beefy_investor_cache_empty_uprice_idx;
 DROP INDEX beefy_investor_cache_empty_rprice_idx;
 ```
 
-```sql
+```bash
+docker ps | grep kava | cut -d' ' -f1 | xargs docker stop
+docker ps | grep canto | cut -d' ' -f1 | xargs docker stop
+docker ps | grep cronos | cut -d' ' -f1 | xargs docker stop
 
+
+docker exec -it deploy-importer-products-1 /bin/sh
+
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c kava --fromBlock 4392477 --toBlock 4605533
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c canto --fromBlock 3799227 --toBlock 4024015
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c cronos --fromBlock 7870301 --toBlock 8111350
+
+```
+
+```sql
+begin;
+delete from block_ts where chain = 'kava' and block_number >= 4392477;
+delete from block_ts where chain = 'canto' and block_number >= 3799227;
+delete from block_ts where chain = 'cronos' and block_number >= 7870301;
+
+delete from investment_balance_ts where product_id in (select product_id from product where chain = 'kava') and block_number >= 4392477;
+delete from investment_balance_ts where product_id in (select product_id from product where chain = 'canto') and block_number >= 3799227;
+delete from investment_balance_ts where product_id in (select product_id from product where chain = 'cronos') and block_number >= 7870301;
+
+delete from beefy_investor_timeline_cache_ts where product_id in (select product_id from product where chain = 'kava') and block_number >= 4392477;
+delete from beefy_investor_timeline_cache_ts where product_id in (select product_id from product where chain = 'canto') and block_number >= 3799227;
+delete from beefy_investor_timeline_cache_ts where product_id in (select product_id from product where chain = 'cronos') and block_number >= 7870301;
+rollback;
 ```
