@@ -5,14 +5,15 @@ import { ImportBehaviour, defaultImportBehaviour } from "../protocol/common/type
 import { createRpcConfig } from "../protocol/common/utils/rpc-config";
 import { Chain, allChainIds } from "../types/chain";
 import { RpcCallMethod } from "../types/rpc-config";
-import { BeefyVaultV6AbiInterface, ERC20AbiInterface } from "../utils/abi";
+import { BeefyVaultV6AbiInterface, ERC20AbiInterface, Multicall3AbiInterface } from "../utils/abi";
 import { getChainWNativeTokenAddress } from "../utils/addressbook";
 import { sleep } from "../utils/async";
+import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { ProgrammerError } from "../utils/programmer-error";
 import { isArchiveNodeNeededError } from "../utils/rpc/archive-node-needed";
-import { removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
+import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
 import {
   MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS,
   MAX_RPC_BATCHING_SIZE,
@@ -35,7 +36,8 @@ type RpcTests =
   | "maxGetLogsBlockSpan"
   | "isArchiveNode"
   | "minDelayBetweenCalls"
-  | "eth_getLogs_address_batching";
+  | "eth_getLogs_address_batching"
+  | "canUseMulticallBlockTimestamp";
 
 const allRpcTests: RpcTests[] = [
   "eth_call",
@@ -47,6 +49,7 @@ const allRpcTests: RpcTests[] = [
   "isArchiveNode",
   "minDelayBetweenCalls",
   "eth_getLogs_address_batching",
+  "canUseMulticallBlockTimestamp",
 ];
 
 const findings = {} as {
@@ -80,7 +83,7 @@ async function main() {
       throw new Error("If you specify an rpc url, you must also specify a chain");
     }
     findings[chainFilter] = {};
-    const behaviour: ImportBehaviour = { ...defaultImportBehaviour, useDefaultLimitationsIfNotFound, forceRpcUrl: rpcFilter };
+    const behaviour: ImportBehaviour = { ...defaultImportBehaviour, useDefaultLimitationsIfNotFound, forceRpcUrl: addSecretsToRpcUrl(rpcFilter) };
     await testRpcLimits(chainFilter, behaviour, tests);
   } else {
     const allParams = allChainIds
@@ -137,6 +140,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
   findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].weight = rpcLimitations.weight;
   findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].restrictToMode = rpcLimitations.restrictToMode;
   findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].minDelayBetweenCalls = rpcLimitations.minDelayBetweenCalls;
+  findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].stateChangeReadsOnSameBlock = rpcLimitations.stateChangeReadsOnSameBlock;
 
   // set the soft timeout, the delay after which we consider the rpc request to have failed
   const rpcSoftTimeout = (rpcLimitations.internalTimeoutMs || RPC_SOFT_TIMEOUT_MS) * 0.5;
@@ -285,6 +289,47 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
         return Promise.all(promises);
       },
     );
+  }
+
+  if (tests.includes("canUseMulticallBlockTimestamp")) {
+    const mcMap = MULTICALL3_ADDRESS_MAP[chain];
+    if (!mcMap) {
+      // no multicall, we assume it's not possible just to be safe
+      findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].canUseMulticallBlockTimestamp = false;
+    } else {
+      const multicallAddress = mcMap.multicallAddress;
+      const multicallContract = new ethers.Contract(multicallAddress, Multicall3AbiInterface, linearProvider);
+      // don't request more than 256 blocks to be able to request non-archive rpcs too
+      const blockNumber = latestBlockNumber - 100;
+      const waitBeforeNextTest = rpcLimitations.minDelayBetweenCalls;
+      if (waitBeforeNextTest !== "no-limit") {
+        await sleep(waitBeforeNextTest);
+      }
+      const mcRes = await multicallContract.callStatic.aggregate3(
+        [
+          {
+            allowFailure: false,
+            callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
+            target: multicallAddress,
+          },
+        ],
+        { blockTag: blockNumber },
+      );
+
+      const mcBlockTimestamp = Multicall3AbiInterface.decodeFunctionResult("getCurrentBlockTimestamp", mcRes[0].returnData)[0] as ethers.BigNumber;
+      const mcBlockDate = new Date(mcBlockTimestamp.toNumber() * 1000);
+
+      if (waitBeforeNextTest !== "no-limit") {
+        await sleep(waitBeforeNextTest);
+      }
+      const rpcBlock = await linearProvider.getBlock(blockNumber);
+      const rpcBlockTimestamp = rpcBlock.timestamp;
+      const rpcBlockDate = new Date(rpcBlockTimestamp * 1000);
+
+      const same = mcBlockDate.getTime() === rpcBlockDate.getTime();
+
+      findings[chain][removeSecretsFromRpcUrl(chain, rpcUrl)].canUseMulticallBlockTimestamp = same;
+    }
   }
 
   // eth_getLogs

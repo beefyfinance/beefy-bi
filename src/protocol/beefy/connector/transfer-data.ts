@@ -5,10 +5,11 @@ import * as Rx from "rxjs";
 import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../../../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
+import { forkOnNullableField$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance } from "../../common/connector/owner-balance";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
-import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
+import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import { BeefyPPFSCallParams, extractRawPpfsFromFunctionResult, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
 
 const logger = rootLogger.child({ module: "beefy", component: "transfer-data" });
@@ -25,7 +26,6 @@ interface WithPpfsCallParams {
   fetchPpfs: true;
 }
 type BeefyTransferCallParams = NoPpfsCallParams | WithPpfsCallParams;
-
 type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDatetime: Date };
 
 /**
@@ -38,7 +38,8 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
   emitError: TErr;
   getCallParams: (obj: TObj) => BeefyTransferCallParams;
   formatOutput: (obj: TObj, data: BeefyTransferCallResult) => TRes;
-}) {
+}): Rx.OperatorFunction<TObj, TRes> {
+  type MaybeResult = { result: { shareRate: Decimal; balance: Decimal; blockDatetime: Date | null } | null };
   const mcMap = MULTICALL3_ADDRESS_MAP[options.ctx.chain];
 
   const noMulticallPipeline = Rx.pipe(
@@ -91,21 +92,17 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
       getBlockNumber: (item) => item.param.blockNumber,
       formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
-
-    Rx.map((item) => options.formatOutput(item.obj, { balance: item.balance, blockDatetime: item.blockDatetime, shareRate: item.shareRate })),
   );
 
-  type CouldDoMulticallResult = BeefyTransferCallResult & { couldMulticall: true };
-  type CouldNotDoMulticallResult = { couldMulticall: false };
-  type MaybeMulticallResult = CouldDoMulticallResult | CouldNotDoMulticallResult;
   const maybeMulticallPipeline = Rx.pipe(
     Rx.tap((obj: TObj) =>
       logger.trace({ msg: "loading transfer data, maybe using multicall", data: { chain: options.ctx.chain, transferData: obj } }),
     ),
+    Rx.map((obj) => ({ obj, param: options.getCallParams(obj) })),
 
-    batchRpcCalls$<TObj, TErr, { obj: TObj } & MaybeMulticallResult, BeefyTransferCallParams, MaybeMulticallResult>({
+    batchRpcCalls$({
       ctx: options.ctx,
-      emitError: options.emitError,
+      emitError: (item, errReport) => options.emitError(item.obj, errReport),
       logInfos: { msg: "Fetching transfer data, maybe using multicall" },
       rpcCallsPerInputObj: {
         eth_call: 1,
@@ -114,15 +111,15 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
         eth_getLogs: 0,
         eth_getTransactionReceipt: 0,
       },
-      getQuery: options.getCallParams,
-      processBatch: async (provider, params) => {
+      getQuery: ({ param }) => param,
+      processBatch: async (provider, params): Promise<RPCBatchCallResult<BeefyTransferCallParams, MaybeResult>> => {
         // find out if we can use multicall
         const minBlockNumber = min(params.map((c) => c.blockNumber)) || 0;
         if (!mcMap || mcMap.createdAtBlock >= minBlockNumber) {
           // we couldn't do multicall so we handle it later on
           logger.trace({ msg: "Could not use multicall, fallback to batch by call type", data: { mcMap, minBlockNumber } });
           return {
-            successes: new Map(params.map((param) => [param, { couldMulticall: false }] as const)),
+            successes: new Map(params.map((param) => [param, { result: null }] as const)),
             errors: new Map(),
           };
         }
@@ -143,12 +140,14 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
                 callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [param.balance.ownerAddress]),
                 target: param.balance.contractAddress,
               },
-              {
+            ];
+            if (options.ctx.rpcConfig.rpcLimitations.canUseMulticallBlockTimestamp) {
+              calls.push({
                 allowFailure: false,
                 callData: Multicall3AbiInterface.encodeFunctionData("getCurrentBlockTimestamp"),
                 target: multicallAddress,
-              },
-            ];
+              });
+            }
             if (param.fetchPpfs) {
               calls.push({
                 allowFailure: false,
@@ -164,20 +163,33 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
           const successResults = params.map((param, i) => {
             const r = result[i];
 
-            const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", r[0].returnData)[0] as ethers.BigNumber;
+            let rIdx = 0;
+            const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", r[rIdx++].returnData)[0] as ethers.BigNumber;
             const balance = vaultRawBalanceToBalance(param.balance.decimals, rawBalance);
-            const blockTimestamp = Multicall3AbiInterface.decodeFunctionResult("getCurrentBlockTimestamp", r[1].returnData)[0] as ethers.BigNumber;
-            const blockDatetime = new Date(blockTimestamp.toNumber() * 1000);
+
+            let blockDatetime: Date | null = null;
+            if (options.ctx.rpcConfig.rpcLimitations.canUseMulticallBlockTimestamp) {
+              const blockTimestamp = Multicall3AbiInterface.decodeFunctionResult(
+                "getCurrentBlockTimestamp",
+                r[rIdx++].returnData,
+              )[0] as ethers.BigNumber;
+              blockDatetime = new Date(blockTimestamp.toNumber() * 1000);
+            } else {
+              logger.debug({
+                msg: "RPC is not able to use Multicall3.getCurrentBlockTimestamp, fetching it later",
+                data: { chain: options.ctx.chain },
+              });
+            }
 
             let shareRate = new Decimal(1);
             if (param.fetchPpfs) {
               const rawPpfs = extractRawPpfsFromFunctionResult(
-                BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[2].returnData),
+                BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[rIdx++].returnData),
               ) as ethers.BigNumber;
               shareRate = ppfsToVaultSharesRate(param.ppfs.vaultDecimals, param.ppfs.underlyingDecimals, rawPpfs);
             }
 
-            return [param, { couldMulticall: true, balance, blockDatetime, shareRate }] as const;
+            return [param, { result: { balance, blockDatetime, shareRate } }] as const;
           });
 
           return {
@@ -195,28 +207,44 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
           };
         }
       },
-      formatOutput: (obj, res) => ({ obj, ...res }),
+      formatOutput: (item, res) => ({ ...item, ...res }),
     }),
 
     // handle those calls where multicall is available but was not created yet
-    Rx.connect((items$) =>
-      Rx.merge(
-        items$.pipe(
-          Rx.filter((item): item is { obj: TObj } & CouldNotDoMulticallResult => !item.couldMulticall),
-          Rx.tap((item) => logger.trace({ msg: "Could not use multicall, fallback to batch by call type", data: { mcMap, item } })),
-          Rx.map((item) => item.obj),
-          noMulticallPipeline,
-        ),
-        items$.pipe(
-          Rx.filter((item): item is { obj: TObj } & CouldDoMulticallResult => item.couldMulticall),
-          Rx.map((item) => options.formatOutput(item.obj, item)),
-        ),
+    forkOnNullableField$({
+      key: "result",
+      handleNulls$: Rx.pipe(
+        Rx.tap((item) => logger.trace({ msg: "Could not use multicall, fallback to no-multicall method", data: { mcMap, item } })),
+        Rx.map((item) => item.obj),
+        noMulticallPipeline,
       ),
-    ),
+      handleNonNulls$: Rx.pipe(Rx.map(({ obj, param, result }) => ({ obj, param, ...result }))),
+    }),
+
+    // handle those chains where multicall is not able to fetch the datetime
+    forkOnNullableField$({
+      key: "blockDatetime",
+      handleNulls$: Rx.pipe(
+        Rx.tap((item) =>
+          logger.trace({ msg: "Could not use Multicall3.getCurrentBlockTimestamp, fetching the proper timestamp", data: { mcMap, item } }),
+        ),
+        fetchBlockDatetime$({
+          ctx: options.ctx,
+          emitError: (item, errReport) => options.emitError(item.obj, errReport),
+          getBlockNumber: (item) => options.getCallParams(item.obj).blockNumber,
+          formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
+        }),
+      ),
+    }),
+
+    Rx.map((item) => options.formatOutput(item.obj, { balance: item.balance, blockDatetime: item.blockDatetime, shareRate: item.shareRate })),
   );
 
   if (!mcMap) {
-    return noMulticallPipeline;
+    return Rx.pipe(
+      noMulticallPipeline,
+      Rx.map((item) => options.formatOutput(item.obj, { balance: item.balance, blockDatetime: item.blockDatetime, shareRate: item.shareRate })),
+    );
   } else {
     return maybeMulticallPipeline;
   }

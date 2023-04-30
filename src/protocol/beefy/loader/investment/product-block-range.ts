@@ -3,6 +3,7 @@ import { rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range } from "../../../../utils/range";
 import { ERC20Transfer, fetchErc20Transfers$, fetchERC20TransferToAStakingContract$ } from "../../../common/connector/erc20-transfers";
+import { upsertBlock$ } from "../../../common/loader/blocks";
 import { createShouldIgnoreFn } from "../../../common/loader/ignore-address";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
@@ -236,6 +237,18 @@ export function loadTransfers$<
     // ==============================
     // now we are ready for the insertion
     // ==============================
+
+    // insert the block data
+    upsertBlock$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      getBlockData: (item) => ({
+        blockNumber: item.target.transfer.blockNumber,
+        chain: options.ctx.chain,
+        datetime: item.blockDatetime,
+      }),
+      formatOutput: (item, investorId) => ({ ...item, investorId }),
+    }),
 
     // insert the investor data
     upsertInvestor$({
