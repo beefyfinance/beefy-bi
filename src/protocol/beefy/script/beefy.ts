@@ -15,6 +15,7 @@ import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
 import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport, ImportBehaviour, ImportCtx, createBatchStreamConfig, defaultImportBehaviour } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
+import { createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
 import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
@@ -23,6 +24,7 @@ import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices"
 import { createBeefyHistoricalShareRatePricesRunner, createBeefyRecentShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
+import { createScheduleReimportInvestmentsRunner } from "../loader/schedule-reimport";
 import { getProductContractAddress } from "../utils/contract-accessors";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
@@ -61,7 +63,7 @@ interface CmdParams {
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
   return yargs
     .command({
-      command: "beefy:reimport",
+      command: "beefy:reimport:now",
       describe: "Reimport a product range",
       builder: (yargs) =>
         yargs.options({
@@ -130,7 +132,80 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
             return Promise.all(tasks.map((task) => task()));
           },
-          { appName: "beefy:run", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+          { appName: "beefy:reimport", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+        )(),
+    })
+    .command({
+      command: "beefy:reimport:schedule",
+      describe: "Schedule the reimport of a product range",
+      builder: (yargs) =>
+        yargs.options({
+          chain: {
+            type: "array",
+            choices: [...allChainIds, "all"],
+            alias: "c",
+            demand: true,
+            default: "all",
+            describe: "only re-import data for these chain",
+          },
+          contractAddress: { type: "string", demand: false, alias: "a", describe: "only reimport data for this contract address" },
+          includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
+          fromBlock: { type: "number", demand: true, describe: "from block" },
+          toBlock: { type: "number", demand: true, describe: "to block" },
+        }),
+      handler: (argv): Promise<any> =>
+        withDbClient(
+          async (client) => {
+            //await db_migrate();
+
+            logger.info("Starting import script", { argv });
+
+            const fromBlock = argv.fromBlock;
+            const toBlock = argv.toBlock;
+            if (fromBlock > toBlock) {
+              throw new ProgrammerError("fromBlock > toBlock");
+            }
+
+            // we use the minimum block span accross all rpcs, this is not super efficient
+            // but will work for now until there is a way to query {from:to} block ranges
+            const cmdParams: CmdParams = {
+              client,
+              rpcCount: 1,
+              task: "historical",
+              includeEol: argv.includeEol,
+              filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
+              filterContractAddress: argv.contractAddress || null,
+              forceCurrentBlockNumber: argv.toBlock + 1,
+              forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
+              forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
+              productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
+              loopEvery: null,
+              loopEveryRandomizeRatio: 0,
+              ignoreImportState: true,
+              disableWorkConcurrency: true,
+              generateQueryCount: argv.generateQueryCount || null,
+              skipRecentWindowWhenHistorical: "none",
+              waitForBlockPropagation: 0,
+            };
+
+            _verifyCmdParams(cmdParams, argv);
+
+            const runner = createScheduleReimportInvestmentsRunner({
+              client: cmdParams.client,
+              runnerConfig: {
+                getInputs: async () =>
+                  cmdParams.filterChains.map((chain) => ({
+                    chain,
+                    onlyAddress: cmdParams.filterContractAddress ? [cmdParams.filterContractAddress] : null,
+                    reimport: { from: fromBlock, to: toBlock },
+                  })),
+                client: cmdParams.client,
+                behaviour: _createImportBehaviourFromCmdParams(cmdParams),
+              },
+            });
+            return runner.run();
+          },
+          { appName: "beefy:schedule-reimport", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
         )(),
     })
     .command({
