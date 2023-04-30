@@ -1,5 +1,5 @@
 import { backOff } from "exponential-backoff";
-import { cloneDeep, groupBy, keyBy, uniq } from "lodash";
+import { cloneDeep, groupBy, isNumber, keyBy, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { ConnectionTimeoutError } from "../../../utils/async";
@@ -7,19 +7,19 @@ import { DbClient, db_query, db_transaction } from "../../../utils/db";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
+  Range,
+  SupportedRangeTypes,
   isDateRange,
   isNumberRange,
-  Range,
   rangeArrayOverlap,
   rangeManyOverlap,
   rangeMerge,
   rangeSortedArrayExclude,
   rangeValueMax,
-  SupportedRangeTypes,
 } from "../../../utils/range";
 import { BatchStreamConfig, ErrorEmitter, ImportCtx } from "../types/import-context";
-import { ImportRangeResult } from "../types/import-query";
-import { hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, ImportRanges, updateImportRanges } from "../utils/import-ranges";
+import { ImportRangeResult, ImportRangeResultMaybeLatest } from "../types/import-query";
+import { ImportRanges, hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
 
@@ -169,7 +169,8 @@ export function fetchImportState$<TObj, TRes, TImport extends DbImportState>(opt
 }
 
 export function updateImportState$<
-  TObj,
+  TTarget,
+  TObj extends ImportRangeResultMaybeLatest<TTarget, number | Date>,
   TErr extends ErrorEmitter<TObj>,
   TRes,
   TImport extends DbImportState,
@@ -237,7 +238,10 @@ export function updateImportState$<
     ) {
       newImportState.importData.chainLatestBlockNumber =
         rangeValueMax(
-          (items as ImportRangeResult<TObj, number>[]).map((item) => item.latest).concat([newImportState.importData.chainLatestBlockNumber]),
+          items
+            .map((item) => item.latest)
+            .filter(isNumber)
+            .concat([newImportState.importData.chainLatestBlockNumber]),
         ) || 0;
     }
 

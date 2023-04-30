@@ -871,3 +871,7 @@ alter table beefy_investor_timeline_cache_ts
 DROP INDEX beefy_investor_cache_empty_uprice_idx;
 DROP INDEX beefy_investor_cache_empty_rprice_idx;
 ```
+
+```sql
+
+```
