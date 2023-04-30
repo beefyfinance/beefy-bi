@@ -86,6 +86,7 @@ export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcCo
         disableRpc: false,
         weight: null,
         stateChangeReadsOnSameBlock: true,
+        canUseMulticallBlockTimestamp: false, // unused value
         methods: {
           // no batching is supported
           eth_blockNumber: null,

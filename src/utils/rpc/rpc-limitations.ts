@@ -32,6 +32,7 @@ export const defaultLimitations: RpcLimitations = {
   maxGetLogsAddressBatchSize: null,
   internalTimeoutMs: null,
   stateChangeReadsOnSameBlock: true,
+  canUseMulticallBlockTimestamp: true,
   disableBatching: false,
   disableRpc: false,
   weight: null,
@@ -177,6 +178,10 @@ export interface RpcLimitations {
   // the transaction on block 1. More often than not, set this to true since most
   // rpc will be able to return the updated state to us.
   stateChangeReadsOnSameBlock: boolean;
+  // some cosmos chains have a bug where Multicall3.getCurrentBlockTimestamp ignores
+  // the eth_call blockTag parameter and return the current timestamp instead of
+  // the blockTag timestamp: https://github.com/cosmos/cosmos-sdk/issues/12226
+  canUseMulticallBlockTimestamp: boolean;
   // maximum batching allowed for each method
   // null means batching is not allowed
   methods: {

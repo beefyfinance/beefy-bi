@@ -3,3 +3,8 @@ export type OverwriteKeyType<Base, Overrides> = Omit<Base, keyof Overrides> & Ov
 
 // https://typeofnan.dev/making-every-object-property-nullable-in-typescript/
 export type Nullable<T> = { [K in keyof T]: T[K] | null };
+
+type NullableFields<T> = {
+  [P in keyof T]: Nullable<T[P]>;
+};
+export type NullableField<T, K extends keyof T> = Omit<Omit<T, K> & NullableFields<Pick<T, K>>, "">;
