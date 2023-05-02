@@ -15,7 +15,7 @@ import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
 import { getPriceFeedImportStateKey } from "../../utils/import-state";
 
-const logger = rootLogger.child({ module: "common", component: "investment" });
+const logger = rootLogger.child({ module: "common", component: "investor-cache" });
 
 interface DbInvestorCacheDimensions {
   investorId: number;

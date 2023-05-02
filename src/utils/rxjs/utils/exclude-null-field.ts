@@ -1,7 +1,7 @@
 import * as Rx from "rxjs";
 import { rootLogger } from "../../logger";
 
-const logger = rootLogger.child({ module: "common", component: "investment" });
+const logger = rootLogger.child({ module: "common", component: "exclude-null-field" });
 
 // https://stackoverflow.com/a/73083447/2523414
 type NonNullFields<T> = {

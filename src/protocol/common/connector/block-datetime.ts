@@ -4,7 +4,7 @@ import NodeCache from "node-cache";
 import * as Rx from "rxjs";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { excludeNullFields$, forkOnNullableField$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlock$, upsertBlock$ } from "../loader/blocks";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";
@@ -115,20 +115,17 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
 
     // if we found the block, return it
     // if not, we fetch it from the RPC
-    Rx.connect((items$) =>
-      Rx.merge(
-        items$.pipe(
-          excludeNullFields$("dbBlock"),
-          Rx.tap((item) => logger.trace({ msg: "Found block in database", data: { chain, blockNumber: options.getBlockNumber(item.obj) } })),
-          Rx.map((item) => options.formatOutput(item.obj, item.dbBlock.datetime)),
-        ),
-        items$.pipe(
-          Rx.filter((item) => item.dbBlock === null),
-          Rx.tap((item) => logger.trace({ msg: "Block not found in database", data: { chain, blockNumber: options.getBlockNumber(item.obj) } })),
-          Rx.map((item) => item.obj),
-          fetchFromRPC$,
-        ),
+    forkOnNullableField$({
+      key: "dbBlock",
+      handleNonNulls$: Rx.pipe(
+        Rx.tap((item) => logger.trace({ msg: "Found block in database", data: { chain, blockNumber: options.getBlockNumber(item.obj) } })),
+        Rx.map((item) => options.formatOutput(item.obj, item.dbBlock.datetime)),
       ),
-    ),
+      handleNulls$: Rx.pipe(
+        Rx.tap((item) => logger.trace({ msg: "Block not found in database", data: { chain, blockNumber: options.getBlockNumber(item.obj) } })),
+        Rx.map((item) => item.obj),
+        fetchFromRPC$,
+      ),
+    }),
   );
 }

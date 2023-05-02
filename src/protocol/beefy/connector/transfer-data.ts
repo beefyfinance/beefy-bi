@@ -231,7 +231,7 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
         fetchBlockDatetime$({
           ctx: options.ctx,
           emitError: (item, errReport) => options.emitError(item.obj, errReport),
-          getBlockNumber: (item) => options.getCallParams(item.obj).blockNumber,
+          getBlockNumber: (item) => item.param.blockNumber,
           formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
         }),
       ),
