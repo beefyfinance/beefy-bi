@@ -2,14 +2,8 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
-import { Range } from "../../../utils/range";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import {
-  DbProductInvestmentImportState,
-  fetchImportState$,
-  isProductInvestmentImportState,
-  updateImportState$,
-} from "../../common/loader/import-state";
+import { fetchImportState$, isProductInvestmentImportState, updateImportState$ } from "../../common/loader/import-state";
 import { chainProductIds$, fetchProduct$ } from "../../common/loader/product";
 import { ImportCtx } from "../../common/types/import-context";
 import { NoRpcRunnerConfig, createChainRunner } from "../../common/utils/rpc-chain-runner";
@@ -18,7 +12,7 @@ import { getInvestmentsImportStateKey } from "../utils/import-state";
 
 const logger = rootLogger.child({ module: "beefy", component: "schedule-reimport" });
 
-type ScheduleReimportInput = { chain: Chain; onlyAddress: string[] | null; reimport: Range<number> };
+type ScheduleReimportInput = { chain: Chain; onlyAddress: string[] | null; reimport: { from: number; to: number | null } };
 
 export function createScheduleReimportInvestmentsRunner(options: { client: DbClient; runnerConfig: NoRpcRunnerConfig<ScheduleReimportInput> }) {
   const emitError = (obj: any, report: any) => {
@@ -72,7 +66,10 @@ export function createScheduleReimportInvestmentsRunner(options: { client: DbCli
           }
           return {
             target: product,
-            range: { from: Math.max(reimport.from, importState.importData.contractCreatedAtBlock + 1), to: reimport.to },
+            range: {
+              from: Math.max(reimport.from, importState.importData.contractCreatedAtBlock + 1),
+              to: reimport.to || importState.importData.chainLatestBlockNumber,
+            },
             success: false,
           };
         }),

@@ -285,7 +285,7 @@ export function loadTransfers$<
         investorId: item.investorId,
         transactionHash: item.target.transfer.transactionHash,
         // balance is expressed in vault shares
-        balance: item.shareRate,
+        balance: item.balance,
         balanceDiff: item.target.transfer.amountTransferred,
         pendingRewards: null,
         pendingRewardsDiff: null,

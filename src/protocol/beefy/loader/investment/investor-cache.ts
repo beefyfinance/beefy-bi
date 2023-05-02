@@ -15,7 +15,7 @@ import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { dbBatchCall$ } from "../../../common/utils/db-batch";
 import { getPriceFeedImportStateKey } from "../../utils/import-state";
 
-const logger = rootLogger.child({ module: "common", component: "investment" });
+const logger = rootLogger.child({ module: "common", component: "investor-cache" });
 
 interface DbInvestorCacheDimensions {
   investorId: number;
@@ -105,13 +105,13 @@ export function upsertInvestorCacheChainInfos$<
                 balance = coalesce(EXCLUDED.balance, beefy_investor_timeline_cache_ts.balance),
                 balance_diff = coalesce(EXCLUDED.balance_diff, beefy_investor_timeline_cache_ts.balance_diff),
                 share_to_underlying_price = coalesce(EXCLUDED.share_to_underlying_price, beefy_investor_timeline_cache_ts.share_to_underlying_price),
-                underlying_to_usd_price = coalesce(EXCLUDED.underlying_to_usd_price, beefy_investor_timeline_cache_ts.underlying_to_usd_price),
+                underlying_to_usd_price = EXCLUDED.underlying_to_usd_price,
                 underlying_balance = coalesce(EXCLUDED.underlying_balance, beefy_investor_timeline_cache_ts.underlying_balance),
                 underlying_diff = coalesce(EXCLUDED.underlying_diff, beefy_investor_timeline_cache_ts.underlying_diff),
                 pending_rewards = coalesce(EXCLUDED.pending_rewards, beefy_investor_timeline_cache_ts.pending_rewards),
                 pending_rewards_diff = coalesce(EXCLUDED.pending_rewards_diff, beefy_investor_timeline_cache_ts.pending_rewards_diff),
-                usd_balance = coalesce(EXCLUDED.usd_balance, beefy_investor_timeline_cache_ts.usd_balance),
-                usd_diff = coalesce(EXCLUDED.usd_diff, beefy_investor_timeline_cache_ts.usd_diff)
+                usd_balance = EXCLUDED.usd_balance,
+                usd_diff = EXCLUDED.usd_diff
             RETURNING product_id, investor_id, block_number
           `,
           [
