@@ -151,7 +151,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only reimport data for this contract address" },
           includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
           fromBlock: { type: "number", demand: true, describe: "from block" },
-          toBlock: { type: "number", demand: true, describe: "to block" },
+          toBlock: { type: "number", demand: false, describe: "to block, defaults to latest" },
         }),
       handler: (argv): Promise<any> =>
         withDbClient(
@@ -160,9 +160,9 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
             logger.info("Starting import script", { argv });
 
-            const fromBlock = argv.fromBlock;
-            const toBlock = argv.toBlock;
-            if (fromBlock > toBlock) {
+            const fromBlock: number = argv.fromBlock;
+            const toBlock: number | null = argv.toBlock || null;
+            if (toBlock !== null && fromBlock > toBlock) {
               throw new ProgrammerError("fromBlock > toBlock");
             }
 
@@ -175,7 +175,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: argv.toBlock + 1,
+              forceCurrentBlockNumber: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
