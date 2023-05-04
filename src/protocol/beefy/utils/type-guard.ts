@@ -23,6 +23,12 @@ export function isBeefyStandardVaultProductImportQuery(
 ): o is ImportRangeQuery<DbBeefyStdVaultProduct, number> {
   return isBeefyStandardVault(o.target);
 }
+export function isBeefyGovVaultOrBoostProductImportQuery(
+  o: ImportRangeQuery<DbBeefyProduct, number>,
+): o is ImportRangeQuery<DbBeefyBoostProduct | DbBeefyGovVaultProduct, number> {
+  return isBeefyGovVault(o.target) || isBeefyBoost(o.target);
+}
+
 export function isBeefyBoostProductImportQuery(o: ImportRangeQuery<DbBeefyProduct, number>): o is ImportRangeQuery<DbBeefyBoostProduct, number> {
   return isBeefyBoost(o.target);
 }

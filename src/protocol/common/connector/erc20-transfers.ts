@@ -11,7 +11,7 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { RpcLimitations } from "../../../utils/rpc/rpc-limitations";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
-import { batchRpcCalls$, RPCBatchCallResult } from "../utils/batch-rpc-calls";
+import { RPCBatchCallResult, batchRpcCalls$ } from "../utils/batch-rpc-calls";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-transfers" });
 
@@ -34,7 +34,7 @@ export interface ERC20Transfer {
 }
 
 interface GetTransferCallParams {
-  address: string;
+  tokenAddress: string;
   decimals: number;
   fromBlock: number;
   toBlock: number;
@@ -175,7 +175,7 @@ async function fetchERC20TransferEventsFromRpc(
 
   const eventsPromises: Promise<ethers.Event[]>[] = [];
   for (const contractCall of contractCalls) {
-    const contract = new ethers.Contract(contractCall.address, ERC20AbiInterface, provider);
+    const contract = new ethers.Contract(contractCall.tokenAddress, ERC20AbiInterface, provider);
 
     let fromPromise: Promise<ethers.Event[]>;
     let toPromise: Promise<ethers.Event[]>;
@@ -257,7 +257,7 @@ async function fetchERC20TransferEventsFromRpcUsingAddressBatching(
   const singleEventFilter = contract.filters.Transfer();
   const multiEventFilter: MultiAddressEventFilter = {
     topics: singleEventFilter.topics,
-    address: contractCalls.map((call) => call.address),
+    address: contractCalls.map((call) => call.tokenAddress),
   };
   const events = await contract.queryFilterMultiAddress(multiEventFilter, allFrom[0], allTo[0]);
 
@@ -271,74 +271,11 @@ async function fetchERC20TransferEventsFromRpcUsingAddressBatching(
   const eventsByAddress = groupBy(events, (event) => event.address.toLocaleLowerCase());
   return new Map(
     contractCalls.map((contractCall) => {
-      const events = eventsByAddress[contractCall.address.toLocaleLowerCase()] || [];
+      const events = eventsByAddress[contractCall.tokenAddress.toLocaleLowerCase()] || [];
       const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
       return [contractCall, transfers];
     }),
   );
-}
-
-/**
- * Make a batched call to the RPC for all the given contract calls
- * Returns the results in the same order as the contract calls
- */
-export async function fetchERC20TransferEventsFromExplorer(
-  provider: ethers.providers.EtherscanProvider,
-  limitations: RpcLimitations,
-  chain: Chain,
-  contractCall: GetTransferCallParams,
-): Promise<ERC20Transfer[]> {
-  logger.debug({
-    msg: "Fetching transfer events from explorer",
-    data: { chain, contractCall },
-  });
-
-  const contract = new ethers.Contract(contractCall.address, ERC20AbiInterface, provider);
-
-  if (contractCall.trackAddress) {
-    throw new ProgrammerError({ msg: "Tracking not implemented for etherscan", contractCall });
-  }
-
-  const eventFilter = contract.filters.Transfer();
-
-  // etherscan returns logs in time order ascending and limits results to 1000
-  // we want to continue fetching as long as we have 1000 results in the list
-  let fromBlock = contractCall.fromBlock;
-  let toBlock = contractCall.toBlock;
-  let allEvents: ethers.Event[] = [];
-  let maxLoops = 100;
-  while (maxLoops-- > 0) {
-    const events = await callLockProtectedRpc(() => contract.queryFilter(eventFilter, fromBlock, toBlock), {
-      chain: chain,
-      logInfos: { msg: "Fetching ERC20 transfers from etherscan", data: { chain, contractCall } },
-      maxTotalRetryMs: 1000 * 60 * 5,
-      provider: provider,
-      rpcLimitations: limitations,
-      noLockIfNoLimit: true, // etherscan is rate limited so this has no effect
-    });
-
-    // here, we have all the events we can get from etherscan
-    if (events.length < 1000) {
-      allEvents = allEvents.concat(events);
-      break;
-    }
-
-    // we have 1000 events, we need to fetch more
-    // remove the events from the last block we fetched
-    const lastBlock = events[events.length - 1].blockNumber;
-    const eventsToAdd = events.filter((event) => event.blockNumber < lastBlock);
-    allEvents = allEvents.concat(eventsToAdd);
-    fromBlock = lastBlock;
-  }
-  const eventCount = allEvents.length;
-  if (eventCount > 0) {
-    logger.trace({
-      msg: "Got transfer events from explorer",
-      data: { chain, eventCount, contractCall },
-    });
-  }
-  const transfers = eventsToTransfers(chain, contractCall, allEvents, "etherscan");
-  return transfers;
 }
 
 /**
@@ -381,7 +318,7 @@ function eventsToTransfers(
       .map((event): ERC20Transfer[] => [
         {
           chain: chain,
-          tokenAddress: contractCall.address,
+          tokenAddress: contractCall.tokenAddress,
           tokenDecimals: contractCall.decimals,
           ownerAddress: event.from,
           blockNumber: event.blockNumber,
@@ -392,7 +329,7 @@ function eventsToTransfers(
         },
         {
           chain: chain,
-          tokenAddress: contractCall.address,
+          tokenAddress: contractCall.tokenAddress,
           tokenDecimals: contractCall.decimals,
           ownerAddress: event.to,
           blockNumber: event.blockNumber,

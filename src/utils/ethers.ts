@@ -6,7 +6,7 @@ import AsyncLock from "async-lock";
 import * as ethers from "ethers";
 import { Logger as EthersLogger } from "ethers/lib/utils";
 import { backOff } from "exponential-backoff";
-import { get, isString } from "lodash";
+import { get, isArray, isString } from "lodash";
 import { Chain } from "../types/chain";
 import { sleep } from "./async";
 import { rootLogger } from "./logger";
@@ -476,7 +476,7 @@ export function monkeyPatchAnkrBscLinearProvider(chain: Chain, provider: ethers.
  */
 
 export interface MultiAddressEventFilter {
-  address: string[];
+  address: string | string[];
   topics?: Array<string | Array<string>>;
   fromBlock?: BlockTag;
   toBlock?: BlockTag;
@@ -506,7 +506,7 @@ export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.Jso
     const result: any = {};
 
     if (filter.address != null) {
-      result.address = Promise.all(filter.address.map(this.__getAddress));
+      result.address = isArray(filter.address) ? Promise.all(filter.address.map(this.__getAddress)) : this.__getAddress(filter.address);
     }
 
     ["blockHash", "topics"].forEach((key) => {

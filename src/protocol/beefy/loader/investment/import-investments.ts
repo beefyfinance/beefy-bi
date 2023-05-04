@@ -20,7 +20,6 @@ import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
-import { fetchBeefyBoostTransfers$ } from "../../connector/boost-transfers";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { getInvestmentsImportStateKey } from "../../utils/import-state";
@@ -28,6 +27,7 @@ import {
   isBeefyBoost,
   isBeefyBoostProductImportQuery,
   isBeefyGovVault,
+  isBeefyGovVaultOrBoostProductImportQuery,
   isBeefyGovVaultProductImportQuery,
   isBeefyStandardVault,
   isBeefyStandardVaultProductImportQuery,
@@ -104,8 +104,7 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
           },
         })),
       ),
-    processImportQuery$: (ctx, emitError) =>
-      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError }),
+    processImportQuery$: (ctx, emitError) => importProductBlockRange$({ ctx, emitError }),
   });
 }
 
@@ -123,85 +122,14 @@ export function createBeefyRecentInvestmentRunner(options: { chain: Chain; runne
         getLastImportedBlock: () => lastImported,
         formatOutput: (item, latest, range) => formatOutput(item, latest, [range]),
       }),
-    processImportQuery$: (ctx, emitError) =>
-      importProductBlockRange$({ ctx, emitBoostError: emitError, emitGovVaultError: emitError, emitStdVaultError: emitError }),
+    processImportQuery$: (ctx, emitError) => importProductBlockRange$({ ctx, emitError }),
   });
 }
 
-export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyProduct, number>, TErr extends ErrorEmitter<TObj>>(options: {
+export function importProductBlockRange$(options: {
   ctx: ImportCtx;
-  emitBoostError: <T extends ImportRangeQuery<DbBeefyBoostProduct, number>>(obj: T, report: ErrorReport) => void;
-  emitStdVaultError: <T extends ImportRangeQuery<DbBeefyStdVaultProduct, number>>(obj: T, report: ErrorReport) => void;
-  emitGovVaultError: <T extends ImportRangeQuery<DbBeefyGovVaultProduct, number>>(obj: T, report: ErrorReport) => void;
+  emitError: <T extends ImportRangeQuery<DbBeefyProduct, number>>(obj: T, report: ErrorReport) => void;
 }) {
-  const boostTransfers$ = Rx.pipe(
-    Rx.filter(isBeefyBoostProductImportQuery),
-
-    fetchBeefyBoostTransfers$({
-      ctx: options.ctx,
-      emitError: options.emitBoostError,
-      batchAddressesIfPossible: options.ctx.behaviour.mode === "recent",
-      getBoostTransfersCallParams: (item) => {
-        const boost = item.target.productData.boost;
-        return {
-          boostAddress: boost.contract_address,
-          stakedTokenAddress: boost.staked_token_address,
-          stakedTokenDecimals: boost.staked_token_decimals,
-          fromBlock: item.range.from,
-          toBlock: item.range.to,
-        };
-      },
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-  );
-
-  const standardVaultTransfers$ = Rx.pipe(
-    // set the right product type
-    Rx.filter(isBeefyStandardVaultProductImportQuery),
-
-    // fetch the vault transfers
-    fetchErc20Transfers$({
-      ctx: options.ctx,
-      emitError: options.emitStdVaultError,
-      // we can batch the requests if we are in recent mode
-      // since all the query ranges should be the same
-      batchAddressesIfPossible: options.ctx.behaviour.mode === "recent",
-      getQueryParams: (item) => {
-        const vault = item.target.productData.vault;
-        return {
-          address: vault.contract_address,
-          decimals: vault.token_decimals,
-          fromBlock: item.range.from,
-          toBlock: item.range.to,
-        };
-      },
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-  );
-
-  const govVaultTransfers$ = Rx.pipe(
-    // set the right product type
-    Rx.filter(isBeefyGovVaultProductImportQuery),
-
-    fetchERC20TransferToAStakingContract$({
-      ctx: options.ctx,
-      emitError: options.emitGovVaultError,
-      getQueryParams: (item) => {
-        // for gov vaults we don't have a share token so we use the underlying token
-        // transfers and filter on those transfer from and to the contract address
-        const vault = item.target.productData.vault;
-        return {
-          address: vault.want_address,
-          decimals: vault.want_decimals,
-          trackAddress: vault.contract_address,
-          fromBlock: item.range.from,
-          toBlock: item.range.to,
-        };
-      },
-      formatOutput: (item, transfers) => ({ ...item, transfers }),
-    }),
-  );
-
   const shouldIgnoreFnPromise = createShouldIgnoreFn({ client: options.ctx.client, chain: options.ctx.chain });
 
   return Rx.pipe(
@@ -209,7 +137,68 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
     Rx.tap((_: ImportRangeQuery<DbBeefyProduct, number>) => {}),
 
     // dispatch to all the sub pipelines
-    Rx.connect((items$) => Rx.merge(items$.pipe(boostTransfers$), items$.pipe(standardVaultTransfers$), items$.pipe(govVaultTransfers$))),
+    Rx.connect((items$) =>
+      Rx.merge(
+        items$.pipe(
+          // set the right product type
+          Rx.filter(isBeefyGovVaultOrBoostProductImportQuery),
+
+          fetchERC20TransferToAStakingContract$({
+            ctx: options.ctx,
+            emitError: options.emitError,
+            getQueryParams: (item) => {
+              if (isBeefyBoost(item.target)) {
+                const boost = item.target.productData.boost;
+                return {
+                  tokenAddress: boost.staked_token_address,
+                  decimals: boost.staked_token_decimals,
+                  trackAddress: boost.contract_address,
+                  fromBlock: item.range.from,
+                  toBlock: item.range.to,
+                };
+              } else if (isBeefyGovVault(item.target)) {
+                // for gov vaults we don't have a share token so we use the underlying token
+                // transfers and filter on those transfer from and to the contract address
+                const vault = item.target.productData.vault;
+                return {
+                  tokenAddress: vault.want_address,
+                  decimals: vault.want_decimals,
+                  trackAddress: vault.contract_address,
+                  fromBlock: item.range.from,
+                  toBlock: item.range.to,
+                };
+              } else {
+                throw new ProgrammerError({ msg: "Invalid product type, should be gov vault or boost", data: { product: item.target } });
+              }
+            },
+            formatOutput: (item, transfers) => ({ ...item, transfers }),
+          }),
+        ),
+        items$.pipe(
+          // set the right product type
+          Rx.filter(isBeefyStandardVaultProductImportQuery),
+
+          // fetch the vault transfers
+          fetchErc20Transfers$({
+            ctx: options.ctx,
+            emitError: options.emitError,
+            // we can batch the requests if we are in recent mode
+            // since all the query ranges should be the same
+            batchAddressesIfPossible: options.ctx.behaviour.mode === "recent",
+            getQueryParams: (item) => {
+              const vault = item.target.productData.vault;
+              return {
+                tokenAddress: vault.contract_address,
+                decimals: vault.token_decimals,
+                fromBlock: item.range.from,
+                toBlock: item.range.to,
+              };
+            },
+            formatOutput: (item, transfers) => ({ ...item, transfers }),
+          }),
+        ),
+      ),
+    ),
 
     Rx.tap((item) => {
       if (item.transfers.length > 0) {
@@ -234,17 +223,7 @@ export function importProductBlockRange$<TObj extends ImportRangeQuery<DbBeefyPr
 
     executeSubPipeline$({
       ctx: options.ctx,
-      emitError: (item, report) => {
-        if (isBeefyBoostProductImportQuery(item)) {
-          options.emitBoostError(item, report);
-        } else if (isBeefyStandardVaultProductImportQuery(item)) {
-          options.emitStdVaultError(item, report);
-        } else if (isBeefyGovVaultProductImportQuery(item)) {
-          options.emitGovVaultError(item, report);
-        } else {
-          throw new ProgrammerError("Unknown product type");
-        }
-      },
+      emitError: options.emitError,
       getObjs: async (item) => {
         const shouldIgnoreFn = await shouldIgnoreFnPromise;
         return item.transfers
