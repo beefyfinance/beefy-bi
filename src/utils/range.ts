@@ -83,6 +83,11 @@ function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): Range
   }
 }
 
+export function getRangeSize<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): number {
+  const strat = strategy || getRangeStrategy(range);
+  return strat.toNumber(range.to) - strat.toNumber(range.from);
+}
+
 export function isInRange<T extends SupportedRangeTypes>(range: Range<T>, value: T, strategy?: RangeStrategy<T>): boolean {
   const strat = strategy || getRangeStrategy(range);
   return strat.compare(range.from, value) <= 0 && strat.compare(value, range.to) <= 0;
