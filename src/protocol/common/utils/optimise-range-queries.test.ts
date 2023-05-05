@@ -1,4 +1,4 @@
-import { optimiseRangeQueries } from "./optimise-range-queries";
+import { _buildRangeIndex, optimiseRangeQueries } from "./optimise-range-queries";
 
 describe("range aggregator", () => {
   it("should merge ranges when possible", () => {
@@ -11,9 +11,9 @@ describe("range aggregator", () => {
         ],
         options: {
           ignoreImportState: false,
-          maxAddresses: 1000,
+          maxAddressesPerQuery: 1000,
           maxRangeSize: 1000,
-          maxQueries: 1000,
+          maxQueriesPerProduct: 1000,
         },
       }),
     ).toEqual({
@@ -32,6 +32,27 @@ describe("range aggregator", () => {
     });
   });
 
+  it("should be able to identify distinct blobs and align queries with them", () => {
+    expect(
+      _buildRangeIndex(
+        [
+          [
+            { from: 200, to: 500 },
+            { from: 300, to: 700 },
+          ],
+          [
+            { from: 480, to: 630 },
+            { from: 1333, to: 1350 },
+          ],
+        ],
+        100,
+      ),
+    ).toEqual([
+      { from: 200, to: 700 },
+      { from: 1333, to: 1350 },
+    ]);
+  });
+
   it("should not merge ranges when it doesn't make sense", () => {
     expect(
       optimiseRangeQueries({
@@ -42,9 +63,9 @@ describe("range aggregator", () => {
         ],
         options: {
           ignoreImportState: false,
-          maxAddresses: 1,
+          maxAddressesPerQuery: 1,
           maxRangeSize: 1000,
-          maxQueries: 1000,
+          maxQueriesPerProduct: 1000,
         },
       }),
     ).toEqual({

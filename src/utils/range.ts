@@ -65,9 +65,13 @@ export function isNumberRange(range: Range<any>): range is Range<number> {
   return isNumber(range.from);
 }
 
+export function isValidRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): boolean {
+  const strat = strategy || getRangeStrategy(range);
+  return strat.compare(range.from, range.to) <= 0;
+}
 function checkRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>) {
   const strat = strategy || getRangeStrategy(range);
-  if (strat.compare(range.from, range.to) > 0) {
+  if (!isValidRange(range, strat)) {
     throw new ProgrammerError({ msg: "Range is invalid: from > to", data: { range } });
   }
 }
@@ -85,7 +89,12 @@ function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): Range
 
 export function getRangeSize<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): number {
   const strat = strategy || getRangeStrategy(range);
-  return strat.toNumber(range.to) - strat.toNumber(range.from);
+  return Math.max(0, strat.toNumber(range.to) - strat.toNumber(range.from) + 1 /* always add 1 since it's a closed-closed range */);
+}
+
+export function rangeToNumber<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): Range<number> {
+  const strat = strategy || getRangeStrategy(range);
+  return { from: strat.toNumber(range.from), to: strat.toNumber(range.to) };
 }
 
 export function isInRange<T extends SupportedRangeTypes>(range: Range<T>, value: T, strategy?: RangeStrategy<T>): boolean {
@@ -162,6 +171,25 @@ export function rangeManyOverlap<T extends SupportedRangeTypes>(ranges: Range<T>
   }
 
   return false;
+}
+
+export function rangeIntersect<TRange extends SupportedRangeTypes>(
+  ranges: Range<TRange>[],
+  intersectWith: Range<TRange>,
+  strategy?: RangeStrategy<TRange>,
+) {
+  const strat = strategy || getRangeStrategy(intersectWith);
+  const res: Range<TRange>[] = [];
+  for (const range of ranges) {
+    if (!rangeOverlap(range, intersectWith)) {
+      continue;
+    }
+    res.push({
+      from: strat.max(range.from, intersectWith.from),
+      to: strat.min(range.to, intersectWith.to),
+    });
+  }
+  return res;
 }
 
 export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {

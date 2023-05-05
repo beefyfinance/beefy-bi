@@ -1,13 +1,16 @@
 import { cloneDeep } from "lodash";
 import { ProgrammerError } from "./programmer-error";
 import {
+  getRangeSize,
   isInRange,
+  isValidRange,
   rangeArrayExclude,
   rangeArrayOverlap,
   rangeEqual,
   rangeExclude,
   rangeExcludeMany,
   rangeInclude,
+  rangeIntersect,
   rangeManyOverlap,
   rangeMerge,
   rangeOverlap,
@@ -19,6 +22,18 @@ import {
 } from "./range";
 
 describe("range utils: numbers", () => {
+  it("should identify a valid range", () => {
+    expect(isValidRange({ from: 0, to: 0 })).toBe(true);
+    expect(isValidRange({ from: 0, to: 10 })).toBe(true);
+    expect(isValidRange({ from: 11, to: 10 })).toBe(false);
+  });
+
+  it("should compute a range size", () => {
+    expect(getRangeSize({ from: 0, to: 0 })).toBe(1);
+    expect(getRangeSize({ from: 0, to: 10 })).toBe(11);
+    expect(getRangeSize({ from: 11, to: 10 })).toBe(0);
+  });
+
   it("should compare 2 ranges", () => {
     expect(rangeEqual({ from: 1, to: 2 }, { from: 1, to: 2 })).toBe(true);
     expect(rangeEqual({ from: 1, to: 2 }, { from: 1, to: 3 })).toBe(false);
@@ -436,6 +451,35 @@ describe("range utils: numbers", () => {
     expect(rangeManyOverlap([{ from: 1, to: 5 }], [{ from: 6, to: 10 }])).toBe(false);
   });
 
+  it("should be able to intersect ranges", () => {
+    expect(rangeIntersect([], { from: 10, to: 50 })).toEqual([]);
+    expect(rangeIntersect([{ from: 0, to: 5 }], { from: 10, to: 50 })).toEqual([]);
+    expect(
+      rangeIntersect(
+        [
+          { from: 0, to: 5 },
+          { from: 4, to: 9 },
+        ],
+        { from: 10, to: 50 },
+      ),
+    ).toEqual([]);
+
+    expect(
+      rangeIntersect(
+        [
+          { from: 0, to: 15 },
+          { from: 17, to: 25 },
+          { from: 40, to: 100 },
+        ],
+        { from: 10, to: 50 },
+      ),
+    ).toEqual([
+      { from: 10, to: 15 },
+      { from: 17, to: 25 },
+      { from: 40, to: 50 },
+    ]);
+  });
+
   it("should provide a fast method to do sort+split+merge+take", () => {
     expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 10 }], 5, 1)).toEqual([{ from: 1, to: 5 }]);
     expect(rangeSortedSplitManyToMaxLengthAndTakeSome([{ from: 1, to: 100 }], 5, 5, "desc")).toEqual([
@@ -522,6 +566,18 @@ describe("range utils: dates", () => {
   if (process.env.TZ !== "UTC") {
     throw new ProgrammerError("Tests must be run with TZ=UTC");
   }
+
+  it("should identify a valid range", () => {
+    expect(isValidRange({ from: new Date("2000-01-01"), to: new Date("2000-01-01") })).toBe(true);
+    expect(isValidRange({ from: new Date("2000-01-01"), to: new Date("2000-01-02") })).toBe(true);
+    expect(isValidRange({ from: new Date("2000-01-02"), to: new Date("2000-01-01") })).toBe(false);
+  });
+
+  it("should compute a range size", () => {
+    expect(getRangeSize({ from: new Date("2000-01-01"), to: new Date("2000-01-01") })).toBe(1);
+    expect(getRangeSize({ from: new Date("2000-01-01"), to: new Date("2000-01-02") })).toBe(86400001);
+    expect(getRangeSize({ from: new Date("2000-01-02"), to: new Date("2000-01-01") })).toBe(0);
+  });
 
   it("should compare 2 ranges", () => {
     expect(
@@ -981,6 +1037,37 @@ describe("range utils: dates", () => {
     expect(
       rangeManyOverlap([{ from: new Date(2020, 1, 1), to: new Date(2020, 1, 5) }], [{ from: new Date(2020, 1, 6), to: new Date(2020, 1, 10) }]),
     ).toBe(false);
+  });
+
+  it("should be able to intersect ranges", () => {
+    expect(rangeIntersect([], { from: new Date("2000-01-10"), to: new Date("2000-02-20") })).toEqual([]);
+    expect(
+      rangeIntersect([{ from: new Date("2000-01-01"), to: new Date("2000-01-05") }], { from: new Date("2000-01-10"), to: new Date("2000-02-20") }),
+    ).toEqual([]);
+    expect(
+      rangeIntersect(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-05") },
+          { from: new Date("2000-01-04"), to: new Date("2000-01-09") },
+        ],
+        { from: new Date("2000-01-10"), to: new Date("2000-02-20") },
+      ),
+    ).toEqual([]);
+
+    expect(
+      rangeIntersect(
+        [
+          { from: new Date("2000-01-01"), to: new Date("2000-01-15") },
+          { from: new Date("2000-01-17"), to: new Date("2000-01-25") },
+          { from: new Date("2000-02-10"), to: new Date("2000-05-01") },
+        ],
+        { from: new Date("2000-01-10"), to: new Date("2000-02-20") },
+      ),
+    ).toEqual([
+      { from: new Date("2000-01-10"), to: new Date("2000-01-15") },
+      { from: new Date("2000-01-17"), to: new Date("2000-01-25") },
+      { from: new Date("2000-02-10"), to: new Date("2000-02-20") },
+    ]);
   });
 
   it("should provide a fast method to do sort+split+merge+take", () => {
