@@ -71,15 +71,7 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
 
     // save block in the database so we can fetch it later
     upsertBlock$({
-      ctx: {
-        ...options.ctx,
-        // make sure we are aligned with the RPC config so we have an overall consistent behaviour
-        streamConfig: {
-          ...options.ctx.streamConfig,
-          dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
-          dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
-        },
-      },
+      ctx: options.ctx,
       emitError: (obj, report) => {
         logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { chain, obj } }, report.infos));
         logger.error(report.error);
@@ -98,15 +90,7 @@ export function fetchBlockDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes,
   return Rx.pipe(
     // fetch our block from the database
     fetchBlock$({
-      ctx: {
-        ...options.ctx,
-        streamConfig: {
-          ...options.ctx.streamConfig,
-          // make sure we are aligned with the RPC config so we have an overall consistent behaviour
-          dbMaxInputTake: options.ctx.streamConfig.maxInputTake,
-          dbMaxInputWaitMs: options.ctx.streamConfig.maxInputWaitMs,
-        },
-      },
+      ctx: options.ctx,
       emitError: options.emitError,
       chain: chain,
       getBlockNumber: options.getBlockNumber,
