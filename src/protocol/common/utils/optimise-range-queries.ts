@@ -1,12 +1,16 @@
-import { groupBy, keyBy, range as lodashRange, max, min, sum } from "lodash";
+import { chunk, groupBy, keyBy, range as lodashRange, max, min, sortBy, sum } from "lodash";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
   Range,
   SupportedRangeTypes,
   getRangeSize,
+  rangeCovering,
+  rangeIntersect,
   rangeMerge,
+  rangeSlitToMaxLength,
   rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
+  rangeSplitManyToMaxLength,
   rangeToNumber,
   rangeValueMax,
 } from "../../../utils/range";
@@ -150,76 +154,74 @@ export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: 
  */
 function optimizeForAddressBatch<TRange extends SupportedRangeTypes>({
   states,
-  options: { ignoreImportState, maxQueriesPerProduct, maxRangeSize },
+  options: { ignoreImportState, maxAddressesPerQuery, maxRangeSize },
 }: Input<TRange>): StrategyResult<Output<TRange>> {
-  // identify the ranges we need to cover
-  const rangesToQuery = states
-    .map(({ productKey, fullRange, coveredRanges, toRetry }) => ({
-      productKey: productKey,
-      ranges: ignoreImportState ? [fullRange] : rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]),
-    }))
-    .map(({ productKey, ranges }) => ({
-      productKey,
-      ranges,
-      min: min(ranges.map((r) => r.from)) as number,
-      max: max(ranges.map((r) => r.to)) as number,
-    }));
-
-  // idenfify blobs of data to cover
-  const rangeIndex = _buildRangeIndex(
-    rangesToQuery.map((s) => s.ranges),
-    maxRangeSize,
-  );
-  // apply our algorithm to each part of the data independently
-  for (let rangeIndexPart of rangeIndex) {
-    // first, identify
-  }
-
-  // find out the grid dimensions
-  const V_EMPTY = 0;
-  const V_NEED = 1;
-  const cellSize = Math.ceil(maxRangeSize * 0.1);
-  const minRange = min(rangesToQuery.map((s) => s.min)) as number;
-  const maxRange = max(rangesToQuery.map((s) => s.max)) as number;
-  const gridWidth = Math.ceil((maxRange - minRange) / cellSize);
-  const gridHeight = rangesToQuery.length;
-  const vSliceCellSpan = Math.ceil(maxRangeSize / cellSize);
-  const vSliceCount = Math.ceil(gridWidth / vSliceCellSpan);
-
-  // now iterate on the vertical slices of the grid, no need to fully materialize it
-  for (let vSliceIdx = 0; vSliceIdx < vSliceCount; vSliceIdx++) {}
-
-  // initialize the grid and easy access methods
-  const grid = Array(gridWidth * gridHeight).fill(V_EMPTY);
-  const idx = (x: number, y: number) => y * gridWidth + x;
-  const toCellX = (blockNumber: number) => Math.floor((blockNumber - minRange) / cellSize);
-  const toCellXs = (range: Range<TRange>) => {
-    const n = rangeToNumber(range);
-    const start = toCellX(n.from);
-    const end = toCellX(n.to);
-    return lodashRange(start, end, 1);
-  };
-  const productKeyMap = rangesToQuery.reduce((agg, { productKey }, idx) => Object.assign(agg, { [productKey]: idx }), {} as Record<string, number>);
-  const toY = (productKey: string) => productKeyMap[productKey];
-  const setXY = (x: number, y: number, v: number) => (grid[idx(x, y)] = v);
-  const setR = (range: Range<TRange>, y: number, v: number) => toCellXs(range).forEach((x) => (grid[idx(x, y)] = v));
-  const setXYp = (x: number, productKey: string, v: number) => (grid[idx(x, toY(productKey))] = v);
-  const setRp = (range: Range<TRange>, productKey: string, v: number) => toCellXs(range).forEach((x) => (grid[idx(x, toY(productKey))] = v));
-
-  // fill the grid with data needs
-  rangesToQuery.forEach(({ ranges, productKey }) => ranges.forEach((r) => setRp(r, productKey, V_NEED)));
-
-  return {
+  const strategyResult: StrategyResult<AddressBatchOutput<TRange>> = {
     result: {
       type: "address batch",
       queries: [],
     },
     totalCoverage: 0,
-    queryCount: 1000,
+    queryCount: 0,
   };
+
+  // identify the ranges we need to cover
+  const rangesToQuery = states.map(({ productKey, fullRange, coveredRanges, toRetry }) => ({
+    productKey: productKey,
+    ranges: ignoreImportState ? [fullRange] : rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]),
+  }));
+
+  // idenfify blobs of data to cover and slice vertically
+  const rangeIndex = _buildRangeIndex(
+    rangesToQuery.map((s) => s.ranges),
+    { mergeIfCloserThan: maxRangeSize, verticalSlicesSize: maxRangeSize },
+  );
+
+  // apply our algorithm to each part of the data independently
+  for (let rangeIndexPart of rangeIndex) {
+    // first, identify which parts of the ranges to cover we have on this part of the index
+    let indexedToQuery = rangesToQuery
+      .map(({ productKey, ranges }) => ({ productKey, ranges: rangeIntersect(ranges, rangeIndexPart) }))
+      .filter(({ ranges }) => ranges.length > 0)
+      .map(({ productKey, ranges }) => ({
+        productKey,
+        ranges,
+        min: min(ranges.map((r) => r.from)) as number,
+        max: max(ranges.map((r) => r.to)) as number,
+        coverage: sum(ranges.map((r) => getRangeSize(r))),
+        random: Math.random(),
+      }));
+
+    // now we build queries
+    // find the product that would benefit the most from being included by sorting by range size, use random in case of tie
+    indexedToQuery = sortBy(
+      indexedToQuery,
+      (s) => s.coverage,
+      (s) => s.random,
+    ).reverse();
+
+    const queries = chunk(indexedToQuery, maxAddressesPerQuery).map((parts) => ({
+      productKeys: parts.map((part) => part.productKey),
+      range: rangeCovering(parts.flatMap((part) => part.ranges)),
+      postFilters: parts.map((part) => ({ productKey: part.productKey, ranges: part.ranges })),
+      coverage: sum(parts.flatMap((part) => part.ranges).map((r) => getRangeSize(r))),
+    }));
+
+    // merge with current result
+    strategyResult.result.queries = strategyResult.result.queries.concat(
+      queries.map(({ productKeys, range, postFilters }) => ({ productKeys, range, postFilters })),
+    );
+    strategyResult.queryCount += queries.length;
+    strategyResult.totalCoverage += sum(queries.map((q) => q.coverage));
+  }
+
+  return strategyResult;
 }
 
-export function _buildRangeIndex<TRange extends SupportedRangeTypes>(input: Range<TRange>[][], mergeIfCloserThan: number): Range<TRange>[] {
+export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
+  input: Range<TRange>[][],
+  { mergeIfCloserThan, verticalSlicesSize }: { mergeIfCloserThan: number; verticalSlicesSize: number },
+): Range<TRange>[] {
   const ranges = rangeMerge(input.flatMap((s) => s));
   if (ranges.length <= 1) {
     return ranges;
@@ -244,7 +246,9 @@ export function _buildRangeIndex<TRange extends SupportedRangeTypes>(input: Rang
     }
   }
   res.push(buildUp);
-  return res;
+
+  // now split into vertical slices
+  return rangeSplitManyToMaxLength(res, verticalSlicesSize);
 }
 
 /**

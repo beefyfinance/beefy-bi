@@ -20,11 +20,11 @@ describe("range aggregator", () => {
       type: "address batch",
       queries: [
         {
-          productKeys: ["0xA", "0xB", "0xC"],
+          productKeys: ["0xB", "0xA", "0xC"],
           range: { from: 200, to: 700 },
           postFilters: [
-            { productKey: "0xA", ranges: [{ from: 200, to: 500 }] },
             { productKey: "0xB", ranges: [{ from: 300, to: 700 }] },
+            { productKey: "0xA", ranges: [{ from: 200, to: 500 }] },
             { productKey: "0xC", ranges: [{ from: 480, to: 630 }] },
           ],
         },
@@ -45,10 +45,31 @@ describe("range aggregator", () => {
             { from: 1333, to: 1350 },
           ],
         ],
-        100,
+        { mergeIfCloserThan: 100, verticalSlicesSize: 1000 },
       ),
     ).toEqual([
       { from: 200, to: 700 },
+      { from: 1333, to: 1350 },
+    ]);
+
+    expect(
+      _buildRangeIndex(
+        [
+          [
+            { from: 200, to: 500 },
+            { from: 300, to: 700 },
+          ],
+          [
+            { from: 480, to: 630 },
+            { from: 1333, to: 1350 },
+          ],
+        ],
+        { mergeIfCloserThan: 100, verticalSlicesSize: 200 },
+      ),
+    ).toEqual([
+      { from: 200, to: 399 },
+      { from: 400, to: 599 },
+      { from: 600, to: 700 },
       { from: 1333, to: 1350 },
     ]);
   });

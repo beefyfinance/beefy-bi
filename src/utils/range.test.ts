@@ -6,6 +6,7 @@ import {
   isValidRange,
   rangeArrayExclude,
   rangeArrayOverlap,
+  rangeCovering,
   rangeEqual,
   rangeExclude,
   rangeExcludeMany,
@@ -478,6 +479,24 @@ describe("range utils: numbers", () => {
       { from: 17, to: 25 },
       { from: 40, to: 50 },
     ]);
+  });
+
+  it("should create a covering range", () => {
+    expect(() => rangeCovering([])).toThrow(ProgrammerError);
+    expect(rangeCovering([{ from: 10, to: 15 }])).toEqual({ from: 10, to: 15 });
+    expect(
+      rangeCovering([
+        { from: 10, to: 15 },
+        { from: 26, to: 30 },
+      ]),
+    ).toEqual({ from: 10, to: 30 });
+    expect(
+      rangeCovering([
+        { from: 10, to: 15 },
+        { from: 35, to: 47 },
+        { from: 26, to: 30 },
+      ]),
+    ).toEqual({ from: 10, to: 47 });
   });
 
   it("should provide a fast method to do sort+split+merge+take", () => {
@@ -1068,6 +1087,33 @@ describe("range utils: dates", () => {
       { from: new Date("2000-01-17"), to: new Date("2000-01-25") },
       { from: new Date("2000-02-10"), to: new Date("2000-02-20") },
     ]);
+  });
+
+  it("should create a covering range", () => {
+    expect(() => rangeCovering([])).toThrow(ProgrammerError);
+    expect(rangeCovering([{ from: new Date("2000-01-10"), to: new Date("2000-01-15") }])).toEqual({
+      from: new Date("2000-01-10"),
+      to: new Date("2000-01-15"),
+    });
+    expect(
+      rangeCovering([
+        { from: new Date("2000-01-10"), to: new Date("2000-01-15") },
+        { from: new Date("2000-01-26"), to: new Date("2000-01-30") },
+      ]),
+    ).toEqual({
+      from: new Date("2000-01-10"),
+      to: new Date("2000-01-30"),
+    });
+    expect(
+      rangeCovering([
+        { from: new Date("2000-01-10"), to: new Date("2000-01-15") },
+        { from: new Date("2000-02-01"), to: new Date("2000-02-07") },
+        { from: new Date("2000-01-26"), to: new Date("2000-01-30") },
+      ]),
+    ).toEqual({
+      from: new Date("2000-01-10"),
+      to: new Date("2000-02-07"),
+    });
   });
 
   it("should provide a fast method to do sort+split+merge+take", () => {

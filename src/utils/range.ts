@@ -77,6 +77,9 @@ function checkRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: R
 }
 
 function getRangeStrategy<T extends SupportedRangeTypes>(range: Range<T>): RangeStrategy<T> {
+  if (!range) {
+    throw new ProgrammerError("Provided range is not defined: " + range);
+  }
   const val = range.from;
   if (isDate(val)) {
     return rangeStrategies.date as any as RangeStrategy<T>;
@@ -190,6 +193,11 @@ export function rangeIntersect<TRange extends SupportedRangeTypes>(
     });
   }
   return res;
+}
+
+export function rangeCovering<TRange extends SupportedRangeTypes>(ranges: Range<TRange>[], strategy?: RangeStrategy<TRange>) {
+  const strat = strategy || getRangeStrategy(ranges[0]);
+  return { from: ranges.map((r) => r.from).reduce(strat.min, ranges[0].from), to: ranges.map((r) => r.to).reduce(strat.max, ranges[0].to) };
 }
 
 export function rangeValueMax<T extends SupportedRangeTypes>(values: T[], strategy?: RangeStrategy<T>): T | undefined {
