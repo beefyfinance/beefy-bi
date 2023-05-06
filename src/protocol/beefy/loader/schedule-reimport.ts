@@ -74,6 +74,9 @@ export function createScheduleReimportInvestmentsRunner(options: { client: DbCli
           };
         }),
 
+        // remove invalid ranges (products that were not imported for a while)
+        Rx.filter(({ range }) => range.from <= range.to),
+
         // schedule the product re-import
         updateImportState$({
           ctx,
