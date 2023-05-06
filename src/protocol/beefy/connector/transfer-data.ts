@@ -8,6 +8,7 @@ import { rootLogger } from "../../../utils/logger";
 import { forkOnNullableField$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockDatetime$ } from "../../common/connector/block-datetime";
 import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance } from "../../common/connector/owner-balance";
+import { fetchBlock$ } from "../../common/loader/blocks";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import { BeefyPPFSCallParams, extractRawPpfsFromFunctionResult, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
@@ -233,6 +234,20 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
           emitError: (item, errReport) => options.emitError(item.obj, errReport),
           getBlockNumber: (item) => item.param.blockNumber,
           formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
+        }),
+      ),
+      // sometimes the multicall result differ from other methods so if the block exists we
+      // want to use the same datetime we already used in the database to avoid duplicate rows
+      handleNonNulls$: Rx.pipe(
+        fetchBlock$({
+          ctx: options.ctx,
+          chain: options.ctx.chain,
+          emitError: (item, errReport) => options.emitError(item.obj, errReport),
+          getBlockNumber: (item) => item.param.blockNumber,
+          formatOutput: (item, block) => ({
+            ...item,
+            blockDatetime: block ? block.datetime : item.blockDatetime,
+          }),
         }),
       ),
     }),
