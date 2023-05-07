@@ -7,10 +7,11 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
   Range,
+  SupportedRangeTypes,
+  isValidRange,
   rangeArrayExclude,
   rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
-  SupportedRangeTypes,
 } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
@@ -281,7 +282,7 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
       }),
 
       // sometimes the interpolated block numbers are not accurate and the resulting ranges are invalid
-      Rx.map((item) => ({ ...item, blockRanges: item.blockRanges.filter((r) => r.from <= r.to) })),
+      Rx.map((item) => ({ ...item, blockRanges: item.blockRanges.filter((r) => isValidRange(r)) })),
       // filter ranges based on what was already covered
       Rx.map((item) => {
         const importState = options.getImportState(item.obj);

@@ -2,6 +2,7 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { isValidRange } from "../../../utils/range";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchImportState$, isProductInvestmentImportState, updateImportState$ } from "../../common/loader/import-state";
 import { chainProductIds$, fetchProduct$ } from "../../common/loader/product";
@@ -75,7 +76,7 @@ export function createScheduleReimportInvestmentsRunner(options: { client: DbCli
         }),
 
         // remove invalid ranges (products that were not imported for a while)
-        Rx.filter(({ range }) => range.from <= range.to),
+        Rx.filter(({ range }) => isValidRange(range)),
 
         // schedule the product re-import
         updateImportState$({

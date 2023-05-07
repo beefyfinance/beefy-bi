@@ -901,3 +901,27 @@ delete from beefy_investor_timeline_cache_ts where product_id in (select product
 delete from beefy_investor_timeline_cache_ts where product_id in (select product_id from product where chain = 'cronos') and block_number >= 7870301;
 rollback;
 ```
+
+```bash
+
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c arbitrum --fromBlock 80528092
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c aurora --fromBlock 89600075
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c avax --fromBlock 28755807
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c bsc --fromBlock 27354612
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c canto --fromBlock 3799227
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c celo --fromBlock 18769790
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c cronos --fromBlock 7870301
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c emerald --fromBlock 5309265
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c ethereum --fromBlock 17048794
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c fantom --fromBlock 59945624
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c fuse --fromBlock 22784704
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c harmony --fromBlock 40488234
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c heco --fromBlock 24874202
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c kava --fromBlock 4392477
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c metis --fromBlock 5358702
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c moonbeam --fromBlock 3354965
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c moonriver --fromBlock 4037780
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c optimism --fromBlock 90488375
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c polygon --fromBlock 41540014
+LOG_LEVEL=info node ./dist/src/script/run.js beefy:reimport:schedule -c zksync --fromBlock 2295727
+```
