@@ -24,11 +24,11 @@ describe("range aggregator", () => {
           {
             productKeys: ["0xA", "0xB", "0xC"],
             range: { from: 200, to: 700 },
-            postFilters: [
-              { productKey: "0xB", ranges: [{ from: 300, to: 700 }] },
-              { productKey: "0xA", ranges: [{ from: 200, to: 500 }] },
-              { productKey: "0xC", ranges: [{ from: 480, to: 630 }] },
-            ],
+            postFilters: {
+              "0xB": [{ from: 300, to: 700 }],
+              "0xA": [{ from: 200, to: 500 }],
+              "0xC": [{ from: 480, to: 630 }],
+            },
           },
         ],
       },
@@ -57,11 +57,11 @@ describe("range aggregator", () => {
           {
             productKeys: ["0xA", "0xB", "0xC"],
             range: { from: 300, to: 630 },
-            postFilters: [
-              { productKey: "0xB", ranges: [{ from: 300, to: 499 }] },
-              { productKey: "0xA", ranges: [{ from: 401, to: 500 }] },
-              { productKey: "0xC", ranges: [{ from: 601, to: 630 }] },
-            ],
+            postFilters: {
+              "0xB": [{ from: 300, to: 499 }],
+              "0xA": [{ from: 401, to: 500 }],
+              "0xC": [{ from: 601, to: 630 }],
+            },
           },
         ],
       },
@@ -281,7 +281,7 @@ describe("range aggregator", () => {
           {
             productKeys: ["0xA", "0xB"],
             range: { from: 1, to: 499 },
-            postFilters: [{ productKey: "0xB", ranges: [{ from: 1, to: 399 }] }],
+            postFilters: { "0xA": "no-filter", "0xB": [{ from: 1, to: 399 }] },
           },
         ],
       },
@@ -323,22 +323,16 @@ describe("range aggregator", () => {
           {
             productKeys: ["0xA", "0xB"],
             range: { from: 1, to: 500 },
-            postFilters: [
-              {
-                productKey: "0xA",
-                ranges: [
-                  { from: 1, to: 99 },
-                  { from: 201, to: 500 },
-                ],
-              },
-              {
-                productKey: "0xB",
-                ranges: [
-                  { from: 1, to: 99 },
-                  { from: 201, to: 399 },
-                ],
-              },
-            ],
+            postFilters: {
+              "0xA": [
+                { from: 1, to: 99 },
+                { from: 201, to: 500 },
+              ],
+              "0xB": [
+                { from: 1, to: 99 },
+                { from: 201, to: 399 },
+              ],
+            },
           },
         ],
       },
@@ -349,7 +343,7 @@ describe("range aggregator", () => {
           {
             productKeys: ["0xA", "0xB"],
             range: { from: 100, to: 200 },
-            postFilters: [],
+            postFilters: { "0xA": "no-filter", "0xB": "no-filter" },
           },
         ],
       },

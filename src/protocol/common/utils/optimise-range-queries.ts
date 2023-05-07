@@ -1,4 +1,4 @@
-import { chunk, groupBy, keyBy, range as lodashRange, max, min, sortBy, sum } from "lodash";
+import { chunk, groupBy, max, min, sortBy, sum } from "lodash";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
   Range,
@@ -55,9 +55,8 @@ interface AddressBatchOutput<TRange extends SupportedRangeTypes> {
     range: Range<TRange>;
     // filter events after the query since we allow bigger ranges than necessary
     postFilters: {
-      productKey: string;
-      ranges: Range<TRange>[];
-    }[];
+      [productKey: string]: Range<TRange>[] | "no-filter";
+    };
   }[];
 }
 
@@ -296,7 +295,10 @@ function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
           productKey: part.productKey,
           ranges: rangeMerge(part.ranges).filter((r) => !rangeEqual(r, coveringRange)),
         }))
-        .filter((part) => part.ranges.length > 0),
+        .reduce(
+          (agg, { productKey, ranges }) => Object.assign(agg, { [productKey]: ranges.length > 0 ? ranges : "no-filter" }),
+          {} as { [productKey: string]: Range<TRange>[] | "no-filter" },
+        ),
       coverage: sum(parts.flatMap((part) => part.ranges).map((r) => getRangeSize(r))),
     };
   });
