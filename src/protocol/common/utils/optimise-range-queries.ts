@@ -5,15 +5,22 @@ import {
   SupportedRangeTypes,
   getRangeSize,
   rangeCovering,
+  rangeEqual,
   rangeIntersect,
   rangeMerge,
-  rangeSlitToMaxLength,
   rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
   rangeSplitManyToMaxLength,
   rangeToNumber,
   rangeValueMax,
 } from "../../../utils/range";
+
+interface Options {
+  ignoreImportState: boolean;
+  maxAddressesPerQuery: number;
+  maxRangeSize: number;
+  maxQueriesPerProduct: number;
+}
 
 interface Input<TRange extends SupportedRangeTypes> {
   states: {
@@ -22,12 +29,15 @@ interface Input<TRange extends SupportedRangeTypes> {
     coveredRanges: Range<TRange>[];
     toRetry: Range<TRange>[];
   }[];
-  options: {
-    ignoreImportState: boolean;
-    maxAddressesPerQuery: number;
-    maxRangeSize: number;
-    maxQueriesPerProduct: number;
-  };
+  options: Options;
+}
+
+interface StrategyInput<TRange extends SupportedRangeTypes> {
+  states: {
+    productKey: string;
+    ranges: Range<TRange>[];
+  }[];
+  options: Options;
 }
 
 interface JsonRpcBatchOutput<TRange extends SupportedRangeTypes> {
@@ -65,28 +75,131 @@ type Output<TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TRange> | A
  * - maxAddressesPerQuery: some rpc can't accept too much addresses in their batch, or they will timeout if there is too much data
  * - maxRangeSize: most rpc restrict on how much range we can query
  * - maxQueriesPerProduct: mostly a way to avoid consuming too much memory
+ *
  */
-export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: Input<TRange>): Output<TRange> {
+export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: Input<TRange>): Output<TRange>[] {
+  const {
+    states,
+    options: { ignoreImportState, maxRangeSize, maxQueriesPerProduct },
+  } = input;
   // ensure we only have one input state per product
-  const statesByProduct = groupBy(input.states, (s) => s.productKey);
+  const statesByProduct = groupBy(states, (s) => s.productKey);
   const duplicateStatesByProduct = Object.values(statesByProduct).filter((states) => states.length > 1);
   if (duplicateStatesByProduct.length > 0) {
     throw new ProgrammerError({ msg: "Duplicate states by product", data: { duplicateStatesByProduct } });
   }
 
-  // sometimes we just can't batch by address
-  if (input.options.maxAddressesPerQuery === 1) {
-    return optimizeForJsonRpcBatch(input).result;
+  // if we need to retry some, do it at the end
+  const steps = ignoreImportState
+    ? [states.map(({ productKey, fullRange }) => ({ productKey: productKey, ranges: [fullRange] }))]
+    : [
+        // put retries at the end
+        states.map(({ productKey, fullRange, coveredRanges, toRetry }) => ({
+          productKey: productKey,
+          ranges: rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]).reverse(),
+        })),
+        states.map(({ productKey, toRetry }) => ({ productKey: productKey, ranges: toRetry.reverse() })),
+      ];
+
+  const bestStrategiesBySlice = steps.flatMap((rangesToQuery) =>
+    // build the coverage index for non-retry ranges
+    _buildRangeIndex(
+      rangesToQuery.map((s) => s.ranges),
+      { mergeIfCloserThan: Math.round(maxRangeSize / 2), verticalSlicesSize: maxRangeSize },
+    )
+      // handle the most recent first
+      .reverse()
+      // limit the amount we need to fetch
+      .slice(0, maxQueriesPerProduct)
+      // restrict ranges by the index
+      .map((rangeIndexPart) =>
+        rangesToQuery
+          .map(({ productKey, ranges }) => ({ productKey, ranges: rangeIntersect(ranges, rangeIndexPart) }))
+          .filter(({ ranges }) => ranges.length > 0),
+      )
+      // get the best method for each part of this index
+      .map((toQuery) => _findTheBestMethodForRanges<TRange>({ states: toQuery, options: input.options })),
+  );
+
+  // now merge consecutive jsonrpc batches
+  if (bestStrategiesBySlice.length <= 1) {
+    return bestStrategiesBySlice;
+  }
+  const res: Output<TRange>[] = [];
+  let buildUp = bestStrategiesBySlice.shift() as Output<TRange>;
+  while (bestStrategiesBySlice.length > 0) {
+    const currentEntry = bestStrategiesBySlice.shift() as Output<TRange>;
+    if (currentEntry.type === "address batch" || buildUp.type === "address batch") {
+      res.push(buildUp);
+      buildUp = currentEntry;
+    } else {
+      buildUp.queries = buildUp.queries.concat(currentEntry.queries);
+    }
+  }
+  res.push(buildUp);
+  return res;
+}
+
+/**
+ * Split the total range to cover into consecutive blobs that should be handled independently
+ */
+export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
+  input: Range<TRange>[][],
+  { mergeIfCloserThan, verticalSlicesSize }: { mergeIfCloserThan: number; verticalSlicesSize: number },
+): Range<TRange>[] {
+  const ranges = rangeMerge(input.flatMap((s) => s));
+  if (ranges.length <= 1) {
+    return ranges;
   }
 
-  const jsonRpcBatch = optimizeForJsonRpcBatch(input);
-  const addressBatch = optimizeForAddressBatch(input);
+  // merge the index if the ranges are "close enough"
+  const res: Range<TRange>[] = [];
+  // we take advantage of the ranges being sorted after merge
+  let buildUp = ranges.shift() as Range<TRange>;
+  while (ranges.length > 0) {
+    const currentRange = ranges.shift() as Range<TRange>;
+    const bn = rangeToNumber(buildUp);
+    const cn = rangeToNumber(currentRange);
+
+    // merge if possible
+    if (bn.to + mergeIfCloserThan >= cn.from) {
+      buildUp.to = rangeValueMax([currentRange.to, buildUp.to]) as TRange;
+    } else {
+      // otherwise we changed blob
+      res.push(buildUp);
+      buildUp = currentRange;
+    }
+  }
+  res.push(buildUp);
+
+  // now split into vertical slices
+  return rangeSplitManyToMaxLength(res, verticalSlicesSize);
+}
+
+/**
+ * For a given indexed range, find the best method
+ */
+function _findTheBestMethodForRanges<TRange extends SupportedRangeTypes>(input: StrategyInput<TRange>): Output<TRange> {
+  // sometimes we just can't batch by address
+  if (input.options.maxAddressesPerQuery === 1) {
+    return _getJsonRpcBatchQueries<TRange>(input).result;
+  }
+
+  const jsonRpcBatch = _getJsonRpcBatchQueries(input);
+  const addressBatch = _getAddressBatchQueries(input);
 
   let output: StrategyResult<Output<TRange>>;
   // use jsonrpc batch if there is a tie in request count, which can happen when we have a low maxQueries option
   // we want to use the method with the most coverage
   if (jsonRpcBatch.queryCount === addressBatch.queryCount) {
-    output = jsonRpcBatch.totalCoverage > addressBatch.totalCoverage ? jsonRpcBatch : addressBatch;
+    // if the coverage is the same
+    if (jsonRpcBatch.totalCoverage === addressBatch.totalCoverage) {
+      // and only one product key in the address batch no need to do address batching
+      const maxProductKeyCount = max(addressBatch.result.queries.map((q) => q.productKeys.length)) || 1;
+      output = maxProductKeyCount <= 1 ? jsonRpcBatch : addressBatch;
+    } else {
+      output = jsonRpcBatch.totalCoverage > addressBatch.totalCoverage ? jsonRpcBatch : addressBatch;
+    }
   } else {
     // otherwise use the method with the least queries
     output = jsonRpcBatch.queryCount < addressBatch.queryCount ? jsonRpcBatch : addressBatch;
@@ -96,7 +209,7 @@ export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: 
 }
 
 /**
- * Do some address batching using this probably not optimal algorithm
+ * Do some batching using this probably not optimal algorithm
  *
  * Given the data needs below:
  *
@@ -152,131 +265,64 @@ export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: 
  *
  * PS: note that the implementation could be way faster using a grid of bits and bitwise operations.
  */
-function optimizeForAddressBatch<TRange extends SupportedRangeTypes>({
+function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
   states,
-  options: { ignoreImportState, maxAddressesPerQuery, maxRangeSize },
-}: Input<TRange>): StrategyResult<Output<TRange>> {
-  const strategyResult: StrategyResult<AddressBatchOutput<TRange>> = {
-    result: {
-      type: "address batch",
-      queries: [],
-    },
-    totalCoverage: 0,
-    queryCount: 0,
-  };
-
-  // identify the ranges we need to cover
-  const rangesToQuery = states.map(({ productKey, fullRange, coveredRanges, toRetry }) => ({
-    productKey: productKey,
-    ranges: ignoreImportState ? [fullRange] : rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]),
+  options: { maxAddressesPerQuery, maxQueriesPerProduct },
+}: StrategyInput<TRange>): StrategyResult<AddressBatchOutput<TRange>> {
+  let toQuery = states.map(({ productKey, ranges }) => ({
+    productKey,
+    ranges,
+    min: min(ranges.map((r) => r.from)) as number,
+    max: max(ranges.map((r) => r.to)) as number,
+    coverage: sum(ranges.map((r) => getRangeSize(r))),
+    random: Math.random(),
   }));
 
-  // idenfify blobs of data to cover and slice vertically
-  const rangeIndex = _buildRangeIndex(
-    rangesToQuery.map((s) => s.ranges),
-    { mergeIfCloserThan: maxRangeSize, verticalSlicesSize: maxRangeSize },
-  );
+  // now we build queries
+  // find the product that would benefit the most from being included by sorting by range size, use random in case of tie
+  toQuery = sortBy(
+    toQuery,
+    (s) => s.coverage,
+    (s) => s.random,
+  ).reverse();
 
-  // apply our algorithm to each part of the data independently
-  for (let rangeIndexPart of rangeIndex) {
-    // first, identify which parts of the ranges to cover we have on this part of the index
-    let indexedToQuery = rangesToQuery
-      .map(({ productKey, ranges }) => ({ productKey, ranges: rangeIntersect(ranges, rangeIndexPart) }))
-      .filter(({ ranges }) => ranges.length > 0)
-      .map(({ productKey, ranges }) => ({
-        productKey,
-        ranges,
-        min: min(ranges.map((r) => r.from)) as number,
-        max: max(ranges.map((r) => r.to)) as number,
-        coverage: sum(ranges.map((r) => getRangeSize(r))),
-        random: Math.random(),
-      }));
-
-    // now we build queries
-    // find the product that would benefit the most from being included by sorting by range size, use random in case of tie
-    indexedToQuery = sortBy(
-      indexedToQuery,
-      (s) => s.coverage,
-      (s) => s.random,
-    ).reverse();
-
-    const queries = chunk(indexedToQuery, maxAddressesPerQuery).map((parts) => ({
-      productKeys: parts.map((part) => part.productKey),
-      range: rangeCovering(parts.flatMap((part) => part.ranges)),
-      postFilters: parts.map((part) => ({ productKey: part.productKey, ranges: part.ranges })),
+  let queries = chunk(toQuery, maxAddressesPerQuery).map((parts) => {
+    const coveringRange = rangeCovering(parts.flatMap((part) => part.ranges));
+    return {
+      productKeys: parts.map((part) => part.productKey).sort(), // sort to make tests reliable
+      range: coveringRange,
+      postFilters: parts
+        .map((part) => ({
+          productKey: part.productKey,
+          ranges: rangeMerge(part.ranges).filter((r) => !rangeEqual(r, coveringRange)),
+        }))
+        .filter((part) => part.ranges.length > 0),
       coverage: sum(parts.flatMap((part) => part.ranges).map((r) => getRangeSize(r))),
-    }));
+    };
+  });
 
-    // merge with current result
-    strategyResult.result.queries = strategyResult.result.queries.concat(
-      queries.map(({ productKeys, range, postFilters }) => ({ productKeys, range, postFilters })),
-    );
-    strategyResult.queryCount += queries.length;
-    strategyResult.totalCoverage += sum(queries.map((q) => q.coverage));
-  }
-
-  return strategyResult;
-}
-
-export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
-  input: Range<TRange>[][],
-  { mergeIfCloserThan, verticalSlicesSize }: { mergeIfCloserThan: number; verticalSlicesSize: number },
-): Range<TRange>[] {
-  const ranges = rangeMerge(input.flatMap((s) => s));
-  if (ranges.length <= 1) {
-    return ranges;
-  }
-
-  // merge the index if the ranges are "close enough"
-  const res: Range<TRange>[] = [];
-  // we take advantage of the ranges being sorted after merge
-  let buildUp = ranges.shift() as Range<TRange>;
-  while (ranges.length > 0) {
-    const currentRange = ranges.shift() as Range<TRange>;
-    const bn = rangeToNumber(buildUp);
-    const cn = rangeToNumber(currentRange);
-
-    // merge if possible
-    if (bn.to + mergeIfCloserThan >= cn.from) {
-      buildUp.to = rangeValueMax([currentRange.to, buildUp.to]) as TRange;
-    } else {
-      // otherwise we changed blob
-      res.push(buildUp);
-      buildUp = currentRange;
-    }
-  }
-  res.push(buildUp);
-
-  // now split into vertical slices
-  return rangeSplitManyToMaxLength(res, verticalSlicesSize);
+  return {
+    result: {
+      type: "address batch",
+      queries: queries.map(({ productKeys, range, postFilters }) => ({ productKeys, range, postFilters })),
+    },
+    totalCoverage: sum(queries.map((q) => q.coverage)),
+    queryCount: queries.length,
+  };
 }
 
 /**
  * A simple method where we simply do one request per product range
  */
-function optimizeForJsonRpcBatch<TRange extends SupportedRangeTypes>({
+function _getJsonRpcBatchQueries<TRange extends SupportedRangeTypes>({
   states,
-  options: { ignoreImportState, maxQueriesPerProduct, maxRangeSize },
-}: Input<TRange>): StrategyResult<Output<TRange>> {
-  const queries = states.flatMap(({ productKey, fullRange, coveredRanges, toRetry }) => {
-    let ranges = [fullRange];
-
-    // exclude covered ranges and retry ranges
-    if (!ignoreImportState) {
-      ranges = rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]);
-    }
-
+  options: { maxQueriesPerProduct, maxRangeSize },
+}: StrategyInput<TRange>): StrategyResult<JsonRpcBatchOutput<TRange>> {
+  const queries = states.flatMap(({ productKey, ranges }) => {
     // split in ranges no greater than the maximum allowed
     // order by new range first since it's more important and more likely to be available via RPC calls
     ranges = rangeSortedSplitManyToMaxLengthAndTakeSome(ranges, maxRangeSize, maxQueriesPerProduct, "desc");
 
-    // if there is room, add the ranges that failed to be imported
-    if (ranges.length < maxQueriesPerProduct) {
-      toRetry = rangeSortedSplitManyToMaxLengthAndTakeSome(toRetry, maxRangeSize, maxQueriesPerProduct - ranges.length, "desc");
-
-      // put retries last
-      ranges = ranges.concat(toRetry);
-    }
     // limit the amount of queries sent
     if (ranges.length > maxQueriesPerProduct) {
       ranges = ranges.slice(0, maxQueriesPerProduct);
