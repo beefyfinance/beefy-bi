@@ -1,8 +1,10 @@
 import Decimal from "decimal.js";
+import { ethers } from "ethers";
 import { groupBy, keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Hex, decodeEventLog, getEventSelector, parseAbi } from "viem";
-import { MultiAddressEventFilter } from "../../../utils/ethers";
+import { Chain } from "../../../types/chain";
+import { MultiAddressEventFilter, normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { Range, isInRange } from "../../../utils/range";
@@ -37,74 +39,61 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
     Rx.map(({ obj, batch: { queries } }) => queries.map((query) => ({ obj, product: query.obj.product, range: query.range }))),
     Rx.concatAll(),
 
-    Rx.connect((items$) =>
-      Rx.merge(
-        items$.pipe(
-          // set the right product type
-          Rx.filter(
-            (item): item is { obj: TObj; product: DbBeefyGovVaultProduct | DbBeefyBoostProduct; range: Range<number> } =>
-              isBeefyGovVault(item.product) || isBeefyBoost(item.product),
-          ),
-
-          fetchERC20TransferToAStakingContract$({
-            ctx: options.ctx,
-            emitError: (item, report) => options.emitError(item.obj, report),
-            getQueryParams: (item) => {
-              if (isBeefyBoost(item.product)) {
-                const boost = item.product.productData.boost;
-                return {
-                  tokenAddress: boost.staked_token_address,
-                  decimals: boost.staked_token_decimals,
-                  trackAddress: boost.contract_address,
-                  fromBlock: item.range.from,
-                  toBlock: item.range.to,
-                };
-              } else if (isBeefyGovVault(item.product)) {
-                // for gov vaults we don't have a share token so we use the underlying token
-                // transfers and filter on those transfer from and to the contract address
-                const vault = item.product.productData.vault;
-                return {
-                  tokenAddress: vault.want_address,
-                  decimals: vault.want_decimals,
-                  trackAddress: vault.contract_address,
-                  fromBlock: item.range.from,
-                  toBlock: item.range.to,
-                };
-              } else {
-                throw new ProgrammerError({ msg: "Invalid product type, should be gov vault or boost", data: item });
-              }
-            },
-            formatOutput: (item, transfers) => ({ ...item, transfers }),
+    batchRpcCalls$({
+      ctx: options.ctx,
+      emitError: (item, report) => options.emitError(item.obj, report),
+      logInfos: { msg: "Fetching product events using batch", data: {} },
+      rpcCallsPerInputObj: {
+        eth_blockNumber: 0,
+        eth_call: 0,
+        eth_getBlockByNumber: 0,
+        eth_getLogs: 1,
+        eth_getTransactionReceipt: 0,
+      },
+      getQuery: (item) => ({ product: item.product, range: item.range }),
+      processBatch: async (provider, queryObjs) => {
+        const events = await Promise.all(
+          queryObjs.map(({ product, range }) => {
+            const address = getProductContractAddress(product);
+            const contract = new ethers.Contract(address, ethersInterface, provider);
+            return contract.queryFilter({ address, topics: [eventConfigs.map((e) => e.selector)] }, range.from, range.to);
           }),
-        ),
-        items$.pipe(
-          // set the right product type
-          Rx.filter((item): item is { obj: TObj; product: DbBeefyStdVaultProduct; range: Range<number> } => isBeefyStandardVault(item.product)),
+        );
+        return {
+          errors: new Map(),
+          successes: new Map(queryObjs.map((obj, i) => [obj, events[i]])),
+        };
+      },
+      formatOutput: (item, rawLogs) => ({ ...item, rawLogs }),
+    }),
 
-          // fetch the vault transfers
-          fetchErc20Transfers$({
-            ctx: options.ctx,
-            emitError: (item, report) => options.emitError(item.obj, report),
-            getQueryParams: (item) => {
-              const vault = item.product.productData.vault;
-              return {
-                tokenAddress: vault.contract_address,
-                decimals: vault.token_decimals,
-                fromBlock: item.range.from,
-                toBlock: item.range.to,
-              };
-            },
-            formatOutput: (item, transfers) => ({ ...item, transfers }),
-          }),
-        ),
-      ),
-    ),
+    Rx.map((item) => {
+      const rawLogs = item.rawLogs;
+
+      const logs = rawLogs.map(parseRawLog).filter((log) => !log.removed);
+
+      // decode logs to transfer events
+      const product = item.product;
+      const transfers = logs.flatMap((log): ERC20Transfer[] =>
+        logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) }),
+      );
+
+      const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
+
+      return {
+        obj: item.obj,
+        product,
+        range: item.range,
+        transfers: transferByAddress[getProductContractAddress(product).toLocaleLowerCase()] || [],
+      };
+    }),
   );
 
   const getLogsAddressBatch$: Rx.OperatorFunction<
     { obj: TObj; batch: AddressBatchOutput<{ product: DbBeefyProduct }, number> },
     { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
+    Rx.tap((item) => logger.debug({ msg: "item", data: item })),
     // flatten every query
     Rx.map(({ obj, batch: { queries } }) => queries.map((query) => ({ obj, query }))),
     Rx.concatAll(),
@@ -113,6 +102,11 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
       const provider = options.ctx.rpcConfig.linearProvider;
       const products = item.query.objs.map((o) => o.product);
       const adresses = products.map(getProductContractAddress);
+      if (products.length <= 0) {
+        logger.error({ msg: "Product list is empty", data: { objs: item.query.objs } });
+        throw new ProgrammerError("Empty list of products");
+      }
+
       const filter: MultiAddressEventFilter = {
         address: adresses,
         topics: [eventConfigs.map((e) => e.selector)],
@@ -129,22 +123,7 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
         provider: options.ctx.rpcConfig.linearProvider,
       });
 
-      const logs = rawLogs
-        .map(
-          (log): Log => ({
-            address: log.address,
-            blockNumber: log.blockNumber,
-            removed: log.removed,
-            transactionHash: log.transactionHash,
-            logIndex: log.logIndex,
-            ...(decodeEventLog({
-              abi: eventConfigsByTopic[log.topics[0]].abi,
-              data: log.data as Hex,
-              topics: log.topics as any,
-            }) as any),
-          }),
-        )
-        .filter((log) => !log.removed);
+      const logs = rawLogs.map(parseRawLog).filter((log) => !log.removed);
 
       // decode logs to transfer events
       const productByAddress = keyBy(products, (p) => getProductContractAddress(p).toLocaleLowerCase());
@@ -152,35 +131,14 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
       const transfers = logs
         .flatMap((log): ERC20Transfer[] => {
           const product = productByAddress[log.address.toLocaleLowerCase()];
-          const address = getProductContractAddress(product);
-          const decimals = getProductDecimals(product);
-          const valueMultiplier = new Decimal(10).pow(-decimals);
-          const baseTransfer = {
-            blockNumber: log.blockNumber,
-            chain: options.ctx.chain,
-            logLineage: "rpc" as const,
-            logIndex: log.logIndex,
-            tokenAddress: address,
-            tokenDecimals: decimals,
-            transactionHash: log.transactionHash,
-          };
-          const value = valueMultiplier.mul(log.args.amount.toString());
-          if (log.eventName === "Transfer") {
-            return [
-              { ...baseTransfer, amountTransferred: value.negated(), ownerAddress: log.args.from },
-              { ...baseTransfer, amountTransferred: value, ownerAddress: log.args.to },
-            ];
-          } else if (log.eventName === "Staked") {
-            return [{ ...baseTransfer, amountTransferred: value, ownerAddress: log.args.user }];
-          } else if (log.eventName === "Withdrawn") {
-            return [{ ...baseTransfer, amountTransferred: value.negated(), ownerAddress: log.args.user }];
-          } else {
-            throw new ProgrammerError("Event type not handled: " + log);
-          }
+          return logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) });
         })
         // apply postfilters
         .filter((transfer) => {
           const postFilter = postFiltersByAddress[transfer.tokenAddress.toLocaleLowerCase()];
+          if (!postFilter) {
+            return true;
+          }
           if (postFilter.filter === "no-filter") {
             return true;
           }
@@ -277,3 +235,44 @@ const eventConfigs = eventDefinitions.map((eventDefinition) => ({
   abi: parseAbi([eventDefinition]),
 }));
 const eventConfigsByTopic = keyBy(eventConfigs, (c) => c.selector);
+
+const ethersInterface = new ethers.utils.Interface(eventDefinitions);
+
+const parseRawLog = (log: ethers.Event | ethers.providers.Log): Log => ({
+  address: log.address,
+  blockNumber: log.blockNumber,
+  removed: log.removed,
+  transactionHash: log.transactionHash,
+  logIndex: log.logIndex,
+  ...(decodeEventLog({
+    abi: eventConfigsByTopic[log.topics[0]].abi,
+    data: log.data as Hex,
+    topics: log.topics as any,
+  }) as any),
+});
+
+const logToTransfers = (log: Log, { chain, decimals }: { chain: Chain; decimals: number }): ERC20Transfer[] => {
+  const valueMultiplier = new Decimal(10).pow(-decimals);
+  const baseTransfer = {
+    blockNumber: log.blockNumber,
+    chain: chain,
+    logLineage: "rpc" as const,
+    logIndex: log.logIndex,
+    tokenAddress: normalizeAddressOrThrow(log.address),
+    tokenDecimals: decimals,
+    transactionHash: log.transactionHash,
+  };
+  const value = valueMultiplier.mul(log.args.amount.toString());
+  if (log.eventName === "Transfer") {
+    return [
+      { ...baseTransfer, amountTransferred: value.negated(), ownerAddress: log.args.from },
+      { ...baseTransfer, amountTransferred: value, ownerAddress: log.args.to },
+    ];
+  } else if (log.eventName === "Staked") {
+    return [{ ...baseTransfer, amountTransferred: value, ownerAddress: log.args.user }];
+  } else if (log.eventName === "Withdrawn") {
+    return [{ ...baseTransfer, amountTransferred: value.negated(), ownerAddress: log.args.user }];
+  } else {
+    throw new ProgrammerError("Event type not handled: " + log);
+  }
+};
