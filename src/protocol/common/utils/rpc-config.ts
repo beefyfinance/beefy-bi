@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { isEmpty } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
@@ -59,10 +60,18 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
 
 export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcConfig {
   const rpcUrls = getBestRpcUrlsForChain(chain, behaviour);
-  const rpcUrl = behaviour.forceRpcUrl || rpcUrls[0];
+  const urlObj = new URL(behaviour.forceRpcUrl || rpcUrls[0]);
+
+  // extract basic auth if present
+  const user = !isEmpty(urlObj.username) ? urlObj.username : undefined;
+  const password = !isEmpty(urlObj.password) ? urlObj.password : undefined;
+  urlObj.username = "";
+  urlObj.password = "";
+  const rpcUrl = urlObj.toString();
+
   logger.info({ msg: "Using RPC", data: { chain, rpcUrl: removeSecretsFromRpcUrl(chain, rpcUrl) } });
 
-  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, timeout: behaviour.rpcTimeoutMs };
+  const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, user, password, timeout: behaviour.rpcTimeoutMs };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
   const rpcConfig: RpcConfig = {
     chain,

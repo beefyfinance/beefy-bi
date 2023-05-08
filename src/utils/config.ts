@@ -50,6 +50,7 @@ export const RPC_API_KEY_INFURA = process.env.RPC_API_KEY_INFURA || null;
 export const RPC_API_KEY_QUIKNODE = process.env.RPC_API_KEY_QUIKNODE || null;
 export const RPC_API_URL_CHAINSTACK_CRONOS = process.env.RPC_API_URL_CHAINSTACK_CRONOS || null;
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
+export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
 
 export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony" | "zksync"; url: string } } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
