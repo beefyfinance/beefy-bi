@@ -82,11 +82,17 @@ async function main(client: DbClient) {
     const events = logs.map((log) => {
       const eventConfig = eventConfigsByTopic[log.topics[0]];
       console.log(eventConfig);
-      return decodeEventLog({
-        abi: eventConfig.abi,
-        data: log.data as Hex,
-        topics: log.topics as any,
-      });
+      return {
+        address: log.address,
+        blockNumber: log.blockNumber,
+        removed: log.removed,
+        transactionHash: log.transactionHash,
+        ...decodeEventLog({
+          abi: eventConfig.abi,
+          data: log.data as Hex,
+          topics: log.topics as any,
+        }),
+      };
     });
     console.log(events);
   }

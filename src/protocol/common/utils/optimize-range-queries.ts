@@ -22,9 +22,10 @@ interface Options {
   maxQueriesPerProduct: number;
 }
 
-interface Input<TRange extends SupportedRangeTypes> {
+export interface QueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
+  objKey: (obj: TObj) => string;
   states: {
-    productKey: string;
+    obj: TObj;
     fullRange: Range<TRange>;
     coveredRanges: Range<TRange>[];
     toRetry: Range<TRange>[];
@@ -32,31 +33,32 @@ interface Input<TRange extends SupportedRangeTypes> {
   options: Options;
 }
 
-interface StrategyInput<TRange extends SupportedRangeTypes> {
+interface StrategyInput<TObj, TRange extends SupportedRangeTypes> {
   states: {
-    productKey: string;
+    obj: TObj;
     ranges: Range<TRange>[];
   }[];
   options: Options;
 }
 
-interface JsonRpcBatchOutput<TRange extends SupportedRangeTypes> {
+export interface JsonRpcBatchOutput<TObj, TRange extends SupportedRangeTypes> {
   type: "jsonrpc batch";
   queries: {
-    productKey: string;
+    obj: TObj;
     range: Range<TRange>;
   }[];
 }
 
-interface AddressBatchOutput<TRange extends SupportedRangeTypes> {
+export interface AddressBatchOutput<TObj, TRange extends SupportedRangeTypes> {
   type: "address batch";
   queries: {
-    productKeys: string[];
+    objs: TObj[];
     range: Range<TRange>;
     // filter events after the query since we allow bigger ranges than necessary
     postFilters: {
-      [productKey: string]: Range<TRange>[] | "no-filter";
-    };
+      obj: TObj;
+      filter: Range<TRange>[] | "no-filter";
+    }[];
   }[];
 }
 
@@ -67,7 +69,19 @@ type StrategyResult<T> = {
   queryCount: number;
 };
 
-type Output<TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TRange> | AddressBatchOutput<TRange>;
+export type QueryOptimizerOutput<TObj, TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TObj, TRange> | AddressBatchOutput<TObj, TRange>;
+
+// some type guards
+export function isJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>(
+  o: QueryOptimizerOutput<TObj, TRange>,
+): o is JsonRpcBatchOutput<TObj, TRange> {
+  return o.type === "jsonrpc batch";
+}
+export function isAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>(
+  o: QueryOptimizerOutput<TObj, TRange>,
+): o is AddressBatchOutput<TObj, TRange> {
+  return o.type === "address batch";
+}
 
 /**
  * Find a good way to batch queries to minimize the quey count while also respecting the following constraints:
@@ -76,13 +90,15 @@ type Output<TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TRange> | A
  * - maxQueriesPerProduct: mostly a way to avoid consuming too much memory
  *
  */
-export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: Input<TRange>): Output<TRange>[] {
+export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
+  input: QueryOptimizerInput<TObj, TRange>,
+): QueryOptimizerOutput<TObj, TRange>[] {
   const {
     states,
     options: { ignoreImportState, maxRangeSize, maxQueriesPerProduct },
   } = input;
   // ensure we only have one input state per product
-  const statesByProduct = groupBy(states, (s) => s.productKey);
+  const statesByProduct = groupBy(states, (s) => input.objKey(s.obj));
   const duplicateStatesByProduct = Object.values(statesByProduct).filter((states) => states.length > 1);
   if (duplicateStatesByProduct.length > 0) {
     throw new ProgrammerError({ msg: "Duplicate states by product", data: { duplicateStatesByProduct } });
@@ -90,14 +106,14 @@ export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: 
 
   // if we need to retry some, do it at the end
   const steps = ignoreImportState
-    ? [states.map(({ productKey, fullRange }) => ({ productKey: productKey, ranges: [fullRange] }))]
+    ? [states.map(({ obj, fullRange }) => ({ obj, ranges: [fullRange] }))]
     : [
         // put retries at the end
-        states.map(({ productKey, fullRange, coveredRanges, toRetry }) => ({
-          productKey: productKey,
+        states.map(({ obj, fullRange, coveredRanges, toRetry }) => ({
+          obj,
           ranges: rangeSortedArrayExclude([fullRange], [...coveredRanges, ...toRetry]).reverse(),
         })),
-        states.map(({ productKey, toRetry }) => ({ productKey: productKey, ranges: toRetry.reverse() })),
+        states.map(({ obj, toRetry }) => ({ obj, ranges: toRetry.reverse() })),
       ];
 
   const bestStrategiesBySlice = steps.flatMap((rangesToQuery) =>
@@ -112,22 +128,20 @@ export function optimiseRangeQueries<TRange extends SupportedRangeTypes>(input: 
       .slice(0, maxQueriesPerProduct)
       // restrict ranges by the index
       .map((rangeIndexPart) =>
-        rangesToQuery
-          .map(({ productKey, ranges }) => ({ productKey, ranges: rangeIntersect(ranges, rangeIndexPart) }))
-          .filter(({ ranges }) => ranges.length > 0),
+        rangesToQuery.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
       )
       // get the best method for each part of this index
-      .map((toQuery) => _findTheBestMethodForRanges<TRange>({ states: toQuery, options: input.options })),
+      .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ states: toQuery, options: input.options })),
   );
 
   // now merge consecutive jsonrpc batches
   if (bestStrategiesBySlice.length <= 1) {
     return bestStrategiesBySlice;
   }
-  const res: Output<TRange>[] = [];
-  let buildUp = bestStrategiesBySlice.shift() as Output<TRange>;
+  const res: QueryOptimizerOutput<TObj, TRange>[] = [];
+  let buildUp = bestStrategiesBySlice.shift() as QueryOptimizerOutput<TObj, TRange>;
   while (bestStrategiesBySlice.length > 0) {
-    const currentEntry = bestStrategiesBySlice.shift() as Output<TRange>;
+    const currentEntry = bestStrategiesBySlice.shift() as QueryOptimizerOutput<TObj, TRange>;
     if (currentEntry.type === "address batch" || buildUp.type === "address batch") {
       res.push(buildUp);
       buildUp = currentEntry;
@@ -178,23 +192,25 @@ export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
 /**
  * For a given indexed range, find the best method
  */
-function _findTheBestMethodForRanges<TRange extends SupportedRangeTypes>(input: StrategyInput<TRange>): Output<TRange> {
+function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
+  input: StrategyInput<TObj, TRange>,
+): QueryOptimizerOutput<TObj, TRange> {
   // sometimes we just can't batch by address
   if (input.options.maxAddressesPerQuery === 1) {
-    return _getJsonRpcBatchQueries<TRange>(input).result;
+    return _getJsonRpcBatchQueries<TObj, TRange>(input).result;
   }
 
   const jsonRpcBatch = _getJsonRpcBatchQueries(input);
   const addressBatch = _getAddressBatchQueries(input);
 
-  let output: StrategyResult<Output<TRange>>;
+  let output: StrategyResult<QueryOptimizerOutput<TObj, TRange>>;
   // use jsonrpc batch if there is a tie in request count, which can happen when we have a low maxQueries option
   // we want to use the method with the most coverage
   if (jsonRpcBatch.queryCount === addressBatch.queryCount) {
     // if the coverage is the same
     if (jsonRpcBatch.totalCoverage === addressBatch.totalCoverage) {
       // and only one product key in the address batch no need to do address batching
-      const maxProductKeyCount = max(addressBatch.result.queries.map((q) => q.productKeys.length)) || 1;
+      const maxProductKeyCount = max(addressBatch.result.queries.map((q) => q.objs.length)) || 1;
       output = maxProductKeyCount <= 1 ? jsonRpcBatch : addressBatch;
     } else {
       output = jsonRpcBatch.totalCoverage > addressBatch.totalCoverage ? jsonRpcBatch : addressBatch;
@@ -264,12 +280,12 @@ function _findTheBestMethodForRanges<TRange extends SupportedRangeTypes>(input: 
  *
  * PS: note that the implementation could be way faster using a grid of bits and bitwise operations.
  */
-function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
+function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   states,
   options: { maxAddressesPerQuery, maxQueriesPerProduct },
-}: StrategyInput<TRange>): StrategyResult<AddressBatchOutput<TRange>> {
-  let toQuery = states.map(({ productKey, ranges }) => ({
-    productKey,
+}: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
+  let toQuery = states.map(({ obj, ranges }) => ({
+    obj,
     ranges,
     min: min(ranges.map((r) => r.from)) as number,
     max: max(ranges.map((r) => r.to)) as number,
@@ -288,17 +304,14 @@ function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
   let queries = chunk(toQuery, maxAddressesPerQuery).map((parts) => {
     const coveringRange = rangeCovering(parts.flatMap((part) => part.ranges));
     return {
-      productKeys: parts.map((part) => part.productKey).sort(), // sort to make tests reliable
+      objs: parts.map((part) => part.obj).sort(), // sort to make tests reliable
       range: coveringRange,
       postFilters: parts
         .map((part) => ({
-          productKey: part.productKey,
+          obj: part.obj,
           ranges: rangeMerge(part.ranges).filter((r) => !rangeEqual(r, coveringRange)),
         }))
-        .reduce(
-          (agg, { productKey, ranges }) => Object.assign(agg, { [productKey]: ranges.length > 0 ? ranges : "no-filter" }),
-          {} as { [productKey: string]: Range<TRange>[] | "no-filter" },
-        ),
+        .map(({ obj, ranges }) => ({ obj, filter: ranges.length > 0 ? ranges : ("no-filter" as const) })),
       coverage: sum(parts.flatMap((part) => part.ranges).map((r) => getRangeSize(r))),
     };
   });
@@ -306,7 +319,7 @@ function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
   return {
     result: {
       type: "address batch",
-      queries: queries.map(({ productKeys, range, postFilters }) => ({ productKeys, range, postFilters })),
+      queries: queries.map(({ objs, range, postFilters }) => ({ objs, range, postFilters })),
     },
     totalCoverage: sum(queries.map((q) => q.coverage)),
     queryCount: queries.length,
@@ -316,11 +329,11 @@ function _getAddressBatchQueries<TRange extends SupportedRangeTypes>({
 /**
  * A simple method where we simply do one request per product range
  */
-function _getJsonRpcBatchQueries<TRange extends SupportedRangeTypes>({
+function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   states,
   options: { maxQueriesPerProduct, maxRangeSize },
-}: StrategyInput<TRange>): StrategyResult<JsonRpcBatchOutput<TRange>> {
-  const queries = states.flatMap(({ productKey, ranges }) => {
+}: StrategyInput<TObj, TRange>): StrategyResult<JsonRpcBatchOutput<TObj, TRange>> {
+  const queries = states.flatMap(({ obj, ranges }) => {
     // split in ranges no greater than the maximum allowed
     // order by new range first since it's more important and more likely to be available via RPC calls
     ranges = rangeSortedSplitManyToMaxLengthAndTakeSome(ranges, maxRangeSize, maxQueriesPerProduct, "desc");
@@ -330,7 +343,7 @@ function _getJsonRpcBatchQueries<TRange extends SupportedRangeTypes>({
       ranges = ranges.slice(0, maxQueriesPerProduct);
     }
 
-    return ranges.map((range) => ({ productKey, range }));
+    return ranges.map((range) => ({ obj, range }));
   });
 
   const totalCoverage = sum(queries.map((q) => getRangeSize(q.range)));

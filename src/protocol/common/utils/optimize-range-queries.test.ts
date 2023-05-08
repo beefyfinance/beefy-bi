@@ -1,14 +1,15 @@
 import deepFreeze from "deep-freeze";
-import { _buildRangeIndex, optimiseRangeQueries } from "./optimise-range-queries";
+import { QueryOptimizerInput, _buildRangeIndex, optimizeRangeQueries } from "./optimize-range-queries";
 
 describe("range aggregator", () => {
   it("should merge ranges when possible", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xB", fullRange: { from: 300, to: 700 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xC", fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xB" }, fullRange: { from: 300, to: 700 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
         ],
         options: {
           ignoreImportState: false,
@@ -22,13 +23,13 @@ describe("range aggregator", () => {
         type: "address batch",
         queries: [
           {
-            productKeys: ["0xA", "0xB", "0xC"],
+            objs: [{ key: "0xB" }, { key: "0xA" }, { key: "0xC" }],
             range: { from: 200, to: 700 },
-            postFilters: {
-              "0xB": [{ from: 300, to: 700 }],
-              "0xA": [{ from: 200, to: 500 }],
-              "0xC": [{ from: 480, to: 630 }],
-            },
+            postFilters: [
+              { obj: { key: "0xB" }, filter: [{ from: 300, to: 700 }] },
+              { obj: { key: "0xA" }, filter: [{ from: 200, to: 500 }] },
+              { obj: { key: "0xC" }, filter: [{ from: 480, to: 630 }] },
+            ],
           },
         ],
       },
@@ -37,11 +38,12 @@ describe("range aggregator", () => {
 
   it("should account for covered ranges and retry ranges", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 200, to: 500 }, coveredRanges: [{ from: 200, to: 400 }], toRetry: [{ from: 350, to: 360 }] },
-          { productKey: "0xB", fullRange: { from: 300, to: 700 }, coveredRanges: [{ from: 500, to: 700 }], toRetry: [] },
-          { productKey: "0xC", fullRange: { from: 480, to: 630 }, coveredRanges: [{ from: 10, to: 600 }], toRetry: [] },
+          { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [{ from: 200, to: 400 }], toRetry: [{ from: 350, to: 360 }] },
+          { obj: { key: "0xB" }, fullRange: { from: 300, to: 700 }, coveredRanges: [{ from: 500, to: 700 }], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [{ from: 10, to: 600 }], toRetry: [] },
         ],
         options: {
           ignoreImportState: false,
@@ -55,30 +57,31 @@ describe("range aggregator", () => {
         type: "address batch",
         queries: [
           {
-            productKeys: ["0xA", "0xB", "0xC"],
+            objs: [{ key: "0xB" }, { key: "0xA" }, { key: "0xC" }],
             range: { from: 300, to: 630 },
-            postFilters: {
-              "0xB": [{ from: 300, to: 499 }],
-              "0xA": [{ from: 401, to: 500 }],
-              "0xC": [{ from: 601, to: 630 }],
-            },
+            postFilters: [
+              { obj: { key: "0xB" }, filter: [{ from: 300, to: 499 }] },
+              { obj: { key: "0xA" }, filter: [{ from: 401, to: 500 }] },
+              { obj: { key: "0xC" }, filter: [{ from: 601, to: 630 }] },
+            ],
           },
         ],
       },
       {
         type: "jsonrpc batch",
-        queries: [{ productKey: "0xA", range: { from: 350, to: 360 } }],
+        queries: [{ obj: { key: "0xA" }, range: { from: 350, to: 360 } }],
       },
     ]);
   });
 
   it("should not merge ranges when that does not make sense", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 100, to: 200 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xB", fullRange: { from: 400, to: 500 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xC", fullRange: { from: 700, to: 800 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xA" }, fullRange: { from: 100, to: 200 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xB" }, fullRange: { from: 400, to: 500 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 700, to: 800 }, coveredRanges: [], toRetry: [] },
         ],
         options: {
           ignoreImportState: false,
@@ -91,9 +94,9 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { productKey: "0xC", range: { from: 700, to: 800 } },
-          { productKey: "0xB", range: { from: 400, to: 500 } },
-          { productKey: "0xA", range: { from: 100, to: 200 } },
+          { obj: { key: "0xC" }, range: { from: 700, to: 800 } },
+          { obj: { key: "0xB" }, range: { from: 400, to: 500 } },
+          { obj: { key: "0xA" }, range: { from: 100, to: 200 } },
         ],
       },
     ]);
@@ -101,11 +104,12 @@ describe("range aggregator", () => {
 
   it("should not merge ranges when address batch is too low", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 100, to: 200 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xB", fullRange: { from: 200, to: 300 }, coveredRanges: [], toRetry: [] },
-          { productKey: "0xC", fullRange: { from: 300, to: 400 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xA" }, fullRange: { from: 100, to: 200 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xB" }, fullRange: { from: 200, to: 300 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 300, to: 400 }, coveredRanges: [], toRetry: [] },
         ],
         options: {
           ignoreImportState: false,
@@ -118,9 +122,9 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { productKey: "0xA", range: { from: 100, to: 200 } },
-          { productKey: "0xB", range: { from: 200, to: 300 } },
-          { productKey: "0xC", range: { from: 300, to: 400 } },
+          { obj: { key: "0xA" }, range: { from: 100, to: 200 } },
+          { obj: { key: "0xB" }, range: { from: 200, to: 300 } },
+          { obj: { key: "0xC" }, range: { from: 300, to: 400 } },
         ],
       },
     ]);
@@ -128,9 +132,10 @@ describe("range aggregator", () => {
 
   it("should exclude ranges that are already covered if asked so", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 200, to: 500 }, coveredRanges: [{ from: 245, to: 300 }], toRetry: [{ from: 210, to: 211 }] },
+          { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [{ from: 245, to: 300 }], toRetry: [{ from: 210, to: 211 }] },
         ],
         options: {
           ignoreImportState: false,
@@ -144,12 +149,12 @@ describe("range aggregator", () => {
         type: "jsonrpc batch",
         queries: [
           // first, the most recent blocks
-          { productKey: "0xA", range: { from: 401, to: 500 } },
-          { productKey: "0xA", range: { from: 301, to: 400 } },
-          { productKey: "0xA", range: { from: 212, to: 244 } },
-          { productKey: "0xA", range: { from: 200, to: 209 } },
+          { obj: { key: "0xA" }, range: { from: 401, to: 500 } },
+          { obj: { key: "0xA" }, range: { from: 301, to: 400 } },
+          { obj: { key: "0xA" }, range: { from: 212, to: 244 } },
+          { obj: { key: "0xA" }, range: { from: 200, to: 209 } },
           // after that, the retries
-          { productKey: "0xA", range: { from: 210, to: 211 } },
+          { obj: { key: "0xA" }, range: { from: 210, to: 211 } },
         ],
       },
     ]);
@@ -157,9 +162,10 @@ describe("range aggregator", () => {
 
   it("should respect the maxRangeSize parameter", () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 1, to: 1000 }, coveredRanges: [{ from: 900, to: 1000 }], toRetry: [{ from: 901, to: 909 }] },
+          { obj: { key: "0xA" }, fullRange: { from: 1, to: 1000 }, coveredRanges: [{ from: 900, to: 1000 }], toRetry: [{ from: 901, to: 909 }] },
         ],
         options: {
           ignoreImportState: false,
@@ -172,17 +178,17 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { productKey: "0xA", range: { from: 890, to: 899 } },
-          { productKey: "0xA", range: { from: 880, to: 889 } },
-          { productKey: "0xA", range: { from: 870, to: 879 } },
-          { productKey: "0xA", range: { from: 860, to: 869 } },
-          { productKey: "0xA", range: { from: 850, to: 859 } },
-          { productKey: "0xA", range: { from: 840, to: 849 } },
-          { productKey: "0xA", range: { from: 830, to: 839 } },
-          { productKey: "0xA", range: { from: 820, to: 829 } },
-          { productKey: "0xA", range: { from: 810, to: 819 } },
-          { productKey: "0xA", range: { from: 800, to: 809 } },
-          { productKey: "0xA", range: { from: 901, to: 909 } },
+          { obj: { key: "0xA" }, range: { from: 890, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 880, to: 889 } },
+          { obj: { key: "0xA" }, range: { from: 870, to: 879 } },
+          { obj: { key: "0xA" }, range: { from: 860, to: 869 } },
+          { obj: { key: "0xA" }, range: { from: 850, to: 859 } },
+          { obj: { key: "0xA" }, range: { from: 840, to: 849 } },
+          { obj: { key: "0xA" }, range: { from: 830, to: 839 } },
+          { obj: { key: "0xA" }, range: { from: 820, to: 829 } },
+          { obj: { key: "0xA" }, range: { from: 810, to: 819 } },
+          { obj: { key: "0xA" }, range: { from: 800, to: 809 } },
+          { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
     ]);
@@ -190,9 +196,10 @@ describe("range aggregator", () => {
 
   it("should respect the maxQueriesPerProduct parameter", async () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
-          { productKey: "0xA", fullRange: { from: 1, to: 1000 }, coveredRanges: [{ from: 900, to: 1000 }], toRetry: [{ from: 901, to: 909 }] },
+          { obj: { key: "0xA" }, fullRange: { from: 1, to: 1000 }, coveredRanges: [{ from: 900, to: 1000 }], toRetry: [{ from: 901, to: 909 }] },
         ],
         options: {
           ignoreImportState: false,
@@ -205,9 +212,9 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { productKey: "0xA", range: { from: 400, to: 899 } },
-          { productKey: "0xA", range: { from: 1, to: 399 } },
-          { productKey: "0xA", range: { from: 901, to: 909 } },
+          { obj: { key: "0xA" }, range: { from: 400, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 1, to: 399 } },
+          { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
     ]);
@@ -215,10 +222,11 @@ describe("range aggregator", () => {
 
   it("should merge input ranges when possible", async () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
           {
-            productKey: "0xA",
+            obj: { key: "0xA" },
             fullRange: { from: 1, to: 1000 },
             coveredRanges: [
               { from: 900, to: 950 },
@@ -238,9 +246,9 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { productKey: "0xA", range: { from: 400, to: 899 } },
-          { productKey: "0xA", range: { from: 1, to: 399 } },
-          { productKey: "0xA", range: { from: 901, to: 909 } },
+          { obj: { key: "0xA" }, range: { from: 400, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 1, to: 399 } },
+          { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
     ]);
@@ -248,16 +256,17 @@ describe("range aggregator", () => {
 
   it("should handle consecutive ranges differently if that's optimal", async () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
           {
-            productKey: "0xA",
+            obj: { key: "0xA" },
             fullRange: { from: 1, to: 1100 },
             coveredRanges: [{ from: 500, to: 1100 }],
             toRetry: [],
           },
           {
-            productKey: "0xB",
+            obj: { key: "0xB" },
             fullRange: { from: 1, to: 1100 },
             coveredRanges: [{ from: 400, to: 1000 }],
             toRetry: [],
@@ -273,15 +282,18 @@ describe("range aggregator", () => {
     ).toEqual([
       {
         type: "jsonrpc batch",
-        queries: [{ productKey: "0xB", range: { from: 1001, to: 1100 } }],
+        queries: [{ obj: { key: "0xB" }, range: { from: 1001, to: 1100 } }],
       },
       {
         type: "address batch",
         queries: [
           {
-            productKeys: ["0xA", "0xB"],
+            objs: [{ key: "0xA" }, { key: "0xB" }],
             range: { from: 1, to: 499 },
-            postFilters: { "0xA": "no-filter", "0xB": [{ from: 1, to: 399 }] },
+            postFilters: [
+              { obj: { key: "0xA" }, filter: "no-filter" },
+              { obj: { key: "0xB" }, filter: [{ from: 1, to: 399 }] },
+            ],
           },
         ],
       },
@@ -290,16 +302,17 @@ describe("range aggregator", () => {
 
   it("should still re-import retries even if they are imported by previous queries", async () => {
     expect(
-      optimiseRangeQueries({
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
         states: [
           {
-            productKey: "0xA",
+            obj: { key: "0xA" },
             fullRange: { from: 1, to: 1000 },
             coveredRanges: [{ from: 900, to: 1000 }],
             toRetry: [{ from: 100, to: 200 }],
           },
           {
-            productKey: "0xB",
+            obj: { key: "0xB" },
             fullRange: { from: 1, to: 1000 },
             coveredRanges: [{ from: 400, to: 1000 }],
             toRetry: [{ from: 100, to: 200 }],
@@ -315,24 +328,30 @@ describe("range aggregator", () => {
     ).toEqual([
       {
         type: "jsonrpc batch",
-        queries: [{ productKey: "0xA", range: { from: 501, to: 899 } }],
+        queries: [{ obj: { key: "0xA" }, range: { from: 501, to: 899 } }],
       },
       {
         type: "address batch",
         queries: [
           {
-            productKeys: ["0xA", "0xB"],
+            objs: [{ key: "0xA" }, { key: "0xB" }],
             range: { from: 1, to: 500 },
-            postFilters: {
-              "0xA": [
-                { from: 1, to: 99 },
-                { from: 201, to: 500 },
-              ],
-              "0xB": [
-                { from: 1, to: 99 },
-                { from: 201, to: 399 },
-              ],
-            },
+            postFilters: [
+              {
+                obj: { key: "0xA" },
+                filter: [
+                  { from: 1, to: 99 },
+                  { from: 201, to: 500 },
+                ],
+              },
+              {
+                obj: { key: "0xB" },
+                filter: [
+                  { from: 1, to: 99 },
+                  { from: 201, to: 399 },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -341,9 +360,18 @@ describe("range aggregator", () => {
         type: "address batch",
         queries: [
           {
-            productKeys: ["0xA", "0xB"],
+            objs: [{ key: "0xA" }, { key: "0xB" }],
             range: { from: 100, to: 200 },
-            postFilters: { "0xA": "no-filter", "0xB": "no-filter" },
+            postFilters: [
+              {
+                obj: { key: "0xA" },
+                filter: "no-filter",
+              },
+              {
+                obj: { key: "0xB" },
+                filter: "no-filter",
+              },
+            ],
           },
         ],
       },
@@ -351,10 +379,12 @@ describe("range aggregator", () => {
   });
 
   it("should not update any input object", async () => {
-    const input = deepFreeze({
+    type T = QueryOptimizerInput<{ key: string }, number>;
+    const input: T = {
+      objKey: (obj) => obj.key,
       states: [
         {
-          productKey: "0xA",
+          obj: { key: "0xA" },
           fullRange: { from: 1, to: 1000 },
           coveredRanges: [
             { from: 900, to: 950 },
@@ -369,9 +399,8 @@ describe("range aggregator", () => {
         maxRangeSize: 500,
         maxQueriesPerProduct: 3,
       },
-    });
-
-    optimiseRangeQueries(input as Parameters<typeof optimiseRangeQueries>[0]);
+    };
+    optimizeRangeQueries(deepFreeze(input) as unknown as T);
   });
 
   it("should be able to identify distinct blobs and align queries with them", () => {
