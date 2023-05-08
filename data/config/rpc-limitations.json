@@ -555,7 +555,7 @@
   },
   "fuse": {
     "https://explorer-node.fuse.io": {
-      "restrictToMode": "historical",
+      "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -574,7 +574,7 @@
       }
     },
     "<RPC_API_URL_FUSE_BEEFY>": {
-      "restrictToMode": "recent",
+      "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -583,7 +583,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 228,
