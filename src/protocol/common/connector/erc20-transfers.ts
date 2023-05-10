@@ -355,19 +355,7 @@ function eventsToTransfers(
     // for the trx hash, we use the last transaction (order by logIndex)
     const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
 
-    // for the trx hash, we use the last transaction (order by logIndex)
-    const t = transfers.sort((a, b) => b.logIndex - a.logIndex)[0];
-    return {
-      chain: t.chain,
-      tokenAddress: t.tokenAddress,
-      tokenDecimals: t.tokenDecimals,
-      ownerAddress: t.ownerAddress,
-      blockNumber: t.blockNumber,
-      transactionHash: lastTrxHash,
-      amountTransferred: totalDiff,
-      logIndex: t.logIndex,
-      logLineage: t.logLineage,
-    };
+    return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
   });
 
   // sanity check
