@@ -346,7 +346,7 @@ function eventsToTransfers(
   const transfersByOwnerAndBlock = Object.values(
     groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
   );
-  const transfers = transfersByOwnerAndBlock.map((transfers) => {
+  const transfers = transfersByOwnerAndBlock.map((transfers): ERC20Transfer => {
     // get the total amount
     let totalDiff = new Decimal(0);
     for (const transfer of transfers) {
@@ -355,7 +355,7 @@ function eventsToTransfers(
     // for the trx hash, we use the last transaction (order by logIndex)
     const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
 
-    return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+    return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
   });
 
   // sanity check
