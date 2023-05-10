@@ -9,8 +9,8 @@ import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { Range, isInRange } from "../../../utils/range";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
-import { ERC20Transfer, fetchERC20TransferToAStakingContract$, fetchErc20Transfers$ } from "../../common/connector/erc20-transfers";
-import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct, DbProduct } from "../../common/loader/product";
+import { ERC20Transfer, mergeErc20Transfers } from "../../common/connector/erc20-transfers";
+import { DbBeefyProduct, DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import {
@@ -74,8 +74,8 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
 
       // decode logs to transfer events
       const product = item.product;
-      const transfers = logs.flatMap((log): ERC20Transfer[] =>
-        logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) }),
+      const transfers = mergeErc20Transfers(
+        logs.flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) })),
       );
 
       const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
@@ -128,22 +128,24 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
       // decode logs to transfer events
       const productByAddress = keyBy(products, (p) => getProductContractAddress(p).toLocaleLowerCase());
       const postFiltersByAddress = keyBy(item.query.postFilters, (f) => getProductContractAddress(f.obj.product).toLocaleLowerCase());
-      const transfers = logs
-        .flatMap((log): ERC20Transfer[] => {
-          const product = productByAddress[log.address.toLocaleLowerCase()];
-          return logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) });
-        })
-        // apply postfilters
-        .filter((transfer) => {
-          const postFilter = postFiltersByAddress[transfer.tokenAddress.toLocaleLowerCase()];
-          if (!postFilter) {
-            return true;
-          }
-          if (postFilter.filter === "no-filter") {
-            return true;
-          }
-          return postFilter.filter.some((r) => isInRange(r, transfer.blockNumber));
-        });
+      const transfers = mergeErc20Transfers(
+        logs
+          .flatMap((log): ERC20Transfer[] => {
+            const product = productByAddress[log.address.toLocaleLowerCase()];
+            return logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) });
+          })
+          // apply postfilters
+          .filter((transfer) => {
+            const postFilter = postFiltersByAddress[transfer.tokenAddress.toLocaleLowerCase()];
+            if (!postFilter) {
+              return true;
+            }
+            if (postFilter.filter === "no-filter") {
+              return true;
+            }
+            return postFilter.filter.some((r) => isInRange(r, transfer.blockNumber));
+          }),
+      );
 
       const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
 

@@ -155,6 +155,20 @@ async function fetchERC20TransferEventsFromRpc(
     successes: new Map(
       zipWith(contractCalls, eventsRes, (contractCall, events) => {
         const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
+        console.dir({
+          events,
+          transfers: transfers.map((event) => ({
+            amountTransferred: event.amountTransferred.toString(),
+            blockNumber: event.blockNumber.toString(),
+            chain: event.chain.toString(),
+            logIndex: event.logIndex.toString(),
+            logLineage: event.logLineage.toString(),
+            ownerAddress: event.ownerAddress.toString(),
+            tokenAddress: event.tokenAddress.toString(),
+            tokenDecimals: event.tokenDecimals.toString(),
+            transactionHash: event.transactionHash.toString(),
+          })),
+        });
         return [contractCall, transfers];
       }),
     ),
@@ -225,22 +239,7 @@ function eventsToTransfers(
       ]),
   );
 
-  // there could be incoming and outgoing transfers in the same block for the same user
-  // we want to merge those into a single transfer
-  const transfersByOwnerAndBlock = Object.values(
-    groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
-  );
-  const transfers = transfersByOwnerAndBlock.map((transfers): ERC20Transfer => {
-    // get the total amount
-    let totalDiff = new Decimal(0);
-    for (const transfer of transfers) {
-      totalDiff = totalDiff.add(transfer.amountTransferred);
-    }
-    // for the trx hash, we use the last transaction (order by logIndex)
-    const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
-
-    return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
-  });
+  const transfers = mergeErc20Transfers(allTransfers);
 
   // sanity check
   if (process.env.NODE_ENV === "development") {
@@ -253,5 +252,27 @@ function eventsToTransfers(
       }
     }
   }
+
   return transfers;
+}
+
+export function mergeErc20Transfers(allTransfers: ERC20Transfer[]) {
+  // there could be incoming and outgoing transfers in the same block for the same user
+  // we want to merge those into a single transfer
+  const transfersByOwnerAndBlock = Object.values(
+    groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
+  );
+  return transfersByOwnerAndBlock
+    .map((transfers): ERC20Transfer => {
+      // get the total amount
+      let totalDiff = new Decimal(0);
+      for (const transfer of transfers) {
+        totalDiff = totalDiff.add(transfer.amountTransferred);
+      }
+      // for the trx hash, we use the last transaction (order by logIndex)
+      const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
+
+      return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
+    })
+    .filter((transfer) => !transfer.amountTransferred.isZero());
 }
