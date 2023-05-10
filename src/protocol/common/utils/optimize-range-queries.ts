@@ -71,7 +71,7 @@ type StrategyResult<T> = {
 
 export type QueryOptimizerOutput<TObj, TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TObj, TRange> | AddressBatchOutput<TObj, TRange>;
 
-// some type guards
+// some type guards and accessors
 export function isJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>(
   o: QueryOptimizerOutput<TObj, TRange>,
 ): o is JsonRpcBatchOutput<TObj, TRange> {
@@ -81,6 +81,18 @@ export function isAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>(
   o: QueryOptimizerOutput<TObj, TRange>,
 ): o is AddressBatchOutput<TObj, TRange> {
   return o.type === "address batch";
+}
+
+export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
+  output: QueryOptimizerOutput<TObj, TRange>,
+): { obj: TObj; range: Range<TRange> }[] {
+  if (isJsonRpcBatchQueries(output)) {
+    return output.queries.flatMap((query) => ({ obj: query.obj, range: query.range }));
+  } else if (isAddressBatchQueries(output)) {
+    return output.queries.flatMap((query) => query.objs.map((obj) => ({ obj, range: query.range })));
+  } else {
+    throw new ProgrammerError("Unsupported type of optimizer output: " + output);
+  }
 }
 
 /**

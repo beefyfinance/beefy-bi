@@ -21,8 +21,9 @@ import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createHistoricalImportRunner, createRecentImportRunner } from "../../../common/utils/historical-recent-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
-import { optimizeRangeQueries } from "../../../common/utils/optimize-range-queries";
+import { extractObjsAndRangeFromOptimizerOutput, optimizeRangeQueries } from "../../../common/utils/optimize-range-queries";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
+import { fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { getInvestmentsImportStateKey } from "../../utils/import-state";
@@ -51,13 +52,13 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
         // create the import state if it does not exists
         addMissingImportState$<
           DbBeefyProduct,
-          { target: DbBeefyProduct; importState: DbProductInvestmentImportState },
+          { product: DbBeefyProduct; importState: DbProductInvestmentImportState },
           DbProductInvestmentImportState
         >({
           client: options.runnerConfig.client,
           streamConfig: ctx.streamConfig,
-          getImportStateKey: options.getImportStateKey,
-          formatOutput: (target, importState) => ({ target, importState }),
+          getImportStateKey: getInvestmentsImportStateKey,
+          formatOutput: (product, importState) => ({ product, importState }),
           createDefaultImportState$: Rx.pipe(
             // initialize the import state
             // find the contract creation block
@@ -114,15 +115,20 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
           Rx.toArray(),
           // go get the latest block number for this chain
           latestBlockNumber$({
-            ctx: options.ctx,
-            emitError: (items, report) => items.map((item) => options.emitError(item, report)),
+            ctx: ctx,
+            emitError: (items, report) => {
+              logger.error(mergeLogsInfos({ msg: "Failed to get latest block number block", data: { items } }, report.infos));
+              logger.error(report.error);
+              throw new Error("Failed to get latest block number block");
+            },
             formatOutput: (items, latestBlockNumber) => ({ items, latestBlockNumber }),
           }),
 
           Rx.map(({ items, latestBlockNumber }) =>
             optimizeRangeQueries({
+              objKey: (item) => item.product.productKey,
               states: items.map((item) => ({
-                productKey: item.target.productKey,
+                obj: { product: item.product, latestBlockNumber },
                 coveredRanges: item.importState.importData.ranges.coveredRanges,
                 fullRange: { from: item.importState.importData.contractCreatedAtBlock, to: latestBlockNumber },
                 toRetry: item.importState.importData.ranges.toRetry,
@@ -135,13 +141,23 @@ export function createBeefyHistoricalInvestmentRunner(options: { chain: Chain; r
               },
             }),
           ),
+          Rx.concatAll(),
         ),
 
         // detect interesting events in this ranges
+        fetchProductEvents$({
+          ctx,
+          emitError: (query, report) =>
+            extractObjsAndRangeFromOptimizerOutput(query).map(({ obj, range }) =>
+              emitError({ target: obj.product, latest: obj.latestBlockNumber, range }, report),
+            ),
+          getCallParams: (query) => query,
+          formatOutput: (query, transfers) => ({ query, transfers }),
+        }),
 
         // then for each query, do the import
         executeSubPipeline$({
-          ctx: ctx,
+          ctx,
           emitError: emitError,
           getObjs: async (item) => {
             const shouldIgnoreFn = await shouldIgnoreFnPromise;
@@ -389,10 +405,9 @@ export function importProductBlockRange$(options: {
   );
 }
 
-export type TransferToLoad<TProduct extends DbBeefyProduct = DbBeefyProduct> = {
+type TransferToLoad<TProduct extends DbBeefyProduct = DbBeefyProduct> = {
   transfer: ERC20Transfer;
   product: TProduct;
-  range: Range<number>;
   latest: number;
 };
 

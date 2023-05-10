@@ -155,20 +155,6 @@ async function fetchERC20TransferEventsFromRpc(
     successes: new Map(
       zipWith(contractCalls, eventsRes, (contractCall, events) => {
         const transfers = eventsToTransfers(chain, contractCall, events, "rpc");
-        console.dir({
-          events,
-          transfers: transfers.map((event) => ({
-            amountTransferred: event.amountTransferred.toString(),
-            blockNumber: event.blockNumber.toString(),
-            chain: event.chain.toString(),
-            logIndex: event.logIndex.toString(),
-            logLineage: event.logLineage.toString(),
-            ownerAddress: event.ownerAddress.toString(),
-            tokenAddress: event.tokenAddress.toString(),
-            tokenDecimals: event.tokenDecimals.toString(),
-            transactionHash: event.transactionHash.toString(),
-          })),
-        });
         return [contractCall, transfers];
       }),
     ),

@@ -25,14 +25,14 @@ import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/ty
 
 const logger = rootLogger.child({ module: "beefy", component: "product-events" });
 
-export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBeefyProduct }, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getCallParams: (obj: TObj) => QueryOptimizerOutput<{ product: DbBeefyProduct }, number>;
+  getCallParams: (obj: TObj) => QueryOptimizerOutput<TQueryContent, number>;
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const fetchJsonRpcBatch$: Rx.OperatorFunction<
-    { obj: TObj; batch: JsonRpcBatchOutput<{ product: DbBeefyProduct }, number> },
+    { obj: TObj; batch: JsonRpcBatchOutput<TQueryContent, number> },
     { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
     // flatten every query
@@ -70,12 +70,15 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
     Rx.map((item) => {
       const rawLogs = item.rawLogs;
 
-      const logs = rawLogs.map(parseRawLog).filter((log) => !log.removed);
+      const logs = rawLogs.map(parseRawLog);
 
       // decode logs to transfer events
       const product = item.product;
       const transfers = mergeErc20Transfers(
-        logs.flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) })),
+        logs
+          .filter((log) => !log.removed)
+          .filter((log) => filterLogByTypeOfProduct(log, product))
+          .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) })),
       );
 
       const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
@@ -90,7 +93,7 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
   );
 
   const getLogsAddressBatch$: Rx.OperatorFunction<
-    { obj: TObj; batch: AddressBatchOutput<{ product: DbBeefyProduct }, number> },
+    { obj: TObj; batch: AddressBatchOutput<TQueryContent, number> },
     { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
     Rx.tap((item) => logger.debug({ msg: "item", data: item })),
@@ -123,17 +126,17 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
         provider: options.ctx.rpcConfig.linearProvider,
       });
 
-      const logs = rawLogs.map(parseRawLog).filter((log) => !log.removed);
+      const logs = rawLogs.map(parseRawLog);
 
       // decode logs to transfer events
       const productByAddress = keyBy(products, (p) => getProductContractAddress(p).toLocaleLowerCase());
+      const getProduct = (log: Log) => productByAddress[log.address.toLocaleLowerCase()];
       const postFiltersByAddress = keyBy(item.query.postFilters, (f) => getProductContractAddress(f.obj.product).toLocaleLowerCase());
       const transfers = mergeErc20Transfers(
         logs
-          .flatMap((log): ERC20Transfer[] => {
-            const product = productByAddress[log.address.toLocaleLowerCase()];
-            return logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) });
-          })
+          .filter((log) => !log.removed)
+          .filter((log) => filterLogByTypeOfProduct(log, getProduct(log)))
+          .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(getProduct(log)) }))
           // apply postfilters
           .filter((transfer) => {
             const postFilter = postFiltersByAddress[transfer.tokenAddress.toLocaleLowerCase()];
@@ -168,19 +171,16 @@ export function fetchProductEvents$<TObj, TErr extends ErrorEmitter<TObj>, TRes>
     Rx.connect((items$) =>
       Rx.merge(
         items$.pipe(
-          Rx.filter((item): item is { obj: TObj; batch: JsonRpcBatchOutput<{ product: DbBeefyProduct }, number> } =>
-            isJsonRpcBatchQueries(item.batch),
-          ),
+          Rx.filter((item): item is { obj: TObj; batch: JsonRpcBatchOutput<TQueryContent, number> } => isJsonRpcBatchQueries(item.batch)),
           fetchJsonRpcBatch$,
         ),
         items$.pipe(
-          Rx.filter((item): item is { obj: TObj; batch: AddressBatchOutput<{ product: DbBeefyProduct }, number> } =>
-            isAddressBatchQueries(item.batch),
-          ),
+          Rx.filter((item): item is { obj: TObj; batch: AddressBatchOutput<TQueryContent, number> } => isAddressBatchQueries(item.batch)),
           getLogsAddressBatch$,
         ),
       ),
     ),
+
     Rx.map(({ obj, transfers }) => options.formatOutput(obj, transfers)),
   );
 }
@@ -252,6 +252,18 @@ const parseRawLog = (log: ethers.Event | ethers.providers.Log): Log => ({
     topics: log.topics as any,
   }) as any),
 });
+
+const filterLogByTypeOfProduct = (log: Log, product: DbBeefyProduct) => {
+  if (isBeefyBoost(product)) {
+    return log.eventName === "Staked" || log.eventName === "Withdrawn";
+  } else if (isBeefyGovVault(product)) {
+    return log.eventName === "Staked" || log.eventName === "Withdrawn";
+  } else if (isBeefyStandardVault(product)) {
+    return log.eventName === "Transfer";
+  } else {
+    throw new ProgrammerError("Unknown product type");
+  }
+};
 
 const logToTransfers = (log: Log, { chain, decimals }: { chain: Chain; decimals: number }): ERC20Transfer[] => {
   const valueMultiplier = new Decimal(10).pow(-decimals);

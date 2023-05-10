@@ -18,7 +18,7 @@ export function createImportStateUpdaterRunner<TInput, TRange extends SupportedR
   getImportStateKey: (input: TInput) => string;
   pipeline$: (
     ctx: ImportCtx,
-    emitError: ErrorEmitter<{ item: ImportRangeQuery<TInput, TRange>; report: ErrorReport }>,
+    emitError: ErrorEmitter<ImportRangeQuery<TInput, TRange>>,
     getLastImported: () => TRange,
   ) => Rx.OperatorFunction<TInput, ImportRangeResult<TInput, TRange>>;
 }) {
@@ -35,7 +35,11 @@ export function createImportStateUpdaterRunner<TInput, TRange extends SupportedR
       Rx.tap((item: TInput) => logger.trace(mergeLogsInfos({ msg: "Handling input item", data: { item } }, options.logInfos))),
 
       // run the import
-      options.pipeline$(ctx, emitError, () => lastImportCache[options.cacheKey]),
+      options.pipeline$(
+        ctx,
+        (item, report) => emitError({ item, report }),
+        () => lastImportCache[options.cacheKey],
+      ),
 
       Rx.pipe(
         // handle the results
