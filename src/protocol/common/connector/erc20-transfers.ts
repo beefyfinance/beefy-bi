@@ -355,7 +355,7 @@ function eventsToTransfers(
     // for the trx hash, we use the last transaction (order by logIndex)
     const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
 
-    return { ...transfers[0], transactionHash: lastTrxHash, sharesBalanceDiff: totalDiff };
+    return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
   });
 
   // sanity check
