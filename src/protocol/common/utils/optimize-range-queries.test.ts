@@ -23,11 +23,11 @@ describe("range aggregator", () => {
         type: "address batch",
         queries: [
           {
-            objs: [{ key: "0xB" }, { key: "0xA" }, { key: "0xC" }],
+            objs: [{ key: "0xA" }, { key: "0xB" }, { key: "0xC" }],
             range: { from: 200, to: 700 },
             postFilters: [
-              { obj: { key: "0xB" }, filter: [{ from: 300, to: 700 }] },
               { obj: { key: "0xA" }, filter: [{ from: 200, to: 500 }] },
+              { obj: { key: "0xB" }, filter: [{ from: 300, to: 700 }] },
               { obj: { key: "0xC" }, filter: [{ from: 480, to: 630 }] },
             ],
           },
@@ -57,11 +57,11 @@ describe("range aggregator", () => {
         type: "address batch",
         queries: [
           {
-            objs: [{ key: "0xB" }, { key: "0xA" }, { key: "0xC" }],
+            objs: [{ key: "0xA" }, { key: "0xB" }, { key: "0xC" }],
             range: { from: 300, to: 630 },
             postFilters: [
-              { obj: { key: "0xB" }, filter: [{ from: 300, to: 499 }] },
               { obj: { key: "0xA" }, filter: [{ from: 401, to: 500 }] },
+              { obj: { key: "0xB" }, filter: [{ from: 300, to: 499 }] },
               { obj: { key: "0xC" }, filter: [{ from: 601, to: 630 }] },
             ],
           },
@@ -252,6 +252,31 @@ describe("range aggregator", () => {
         ],
       },
     ]);
+  });
+
+  it("should not crash if input ranges do not make sense", async () => {
+    expect(
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
+        states: [
+          {
+            obj: { key: "0xA" },
+            fullRange: { from: 1000, to: 1 },
+            coveredRanges: [
+              { from: 950, to: 900 },
+              { from: 1000, to: 920 },
+            ],
+            toRetry: [{ from: 909, to: 901 }],
+          },
+        ],
+        options: {
+          ignoreImportState: false,
+          maxAddressesPerQuery: 1,
+          maxRangeSize: 500,
+          maxQueriesPerProduct: 3,
+        },
+      }),
+    ).toEqual([]);
   });
 
   it("should handle consecutive ranges differently if that's optimal", async () => {

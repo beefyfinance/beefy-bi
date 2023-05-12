@@ -4,6 +4,7 @@ import {
   Range,
   SupportedRangeTypes,
   getRangeSize,
+  isValidRange,
   rangeCovering,
   rangeEqual,
   rangeIntersect,
@@ -14,6 +15,7 @@ import {
   rangeToNumber,
   rangeValueMax,
 } from "../../../utils/range";
+import { ERC20Transfer } from "../connector/erc20-transfers";
 
 interface Options {
   ignoreImportState: boolean;
@@ -34,6 +36,7 @@ export interface QueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
 }
 
 interface StrategyInput<TObj, TRange extends SupportedRangeTypes> {
+  objKey: (obj: TObj) => string;
   states: {
     obj: TObj;
     ranges: Range<TRange>[];
@@ -116,6 +119,14 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     throw new ProgrammerError({ msg: "Duplicate states by product", data: { duplicateStatesByProduct } });
   }
 
+  // check all input ranges
+  const hasSomeInvalidRange = states.some(
+    (state) => !isValidRange(state.fullRange) || state.coveredRanges.some((r) => !isValidRange(r)) || state.toRetry.some((r) => !isValidRange(r)),
+  );
+  if (hasSomeInvalidRange) {
+    return [];
+  }
+
   // if we need to retry some, do it at the end
   const steps = ignoreImportState
     ? [states.map(({ obj, fullRange }) => ({ obj, ranges: [fullRange] }))]
@@ -143,7 +154,7 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
         rangesToQuery.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
       )
       // get the best method for each part of this index
-      .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ states: toQuery, options: input.options })),
+      .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
   );
 
   // now merge consecutive jsonrpc batches
@@ -293,6 +304,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
  * PS: note that the implementation could be way faster using a grid of bits and bitwise operations.
  */
 function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
+  objKey,
   states,
   options: { maxAddressesPerQuery, maxQueriesPerProduct },
 }: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
@@ -316,14 +328,21 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   let queries = chunk(toQuery, maxAddressesPerQuery).map((parts) => {
     const coveringRange = rangeCovering(parts.flatMap((part) => part.ranges));
     return {
-      objs: parts.map((part) => part.obj).sort(), // sort to make tests reliable
+      // sort to make tests reliable
+      objs: sortBy(
+        parts.map((part) => part.obj),
+        objKey,
+      ),
       range: coveringRange,
-      postFilters: parts
-        .map((part) => ({
-          obj: part.obj,
-          ranges: rangeMerge(part.ranges).filter((r) => !rangeEqual(r, coveringRange)),
-        }))
-        .map(({ obj, ranges }) => ({ obj, filter: ranges.length > 0 ? ranges : ("no-filter" as const) })),
+      postFilters: sortBy(
+        parts
+          .map((part) => ({
+            obj: part.obj,
+            ranges: rangeMerge(part.ranges).filter((r) => !rangeEqual(r, coveringRange)),
+          }))
+          .map(({ obj, ranges }) => ({ obj, filter: ranges.length > 0 ? ranges : ("no-filter" as const) })),
+        (i) => objKey(i.obj),
+      ),
       coverage: sum(parts.flatMap((part) => part.ranges).map((r) => getRangeSize(r))),
     };
   });

@@ -373,8 +373,7 @@ export function updateImportState$<
 }
 
 export function addMissingImportState$<TInput, TRes, TImport extends DbImportState>(options: {
-  client: DbClient;
-  streamConfig: BatchStreamConfig;
+  ctx: ImportCtx;
   getImportStateKey: (obj: TInput) => string;
   createDefaultImportState$: Rx.OperatorFunction<TInput, { obj: TInput; importData: TImport["importData"] }>;
   formatOutput: (obj: TInput, importState: TImport) => TRes;
@@ -382,8 +381,8 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
   return Rx.pipe(
     // find the current import state for these objects (if already created)
     fetchImportState$({
-      client: options.client,
-      streamConfig: options.streamConfig,
+      client: options.ctx.client,
+      streamConfig: options.ctx.streamConfig,
       getImportStateKey: options.getImportStateKey,
       formatOutput: (obj, importState) => ({ obj, importState }),
     }),
@@ -403,8 +402,8 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
 
           // create the import state in the database
           upsertImportState$({
-            client: options.client,
-            streamConfig: options.streamConfig,
+            client: options.ctx.client,
+            streamConfig: options.ctx.streamConfig,
             getImportStateData: (item) =>
               ({
                 importKey: options.getImportStateKey(item.obj),

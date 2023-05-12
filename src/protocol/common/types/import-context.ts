@@ -12,6 +12,7 @@ export interface ImportBehaviour {
   // historical import mode is optimized for completeness, we do everything we can to make sure we don't miss anything
   // in historical mode, we can wait longer before sending the next batch of queries to an rpc provider
   // the goal is to make sure we don't miss anything
+  // @Deprecated: mode is not used anymore
   mode: "historical" | "recent";
 
   // override the RPC count to use
@@ -71,6 +72,7 @@ export interface ImportBehaviour {
   // none: don't skip recent window when historical for any product
   // live: skip recent window when historical for live products
   // eol: skip recent window when historical for eol products
+  // @Deprecated: mode is not used anymore
   skipRecentWindowWhenHistorical: "all" | "none" | "live" | "eol";
 
   // when the rpc limitations config is not found, this config tells us what to do

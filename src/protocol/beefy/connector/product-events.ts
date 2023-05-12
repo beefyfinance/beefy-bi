@@ -17,6 +17,7 @@ import {
   AddressBatchOutput,
   JsonRpcBatchOutput,
   QueryOptimizerOutput,
+  extractObjsAndRangeFromOptimizerOutput,
   isAddressBatchQueries,
   isJsonRpcBatchQueries,
 } from "../../common/utils/optimize-range-queries";
@@ -81,13 +82,13 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
           .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) })),
       );
 
-      const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
+      const transferByAddress = groupBy(transfers, (t) => normalizeAddressOrThrow(t.tokenAddress));
 
       return {
         obj: item.obj,
         product,
         range: item.range,
-        transfers: transferByAddress[getProductContractAddress(product).toLocaleLowerCase()] || [],
+        transfers: transferByAddress[normalizeAddressOrThrow(getProductContractAddress(product))] || [],
       };
     }),
   );
@@ -129,9 +130,9 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
       const logs = rawLogs.map(parseRawLog);
 
       // decode logs to transfer events
-      const productByAddress = keyBy(products, (p) => getProductContractAddress(p).toLocaleLowerCase());
-      const getProduct = (log: Log) => productByAddress[log.address.toLocaleLowerCase()];
-      const postFiltersByAddress = keyBy(item.query.postFilters, (f) => getProductContractAddress(f.obj.product).toLocaleLowerCase());
+      const productByAddress = keyBy(products, (p) => normalizeAddressOrThrow(getProductContractAddress(p)));
+      const getProduct = (log: Log) => productByAddress[normalizeAddressOrThrow(log.address)];
+      const postFiltersByAddress = keyBy(item.query.postFilters, (f) => normalizeAddressOrThrow(getProductContractAddress(f.obj.product)));
       const transfers = mergeErc20Transfers(
         logs
           .filter((log) => !log.removed)
@@ -139,7 +140,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
           .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(getProduct(log)) }))
           // apply postfilters
           .filter((transfer) => {
-            const postFilter = postFiltersByAddress[transfer.tokenAddress.toLocaleLowerCase()];
+            const postFilter = postFiltersByAddress[normalizeAddressOrThrow(transfer.tokenAddress)];
             if (!postFilter) {
               return true;
             }
@@ -150,13 +151,13 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
           }),
       );
 
-      const transferByAddress = groupBy(transfers, (t) => t.tokenAddress.toLocaleLowerCase());
+      const transferByAddress = groupBy(transfers, (t) => normalizeAddressOrThrow(t.tokenAddress));
 
       return item.query.objs.map(({ product }) => ({
         obj: item.obj,
         product,
         range: item.query.range,
-        transfers: transferByAddress[getProductContractAddress(product).toLocaleLowerCase()] || [],
+        transfers: transferByAddress[normalizeAddressOrThrow(getProductContractAddress(product))] || [],
       }));
     }, options.ctx.streamConfig.workConcurrency),
 
@@ -183,6 +184,22 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
 
     Rx.map(({ obj, transfers }) => options.formatOutput(obj, transfers)),
   );
+}
+
+export function extractProductTransfersFromOutputAndTransfers<TObj>(
+  output: QueryOptimizerOutput<TObj, number>,
+  getProduct: (obj: TObj) => DbBeefyProduct,
+  transfers: ERC20Transfer[],
+): { obj: TObj; range: Range<number>; transfers: ERC20Transfer[] }[] {
+  return extractObjsAndRangeFromOptimizerOutput(output).flatMap(({ obj, range }) => {
+    const product = getProduct(obj);
+    return {
+      obj,
+      product,
+      range,
+      transfers: transfers.filter((t) => normalizeAddressOrThrow(t.tokenAddress) === normalizeAddressOrThrow(getProductContractAddress(product))),
+    };
+  });
 }
 
 const getProductDecimals = (product: DbProduct) => {
