@@ -3,6 +3,7 @@ import { Chain } from "../../../../types/chain";
 import { samplingPeriodMs } from "../../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
+import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
@@ -17,6 +18,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeResult } from "../../../common/types/import-query";
+import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
 import { extractObjsAndRangeFromOptimizerOutput, optimizeRangeQueries } from "../../../common/utils/optimize-range-queries";
@@ -117,30 +119,49 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
             optimizeRangeQueries({
               objKey: (item) => item.product.productKey,
               states: items.map(({ product, importState }) => {
+                // compute recent full range in case we need it
+                // fetch the last hour of data
+                const maxBlocksPerQuery = ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
+                const period = samplingPeriodMs["1hour"];
+                const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[ctx.chain]);
+
+                const lastImportedBlockNumber = getLastImportedBlockNumber();
+                const diffBetweenLastImported = lastImportedBlockNumber ? latestBlockNumber - (lastImportedBlockNumber + 1) : Infinity;
+
+                const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
+                const fromBlock = latestBlockNumber - blockCountToFetch;
+                const toBlock = latestBlockNumber;
+
+                const recentFullRange = {
+                  from: fromBlock - ctx.behaviour.waitForBlockPropagation,
+                  to: toBlock - ctx.behaviour.waitForBlockPropagation,
+                };
+
                 let fullRange: Range<number>;
-                if (importState === null) {
-                  // fetch the last hour of data
-                  const maxBlocksPerQuery = ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-                  const period = samplingPeriodMs["1hour"];
-                  const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[ctx.chain]);
 
-                  const lastImportedBlockNumber = getLastImportedBlockNumber();
-                  const diffBetweenLastImported = lastImportedBlockNumber ? latestBlockNumber - (lastImportedBlockNumber + 1) : Infinity;
-
-                  const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
-                  const fromBlock = latestBlockNumber - blockCountToFetch;
-                  const toBlock = latestBlockNumber;
-
-                  fullRange = {
-                    from: fromBlock - ctx.behaviour.waitForBlockPropagation,
-                    to: toBlock - ctx.behaviour.waitForBlockPropagation,
-                  };
-                } else {
+                if (ctx.behaviour.mode !== "recent" && importState !== null) {
+                  // exclude latest block query from the range
+                  const isLive = !isProductDashboardEOL(product);
+                  const skipRecent = ctx.behaviour.skipRecentWindowWhenHistorical;
+                  let doSkip = false;
+                  if (skipRecent === "all") {
+                    doSkip = true;
+                  } else if (skipRecent === "none") {
+                    doSkip = false;
+                  } else if (skipRecent === "live") {
+                    doSkip = isLive;
+                  } else if (skipRecent === "eol") {
+                    doSkip = !isLive;
+                  } else {
+                    throw new ProgrammerError({ msg: "Invalid skipRecentWindowWhenHistorical value", data: { skipRecent } });
+                  }
                   // this is the whole range we have to cover
                   fullRange = {
                     from: importState.importData.contractCreatedAtBlock,
-                    to: latestBlockNumber - ctx.behaviour.waitForBlockPropagation,
+                    to: Math.min(latestBlockNumber - ctx.behaviour.waitForBlockPropagation, doSkip ? recentFullRange.to : Infinity),
                   };
+                } else {
+                  fullRange = recentFullRange;
                 }
 
                 // this can happen when we force the block number in the past and we are treating a recent product
