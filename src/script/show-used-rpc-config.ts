@@ -34,7 +34,6 @@ async function main() {
         "recent-prices",
         "historical-prices",
         "historical-share-rate",
-        "reward-snapshots",
         "investor-cache",
       ],
       demand: true,

@@ -9,24 +9,20 @@ import { ProgrammerError } from "../../../utils/programmer-error";
 import { addSecretsToRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { fetchAllInvestorIds$ } from "../../common/loader/investment";
-import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
-import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport, ImportBehaviour, ImportCtx, createBatchStreamConfig, defaultImportBehaviour } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
-import { createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
-import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
-import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
+import { createBeefyInvestmentImportRunner } from "../loader/investment/import-investments";
 import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
 import { createBeefyHistoricalShareRatePricesRunner, createBeefyRecentShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
 import { createScheduleReimportInvestmentsRunner } from "../loader/schedule-reimport";
 import { getProductContractAddress } from "../utils/contract-accessors";
-import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
+import { isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
@@ -44,7 +40,6 @@ interface CmdParams {
     | "historical-prices"
     | "recent-share-rate"
     | "historical-share-rate"
-    | "reward-snapshots"
     | "investor-cache";
   filterChains: Chain[];
   includeEol: boolean;
@@ -236,7 +231,6 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               "historical-prices",
               "recent-share-rate",
               "historical-share-rate",
-              "reward-snapshots",
               "investor-cache",
             ],
             demand: true,
@@ -349,8 +343,6 @@ function getTasksToRun(cmdParams: CmdParams) {
     case "recent-share-rate":
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
-    case "reward-snapshots":
-      return cmdParams.filterChains.map((chain) => () => importBeefyRewardSnapshots(chain, cmdParams));
     case "investor-cache":
       return [() => importInvestorCache(cmdParams)];
     default:
@@ -462,40 +454,27 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
 }
 
 async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runnerConfig = {
+  return createBeefyInvestmentImportRunner({
     chain,
-    getInputs,
-    client: cmdParams.client,
-    behaviour: _createImportBehaviourFromCmdParams(cmdParams),
-  };
+    runnerConfig: {
+      chain,
+      getInputs: async () => {
+        const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+          productFilter$(chain, cmdParams),
+          // collect
+          Rx.toArray(),
+        );
 
-  const runner =
-    runnerConfig.behaviour.mode === "recent"
-      ? createBeefyRecentInvestmentRunner({
-          chain,
-          runnerConfig,
-        })
-      : createBeefyHistoricalInvestmentRunner({
-          chain,
-          runnerConfig,
-        });
-
-  return runner.run();
+        const res = await consumeObservable(pipeline$);
+        if (!res) {
+          return [];
+        }
+        return res;
+      },
+      client: cmdParams.client,
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
+    },
+  }).run();
 }
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
@@ -550,73 +529,6 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   return runner.run();
 }
 
-function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
-  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
-  const rpcConfig = createRpcConfig(chain, behaviour);
-  const streamConfig = createBatchStreamConfig(chain, behaviour);
-  const ctx: ImportCtx = {
-    chain,
-    client: cmdParams.client,
-    rpcConfig,
-    streamConfig,
-    behaviour,
-  };
-
-  const emitError = (item: DbProduct, report: ErrorReport) => {
-    logger.error(mergeLogsInfos({ msg: "Error fetching rewards for product", data: { ...item } }, report.infos));
-    logger.error(report.error);
-    throw new Error(`Error fetching rewards for product ${item.productId}`);
-  };
-
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // Rewards only exists for boosts and governance vaults
-      Rx.filter((product): product is DbBeefyBoostProduct | DbBeefyGovVaultProduct => isBeefyBoost(product) || isBeefyGovVault(product)),
-      // fetch all investors of this product
-      fetchAllInvestorIds$({
-        ctx,
-        emitError,
-        getProductId: (product) => product.productId,
-        formatOutput: (product, investorIds) => ({ product, investorIds }),
-      }),
-      // flatten the result
-      Rx.concatMap(({ product, investorIds }) => investorIds.map((investorId) => ({ product, investorId }))),
-      // fetch investor rows
-      fetchInvestor$({
-        ctx,
-        emitError: (item) => {
-          throw new Error(`Error fetching investor ${item.investorId} for product ${item.product.productId}`);
-        },
-        getInvestorId: (item) => item.investorId,
-        formatOutput: (item, investor) => ({ ...item, investor }),
-      }),
-
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runner = createBeefyHistoricalPendingRewardsSnapshotsRunner({
-    chain: chain,
-    runnerConfig: {
-      getInputs,
-      client: cmdParams.client,
-      chain,
-      behaviour,
-    },
-  });
-
-  return runner.run();
-}
-
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
   return Rx.pipe(
     Rx.filter((product: DbProduct) => {
@@ -652,7 +564,6 @@ const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
   "historical-prices": "historical",
   "recent-share-rate": "recent",
   "historical-share-rate": "historical",
-  "reward-snapshots": "historical",
   "investor-cache": "recent",
 };
 
