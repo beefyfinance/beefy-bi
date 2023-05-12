@@ -81,10 +81,10 @@ export function isProductInvestmentImportState(o: DbImportState): o is DbProduct
 export function isOraclePriceImportState(o: DbImportState): o is DbOraclePriceImportState {
   return o.importData.type === "oracle:price";
 }
-export function isProductShareRateImportState(o: DbImportState): o is DbProductShareRateImportState {
+function isProductShareRateImportState(o: DbImportState): o is DbProductShareRateImportState {
   return o.importData.type === "product:share-rate";
 }
-export function isPendingRewardsImportState(o: DbImportState): o is DbPendingRewardsImportState {
+function isPendingRewardsImportState(o: DbImportState): o is DbPendingRewardsImportState {
   return o.importData.type === "rewards:snapshots";
 }
 

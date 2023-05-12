@@ -20,7 +20,7 @@ interface ContractCallParams {
   chain: Chain;
 }
 
-export interface ContractCreationInfos {
+interface ContractCreationInfos {
   blockNumber: number;
   datetime: Date;
 }

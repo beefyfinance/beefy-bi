@@ -1,6 +1,5 @@
 import Decimal from "decimal.js";
-import { groupBy, isEmpty, keyBy, merge } from "lodash";
-import { v4 as uuid } from "uuid";
+import { groupBy } from "lodash";
 import { db_query, strAddressToPgBytea } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -9,7 +8,7 @@ import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "common", component: "investment" });
 
-export interface DbInvestment {
+interface DbInvestment {
   datetime: Date;
   blockNumber: number;
   productId: number;

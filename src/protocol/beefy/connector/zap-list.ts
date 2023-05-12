@@ -17,7 +17,7 @@ interface RawBeefyZap {
   zapAddress: string;
 }
 
-export interface BeefyZap {
+interface BeefyZap {
   chain: Chain;
   address: string;
 }

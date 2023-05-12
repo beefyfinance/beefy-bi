@@ -316,7 +316,7 @@ export function rangeExclude<T extends SupportedRangeTypes>(range: Range<T>, exc
   return [];
 }
 
-export function rangeSort<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
+function rangeSort<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   if (ranges.length <= 1) {
     return ranges;
   }

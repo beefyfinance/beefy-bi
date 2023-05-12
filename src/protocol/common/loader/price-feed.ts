@@ -1,12 +1,9 @@
 import { keyBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
-import { DbClient, db_query } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
+import { db_query } from "../../../utils/db";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
-
-const logger = rootLogger.child({ module: "price-feed", component: "loader" });
 
 export interface DbPriceFeed {
   priceFeedId: number;
@@ -146,28 +143,4 @@ export function fetchPriceFeed$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(opt
       return new Map(objAndData.map(({ data }) => [data, data ? idMap[data] ?? null : null]));
     },
   });
-}
-
-export function priceFeedList$<TKey extends string>(client: DbClient, keyPrefix: TKey): Rx.Observable<DbPriceFeed> {
-  logger.debug({ msg: "Fetching price feed from db", data: { keyPrefix } });
-  return Rx.of(
-    db_query<DbPriceFeed>(
-      `SELECT 
-        price_feed_id as "priceFeedId",
-        feed_key as "feedKey",
-        from_asset_key as "fromAssetKey",
-        to_asset_key as "toAssetKey",
-        price_feed_data as "priceFeedData"
-      FROM price_feed 
-      WHERE feed_key like %L || ':%'`,
-      [keyPrefix],
-      client,
-    ),
-  ).pipe(
-    Rx.mergeAll(),
-
-    Rx.tap((priceFeeds) => logger.debug({ msg: "emitting price feed list", data: { count: priceFeeds.length } })),
-
-    Rx.concatMap((priceFeeds) => Rx.from(priceFeeds)), // flatten
-  );
 }

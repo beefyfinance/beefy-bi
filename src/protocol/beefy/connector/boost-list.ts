@@ -11,7 +11,7 @@ import { BeefyVault } from "./vault-list";
 
 const logger = rootLogger.child({ module: "beefy", component: "boost-list" });
 
-export interface RawBeefyBoost {
+interface RawBeefyBoost {
   id: string;
   poolId: string;
   name: string;

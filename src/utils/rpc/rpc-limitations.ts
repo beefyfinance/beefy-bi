@@ -290,7 +290,7 @@ export function getBestRpcUrlsForChain(chain: Chain, behaviour: ImportBehaviour)
   return rpcConfigs.map((rpcConfig) => addSecretsToRpcUrl(rpcConfig.rpcUrl));
 }
 
-export function readRawLimitations(): { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } {
+function readRawLimitations(): { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } } {
   return JSON.parse(fs.readFileSync(CONFIG_DIRECTORY + "/rpc-limitations.json", "utf8"));
 }
 export function updateRawLimitations(limitationDiff: { [chain in Chain]: { [rpcUrl: string]: RpcLimitations } }): void {

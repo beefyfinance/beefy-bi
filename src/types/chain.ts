@@ -44,11 +44,3 @@ export const allChainIds: Chain[] = [
   "syscoin",
   "zksync",
 ];
-
-export interface ContractBlockInfos {
-  chain: Chain;
-  contractAddress: string;
-  transactionHash: string;
-  blockNumber: number;
-  datetime: Date;
-}

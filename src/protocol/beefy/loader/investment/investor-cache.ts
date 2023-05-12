@@ -45,7 +45,7 @@ type DbInvestorCacheUsdInfos = Nullable<{
   usdDiff: Decimal; // underlyingDiff * underlyingToUsdPrice
 }>;
 
-export type DbInvestorCache = DbInvestorCacheDimensions & DbInvestorCacheChainInfos & DbInvestorCacheUsdInfos;
+type DbInvestorCache = DbInvestorCacheDimensions & DbInvestorCacheChainInfos & DbInvestorCacheUsdInfos;
 
 export function upsertInvestorCacheChainInfos$<
   TObj,

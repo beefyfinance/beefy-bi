@@ -69,7 +69,7 @@ export type DbClient = {
 
 let sharedClient: DbClient | null = null;
 const appNameCounters: Record<string, number> = {};
-export async function getDbClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
+async function getDbClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
   if (!appNameCounters[appName]) {
     appNameCounters[appName] = 0;
   }
@@ -181,14 +181,6 @@ export async function db_query_one<RowType>(sql: string, params: any[] = [], cli
 export function strAddressToPgBytea(evmAddress: string) {
   // 0xABC -> // \xABC
   return "\\x" + evmAddress.slice(2);
-}
-
-export function strArrToPgStrArr(strings: string[]) {
-  return "{" + pgf.withArray("%L", strings) + "}";
-}
-
-export function pgStrArrToStrArr(pgArray: string[]) {
-  return pgArray.map((s) => s.slice(1, -1).replace("''", "'"));
 }
 
 async function hasPolicy(

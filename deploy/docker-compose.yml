@@ -51,7 +51,6 @@ x-importer: &importer
 x-importer-env: &importer-env
   REDIS_URL: redis://redis:6379
   TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
-  DATA_DIRECTORY: /data
   GIT_WORK_DIRECTORY: /git_work
 
 volumes:

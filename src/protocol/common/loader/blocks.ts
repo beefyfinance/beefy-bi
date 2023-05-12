@@ -1,12 +1,11 @@
-import { isEmpty, keyBy, uniqBy } from "lodash";
+import { keyBy, uniqBy } from "lodash";
 import * as Rx from "rxjs";
-import { v4 as uuid } from "uuid";
 import { Chain } from "../../../types/chain";
 import { db_query } from "../../../utils/db";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
-export interface DbBlock {
+interface DbBlock {
   datetime: Date;
   chain: Chain;
   blockNumber: number;

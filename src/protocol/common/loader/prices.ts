@@ -10,7 +10,7 @@ import { dbBatchCall$ } from "../utils/db-batch";
 
 const logger = rootLogger.child({ module: "prices" });
 
-export interface DbPrice {
+interface DbPrice {
   datetime: Date;
   priceFeedId: number;
   blockNumber: number;

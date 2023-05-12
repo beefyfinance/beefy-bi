@@ -19,9 +19,3 @@ export interface ImportRangeResultMaybeLatest<TTarget, TRange extends SupportedR
   latest?: TRange;
   success: boolean;
 }
-export function isDateRangeResult<TTarget>(result: ImportRangeResult<TTarget, any>): result is ImportRangeResult<TTarget, Date> {
-  return isDate(result.range.from);
-}
-export function isBlockRangeResult<TTarget>(result: ImportRangeResult<TTarget, any>): result is ImportRangeResult<TTarget, number> {
-  return isNumber(result.range.from);
-}

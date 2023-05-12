@@ -233,13 +233,10 @@ type TransferToLoad<TProduct extends DbBeefyProduct = DbBeefyProduct> = {
   latest: number;
 };
 
-export type TransferLoadStatus = { transferCount: number; success: true };
-
-export function loadTransfers$<
-  TObj,
-  TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> },
-  TErr extends ErrorEmitter<TInput>,
->(options: { ctx: ImportCtx; emitError: TErr }) {
+function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToLoad<DbBeefyProduct> }, TErr extends ErrorEmitter<TInput>>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+}) {
   return Rx.pipe(
     Rx.tap((item: TInput) => logger.trace({ msg: "loading transfer", data: { chain: options.ctx.chain, transferData: item } })),
 
