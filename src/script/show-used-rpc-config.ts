@@ -94,7 +94,7 @@ async function main() {
     includeEol: argv.includeEol,
     filterChains: argv.chain.includes("all") ? allChainIds : ([argv.chain] as Chain[]),
     filterContractAddress: argv.contractAddress || null,
-    forceCurrentBlockNumber: argv.currentBlockNumber || null,
+    forceConsideredBlockRange: argv.currentBlockNumber ? { from: 0, to: argv.currentBlockNumber } : null,
     forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
     forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
     productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,

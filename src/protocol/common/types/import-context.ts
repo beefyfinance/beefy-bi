@@ -4,6 +4,7 @@ import { SamplingPeriod } from "../../../types/sampling";
 import { DbClient } from "../../../utils/db";
 import { LogInfos } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { Range } from "../../../utils/range";
 
 export interface ImportBehaviour {
   // recent import mode is optimized for speed, we strip down everything that is not needed
@@ -32,7 +33,7 @@ export interface ImportBehaviour {
   // override the chain latest block number
   // if null we query the RPC provider to know the latest block
   // this is useful when we want to import a range of blocks that is not the latest blocks
-  forceCurrentBlockNumber: number | null;
+  forceConsideredBlockRange: Range<number> | null;
 
   // override the RPC block span for the getLogs call
   // if null, we use the default value from the RPC config
@@ -121,7 +122,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
   inputPollInterval: "4hour",
   repeatAtMostEvery: null,
   repeatJitter: 0.05, // default to 5% jitter
-  forceCurrentBlockNumber: null,
+  forceConsideredBlockRange: null,
   ignoreImportState: process.env.BEHAVIOUR_IGNORE_IMPORT_STATE === "true",
   skipRecentWindowWhenHistorical: "live", // by default, live products recent data is done by the recent import
   useDefaultLimitationsIfNotFound: process.env.BEHAVIOUR_USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true",

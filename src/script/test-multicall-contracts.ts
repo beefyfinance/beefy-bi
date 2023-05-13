@@ -15,7 +15,7 @@ async function main() {
     includeEol: true,
     filterChains: [chain],
     filterContractAddress: null,
-    forceCurrentBlockNumber: null,
+    forceConsideredBlockRange: null,
     forceRpcUrl: null,
     forceGetLogsBlockSpan: null,
     productRefreshInterval: null,

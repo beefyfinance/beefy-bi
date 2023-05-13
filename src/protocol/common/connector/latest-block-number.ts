@@ -30,12 +30,12 @@ export function latestBlockNumber$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(
       getCacheKey: () => options.ctx.chain,
       logInfos: { msg: "latest block number", data: { chain: options.ctx.chain } },
       operator$: Rx.mergeMap(async (objs) => {
-        if (options.ctx.behaviour.forceCurrentBlockNumber) {
+        if (options.ctx.behaviour.forceConsideredBlockRange) {
           logger.info({
             msg: "Using forced block number",
-            data: { blockNumber: options.ctx.behaviour.forceCurrentBlockNumber, chain: options.ctx.chain },
+            data: { blockNumber: options.ctx.behaviour.forceConsideredBlockRange, chain: options.ctx.chain },
           });
-          return { input: objs, output: options.ctx.behaviour.forceCurrentBlockNumber };
+          return { input: objs, output: options.ctx.behaviour.forceConsideredBlockRange.to };
         }
 
         try {

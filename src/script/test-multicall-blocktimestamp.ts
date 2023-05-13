@@ -30,7 +30,7 @@ async function main() {
     includeEol: true,
     filterChains: [chain],
     filterContractAddress: null,
-    forceCurrentBlockNumber: argv.currentBlockNumber || null,
+    forceConsideredBlockRange: argv.currentBlockNumber ? { from: 0, to: argv.currentBlockNumber } : null,
     forceRpcUrl: argv.forceRpcUrl || null,
     forceGetLogsBlockSpan: null,
     productRefreshInterval: null,

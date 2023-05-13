@@ -5,7 +5,7 @@ import { samplingPeriodMs } from "../../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { Range, rangeExcludeMany } from "../../../../utils/range";
+import { Range, isValidRange, rangeExcludeMany } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
@@ -171,7 +171,7 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                 // this can happen when we force the block number in the past and we are treating a recent product
                 if (fullRange.from > fullRange.to) {
                   const importStateKey = importState?.importKey || getInvestmentsImportStateKey(product);
-                  if (ctx.behaviour.forceCurrentBlockNumber !== null) {
+                  if (ctx.behaviour.forceConsideredBlockRange !== null) {
                     logger.info({
                       msg: "current block number set too far in the past to treat this product",
                       data: { fullRange, importStateKey },
@@ -186,12 +186,29 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                     }
                   }
                 }
-                return {
-                  obj: { product, latestBlockNumber },
-                  fullRange,
-                  coveredRanges: importState?.importData.ranges.coveredRanges || [],
-                  toRetry: importState?.importData.ranges.toRetry || [],
-                };
+
+                const coveredRanges = ctx.behaviour.ignoreImportState ? [] : importState?.importData.ranges.coveredRanges || [];
+                let toRetry =
+                  !ctx.behaviour.ignoreImportState && ctx.behaviour.mode === "historical" && importState !== null
+                    ? importState.importData.ranges.toRetry
+                    : [];
+
+                // apply our range restriction everywhere
+                if (ctx.behaviour.forceConsideredBlockRange !== null) {
+                  const restrict = ctx.behaviour.forceConsideredBlockRange;
+                  fullRange = {
+                    from: Math.max(fullRange.from, restrict.from),
+                    to: Math.min(fullRange.to, restrict.to),
+                  };
+                  toRetry = toRetry
+                    .map((range) => ({
+                      from: Math.max(range.from, restrict.from),
+                      to: Math.min(range.to, restrict.to),
+                    }))
+                    .filter((r) => isValidRange(r));
+                }
+
+                return { obj: { product, latestBlockNumber }, fullRange, coveredRanges, toRetry };
               }),
               options: {
                 ignoreImportState: ctx.behaviour.ignoreImportState,

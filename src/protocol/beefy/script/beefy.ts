@@ -6,6 +6,7 @@ import { SamplingPeriod, allSamplingPeriods } from "../../../types/sampling";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { Range } from "../../../utils/range";
 import { addSecretsToRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
@@ -43,7 +44,7 @@ interface CmdParams {
     | "investor-cache";
   filterChains: Chain[];
   includeEol: boolean;
-  forceCurrentBlockNumber: number | null;
+  forceConsideredBlockRange: Range<number> | null;
   filterContractAddress: string | null;
   productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
@@ -95,12 +96,6 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               throw new ProgrammerError("fromBlock > toBlock");
             }
 
-            // we use the minimum block span accross all rpcs, this is not super efficient
-            // but will work for now until there is a way to query {from:to} block ranges
-            const minBlockSpan = 100;
-            const blockSpanToCover = toBlock - fromBlock;
-            const queriesToGenerate = Math.ceil(blockSpanToCover / minBlockSpan);
-
             const cmdParams: CmdParams = {
               client,
               rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
@@ -108,15 +103,15 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: true,
               filterChains: [argv.chain] as Chain[],
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: argv.toBlock + 1,
+              forceConsideredBlockRange: { from: fromBlock, to: argv.toBlock + 1 },
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
-              forceGetLogsBlockSpan: minBlockSpan,
+              forceGetLogsBlockSpan: null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
               loopEvery: null,
               loopEveryRandomizeRatio: 0,
               ignoreImportState: true,
               disableWorkConcurrency: true,
-              generateQueryCount: queriesToGenerate,
+              generateQueryCount: null,
               skipRecentWindowWhenHistorical: "none",
               waitForBlockPropagation: 0,
             };
@@ -170,7 +165,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: null,
+              forceConsideredBlockRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -301,7 +296,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: argv.currentBlockNumber || null,
+              forceConsideredBlockRange: argv.currentBlockNumber ? { from: 0, to: argv.currentBlockNumber } : null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -579,8 +574,8 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
   if (cmdParams.loopEveryRandomizeRatio !== null) {
     behaviour.repeatJitter = cmdParams.loopEveryRandomizeRatio;
   }
-  if (cmdParams.forceCurrentBlockNumber !== null) {
-    behaviour.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
+  if (cmdParams.forceConsideredBlockRange !== null) {
+    behaviour.forceConsideredBlockRange = cmdParams.forceConsideredBlockRange;
   }
   if (cmdParams.forceGetLogsBlockSpan !== null) {
     behaviour.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
@@ -615,7 +610,7 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
 }
 
 function _verifyCmdParams(cmdParams: CmdParams, argv: any) {
-  if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
+  if (cmdParams.forceConsideredBlockRange !== null && cmdParams.filterChains.length > 1) {
     throw new ProgrammerError({
       msg: "Cannot force current block number without a chain filter",
       data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
