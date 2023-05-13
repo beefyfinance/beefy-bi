@@ -1,4 +1,5 @@
 import { chunk, groupBy, max, min, sortBy, sum } from "lodash";
+import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
   Range,
@@ -15,7 +16,8 @@ import {
   rangeToNumber,
   rangeValueMax,
 } from "../../../utils/range";
-import { ERC20Transfer } from "../connector/erc20-transfers";
+
+const logger = rootLogger.child({ module: "common", component: "optimise-range-queries" });
 
 interface Options {
   ignoreImportState: boolean;
@@ -108,10 +110,13 @@ export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends Supp
 export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
   input: QueryOptimizerInput<TObj, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
+  logger.debug({ msg: "Optimising a range queries", data: input });
+
   const {
     states,
     options: { ignoreImportState, maxRangeSize, maxQueriesPerProduct },
   } = input;
+
   // ensure we only have one input state per product
   const statesByProduct = groupBy(states, (s) => input.objKey(s.obj));
   const duplicateStatesByProduct = Object.values(statesByProduct).filter((states) => states.length > 1);
@@ -124,6 +129,7 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     (state) => !isValidRange(state.fullRange) || state.coveredRanges.some((r) => !isValidRange(r)) || state.toRetry.some((r) => !isValidRange(r)),
   );
   if (hasSomeInvalidRange) {
+    logger.error({ msg: "Invalid range found in input", data: input });
     return [];
   }
 
@@ -157,6 +163,8 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
       .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
   );
 
+  logger.trace({ msg: "Best strategy for all slice found", data: { input, bestStrategiesBySlice } });
+
   // now merge consecutive jsonrpc batches
   if (bestStrategiesBySlice.length <= 1) {
     return bestStrategiesBySlice;
@@ -173,6 +181,7 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     }
   }
   res.push(buildUp);
+  logger.debug({ msg: "Best strategy for all slice found and merged", data: { input, output: res } });
   return res;
 }
 
@@ -185,7 +194,7 @@ export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
 ): Range<TRange>[] {
   const ranges = rangeMerge(input.flatMap((s) => s));
   if (ranges.length <= 1) {
-    return ranges;
+    return rangeSplitManyToMaxLength(ranges, verticalSlicesSize);
   }
 
   // merge the index if the ranges are "close enough"
@@ -243,6 +252,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
     output = jsonRpcBatch.queryCount < addressBatch.queryCount ? jsonRpcBatch : addressBatch;
   }
 
+  logger.trace({ msg: "Best strategy for slice found", data: { input, output } });
   return output.result;
 }
 
@@ -306,7 +316,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
 function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   objKey,
   states,
-  options: { maxAddressesPerQuery, maxQueriesPerProduct },
+  options: { maxAddressesPerQuery, maxQueriesPerProduct, maxRangeSize },
 }: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
   let toQuery = states.map(({ obj, ranges }) => ({
     obj,

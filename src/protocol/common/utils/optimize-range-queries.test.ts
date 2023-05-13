@@ -160,7 +160,7 @@ describe("range aggregator", () => {
     ]);
   });
 
-  it("should respect the maxRangeSize parameter", () => {
+  it("should respect the maxRangeSize parameter with a jsonrpc batch", () => {
     expect(
       optimizeRangeQueries({
         objKey: (obj) => obj.key,
@@ -178,23 +178,83 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { obj: { key: "0xA" }, range: { from: 890, to: 899 } },
-          { obj: { key: "0xA" }, range: { from: 880, to: 889 } },
-          { obj: { key: "0xA" }, range: { from: 870, to: 879 } },
-          { obj: { key: "0xA" }, range: { from: 860, to: 869 } },
-          { obj: { key: "0xA" }, range: { from: 850, to: 859 } },
-          { obj: { key: "0xA" }, range: { from: 840, to: 849 } },
-          { obj: { key: "0xA" }, range: { from: 830, to: 839 } },
-          { obj: { key: "0xA" }, range: { from: 820, to: 829 } },
-          { obj: { key: "0xA" }, range: { from: 810, to: 819 } },
-          { obj: { key: "0xA" }, range: { from: 800, to: 809 } },
+          { obj: { key: "0xA" }, range: { from: 891, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 881, to: 890 } },
+          { obj: { key: "0xA" }, range: { from: 871, to: 880 } },
+          { obj: { key: "0xA" }, range: { from: 861, to: 870 } },
+          { obj: { key: "0xA" }, range: { from: 851, to: 860 } },
+          { obj: { key: "0xA" }, range: { from: 841, to: 850 } },
+          { obj: { key: "0xA" }, range: { from: 831, to: 840 } },
+          { obj: { key: "0xA" }, range: { from: 821, to: 830 } },
+          { obj: { key: "0xA" }, range: { from: 811, to: 820 } },
+          { obj: { key: "0xA" }, range: { from: 801, to: 810 } },
           { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
     ]);
   });
 
-  it("should respect the maxQueriesPerProduct parameter", async () => {
+  it("should respect the maxRangeSize parameter with an address batch", () => {
+    expect(
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
+        states: [
+          { obj: { key: "0xA" }, fullRange: { from: 100, to: 500 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xB" }, fullRange: { from: 300, to: 700 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
+        ],
+        options: {
+          ignoreImportState: false,
+          maxAddressesPerQuery: 1000,
+          maxRangeSize: 250,
+          maxQueriesPerProduct: 1000,
+        },
+      }),
+    ).toEqual([
+      {
+        type: "address batch",
+        queries: [
+          {
+            objs: [{ key: "0xB" }, { key: "0xC" }],
+            range: { from: 600, to: 700 },
+            postFilters: [
+              { obj: { key: "0xB" }, filter: "no-filter" },
+              { obj: { key: "0xC" }, filter: [{ from: 600, to: 630 }] },
+            ],
+          },
+        ],
+      },
+      {
+        type: "address batch",
+        queries: [
+          {
+            objs: [{ key: "0xA" }, { key: "0xB" }, { key: "0xC" }],
+            range: { from: 350, to: 599 },
+            postFilters: [
+              { obj: { key: "0xA" }, filter: [{ from: 350, to: 500 }] },
+              { obj: { key: "0xB" }, filter: "no-filter" },
+              { obj: { key: "0xC" }, filter: [{ from: 480, to: 599 }] },
+            ],
+          },
+        ],
+      },
+      {
+        type: "address batch",
+        queries: [
+          {
+            objs: [{ key: "0xA" }, { key: "0xB" }],
+            range: { from: 100, to: 349 },
+            postFilters: [
+              { obj: { key: "0xA" }, filter: "no-filter" },
+              { obj: { key: "0xB" }, filter: [{ from: 300, to: 349 }] },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("should respect the maxQueriesPerProduct parameter with a jsonrpc batch", async () => {
     expect(
       optimizeRangeQueries({
         objKey: (obj) => obj.key,
@@ -212,8 +272,8 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { obj: { key: "0xA" }, range: { from: 400, to: 899 } },
-          { obj: { key: "0xA" }, range: { from: 1, to: 399 } },
+          { obj: { key: "0xA" }, range: { from: 501, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 1, to: 500 } },
           { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
@@ -246,8 +306,8 @@ describe("range aggregator", () => {
       {
         type: "jsonrpc batch",
         queries: [
-          { obj: { key: "0xA" }, range: { from: 400, to: 899 } },
-          { obj: { key: "0xA" }, range: { from: 1, to: 399 } },
+          { obj: { key: "0xA" }, range: { from: 501, to: 899 } },
+          { obj: { key: "0xA" }, range: { from: 1, to: 500 } },
           { obj: { key: "0xA" }, range: { from: 901, to: 909 } },
         ],
       },
