@@ -97,7 +97,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
     { obj: TObj; batch: AddressBatchOutput<TQueryContent, number> },
     { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
-    Rx.tap((item) => logger.debug({ msg: "item", data: item })),
+    Rx.tap((item) => logger.trace({ msg: "item", data: item })),
     // flatten every query
     Rx.map(({ obj, batch: { queries } }) => queries.map((query) => ({ obj, query }))),
     Rx.concatAll(),

@@ -337,6 +337,18 @@ describe("range aggregator", () => {
         },
       }),
     ).toEqual([]);
+    expect(
+      optimizeRangeQueries({
+        objKey: () => "",
+        states: [],
+        options: {
+          ignoreImportState: false,
+          maxAddressesPerQuery: 1,
+          maxRangeSize: 500,
+          maxQueriesPerProduct: 3,
+        },
+      }),
+    ).toEqual([]);
   });
 
   it("should handle consecutive ranges differently if that's optimal", async () => {

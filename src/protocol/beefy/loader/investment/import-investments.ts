@@ -103,7 +103,10 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
 
         // generate our queries
         Rx.pipe(
-          Rx.toArray(),
+          // like Rx.toArray() but non blocking if import state creation takes too much time
+          Rx.bufferTime(ctx.streamConfig.maxInputWaitMs),
+          Rx.filter((objs) => objs.length > 0),
+
           // go get the latest block number for this chain
           latestBlockNumber$({
             ctx: ctx,

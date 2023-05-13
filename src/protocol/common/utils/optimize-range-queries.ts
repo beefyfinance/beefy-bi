@@ -1,4 +1,4 @@
-import { chunk, groupBy, max, min, sortBy, sum } from "lodash";
+import { chunk, groupBy, isArray, max, min, sortBy, sum } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
@@ -110,7 +110,7 @@ export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends Supp
 export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
   input: QueryOptimizerInput<TObj, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
-  logger.debug({ msg: "Optimising a range queries", data: input });
+  logger.debug({ msg: "Optimising a range queries", data: getLoggableInput(input) });
 
   const {
     states,
@@ -129,7 +129,7 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     (state) => !isValidRange(state.fullRange) || state.coveredRanges.some((r) => !isValidRange(r)) || state.toRetry.some((r) => !isValidRange(r)),
   );
   if (hasSomeInvalidRange) {
-    logger.error({ msg: "Invalid range found in input", data: input });
+    logger.error({ msg: "Invalid range found in input", data: getLoggableInput(input) });
     return [];
   }
 
@@ -163,7 +163,10 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
       .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
   );
 
-  logger.trace({ msg: "Best strategy for all slice found", data: { input, bestStrategiesBySlice } });
+  logger.trace({
+    msg: "Best strategy for all slice found",
+    data: { input: getLoggableInput(input), bestStrategiesBySlice: getLoggableOutput(input, bestStrategiesBySlice) },
+  });
 
   // now merge consecutive jsonrpc batches
   if (bestStrategiesBySlice.length <= 1) {
@@ -181,7 +184,10 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     }
   }
   res.push(buildUp);
-  logger.debug({ msg: "Best strategy for all slice found and merged", data: { input, output: res } });
+  logger.debug({
+    msg: "Best strategy for all slice found and merged",
+    data: { input: getLoggableInput(input), output: getLoggableOutput(input, res) },
+  });
   return res;
 }
 
@@ -252,7 +258,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
     output = jsonRpcBatch.queryCount < addressBatch.queryCount ? jsonRpcBatch : addressBatch;
   }
 
-  logger.trace({ msg: "Best strategy for slice found", data: { input, output } });
+  logger.trace({ msg: "Best strategy for slice found", data: { input: getLoggableInput(input), output: getLoggableOutput(input, output) } });
   return output.result;
 }
 
@@ -396,4 +402,25 @@ function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
     totalCoverage,
     queryCount: queries.length,
   };
+}
+
+function getLoggableInput<TObj, TRange extends SupportedRangeTypes>(input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>) {
+  return { ...input, states: input.states.map((s) => ({ ...s, obj: input.objKey(s.obj) })) };
+}
+
+function getLoggableOutput<TObj, TRange extends SupportedRangeTypes>(
+  input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>,
+  output: (QueryOptimizerOutput<TObj, TRange> | StrategyResult<QueryOptimizerOutput<TObj, TRange>>) | QueryOptimizerOutput<TObj, TRange>[],
+): any {
+  if (isArray(output)) {
+    return output.map((o) => getLoggableOutput(input, o));
+  }
+  if ("totalCoverage" in output) {
+    return { ...output, result: getLoggableOutput(input, output.result) };
+  }
+  if (isAddressBatchQueries(output)) {
+    return { ...output, queries: output.queries.map((q) => ({ ...q, objs: q.objs.map(input.objKey) })) };
+  } else {
+    return { ...output, queries: output.queries.map((q) => ({ ...q, obj: input.objKey(q.obj) })) };
+  }
 }
