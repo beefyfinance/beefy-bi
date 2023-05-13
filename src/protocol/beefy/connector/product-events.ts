@@ -5,19 +5,20 @@ import * as Rx from "rxjs";
 import { Hex, decodeEventLog, getEventSelector, parseAbi } from "viem";
 import { Chain } from "../../../types/chain";
 import { MultiAddressEventFilter, normalizeAddressOrThrow } from "../../../utils/ethers";
-import { rootLogger } from "../../../utils/logger";
+import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { Range, isInRange } from "../../../utils/range";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
 import { ERC20Transfer, mergeErc20Transfers } from "../../common/connector/erc20-transfers";
 import { DbBeefyProduct, DbProduct } from "../../common/loader/product";
-import { ErrorEmitter, ImportCtx } from "../../common/types/import-context";
+import { ErrorEmitter, ErrorReport, ImportCtx, Throwable } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import {
   AddressBatchOutput,
   JsonRpcBatchOutput,
   QueryOptimizerOutput,
   extractObjsAndRangeFromOptimizerOutput,
+  getLoggableOptimizerOutput,
   isAddressBatchQueries,
   isJsonRpcBatchQueries,
 } from "../../common/utils/optimize-range-queries";
@@ -33,13 +34,9 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
   formatOutput: (obj: TObj, transfers: ERC20Transfer[]) => TRes;
 }): Rx.OperatorFunction<TObj, TRes> {
   const fetchJsonRpcBatch$: Rx.OperatorFunction<
-    { obj: TObj; batch: JsonRpcBatchOutput<TQueryContent, number> },
-    { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
+    { obj: TObj; query: JsonRpcBatchOutput<TQueryContent, number> },
+    { obj: TObj; query: JsonRpcBatchOutput<TQueryContent, number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
-    // flatten every query
-    Rx.map(({ obj, batch: { queries } }) => queries.map((query) => ({ obj, product: query.obj.product, range: query.range }))),
-    Rx.concatAll(),
-
     batchRpcCalls$({
       ctx: options.ctx,
       emitError: (item, report) => options.emitError(item.obj, report),
@@ -51,7 +48,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
         eth_getLogs: 1,
         eth_getTransactionReceipt: 0,
       },
-      getQuery: (item) => ({ product: item.product, range: item.range }),
+      getQuery: (item) => ({ product: item.query.obj.product, range: item.query.range }),
       processBatch: async (provider, queryObjs) => {
         const events = await Promise.all(
           queryObjs.map(({ product, range }) => {
@@ -74,7 +71,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
       const logs = rawLogs.map(parseRawLog);
 
       // decode logs to transfer events
-      const product = item.product;
+      const product = item.query.obj.product;
       const transfers = mergeErc20Transfers(
         logs
           .filter((log) => !log.removed)
@@ -82,25 +79,15 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
           .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(product) })),
       );
 
-      const transferByAddress = groupBy(transfers, (t) => normalizeAddressOrThrow(t.tokenAddress));
-
-      return {
-        obj: item.obj,
-        product,
-        range: item.range,
-        transfers: transferByAddress[normalizeAddressOrThrow(getProductContractAddress(product))] || [],
-      };
+      return { ...item, transfers };
     }),
   );
 
   const getLogsAddressBatch$: Rx.OperatorFunction<
-    { obj: TObj; batch: AddressBatchOutput<TQueryContent, number> },
-    { obj: TObj; product: DbBeefyProduct; range: Range<number>; transfers: ERC20Transfer[] }
+    { obj: TObj; query: AddressBatchOutput<TQueryContent, number> },
+    { obj: TObj; query: AddressBatchOutput<TQueryContent, number>; transfers: ERC20Transfer[] }
   > = Rx.pipe(
     Rx.tap((item) => logger.trace({ msg: "item", data: item })),
-    // flatten every query
-    Rx.map(({ obj, batch: { queries } }) => queries.map((query) => ({ obj, query }))),
-    Rx.concatAll(),
 
     Rx.mergeMap(async (item) => {
       const provider = options.ctx.rpcConfig.linearProvider;
@@ -118,47 +105,53 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
         toBlock: item.query.range.to,
       };
 
-      const rawLogs = await callLockProtectedRpc(() => provider.getLogsMultiAddress(filter), {
-        chain: options.ctx.chain,
-        rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
-        logInfos: { msg: "Fetching product events with address batch", data: item },
-        maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
-        noLockIfNoLimit: true,
-        provider: options.ctx.rpcConfig.linearProvider,
-      });
+      try {
+        const rawLogs = await callLockProtectedRpc(() => provider.getLogsMultiAddress(filter), {
+          chain: options.ctx.chain,
+          rpcLimitations: options.ctx.rpcConfig.rpcLimitations,
+          logInfos: { msg: "Fetching product events with address batch", data: item },
+          maxTotalRetryMs: options.ctx.streamConfig.maxTotalRetryMs,
+          noLockIfNoLimit: true,
+          provider: options.ctx.rpcConfig.linearProvider,
+        });
 
-      const logs = rawLogs.map(parseRawLog);
+        const logs = rawLogs.map(parseRawLog);
 
-      // decode logs to transfer events
-      const productByAddress = keyBy(products, (p) => normalizeAddressOrThrow(getProductContractAddress(p)));
-      const getProduct = (log: Log) => productByAddress[normalizeAddressOrThrow(log.address)];
-      const postFiltersByAddress = keyBy(item.query.postFilters, (f) => normalizeAddressOrThrow(getProductContractAddress(f.obj.product)));
-      const transfers = mergeErc20Transfers(
-        logs
-          .filter((log) => !log.removed)
-          .filter((log) => filterLogByTypeOfProduct(log, getProduct(log)))
-          .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(getProduct(log)) }))
-          // apply postfilters
-          .filter((transfer) => {
-            const postFilter = postFiltersByAddress[normalizeAddressOrThrow(transfer.tokenAddress)];
-            if (!postFilter) {
-              return true;
-            }
-            if (postFilter.filter === "no-filter") {
-              return true;
-            }
-            return postFilter.filter.some((r) => isInRange(r, transfer.blockNumber));
-          }),
-      );
+        // decode logs to transfer events
+        const productByAddress = keyBy(products, (p) => normalizeAddressOrThrow(getProductContractAddress(p)));
+        const getProduct = (log: Log) => productByAddress[normalizeAddressOrThrow(log.address)];
+        const postFiltersByAddress = keyBy(item.query.postFilters, (f) => normalizeAddressOrThrow(getProductContractAddress(f.obj.product)));
+        const transfers = mergeErc20Transfers(
+          logs
+            .filter((log) => !log.removed)
+            .filter((log) => filterLogByTypeOfProduct(log, getProduct(log)))
+            .flatMap((log): ERC20Transfer[] => logToTransfers(log, { chain: options.ctx.chain, decimals: getProductDecimals(getProduct(log)) }))
+            // apply postfilters
+            .filter((transfer) => {
+              const postFilter = postFiltersByAddress[normalizeAddressOrThrow(transfer.tokenAddress)];
+              if (!postFilter) {
+                return true;
+              }
+              if (postFilter.filter === "no-filter") {
+                return true;
+              }
+              return postFilter.filter.some((r) => isInRange(r, transfer.blockNumber));
+            }),
+        );
 
-      const transferByAddress = groupBy(transfers, (t) => normalizeAddressOrThrow(t.tokenAddress));
-
-      return item.query.objs.map(({ product }) => ({
-        obj: item.obj,
-        product,
-        range: item.query.range,
-        transfers: transferByAddress[normalizeAddressOrThrow(getProductContractAddress(product))] || [],
-      }));
+        return [{ ...item, transfers }];
+      } catch (e: unknown) {
+        const error = e as Throwable;
+        // here, none of the retrying worked, so we emit all the objects as in error
+        const report: ErrorReport = {
+          error,
+          infos: { msg: "Error fetching produc tevents", data: { chain: options.ctx.chain, err: error } },
+        };
+        logger.debug(report.infos);
+        logger.debug(report.error);
+        options.emitError(item.obj, report);
+        return Rx.EMPTY;
+      }
     }, options.ctx.streamConfig.workConcurrency),
 
     Rx.concatAll(),
@@ -166,22 +159,21 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
 
   return Rx.pipe(
     // wrap obj
-    Rx.map((obj: TObj) => ({ obj, batch: options.getCallParams(obj) })),
+    Rx.map((obj: TObj) => ({ obj, query: options.getCallParams(obj) })),
 
     // handle different types of requests differently
     Rx.connect((items$) =>
       Rx.merge(
         items$.pipe(
-          Rx.filter((item): item is { obj: TObj; batch: JsonRpcBatchOutput<TQueryContent, number> } => isJsonRpcBatchQueries(item.batch)),
+          Rx.filter((item): item is { obj: TObj; query: JsonRpcBatchOutput<TQueryContent, number> } => isJsonRpcBatchQueries(item.query)),
           fetchJsonRpcBatch$,
         ),
         items$.pipe(
-          Rx.filter((item): item is { obj: TObj; batch: AddressBatchOutput<TQueryContent, number> } => isAddressBatchQueries(item.batch)),
+          Rx.filter((item): item is { obj: TObj; query: AddressBatchOutput<TQueryContent, number> } => isAddressBatchQueries(item.query)),
           getLogsAddressBatch$,
         ),
       ),
     ),
-
     Rx.map(({ obj, transfers }) => options.formatOutput(obj, transfers)),
   );
 }
@@ -191,13 +183,16 @@ export function extractProductTransfersFromOutputAndTransfers<TObj>(
   getProduct: (obj: TObj) => DbBeefyProduct,
   transfers: ERC20Transfer[],
 ): { obj: TObj; range: Range<number>; transfers: ERC20Transfer[] }[] {
-  return extractObjsAndRangeFromOptimizerOutput(output).flatMap(({ obj, range }) => {
+  return extractObjsAndRangeFromOptimizerOutput({ output, objKey: (o) => getProduct(o).productKey }).flatMap(({ obj, range }) => {
     const product = getProduct(obj);
     return {
       obj,
       product,
       range,
-      transfers: transfers.filter((t) => normalizeAddressOrThrow(t.tokenAddress) === normalizeAddressOrThrow(getProductContractAddress(product))),
+      transfers: transfers.filter(
+        (t) =>
+          normalizeAddressOrThrow(t.tokenAddress) === normalizeAddressOrThrow(getProductContractAddress(product)) && isInRange(range, t.blockNumber),
+      ),
     };
   });
 }

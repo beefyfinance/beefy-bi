@@ -1,10 +1,11 @@
+import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { samplingPeriodMs } from "../../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { Range } from "../../../../utils/range";
+import { Range, rangeExcludeMany } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
@@ -21,7 +22,11 @@ import { ImportRangeResult } from "../../../common/types/import-query";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
-import { extractObjsAndRangeFromOptimizerOutput, optimizeRangeQueries } from "../../../common/utils/optimize-range-queries";
+import {
+  extractObjsAndRangeFromOptimizerOutput,
+  getLoggableOptimizerOutput,
+  optimizeRangeQueries,
+} from "../../../common/utils/optimize-range-queries";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
@@ -201,19 +206,40 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
         ),
 
         // detect interesting events in this ranges
-        fetchProductEvents$({
-          ctx,
-          emitError: (query, report) =>
-            extractObjsAndRangeFromOptimizerOutput(query).map(({ obj, range }) =>
-              emitError({ target: obj.product, latest: obj.latestBlockNumber, range }, report),
-            ),
-          getCallParams: (query) => query,
-          formatOutput: (query, transfers) =>
-            extractProductTransfersFromOutputAndTransfers(query, (o) => o.product, transfers).flatMap(
-              ({ obj: { latestBlockNumber, product }, range, transfers }) => ({ latestBlockNumber, product, range, transfers }),
-            ),
-        }),
-        Rx.concatAll(),
+        Rx.pipe(
+          fetchProductEvents$({
+            ctx,
+            emitError: (query, report) =>
+              extractObjsAndRangeFromOptimizerOutput({ output: query, objKey: (o) => o.product.productKey }).map(({ obj, range }) =>
+                emitError({ target: obj.product, latest: obj.latestBlockNumber, range }, report),
+              ),
+            getCallParams: (query) => query,
+            formatOutput: (query, transfers) => {
+              return extractProductTransfersFromOutputAndTransfers(query, (o) => o.product, transfers).flatMap(
+                ({ obj: { latestBlockNumber, product }, range, transfers }) => ({ latestBlockNumber, product, range, transfers }),
+              );
+            },
+          }),
+          Rx.concatAll(),
+
+          // split the full range into a list of transfers data so we immediately handle ranges where there is no data to fetch
+          Rx.map((item) => {
+            const transfersByblockNumber = groupBy(item.transfers, (t) => t.blockNumber);
+            const rangesWithTransfers = Object.values(transfersByblockNumber).map((transfers) => ({
+              ...item,
+              transfers,
+              range: { from: transfers[0].blockNumber, to: transfers[0].blockNumber },
+            }));
+            const rangesWithoutEvents = rangeExcludeMany(
+              item.range,
+              rangesWithTransfers.flatMap((r) => r.range),
+            );
+
+            return rangesWithTransfers.concat(rangesWithoutEvents.map((r) => ({ ...item, transfers: [], range: r })));
+          }),
+
+          Rx.concatAll(),
+        ),
 
         // then for each query, do the import
         executeSubPipeline$({

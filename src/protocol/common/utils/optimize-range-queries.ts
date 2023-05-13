@@ -1,4 +1,4 @@
-import { chunk, groupBy, isArray, max, min, sortBy, sum } from "lodash";
+import { chunk, groupBy, isArray, keyBy, max, min, sortBy, sum } from "lodash";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import {
@@ -48,28 +48,24 @@ interface StrategyInput<TObj, TRange extends SupportedRangeTypes> {
 
 export interface JsonRpcBatchOutput<TObj, TRange extends SupportedRangeTypes> {
   type: "jsonrpc batch";
-  queries: {
-    obj: TObj;
-    range: Range<TRange>;
-  }[];
+  obj: TObj;
+  range: Range<TRange>;
 }
 
 export interface AddressBatchOutput<TObj, TRange extends SupportedRangeTypes> {
   type: "address batch";
-  queries: {
-    objs: TObj[];
-    range: Range<TRange>;
-    // filter events after the query since we allow bigger ranges than necessary
-    postFilters: {
-      obj: TObj;
-      filter: Range<TRange>[] | "no-filter";
-    }[];
+  objs: TObj[];
+  range: Range<TRange>;
+  // filter events after the query since we allow bigger ranges than necessary
+  postFilters: {
+    obj: TObj;
+    filter: Range<TRange>[] | "no-filter";
   }[];
 }
 
 // anything internal and not exposed
 type StrategyResult<T> = {
-  result: T;
+  result: T[];
   totalCoverage: number;
   queryCount: number;
 };
@@ -88,13 +84,25 @@ export function isAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>(
   return o.type === "address batch";
 }
 
-export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
-  output: QueryOptimizerOutput<TObj, TRange>,
-): { obj: TObj; range: Range<TRange> }[] {
+export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends SupportedRangeTypes>({
+  output,
+  objKey,
+}: {
+  objKey: (obj: TObj) => string;
+  output: QueryOptimizerOutput<TObj, TRange>;
+}): { obj: TObj; range: Range<TRange> }[] {
   if (isJsonRpcBatchQueries(output)) {
-    return output.queries.flatMap((query) => ({ obj: query.obj, range: query.range }));
+    return [{ obj: output.obj, range: output.range }];
   } else if (isAddressBatchQueries(output)) {
-    return output.queries.flatMap((query) => query.objs.map((obj) => ({ obj, range: query.range })));
+    const postfiltersByObj = keyBy(output.postFilters, (pf) => objKey(pf.obj));
+    return output.objs.flatMap((obj) => {
+      const postFilter = postfiltersByObj[objKey(obj)];
+      if (postFilter && postFilter.filter !== "no-filter") {
+        return postFilter.filter.map((range) => ({ obj: postFilter.obj, range }));
+      } else {
+        return { obj, range: output.range };
+      }
+    });
   } else {
     throw new ProgrammerError("Unsupported type of optimizer output: " + output);
   }
@@ -160,35 +168,15 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
         rangesToQuery.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
       )
       // get the best method for each part of this index
-      .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
+      .flatMap((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
   );
 
   logger.trace({
     msg: "Best strategy for all slice found",
-    data: { input: getLoggableInput(input), bestStrategiesBySlice: getLoggableOutput(input, bestStrategiesBySlice) },
+    data: { input: getLoggableInput(input), bestStrategiesBySlice: getLoggableOptimizerOutput(input, bestStrategiesBySlice) },
   });
 
-  // now merge consecutive jsonrpc batches
-  if (bestStrategiesBySlice.length <= 1) {
-    return bestStrategiesBySlice;
-  }
-  const res: QueryOptimizerOutput<TObj, TRange>[] = [];
-  let buildUp = bestStrategiesBySlice.shift() as QueryOptimizerOutput<TObj, TRange>;
-  while (bestStrategiesBySlice.length > 0) {
-    const currentEntry = bestStrategiesBySlice.shift() as QueryOptimizerOutput<TObj, TRange>;
-    if (currentEntry.type === "address batch" || buildUp.type === "address batch") {
-      res.push(buildUp);
-      buildUp = currentEntry;
-    } else {
-      buildUp.queries = buildUp.queries.concat(currentEntry.queries);
-    }
-  }
-  res.push(buildUp);
-  logger.debug({
-    msg: "Best strategy for all slice found and merged",
-    data: { input: getLoggableInput(input), output: getLoggableOutput(input, res) },
-  });
-  return res;
+  return bestStrategiesBySlice;
 }
 
 /**
@@ -232,7 +220,7 @@ export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
  */
 function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
   input: StrategyInput<TObj, TRange>,
-): QueryOptimizerOutput<TObj, TRange> {
+): QueryOptimizerOutput<TObj, TRange>[] {
   // sometimes we just can't batch by address
   if (input.options.maxAddressesPerQuery === 1) {
     return _getJsonRpcBatchQueries<TObj, TRange>(input).result;
@@ -248,7 +236,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
     // if the coverage is the same
     if (jsonRpcBatch.totalCoverage === addressBatch.totalCoverage) {
       // and only one product key in the address batch no need to do address batching
-      const maxProductKeyCount = max(addressBatch.result.queries.map((q) => q.objs.length)) || 1;
+      const maxProductKeyCount = max(addressBatch.result.map((q) => q.objs.length)) || 1;
       output = maxProductKeyCount <= 1 ? jsonRpcBatch : addressBatch;
     } else {
       output = jsonRpcBatch.totalCoverage > addressBatch.totalCoverage ? jsonRpcBatch : addressBatch;
@@ -258,7 +246,7 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
     output = jsonRpcBatch.queryCount < addressBatch.queryCount ? jsonRpcBatch : addressBatch;
   }
 
-  logger.trace({ msg: "Best strategy for slice found", data: { input: getLoggableInput(input), output: getLoggableOutput(input, output) } });
+  logger.trace({ msg: "Best strategy for slice found", data: { input: getLoggableInput(input), output: getLoggableOptimizerOutput(input, output) } });
   return output.result;
 }
 
@@ -364,10 +352,12 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   });
 
   return {
-    result: {
+    result: queries.map(({ objs, range, postFilters }) => ({
       type: "address batch",
-      queries: queries.map(({ objs, range, postFilters }) => ({ objs, range, postFilters })),
-    },
+      objs,
+      range,
+      postFilters,
+    })),
     totalCoverage: sum(queries.map((q) => q.coverage)),
     queryCount: queries.length,
   };
@@ -395,10 +385,7 @@ function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
 
   const totalCoverage = sum(queries.map((q) => getRangeSize(q.range)));
   return {
-    result: {
-      type: "jsonrpc batch",
-      queries: queries,
-    },
+    result: queries.map((q) => ({ type: "jsonrpc batch", ...q })),
     totalCoverage,
     queryCount: queries.length,
   };
@@ -408,19 +395,23 @@ function getLoggableInput<TObj, TRange extends SupportedRangeTypes>(input: Query
   return { ...input, states: input.states.map((s) => ({ ...s, obj: input.objKey(s.obj) })) };
 }
 
-function getLoggableOutput<TObj, TRange extends SupportedRangeTypes>(
+export function getLoggableOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
   input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>,
   output: (QueryOptimizerOutput<TObj, TRange> | StrategyResult<QueryOptimizerOutput<TObj, TRange>>) | QueryOptimizerOutput<TObj, TRange>[],
 ): any {
   if (isArray(output)) {
-    return output.map((o) => getLoggableOutput(input, o));
+    return output.map((o) => getLoggableOptimizerOutput(input, o));
   }
   if ("totalCoverage" in output) {
-    return { ...output, result: getLoggableOutput(input, output.result) };
+    return { ...output, result: getLoggableOptimizerOutput(input, output.result) };
   }
   if (isAddressBatchQueries(output)) {
-    return { ...output, queries: output.queries.map((q) => ({ ...q, objs: q.objs.map(input.objKey) })) };
+    return {
+      ...output,
+      objs: output.objs.map(input.objKey),
+      postFilters: output.postFilters.map((f) => ({ ...f, obj: input.objKey(f.obj) })),
+    };
   } else {
-    return { ...output, queries: output.queries.map((q) => ({ ...q, obj: input.objKey(q.obj) })) };
+    return { ...output, obj: input.objKey(output.obj) };
   }
 }

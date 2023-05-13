@@ -208,7 +208,7 @@ export function createBatchStreamConfig(chain: Chain, behaviour: ImportBehaviour
   }
 }
 
-type Throwable = Error | string;
+export type Throwable = Error | string;
 
 export type ErrorReport = {
   previousError?: ErrorReport;
