@@ -46,7 +46,6 @@ async function main(client: DbClient) {
     streamConfig: createBatchStreamConfig(options.chain, behaviour),
   };
 
-  const rangeSize = 1000;
   const range = { from: 27932383 - 10, to: 27932469 + 10 };
   const productAddresses = ["0x32dC019E510bB15b76d12fEDCFF36Dc87ad24C37"].map((a) => a.toLocaleLowerCase());
   const allProducts = await consumeObservable(
@@ -137,13 +136,9 @@ async function main(client: DbClient) {
     Rx.from([
       {
         type: "address batch",
-        queries: [
-          {
-            objs: allProducts.map((product) => ({ product })),
-            range,
-            postFilters: [],
-          },
-        ],
+        objs: allProducts.map((product) => ({ product })),
+        range,
+        postFilters: [],
       },
     ] as QueryOptimizerOutput<{ product: DbBeefyProduct }, number>[]).pipe(
       fetchProductEvents$({
@@ -157,12 +152,16 @@ async function main(client: DbClient) {
   );
 
   const jsonRpcResults = await consumeObservable(
-    Rx.from([
-      {
-        type: "jsonrpc batch",
-        queries: allProducts.map((product) => ({ obj: { product }, range })),
-      },
-    ] as QueryOptimizerOutput<{ product: DbBeefyProduct }, number>[]).pipe(
+    Rx.from(
+      allProducts.map(
+        (product) =>
+          ({
+            type: "jsonrpc batch",
+            obj: { product },
+            range,
+          } as QueryOptimizerOutput<{ product: DbBeefyProduct }, number>),
+      ),
+    ).pipe(
       fetchProductEvents$({
         ctx,
         emitError,

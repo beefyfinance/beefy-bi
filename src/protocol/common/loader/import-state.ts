@@ -18,7 +18,7 @@ import {
   rangeValueMax,
 } from "../../../utils/range";
 import { BatchStreamConfig, ErrorEmitter, ImportCtx } from "../types/import-context";
-import { ImportRangeResult, ImportRangeResultMaybeLatest } from "../types/import-query";
+import { ImportRangeResultMaybeLatest } from "../types/import-query";
 import { ImportRanges, hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
@@ -58,7 +58,7 @@ export interface DbProductShareRateImportState extends DbBaseImportState {
     ranges: ImportRanges<number>;
   };
 }
-export interface DbPendingRewardsImportState extends DbBaseImportState {
+interface DbPendingRewardsImportState extends DbBaseImportState {
   importData: {
     type: "rewards:snapshots";
     productId: number;

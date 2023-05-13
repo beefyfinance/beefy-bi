@@ -395,7 +395,7 @@ function getLoggableInput<TObj, TRange extends SupportedRangeTypes>(input: Query
   return { ...input, states: input.states.map((s) => ({ ...s, obj: input.objKey(s.obj) })) };
 }
 
-export function getLoggableOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
+function getLoggableOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
   input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>,
   output: (QueryOptimizerOutput<TObj, TRange> | StrategyResult<QueryOptimizerOutput<TObj, TRange>>) | QueryOptimizerOutput<TObj, TRange>[],
 ): any {

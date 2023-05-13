@@ -1,6 +1,5 @@
 import Decimal from "decimal.js";
 import * as Rx from "rxjs";
-import { DbClient } from "../../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/connector/import-queries";

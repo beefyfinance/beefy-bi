@@ -1,11 +1,11 @@
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
-import { groupBy, keyBy } from "lodash";
+import { keyBy } from "lodash";
 import * as Rx from "rxjs";
 import { Hex, decodeEventLog, getEventSelector, parseAbi } from "viem";
 import { Chain } from "../../../types/chain";
 import { MultiAddressEventFilter, normalizeAddressOrThrow } from "../../../utils/ethers";
-import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
+import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { Range, isInRange } from "../../../utils/range";
 import { callLockProtectedRpc } from "../../../utils/shared-resources/shared-rpc";
@@ -18,7 +18,6 @@ import {
   JsonRpcBatchOutput,
   QueryOptimizerOutput,
   extractObjsAndRangeFromOptimizerOutput,
-  getLoggableOptimizerOutput,
   isAddressBatchQueries,
   isJsonRpcBatchQueries,
 } from "../../common/utils/optimize-range-queries";

@@ -22,11 +22,7 @@ import { ImportRangeResult } from "../../../common/types/import-query";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
-import {
-  extractObjsAndRangeFromOptimizerOutput,
-  getLoggableOptimizerOutput,
-  optimizeRangeQueries,
-} from "../../../common/utils/optimize-range-queries";
+import { extractObjsAndRangeFromOptimizerOutput, optimizeRangeQueries } from "../../../common/utils/optimize-range-queries";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";

@@ -2,7 +2,7 @@ import { groupBy, keyBy, min, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod } from "../../../types/sampling";
-import { db_query, db_query_one } from "../../../utils/db";
+import { db_query } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";

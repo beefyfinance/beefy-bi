@@ -5,11 +5,8 @@ import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/be
 import { createBatchStreamConfig, defaultImportBehaviour, ImportBehaviour, ImportCtx } from "../protocol/common/types/import-context";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
-import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
-
-const logger = rootLogger.child({ module: "show-used-rpc-config", component: "main" });
 
 async function main() {
   const options = {

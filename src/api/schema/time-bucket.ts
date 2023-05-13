@@ -1,6 +1,5 @@
 import S from "fluent-json-schema";
 import { SamplingPeriod } from "../../types/sampling";
-import { ProgrammerError } from "../../utils/programmer-error";
 
 // <bucket_size>_<time_range>
 export type TimeBucket = "1h_1d" | "1h_1w" | "1h_1M" | "4h_3M" | "1d_1M" | "1d_1Y" | "1d_all";

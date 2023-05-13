@@ -3,7 +3,6 @@ import { ethers } from "ethers";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
-import { BeefyVaultV6AbiInterface } from "../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
 import { runMain } from "../utils/process";
 

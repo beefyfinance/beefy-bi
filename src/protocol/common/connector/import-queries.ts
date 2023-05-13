@@ -3,15 +3,12 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
-import { rootLogger } from "../../../utils/logger";
 import { Range, SupportedRangeTypes, isValidRange, rangeSortedArrayExclude, rangeSortedSplitManyToMaxLengthAndTakeSome } from "../../../utils/range";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { fetchChainBlockList$ } from "../loader/chain-block-list";
 import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
 import { ErrorEmitter, ImportBehaviour, ImportCtx } from "../types/import-context";
 import { latestBlockNumber$ } from "./latest-block-number";
-
-const logger = rootLogger.child({ module: "common", component: "import-queries" });
 
 export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeImportState>(options: {
   ctx: ImportCtx;
@@ -182,75 +179,6 @@ export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmi
     },
     formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
   });
-}
-
-export function generateSnapshotQueriesFromEntryAndExits$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
-  ctx: ImportCtx;
-  emitError: TErr;
-  timeStep: SamplingPeriod;
-  getImportState: (item: TObj) => DbBlockNumberRangeImportState;
-  getEntryAndExitEvents: (item: TObj) => { block_number: number; is_entry: boolean }[];
-  formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  return Rx.pipe(
-    Rx.map((obj) => ({ obj })),
-    // get the latest block number
-
-    // first, we need the latest block number
-    latestBlockNumber$({
-      ctx: options.ctx,
-      emitError: (item, report) => options.emitError(item.obj, report),
-      formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
-    }),
-
-    // resolve entry and exit into investment ranges
-    Rx.map((item) => {
-      const investedRanges: Range<number>[] = [];
-      let currentEntry: number | null = null;
-      const sortedActions = sortBy(options.getEntryAndExitEvents(item.obj), (action) => action.block_number);
-
-      for (const entryOrExit of sortedActions) {
-        if (entryOrExit.is_entry && currentEntry === null) {
-          currentEntry = entryOrExit.block_number;
-        } else if (!entryOrExit.is_entry && currentEntry !== null) {
-          investedRanges.push({ from: currentEntry, to: entryOrExit.block_number });
-          currentEntry = null;
-        }
-        // if we have an exit without an entry, we ignore it
-        // if we have an entry without an exit, we ignore it
-      }
-
-      // don't forget the latest block number
-      if (currentEntry !== null) {
-        investedRanges.push({ from: currentEntry, to: item.latestBlockNumber });
-      }
-      return { ...item, investedRanges };
-    }),
-
-    // filter out ranges that are already covered
-    Rx.map((item) => {
-      const importState = options.getImportState(item.obj);
-      const investedRanges = item.investedRanges;
-
-      const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-      const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.ctx.chain];
-      const maxTimeStepMs = samplingPeriodMs[options.timeStep];
-      const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
-      const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
-
-      const ranges = _restrictRangesWithImportState(
-        options.ctx.behaviour,
-        investedRanges,
-        importState,
-        rangeMaxLength,
-        options.ctx.behaviour.limitQueriesCountTo.snapshot,
-      );
-      return { ...item, investedRanges: ranges };
-    }),
-
-    // format output
-    Rx.map((item) => options.formatOutput(item.obj, item.latestBlockNumber, item.investedRanges)),
-  );
 }
 
 export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(

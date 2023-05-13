@@ -1,7 +1,7 @@
 {
   "name": "beefy-bi",
   "scripts": {
-    "test": "TZ=UTC jest --maxConcurrency=1",
+    "test": "LOG_LEVEL=error TZ=UTC jest --maxConcurrency=1",
     "build": "tsc",
     "infra:start": "cd ./deploy && docker compose -p dev -f docker-compose.dev.yml up -d",
     "infra:logs": "cd ./deploy && docker compose -p dev -f docker-compose.dev.yml logs -f",

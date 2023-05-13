@@ -1,11 +1,8 @@
 import { Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
-import { rootLogger } from "../../../utils/logger";
 import { AsyncCache } from "../cache";
 import { PriceService } from "../price";
 import { ProductService } from "../product";
-
-const logger = rootLogger.child({ module: "api", component: "portfolio-service" });
 
 export class BeefyPortfolioService {
   constructor(private services: { db: DbClient; cache: AsyncCache; product: ProductService; price: PriceService }) {}

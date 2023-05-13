@@ -4,7 +4,7 @@ import NodeCache from "node-cache";
 import * as Rx from "rxjs";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { excludeNullFields$, forkOnNullableField$ } from "../../../utils/rxjs/utils/exclude-null-field";
+import { forkOnNullableField$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlock$, upsertBlock$ } from "../loader/blocks";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { batchRpcCalls$ } from "../utils/batch-rpc-calls";

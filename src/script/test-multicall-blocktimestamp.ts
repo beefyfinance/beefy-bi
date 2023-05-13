@@ -2,8 +2,8 @@ import { ethers } from "ethers";
 import yargs from "yargs";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
-import { Chain, allChainIds } from "../types/chain";
-import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../utils/abi";
+import { allChainIds } from "../types/chain";
+import { Multicall3AbiInterface } from "../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../utils/config";
 import { runMain } from "../utils/process";
 

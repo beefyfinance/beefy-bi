@@ -35,18 +35,6 @@ type DbInvestorCacheChainInfos = Nullable<{
   pendingRewardsDiff: Decimal; // pendingRewards - previous pendingRewards
 }>;
 
-// usd price infos are added afterwards
-type DbInvestorCacheUsdInfos = Nullable<{
-  pendingRewardsToUsdPrice: Decimal; // token price
-  pendingRewardsUsdBalance: Decimal; // pendingRewards * pendingRewardsToUsdPrice
-  pendingRewardsUsdDiff: Decimal; // pendingRewardsDiff * pendingRewardsToUsdPrice
-  underlyingToUsdPrice: Decimal; // lp price
-  usdBalance: Decimal; // underlyingBalance * underlyingToUsdPrice
-  usdDiff: Decimal; // underlyingDiff * underlyingToUsdPrice
-}>;
-
-type DbInvestorCache = DbInvestorCacheDimensions & DbInvestorCacheChainInfos & DbInvestorCacheUsdInfos;
-
 export function upsertInvestorCacheChainInfos$<
   TObj,
   TErr extends ErrorEmitter<TObj>,

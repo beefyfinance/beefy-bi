@@ -1,4 +1,3 @@
-import Decimal from "decimal.js";
 import { DbClient, db_query } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
 import { TimeBucket, timeBucketToSamplingPeriod } from "../schema/time-bucket";

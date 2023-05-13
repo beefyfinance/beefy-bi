@@ -1,4 +1,3 @@
-import axios from "axios";
 import Decimal from "decimal.js";
 import { ContractCallContext, Multicall } from "ethereum-multicall";
 import { ethers } from "ethers";
@@ -8,7 +7,6 @@ import { BeefyVaultV6AbiInterface } from "../../../utils/abi";
 import { MULTICALL3_ADDRESS_MAP } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { ArchiveNodeNeededError, isErrorDueToMissingDataFromNode } from "../../../utils/rpc/archive-node-needed";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 
