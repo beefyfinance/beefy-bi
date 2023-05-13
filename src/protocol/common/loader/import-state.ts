@@ -206,7 +206,9 @@ export function updateImportState$<
     if (hasCoveredRangeOverlap) {
       // this should never happen, seeing this in the logs means there is something duplicating input queries
       logger.error({ msg: "covered ranges should not be overlapping", data: { importState, coveredRanges, items } });
-      throw new ProgrammerError("covered ranges should not be overlapping");
+      if (process.env.NODE_ENV === "development") {
+        throw new ProgrammerError("covered ranges should not be overlapping");
+      }
       coveredRanges = rangeMerge(coveredRanges);
     }
 

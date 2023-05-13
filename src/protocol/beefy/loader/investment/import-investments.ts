@@ -185,6 +185,9 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                       msg: "Full range is invalid",
                       data: { fullRange, importStateKey },
                     });
+                    if (process.env.NODE_ENV === "development") {
+                      throw new ProgrammerError("Full range is invalid");
+                    }
                   }
                 }
                 return {
@@ -330,7 +333,7 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
           };
         }
         logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
-        throw new Error("Unsupported product type");
+        throw new ProgrammerError("Unsupported product type");
       },
       formatOutput: (item, { balance, blockDatetime, shareRate }) => ({ ...item, blockDatetime, balance, shareRate }),
     }),
