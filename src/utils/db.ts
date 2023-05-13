@@ -713,7 +713,7 @@ export async function db_migrate() {
               p.chain,
               p.product_id,
               i.import_data->>'type' as import_type,
-              (p.product_data->>'dashboardEol') = 'true' as eol,
+              coalesce((p.product_data->>'dashboardEol'), 'false') = 'true' as eol,
               b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
