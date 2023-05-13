@@ -82,6 +82,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
     }),
   );
 
+  const workConcurrency = options.ctx.rpcConfig.rpcLimitations.minDelayBetweenCalls === "no-limit" ? options.ctx.streamConfig.workConcurrency : 1;
   const getLogsAddressBatch$: Rx.OperatorFunction<
     { obj: TObj; query: AddressBatchOutput<TQueryContent, number> },
     { obj: TObj; query: AddressBatchOutput<TQueryContent, number>; transfers: ERC20Transfer[] }
@@ -151,7 +152,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
         options.emitError(item.obj, report);
         return Rx.EMPTY;
       }
-    }, options.ctx.streamConfig.workConcurrency),
+    }, workConcurrency),
 
     Rx.concatAll(),
   );

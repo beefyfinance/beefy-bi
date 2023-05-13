@@ -106,7 +106,9 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
       emitError: (item, errReport) => options.emitError(item.obj, errReport),
       logInfos: { msg: "Fetching transfer data, maybe using multicall" },
       rpcCallsPerInputObj: {
-        eth_call: 1,
+        // this should be 1 but it's an heavy call so we virtually add 1 so batches are smaller
+        // this lowers the probability that the RPC will timeout
+        eth_call: 2,
         eth_blockNumber: 0,
         eth_getBlockByNumber: 0,
         eth_getLogs: 0,
