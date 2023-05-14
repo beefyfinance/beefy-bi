@@ -133,8 +133,15 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
   }
 
   // check all input ranges
+  const isRangeInvalid = (r: Range<TRange>) => {
+    const result = !isValidRange(r);
+    if (result) {
+      logger.error({ msg: "Invalid range found", data: r });
+    }
+    return result;
+  };
   const hasSomeInvalidRange = states.some(
-    (state) => !isValidRange(state.fullRange) || state.coveredRanges.some((r) => !isValidRange(r)) || state.toRetry.some((r) => !isValidRange(r)),
+    (state) => isRangeInvalid(state.fullRange) || state.coveredRanges.some((r) => isRangeInvalid(r)) || state.toRetry.some((r) => isRangeInvalid(r)),
   );
   if (hasSomeInvalidRange) {
     logger.error({ msg: "Invalid range found in input", data: getLoggableInput(input) });
