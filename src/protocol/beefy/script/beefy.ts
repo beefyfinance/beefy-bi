@@ -6,7 +6,7 @@ import { SamplingPeriod, allSamplingPeriods } from "../../../types/sampling";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
-import { Range } from "../../../utils/range";
+import { Range, isValidRange } from "../../../utils/range";
 import { addSecretsToRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
@@ -212,7 +212,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             describe: "only import data for this chain",
           },
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
-          currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+          fromBlock: { type: "number", demand: false, describe: "only from this block" },
+          toBlock: { type: "number", demand: false, describe: "to this block, defaults to latest" },
           forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
           forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
           includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
@@ -296,7 +297,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceConsideredBlockRange: argv.currentBlockNumber ? { from: 0, to: argv.currentBlockNumber } : null,
+              forceConsideredBlockRange: argv.toBlock ? { from: argv.fromBlock ? argv.fromBlock : 0, to: argv.toBlock } : null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -613,6 +614,12 @@ function _verifyCmdParams(cmdParams: CmdParams, argv: any) {
   if (cmdParams.forceConsideredBlockRange !== null && cmdParams.filterChains.length > 1) {
     throw new ProgrammerError({
       msg: "Cannot force current block number without a chain filter",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.forceConsideredBlockRange !== null && !isValidRange(cmdParams.forceConsideredBlockRange)) {
+    throw new ProgrammerError({
+      msg: "The fromBlock-toBlock range is not valid",
       data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
     });
   }

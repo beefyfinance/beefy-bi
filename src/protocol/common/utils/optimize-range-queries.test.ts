@@ -32,6 +32,45 @@ describe("range aggregator", () => {
     ]);
   });
 
+  it("should only batch products concerned by the batch in each query", () => {
+    expect(
+      optimizeRangeQueries({
+        objKey: (obj) => obj.key,
+        states: [
+          { obj: { key: "0xA" }, fullRange: { from: 1200, to: 1500 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xB" }, fullRange: { from: 1300, to: 1400 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xC" }, fullRange: { from: 2200, to: 2500 }, coveredRanges: [], toRetry: [] },
+          { obj: { key: "0xD" }, fullRange: { from: 2300, to: 2400 }, coveredRanges: [], toRetry: [] },
+        ],
+        options: {
+          ignoreImportState: false,
+          maxAddressesPerQuery: 1000,
+          maxRangeSize: 1000,
+          maxQueriesPerProduct: 1000,
+        },
+      }),
+    ).toEqual([
+      {
+        type: "address batch",
+        objs: [{ key: "0xC" }, { key: "0xD" }],
+        range: { from: 2200, to: 2500 },
+        postFilters: [
+          { obj: { key: "0xC" }, filter: "no-filter" },
+          { obj: { key: "0xD" }, filter: [{ from: 2300, to: 2400 }] },
+        ],
+      },
+      {
+        type: "address batch",
+        objs: [{ key: "0xA" }, { key: "0xB" }],
+        range: { from: 1200, to: 1500 },
+        postFilters: [
+          { obj: { key: "0xA" }, filter: "no-filter" },
+          { obj: { key: "0xB" }, filter: [{ from: 1300, to: 1400 }] },
+        ],
+      },
+    ]);
+  });
+
   it("should account for covered ranges and retry ranges", () => {
     expect(
       optimizeRangeQueries({
