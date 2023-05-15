@@ -175,11 +175,11 @@ export function createBatchStreamConfig(chain: Chain, behaviour: ImportBehaviour
   const defaultMoonbeamHistoricalStreamConfig: BatchStreamConfig = {
     // since moonbeam is so unreliable but we already have a lot of data, we can afford to do 1 at a time
     workConcurrency: behaviour.disableConcurrency ? 1 : 1,
-    maxInputWaitMs: 1000,
-    maxInputTake: 1,
     // moonbeam can be very unreliable, so we write every single data point to the db asap
-    dbMaxInputTake: 1,
-    dbMaxInputWaitMs: 1,
+    maxInputWaitMs: 1000,
+    maxInputTake: 50,
+    dbMaxInputTake: 10,
+    dbMaxInputWaitMs: 30_000,
     // and we can afford longer retries
     maxTotalRetryMs: 30_000,
   };

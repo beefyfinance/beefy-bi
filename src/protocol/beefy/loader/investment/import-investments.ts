@@ -41,66 +41,75 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
     getImportStateKey: getInvestmentsImportStateKey,
     pipeline$: (ctx, emitError, getLastImportedBlockNumber) => {
       const shouldIgnoreFnPromise = createShouldIgnoreFn({ client: ctx.client, chain: ctx.chain });
+
+      const createImportStateIfNeeded$: Rx.OperatorFunction<
+        DbBeefyProduct,
+        { product: DbBeefyProduct; importState: DbProductInvestmentImportState | null }
+      > =
+        ctx.behaviour.mode === "recent"
+          ? Rx.pipe(Rx.map((product) => ({ product, importState: null })))
+          : addMissingImportState$<
+              DbBeefyProduct,
+              { product: DbBeefyProduct; importState: DbProductInvestmentImportState },
+              DbProductInvestmentImportState
+            >({
+              ctx,
+              getImportStateKey: getInvestmentsImportStateKey,
+              formatOutput: (product, importState) => ({ product, importState }),
+              createDefaultImportState$: Rx.pipe(
+                // initialize the import state
+                // find the contract creation block
+                fetchContractCreationInfos$({
+                  ctx,
+                  getCallParams: (obj) => ({
+                    chain: ctx.chain,
+                    contractAddress: getProductContractAddress(obj),
+                  }),
+                  formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
+                }),
+
+                // drop those without a creation info
+                excludeNullFields$("contractCreationInfo"),
+
+                // add this block to our global block list
+                upsertBlock$({
+                  ctx,
+                  emitError: (item, report) => {
+                    logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { item } }, report.infos));
+                    logger.error(report.error);
+                    throw new Error("Failed to upsert block");
+                  },
+                  getBlockData: (item) => ({
+                    datetime: item.contractCreationInfo.datetime,
+                    chain: item.obj.chain,
+                    blockNumber: item.contractCreationInfo.blockNumber,
+                    blockData: {},
+                  }),
+                  formatOutput: (item, block) => ({ ...item, block }),
+                }),
+
+                Rx.map((item) => ({
+                  obj: item.obj,
+                  importData: {
+                    type: "product:investment",
+                    productId: item.obj.productId,
+                    chain: item.obj.chain,
+                    chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
+                    contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
+                    contractCreationDate: item.contractCreationInfo.datetime,
+                    ranges: {
+                      lastImportDate: new Date(),
+                      coveredRanges: [],
+                      toRetry: [],
+                    },
+                  },
+                })),
+              ),
+            });
+
       return Rx.pipe(
         // create the import state if it does not exists
-        addMissingImportState$<
-          DbBeefyProduct,
-          { product: DbBeefyProduct; importState: DbProductInvestmentImportState },
-          DbProductInvestmentImportState
-        >({
-          ctx,
-          getImportStateKey: getInvestmentsImportStateKey,
-          formatOutput: (product, importState) => ({ product, importState }),
-          createDefaultImportState$: Rx.pipe(
-            // initialize the import state
-            // find the contract creation block
-            fetchContractCreationInfos$({
-              ctx,
-              getCallParams: (obj) => ({
-                chain: ctx.chain,
-                contractAddress: getProductContractAddress(obj),
-              }),
-              formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
-            }),
-
-            // drop those without a creation info
-            excludeNullFields$("contractCreationInfo"),
-
-            // add this block to our global block list
-            upsertBlock$({
-              ctx,
-              emitError: (item, report) => {
-                logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { item } }, report.infos));
-                logger.error(report.error);
-                throw new Error("Failed to upsert block");
-              },
-              getBlockData: (item) => ({
-                datetime: item.contractCreationInfo.datetime,
-                chain: item.obj.chain,
-                blockNumber: item.contractCreationInfo.blockNumber,
-                blockData: {},
-              }),
-              formatOutput: (item, block) => ({ ...item, block }),
-            }),
-
-            Rx.map((item) => ({
-              obj: item.obj,
-              importData: {
-                type: "product:investment",
-                productId: item.obj.productId,
-                chain: item.obj.chain,
-                chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
-                contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
-                contractCreationDate: item.contractCreationInfo.datetime,
-                ranges: {
-                  lastImportDate: new Date(),
-                  coveredRanges: [],
-                  toRetry: [],
-                },
-              },
-            })),
-          ),
-        }),
+        createImportStateIfNeeded$,
 
         // generate our queries
         Rx.pipe(
