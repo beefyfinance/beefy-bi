@@ -1,0 +1,170 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 20,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 23,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.15",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nselect * from (\n\n\n\n(SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'arbitrum' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'arbitrum' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'aurora' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'aurora' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'avax' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'avax' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'bsc' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'bsc' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'canto' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'canto' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'celo' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'celo' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'cronos' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'cronos' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'emerald' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'emerald' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'ethereum' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'ethereum' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'fantom' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'fantom' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'fuse' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'fuse' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'harmony' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'harmony' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'heco' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'heco' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'kava' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'kava' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'metis' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'metis' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'moonbeam' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'moonbeam' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'moonriver' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'moonriver' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'optimism' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'optimism' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'polygon' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'polygon' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'syscoin' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'syscoin' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\nUNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'zksync' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime <= '$around_this_date' ORDER BY datetime DESC LIMIT 1) UNION ALL (SELECT datetime, (datetime - '$around_this_date'::timestamptz) as diff, chain, block_number FROM block_ts WHERE chain = 'zksync' and datetime between '$around_this_date'::timestamptz - '$_look_around'::interval and '$around_this_date'::timestamptz + '$_look_around'::interval and datetime >= '$around_this_date' ORDER BY datetime ASC LIMIT 1)\n\n\n\n) as t;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Block Around a date",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "2023-04-01T00:00:00+00:00",
+          "value": "2023-04-01T00:00:00+00:00"
+        },
+        "hide": 0,
+        "name": "around_this_date",
+        "options": [
+          {
+            "selected": true,
+            "text": "2023-04-01T00:00:00+00:00",
+            "value": "2023-04-01T00:00:00+00:00"
+          }
+        ],
+        "query": "2023-04-01T00:00:00+00:00",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "1 day",
+          "value": "1 day"
+        },
+        "hide": 0,
+        "name": "_look_around",
+        "options": [
+          {
+            "selected": true,
+            "text": "1 day",
+            "value": "1 day"
+          }
+        ],
+        "query": "1 day",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Blocks around a date",
+  "uid": "xYGUuLUVz",
+  "version": 2,
+  "weekStart": ""
+}
