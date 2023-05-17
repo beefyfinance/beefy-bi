@@ -1,0 +1,448 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 21,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.15",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT *, CASE when feed_key ~ '^[a-z0-9:_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END as asset_type FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9:_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)\nand (case when '$filter_feed_list' = '' then true else \n  feed_key like '%' || '$filter_feed_list' || '%'\nend) \n\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Price Feeds",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  feed_key,\n  price::double precision\nFROM price_ts \n  left join price_feed using(price_feed_id)\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id in ($_price_feed_ids)\n\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Feed Prices",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "id": 5,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "9.2.15",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  datetime AS \"time\",\n  feed_key,\n  price::varchar\nFROM price_ts \n  left join price_feed using(price_feed_id)\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id in ($_price_feed_ids)\n\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Feed Prices",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "description": "Search the price_feed list on the feed_key field",
+        "hide": 0,
+        "name": "filter_feed_list",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "token_type",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "mooToken",
+            "value": "mooToken"
+          },
+          {
+            "selected": false,
+            "text": "token",
+            "value": "token"
+          }
+        ],
+        "query": "mooToken,token",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "beefy-data:avax:BIFI",
+            "beefy-data:beefy:arbitrum:BIFI",
+            "beefy-data:beefy:aurora:BIFI",
+            "beefy-data:beefy:avax:BIFI",
+            "beefy-data:beefy:bsc:BIFI",
+            "beefy-data:beefy:canto:BIFI",
+            "beefy-data:beefy:celo:BIFI",
+            "beefy-data:beefy:cronos:BIFI",
+            "beefy-data:beefy:ethereum:BIFI",
+            "beefy-data:beefy:fantom:BIFI"
+          ],
+          "value": [
+            "beefy-data:avax:BIFI",
+            "beefy-data:beefy:arbitrum:BIFI",
+            "beefy-data:beefy:aurora:BIFI",
+            "beefy-data:beefy:avax:BIFI",
+            "beefy-data:beefy:bsc:BIFI",
+            "beefy-data:beefy:canto:BIFI",
+            "beefy-data:beefy:celo:BIFI",
+            "beefy-data:beefy:cronos:BIFI",
+            "beefy-data:beefy:ethereum:BIFI",
+            "beefy-data:beefy:fantom:BIFI"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "SELECT feed_key FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "price_feed_keys",
+        "options": [],
+        "query": "SELECT feed_key FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select price_feed_id from price_feed where feed_key in ($price_feed_keys)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_price_feed_ids",
+        "options": [],
+        "query": "select price_feed_id from price_feed where feed_key in ($price_feed_keys)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Find a Token Price",
+  "uid": "Wax7DUU4z",
+  "version": 11,
+  "weekStart": ""
+}
