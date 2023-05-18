@@ -1,4 +1,4 @@
-import { groupBy } from "lodash";
+import { groupBy, min } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { samplingPeriodMs } from "../../../../types/sampling";
@@ -9,12 +9,16 @@ import { Range, isValidRange, rangeExcludeMany, rangeMerge } from "../../../../u
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
+import { addRegularIntervalBlockRangesQueries } from "../../../common/connector/import-queries";
 import { latestBlockNumber$ } from "../../../common/connector/latest-block-number";
 import { upsertBlock$ } from "../../../common/loader/blocks";
+import { fetchChainBlockList$ } from "../../../common/loader/chain-block-list";
+import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { createShouldIgnoreFn } from "../../../common/loader/ignore-address";
-import { DbProductInvestmentImportState, addMissingImportState$ } from "../../../common/loader/import-state";
+import { DbProductShareRateImportState, DbProductShareRateImportState, addMissingImportState$ } from "../../../common/loader/import-state";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
+import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
@@ -27,76 +31,63 @@ import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import { getProductContractAddress } from "../../utils/contract-accessors";
-import { getInvestmentsImportStateKey } from "../../utils/import-state";
+import { getInvestmentsImportStateKey, getPriceFeedImportStateKey } from "../../utils/import-state";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
 import { upsertInvestorCacheChainInfos$ } from "./investor-cache";
 
 const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
 
-export function createBeefyInvestmentImportRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbBeefyProduct> }) {
-  return createImportStateUpdaterRunner<DbBeefyProduct, number>({
-    cacheKey: "beefy:product:investment:" + options.runnerConfig.behaviour.mode,
+export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbPriceFeed> }) {
+  return createImportStateUpdaterRunner<DbPriceFeed, number>({
+    cacheKey: "beefy:product:share-rate:" + options.runnerConfig.behaviour.mode,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
     runnerConfig: options.runnerConfig,
-    getImportStateKey: getInvestmentsImportStateKey,
+    getImportStateKey: getPriceFeedImportStateKey,
     pipeline$: (ctx, emitError, getLastImportedBlockNumber) => {
       const shouldIgnoreFnPromise = createShouldIgnoreFn({ client: ctx.client, chain: ctx.chain });
 
       const createImportStateIfNeeded$: Rx.OperatorFunction<
-        DbBeefyProduct,
-        { product: DbBeefyProduct; importState: DbProductInvestmentImportState | null }
+        DbPriceFeed,
+        { priceFeed: DbPriceFeed; importState: DbProductShareRateImportState | null }
       > =
         ctx.behaviour.mode === "recent"
-          ? Rx.pipe(Rx.map((product) => ({ product, importState: null })))
+          ? Rx.pipe(Rx.map((priceFeed) => ({ priceFeed, importState: null })))
           : addMissingImportState$<
-              DbBeefyProduct,
-              { product: DbBeefyProduct; importState: DbProductInvestmentImportState },
-              DbProductInvestmentImportState
+              DbPriceFeed,
+              { priceFeed: DbPriceFeed; importState: DbProductShareRateImportState },
+              DbProductShareRateImportState
             >({
               ctx,
-              getImportStateKey: getInvestmentsImportStateKey,
-              formatOutput: (product, importState) => ({ product, importState }),
+              getImportStateKey: getPriceFeedImportStateKey,
+              formatOutput: (priceFeed, importState) => ({ priceFeed, importState }),
               createDefaultImportState$: Rx.pipe(
-                // initialize the import state
-                // find the contract creation block
-                fetchContractCreationInfos$({
+                fetchPriceFeedContractCreationInfos({
                   ctx,
-                  getCallParams: (obj) => ({
-                    chain: ctx.chain,
-                    contractAddress: getProductContractAddress(obj),
-                  }),
-                  formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
+                  emitError: (item, report) => {
+                    logger.error(mergeLogsInfos({ msg: "Error while fetching price feed contract creation infos. ", data: item }, report.infos));
+                    logger.error(report.error);
+                    throw new Error("Error while fetching price feed creation infos. " + item.priceFeedId);
+                  },
+                  importStateType: "product:investment", // we want to find the contract creation date we already fetched from the investment pipeline
+                  which: "price-feed-1", // we work on the first applied price
+                  productType: "beefy:vault",
+                  getPriceFeedId: (item) => item.priceFeedId,
+                  formatOutput: (item, contractCreationInfo) => ({ ...item, contractCreationInfo }),
                 }),
 
                 // drop those without a creation info
                 excludeNullFields$("contractCreationInfo"),
 
-                // add this block to our global block list
-                upsertBlock$({
-                  ctx,
-                  emitError: (item, report) => {
-                    logger.error(mergeLogsInfos({ msg: "Failed to upsert block", data: { item } }, report.infos));
-                    logger.error(report.error);
-                    throw new Error("Failed to upsert block");
-                  },
-                  getBlockData: (item) => ({
-                    datetime: item.contractCreationInfo.datetime,
-                    chain: item.obj.chain,
-                    blockNumber: item.contractCreationInfo.blockNumber,
-                    blockData: {},
-                  }),
-                  formatOutput: (item, block) => ({ ...item, block }),
-                }),
-
                 Rx.map((item) => ({
-                  obj: item.obj,
+                  obj: item,
                   importData: {
-                    type: "product:investment",
-                    productId: item.obj.productId,
-                    chain: item.obj.chain,
-                    chainLatestBlockNumber: item.contractCreationInfo.blockNumber,
-                    contractCreatedAtBlock: item.contractCreationInfo.blockNumber,
-                    contractCreationDate: item.contractCreationInfo.datetime,
+                    type: "product:share-rate",
+                    priceFeedId: item.priceFeedId,
+                    chain: item.contractCreationInfo.chain,
+                    productId: item.contractCreationInfo.productId,
+                    chainLatestBlockNumber: 0,
+                    contractCreatedAtBlock: item.contractCreationInfo.contractCreatedAtBlock,
+                    contractCreationDate: item.contractCreationInfo.contractCreationDate,
                     ranges: {
                       lastImportDate: new Date(),
                       coveredRanges: [],
@@ -110,6 +101,8 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
       return Rx.pipe(
         // create the import state if it does not exists
         createImportStateIfNeeded$,
+
+        excludeNullFields$("importState"),
 
         // generate our queries
         Rx.pipe(
@@ -128,11 +121,52 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
             formatOutput: (items, latestBlockNumber) => ({ items, latestBlockNumber }),
           }),
 
+          Rx.pipe(
+            // find out an interpolation of block numbers at 15min intervals
+            fetchChainBlockList$({
+              ctx: ctx,
+              emitError: (item, report) => {
+                logger.error(mergeLogsInfos({ msg: "Error while fetching the chain block list", data: item }, report.infos));
+                logger.error(report.error);
+                throw new Error("Error while adding covering block ranges");
+              },
+              getChain: () => options.chain,
+              timeStep: "15min",
+              getFirstDate: (item) => min(item.items.map((i) => i.importState.importData.contractCreationDate)) as Date,
+              formatOutput: (obj, blockList) => ({ obj, blockList }),
+            }),
+
+            // transform to ranges
+            Rx.map((item) => {
+              const blockRanges: Range<number>[] = [];
+              const blockList = sortBy(item.blockList, (block) => block.interpolated_block_number);
+              for (let i = 0; i < blockList.length - 1; i++) {
+                const block = blockList[i];
+                const nextBlock = item.blockList[i + 1];
+                blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
+              }
+              return { ...item, blockRanges };
+            }),
+          ),
+
+          addRegularIntervalBlockRangesQueries({
+            ctx,
+            emitError: (item, report) => {
+              logger.error(mergeLogsInfos({ msg: "Error while adding covering block ranges", data: item }, report.infos));
+              logger.error(report.error);
+              throw new Error("Error while adding covering block ranges");
+            },
+            chain: options.chain,
+            timeStep: "15min",
+            getImportState: (item) => item.importState,
+            formatOutput: (item, latestBlockNumber, blockRanges) => blockRanges.map((range) => ({ ...item, range, latest: latestBlockNumber })),
+          }),
+
           Rx.map(({ items, latestBlockNumber }) =>
             optimizeRangeQueries({
-              objKey: (item) => item.product.productKey,
+              objKey: (item) => item.priceFeed.feedKey,
               states: items
-                .map(({ product, importState }) => {
+                .map(({ priceFeed, importState }) => {
                   // compute recent full range in case we need it
                   // fetch the last hour of data
                   const maxBlocksPerQuery = ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
@@ -220,7 +254,7 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                     );
                   }
 
-                  return { obj: { product, latestBlockNumber }, fullRange, coveredRanges, toRetry };
+                  return { obj: { priceFeed, latestBlockNumber }, fullRange, coveredRanges, toRetry };
                 })
                 // this can happen if we restrict a very recent product with forceConsideredBlockRange
                 .filter((state) => isValidRange(state.fullRange)),

@@ -145,7 +145,7 @@ export function fetchProductEvents$<TObj, TQueryContent extends { product: DbBee
         // here, none of the retrying worked, so we emit all the objects as in error
         const report: ErrorReport = {
           error,
-          infos: { msg: "Error fetching produc tevents", data: { chain: options.ctx.chain, err: error } },
+          infos: { msg: "Error fetching product tevents", data: { chain: options.ctx.chain, err: error } },
         };
         logger.debug(report.infos);
         logger.debug(report.error);

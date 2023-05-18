@@ -26,7 +26,7 @@ export function batchRpcCalls$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TQue
   rpcCallsPerInputObj: {
     [method in RpcCallMethod]: number;
   };
-  logInfos: { msg: string; data?: Record<string, unknown> };
+  logInfos: LogInfos;
   formatOutput: (objs: TObj, results: TQueryResp) => TRes;
 }) {
   const { maxInputObjsPerBatch, canUseBatchProvider } = getBatchConfigFromLimitations({
