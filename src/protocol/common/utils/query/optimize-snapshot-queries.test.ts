@@ -5,6 +5,7 @@ describe("snapshot optimizer", () => {
     expect(
       optimizeSnapshotQueries({
         objKey: (obj) => obj.key,
+
         states: [
           { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
           { obj: { key: "0xB" }, fullRange: { from: 300, to: 700 }, coveredRanges: [], toRetry: [] },

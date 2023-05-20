@@ -28,6 +28,8 @@ export interface SnapshotQueryOptimizerOptions {
 
 export interface SnapshotQueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
   objKey: (obj: TObj) => string;
+  latestBlockNumber: number;
+  blockList: { datetime: Date; block_number: number | null; interpolated_block_number: number }[];
   states: {
     obj: TObj;
     fullRange: Range<TRange>;
