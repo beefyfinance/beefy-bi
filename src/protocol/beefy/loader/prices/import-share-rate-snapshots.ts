@@ -2,6 +2,7 @@ import { min } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { SamplingPeriod } from "../../../../types/sampling";
+import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { isValidRange } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
@@ -15,12 +16,9 @@ import { DbBeefyStdVaultProduct, fetchProduct$ } from "../../../common/loader/pr
 import { ImportRangeResult } from "../../../common/types/import-query";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
+import { importStateToOptimizerRangeInput } from "../../../common/utils/query/import-state-to-range-input";
 import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
-import {
-  blockListToRanges,
-  extractObjsAndRangeFromOptimizerOutput,
-  importStateToOptimizerRangeInput,
-} from "../../../common/utils/query/optimizer-utils";
+import { blockNumberListToRanges, extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractShareRateFromOptimizerOutput, fetchMultipleShareRate$ } from "../../connector/share-rate/share-rate-single-block-snapshots";
 import { getPriceFeedImportStateKey } from "../../utils/import-state";
@@ -156,8 +154,8 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                       behaviour: ctx.behaviour,
                       isLive,
                       lastImportedBlockNumber,
-                      logInfos: { msg: "Importing beefy share rate snapshot", data: { chain: options.chain } },
-                      rpcConfig: ctx.rpcConfig,
+                      maxBlocksPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+                      msPerBlockEstimate: MS_PER_BLOCK_ESTIMATE[ctx.chain],
                     });
                     return { obj: { priceFeed, product, latestBlockNumber }, ...filteredImportState };
                   })
@@ -171,7 +169,14 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                   maxRangeSize: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
                 },
               },
-              () => blockListToRanges({ blockList, latestBlockNumber, rpcConfig: ctx.rpcConfig, snapshotInterval: SNAPSHOT_INTERVAL }),
+              () =>
+                blockNumberListToRanges({
+                  blockNumberList: blockList.map((b) => b.interpolated_block_number),
+                  latestBlockNumber,
+                  snapshotInterval: SNAPSHOT_INTERVAL,
+                  msPerBlockEstimate: MS_PER_BLOCK_ESTIMATE[options.chain],
+                  maxBlocksPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+                }),
             ),
           ),
           Rx.concatAll(),

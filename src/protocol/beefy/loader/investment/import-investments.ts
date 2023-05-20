@@ -1,6 +1,7 @@
 import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
+import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range, isValidRange, rangeExcludeMany } from "../../../../utils/range";
@@ -20,12 +21,9 @@ import { ImportRangeResult } from "../../../common/types/import-query";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
+import { importStateToOptimizerRangeInput } from "../../../common/utils/query/import-state-to-range-input";
 import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
-import {
-  createOptimizerIndexFromState,
-  extractObjsAndRangeFromOptimizerOutput,
-  importStateToOptimizerRangeInput,
-} from "../../../common/utils/query/optimizer-utils";
+import { createOptimizerIndexFromState, extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
@@ -145,8 +143,8 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                       behaviour: ctx.behaviour,
                       isLive,
                       lastImportedBlockNumber,
-                      logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
-                      rpcConfig: ctx.rpcConfig,
+                      maxBlocksPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+                      msPerBlockEstimate: MS_PER_BLOCK_ESTIMATE[ctx.chain],
                     });
                     return { obj: { product, latestBlockNumber }, ...filteredImportState };
                   })

@@ -1,23 +1,8 @@
 import { isArray, keyBy, max, sortBy } from "lodash";
-import { RpcConfig } from "../../../../types/rpc-config";
 import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
-import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
-import { LogInfos, mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import {
-  Range,
-  SupportedRangeTypes,
-  isValidRange,
-  rangeMerge,
-  rangeSplitManyToMaxLength,
-  rangeToNumber,
-  rangeValueMax,
-} from "../../../../utils/range";
-import { DbBlockNumberRangeImportState } from "../../loader/import-state";
-import { ImportBehaviour } from "../../types/import-context";
+import { Range, SupportedRangeTypes, rangeMerge, rangeSplitManyToMaxLength, rangeToNumber, rangeValueMax } from "../../../../utils/range";
 import { AddressBatchOutput, JsonRpcBatchOutput, OptimizerInput, QueryOptimizerOutput, StrategyInput, StrategyResult } from "./query-types";
-
-const logger = rootLogger.child({ module: "common", component: "query-optimizer-utils" });
 
 // some type guards and accessors
 export function isJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>(
@@ -116,151 +101,37 @@ export function createOptimizerIndexFromState<TRange extends SupportedRangeTypes
   return rangeSplitManyToMaxLength(res, verticalSlicesSize);
 }
 
-export function importStateToOptimizerRangeInput({
-  behaviour,
-  rpcConfig,
-  lastImportedBlockNumber,
-  isLive,
+export function blockNumberListToRanges({
+  blockNumberList,
   latestBlockNumber,
-  importState,
-  logInfos,
-}: {
-  behaviour: ImportBehaviour;
-  rpcConfig: RpcConfig;
-  latestBlockNumber: number;
-  lastImportedBlockNumber: number | null;
-  importState: DbBlockNumberRangeImportState | null;
-  isLive: boolean;
-  logInfos: LogInfos;
-}) {
-  // compute recent full range in case we need it
-  // fetch the last hour of data
-  const period = samplingPeriodMs["1day"];
-  const periodInBlockCountEstimate = Math.floor(period / MS_PER_BLOCK_ESTIMATE[rpcConfig.chain]);
-
-  const diffBetweenLastImported = lastImportedBlockNumber
-    ? Math.max(0, latestBlockNumber - (lastImportedBlockNumber + behaviour.waitForBlockPropagation + 1))
-    : Infinity;
-
-  const maxBlocksPerQuery = rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-  const blockCountToFetch = Math.min(maxBlocksPerQuery, periodInBlockCountEstimate, diffBetweenLastImported);
-  const fromBlock = latestBlockNumber - blockCountToFetch;
-  const toBlock = latestBlockNumber;
-  const recentFullRange = {
-    from: fromBlock - behaviour.waitForBlockPropagation,
-    to: toBlock - behaviour.waitForBlockPropagation,
-  };
-
-  let fullRange: Range<number>;
-
-  if (behaviour.mode !== "recent" && importState !== null) {
-    // exclude latest block query from the range
-    const skipRecent = behaviour.skipRecentWindowWhenHistorical;
-    let doSkip = false;
-    if (skipRecent === "all") {
-      doSkip = true;
-    } else if (skipRecent === "none") {
-      doSkip = false;
-    } else if (skipRecent === "live") {
-      doSkip = isLive;
-    } else if (skipRecent === "eol") {
-      doSkip = !isLive;
-    } else {
-      throw new ProgrammerError({ msg: "Invalid skipRecentWindowWhenHistorical value", data: { skipRecent } });
-    }
-    // this is the whole range we have to cover
-    fullRange = {
-      from: importState.importData.contractCreatedAtBlock,
-      to: Math.min(latestBlockNumber - behaviour.waitForBlockPropagation, doSkip ? recentFullRange.to : Infinity),
-    };
-  } else {
-    fullRange = recentFullRange;
-  }
-
-  // this can happen when we force the block number in the past and we are treating a recent product
-  if (fullRange.from > fullRange.to) {
-    const importStateKey = importState?.importKey;
-    if (behaviour.forceConsideredBlockRange !== null) {
-      logger.info(
-        mergeLogsInfos(
-          {
-            msg: "current block number set too far in the past to treat this product",
-            data: { fullRange, importStateKey },
-          },
-          logInfos,
-        ),
-      );
-    } else {
-      logger.error(
-        mergeLogsInfos(
-          {
-            msg: "Full range is invalid",
-            data: { fullRange, importStateKey },
-          },
-          logInfos,
-        ),
-      );
-      if (process.env.NODE_ENV === "development") {
-        throw new ProgrammerError("Full range is invalid");
-      }
-    }
-  }
-
-  const coveredRanges = behaviour.ignoreImportState ? [] : importState?.importData.ranges.coveredRanges || [];
-  let toRetry = !behaviour.ignoreImportState && behaviour.mode === "historical" && importState !== null ? importState.importData.ranges.toRetry : [];
-
-  // apply our range restriction everywhere
-  if (behaviour.forceConsideredBlockRange !== null) {
-    const restrict = behaviour.forceConsideredBlockRange;
-    fullRange = {
-      from: Math.max(fullRange.from, restrict.from),
-      to: Math.min(fullRange.to, restrict.to),
-    };
-    toRetry = rangeMerge(
-      toRetry
-        .map((range) => ({
-          from: Math.max(range.from, restrict.from),
-          to: Math.min(range.to, restrict.to),
-        }))
-        .filter((r) => isValidRange(r)),
-    );
-  }
-
-  return { fullRange, coveredRanges, toRetry };
-}
-
-export function blockListToRanges({
-  blockList,
-  latestBlockNumber,
-  rpcConfig,
   snapshotInterval,
+  maxBlocksPerQuery,
+  msPerBlockEstimate,
 }: {
-  blockList: { datetime: Date; block_number: number | null; interpolated_block_number: number }[];
+  blockNumberList: number[];
   latestBlockNumber: number;
-  rpcConfig: RpcConfig;
+  maxBlocksPerQuery: number;
   snapshotInterval: SamplingPeriod;
+  msPerBlockEstimate: number;
 }): Range<number>[] {
   const blockRanges: Range<number>[] = [];
-  const sortedBlockList = sortBy(blockList, (block) => block.interpolated_block_number);
-  for (let i = 0; i < sortedBlockList.length - 1; i++) {
-    const block = sortedBlockList[i];
-    const nextBlock = blockList[i + 1];
-    blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
+  const sortedBlockNumbers = sortBy(blockNumberList);
+  for (let i = 0; i < sortedBlockNumbers.length - 1; i++) {
+    const block = sortedBlockNumbers[i];
+    const nextBlock = blockNumberList[i + 1];
+    blockRanges.push({ from: block, to: nextBlock - 1 });
   }
   // add a range between last db block and latest block
   if (blockRanges.length === 0) {
     return [];
   }
-  const blockNumbers = sortedBlockList.map((b) => b.interpolated_block_number);
-  const maxDbBlock = max(blockNumbers) as number;
+  const maxDbBlock = max(blockNumberList) as number;
 
   blockRanges.push({ from: maxDbBlock + 1, to: latestBlockNumber });
 
   // split ranges in chunks of ~15min
-  const maxBlocksPerQuery = rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-  const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[rpcConfig.chain];
   const maxTimeStepMs = samplingPeriodMs[snapshotInterval];
-  const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
+  const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / msPerBlockEstimate);
   const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
 
   return rangeSplitManyToMaxLength(blockRanges, rangeMaxLength);
