@@ -1,14 +1,8 @@
-import { max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
-import { Chain } from "../../../types/chain";
-import { SamplingPeriod, samplingPeriodMs } from "../../../types/sampling";
-import { MS_PER_BLOCK_ESTIMATE } from "../../../utils/config";
-import { Range, SupportedRangeTypes, isValidRange, rangeSortedArrayExclude, rangeSortedSplitManyToMaxLengthAndTakeSome } from "../../../utils/range";
-import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
-import { fetchChainBlockList$ } from "../loader/chain-block-list";
-import { DbBlockNumberRangeImportState, DbDateRangeImportState, DbImportState } from "../loader/import-state";
-import { ErrorEmitter, ImportBehaviour, ImportCtx } from "../types/import-context";
-import { latestBlockNumber$ } from "./latest-block-number";
+import { samplingPeriodMs } from "../../../types/sampling";
+import { Range, SupportedRangeTypes, rangeSortedArrayExclude, rangeSortedSplitManyToMaxLengthAndTakeSome } from "../../../utils/range";
+import { DbDateRangeImportState, DbImportState } from "../loader/import-state";
+import { ImportBehaviour, ImportCtx } from "../types/import-context";
 
 export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeImportState>(options: {
   ctx: ImportCtx;
@@ -65,120 +59,6 @@ export function addLatestDateQuery$<TObj, TRes>(options: {
       return options.formatOutput(item, latestDate, recentDateQuery);
     }),
   );
-}
-
-export function addRegularIntervalBlockRangesQueries<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
-  ctx: ImportCtx;
-  emitError: TErr;
-  timeStep: SamplingPeriod;
-  getImportState: (item: TObj) => DbBlockNumberRangeImportState;
-  chain: Chain;
-  formatOutput: (obj: TObj, latestBlockNumber: number, blockRange: Range<number>[]) => TRes;
-}): Rx.OperatorFunction<TObj, TRes> {
-  const operator$ = Rx.pipe(
-    Rx.tap((_: TObj) => {}),
-
-    Rx.pipe(
-      fetchChainBlockList$({
-        ctx: options.ctx,
-        emitError: options.emitError,
-        getChain: () => options.chain,
-        timeStep: options.timeStep,
-        getFirstDate: (obj) => options.getImportState(obj).importData.contractCreationDate,
-        formatOutput: (obj, blockList) => ({ obj, blockList }),
-      }),
-
-      // fetch the last block of this chain
-      latestBlockNumber$({
-        ctx: options.ctx,
-        emitError: (item, report) => options.emitError(item.obj, report),
-        formatOutput: (item, latestBlockNumber) => ({ ...item, latestBlockNumber }),
-      }),
-    ),
-    Rx.pipe(
-      // filter blocks after the creation date of the contract
-      Rx.map((item) => ({
-        ...item,
-        blockList: item.blockList.filter(
-          (block) => block.interpolated_block_number >= options.getImportState(item.obj).importData.contractCreatedAtBlock,
-        ),
-      })),
-
-      // transform to ranges
-      Rx.map((item) => {
-        const blockRanges: Range<number>[] = [];
-        const blockList = sortBy(item.blockList, (block) => block.interpolated_block_number);
-        for (let i = 0; i < blockList.length - 1; i++) {
-          const block = blockList[i];
-          const nextBlock = item.blockList[i + 1];
-          blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
-        }
-        return { ...item, blockRanges };
-      }),
-      // add ranges before and after db blocks
-      Rx.map((item) => {
-        if (item.blockList.length === 0) {
-          return { ...item, blockList: [] };
-        }
-        const importState = options.getImportState(item.obj);
-        const blockNumbers = item.blockList.map((b) => b.interpolated_block_number);
-        const minDbBlock = min(blockNumbers) as number;
-        const maxDbBlock = max(blockNumbers) as number;
-
-        return {
-          ...item,
-          blockRanges: [
-            { from: importState.importData.contractCreatedAtBlock, to: minDbBlock - 1 },
-            ...item.blockRanges,
-            { from: maxDbBlock + 1, to: item.latestBlockNumber },
-          ],
-        };
-      }),
-
-      // sometimes the interpolated block numbers are not accurate and the resulting ranges are invalid
-      Rx.map((item) => ({ ...item, blockRanges: item.blockRanges.filter((r) => isValidRange(r)) })),
-      // filter ranges based on what was already covered
-      Rx.map((item) => {
-        const importState = options.getImportState(item.obj);
-        const maxBlocksPerQuery = options.ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
-        const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.chain];
-        const maxTimeStepMs = samplingPeriodMs[options.timeStep];
-        const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
-        const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
-        const ranges = _restrictRangesWithImportState(
-          options.ctx.behaviour,
-          item.blockRanges,
-          importState,
-          rangeMaxLength,
-          options.ctx.behaviour.limitQueriesCountTo.shareRate,
-        );
-        return { ...item, blockRanges: ranges };
-      }),
-      // transform to query obj
-      Rx.map((item) => {
-        return {
-          input: item.obj,
-          output: {
-            latestBlockNumber: item.latestBlockNumber,
-            blockRanges: item.blockRanges,
-          },
-        };
-      }),
-    ),
-  );
-
-  return cacheOperatorResult$({
-    operator$,
-    getCacheKey: (item) => `blockList-${options.chain}-${options.getImportState(item).importKey}-${options.timeStep}`,
-    logInfos: { msg: "block list for chain", data: { chain: options.chain } },
-    cacheConfig: {
-      type: "global",
-      stdTTLSec: 5 * 60 /* 5 min */,
-      globalKey: "interpolated-product-block-list",
-      useClones: false,
-    },
-    formatOutput: (item, result) => options.formatOutput(item, result.latestBlockNumber, result.blockRanges),
-  });
 }
 
 export function _restrictRangesWithImportState<T extends SupportedRangeTypes>(

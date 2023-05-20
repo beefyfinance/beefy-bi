@@ -18,7 +18,7 @@ import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
 import { createBeefyInvestmentImportRunner } from "../loader/investment/import-investments";
 import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
-import { createBeefyHistoricalShareRatePricesRunner, createBeefyRecentShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
+import { createBeefyShareRateSnapshotsRunner } from "../loader/prices/import-share-rate-snapshots";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
 import { createScheduleReimportInvestmentsRunner } from "../loader/schedule-reimport";
@@ -484,45 +484,42 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     streamConfig,
     behaviour,
   };
-
   const emitError = (item: DbProduct, report: ErrorReport) => {
     logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
     logger.error(report.error);
     throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // remove products that don't have a ppfs to fetch
-      // we don't fetch boosts because they would be duplicates anyway
-      Rx.filter((product) => isBeefyStandardVault(product)),
-      // now fetch the price feed we need
-      fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
-      // drop those without a price feed yet
-      excludeNullFields$("priceFeed"),
-      Rx.map(({ priceFeed }) => priceFeed),
-      // remove duplicates
-      Rx.distinct((priceFeed) => priceFeed.priceFeedId),
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runnerConfig = { client: cmdParams.client, chain, getInputs, behaviour };
-  const runner =
-    behaviour.mode === "recent"
-      ? createBeefyRecentShareRatePricesRunner({ chain, runnerConfig })
-      : createBeefyHistoricalShareRatePricesRunner({ chain, runnerConfig });
-
-  return runner.run();
+  return createBeefyShareRateSnapshotsRunner({
+    chain,
+    runnerConfig: {
+      chain,
+      getInputs: async () => {
+        const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+          productFilter$(chain, cmdParams),
+          // remove products that don't have a ppfs to fetch
+          // we don't fetch boosts because they would be duplicates anyway
+          Rx.filter((product) => isBeefyStandardVault(product)),
+          // now fetch the price feed we need
+          fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+          // drop those without a price feed yet
+          excludeNullFields$("priceFeed"),
+          Rx.map(({ priceFeed }) => priceFeed),
+          // remove duplicates
+          Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+          // collect
+          Rx.toArray(),
+        );
+        const res = await consumeObservable(pipeline$);
+        if (!res) {
+          return [];
+        }
+        return res;
+      },
+      client: cmdParams.client,
+      behaviour,
+    },
+  }).run();
 }
 
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {

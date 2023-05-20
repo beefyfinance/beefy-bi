@@ -2,12 +2,12 @@ import { RpcConfig } from "../../../../types/rpc-config";
 import { LogInfos } from "../../../../utils/logger";
 import { defaultLimitations } from "../../../../utils/rpc/rpc-limitations";
 import { ImportBehaviour, defaultImportBehaviour } from "../../types/import-context";
-import { _buildRangeIndex, extractObjsAndRangeFromOptimizerOutput, importStateToOptimizerRangeInput } from "./optimizer-utils";
+import { createOptimizerIndexFromState, extractObjsAndRangeFromOptimizerOutput, importStateToOptimizerRangeInput } from "./optimizer-utils";
 
 describe("Optimizer utils", () => {
   it("should be able to identify distinct blobs and align queries with them", () => {
     expect(
-      _buildRangeIndex(
+      createOptimizerIndexFromState(
         [
           [
             { from: 200, to: 500 },
@@ -26,7 +26,7 @@ describe("Optimizer utils", () => {
     ]);
 
     expect(
-      _buildRangeIndex(
+      createOptimizerIndexFromState(
         [
           [
             { from: 200, to: 500 },
@@ -47,7 +47,7 @@ describe("Optimizer utils", () => {
     ]);
 
     expect(
-      _buildRangeIndex(
+      createOptimizerIndexFromState(
         [
           [
             { from: 301, to: 500 },

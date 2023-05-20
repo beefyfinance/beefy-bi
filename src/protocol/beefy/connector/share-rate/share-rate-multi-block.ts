@@ -29,7 +29,7 @@ const logger = rootLogger.child({ module: "beefy", component: "share-rate" });
 export function fetchSingleBeefyProductShareRateAndDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  geCallParams: (obj: TObj) => (BeefyShareRateCallParams & { type: "fetch" }) | { type: "set-to-1"; blockNumber: number };
+  getCallParams: (obj: TObj) => (BeefyShareRateCallParams & { type: "fetch" }) | { type: "set-to-1"; blockNumber: number };
   formatOutput: (obj: TObj, result: BeefyShareRateBatchCallResult) => TRes;
 }) {
   const logInfos = { msg: "Fetching Beefy share rate single mode", data: { chain: options.ctx.chain } };
@@ -242,7 +242,7 @@ export function fetchSingleBeefyProductShareRateAndDatetime$<TObj, TErr extends 
 
   return Rx.pipe(
     Rx.tap((obj: TObj) => logger.trace(mergeLogsInfos({ msg: "forking on product type", data: { transferData: obj } }, logInfos))),
-    Rx.map((obj) => ({ obj, param: options.geCallParams(obj) })),
+    Rx.map((obj) => ({ obj, param: options.getCallParams(obj) })),
     // handle different types of requests differently
     Rx.connect((items$) =>
       Rx.merge(

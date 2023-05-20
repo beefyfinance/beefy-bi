@@ -13,13 +13,13 @@ import {
   rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
 } from "../../../../utils/range";
-import { _buildRangeIndex, getLoggableInput, getLoggableOptimizerOutput } from "./optimizer-utils";
+import { getLoggableInput, getLoggableOptimizerOutput } from "./optimizer-utils";
 import {
   AddressBatchOutput,
   JsonRpcBatchOutput,
+  OptimizerInput,
   QueryOptimizerOutput,
-  RangeQueryOptimizerInput,
-  RangeQueryOptimizerOptions,
+  RangeIndexBuilder,
   StrategyInput,
   StrategyResult,
 } from "./query-types";
@@ -33,14 +33,15 @@ const logger = rootLogger.child({ module: "common", component: "optimise-range-q
  * - maxQueriesPerProduct: mostly a way to avoid consuming too much memory
  *
  */
-export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
-  input: RangeQueryOptimizerInput<TObj, TRange>,
+export function optimizeQueries<TObj, TRange extends SupportedRangeTypes>(
+  input: OptimizerInput<TObj, TRange>,
+  buildRangeIndex: RangeIndexBuilder<TObj, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
   logger.debug({ msg: "Optimising a range queries", data: getLoggableInput(input) });
 
   const {
     states,
-    options: { ignoreImportState, maxRangeSize, maxQueriesPerProduct },
+    options: { ignoreImportState, maxQueriesPerProduct },
   } = input;
 
   // ensure we only have one input state per product
@@ -78,19 +79,16 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
         states.map(({ obj, toRetry }) => ({ obj, ranges: toRetry.reverse() })),
       ];
 
-  const bestStrategiesBySlice = steps.flatMap((rangesToQuery) =>
+  const bestStrategiesBySlice = steps.flatMap((stateRanges) =>
     // build the coverage index for non-retry ranges
-    _buildRangeIndex(
-      rangesToQuery.map((s) => s.ranges),
-      { mergeIfCloserThan: Math.round(maxRangeSize / 2), verticalSlicesSize: maxRangeSize },
-    )
+    buildRangeIndex(stateRanges, input.options)
       // handle the most recent first
       .reverse()
       // limit the amount we need to fetch
       .slice(0, maxQueriesPerProduct)
       // restrict ranges by the index
       .map((rangeIndexPart) =>
-        rangesToQuery.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
+        stateRanges.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
       )
       // get the best method for each part of this index
       .flatMap((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
@@ -100,7 +98,6 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
     msg: "Best strategy for all slice found",
     data: { input: getLoggableInput(input), bestStrategiesBySlice: getLoggableOptimizerOutput(input, bestStrategiesBySlice) },
   });
-
   return bestStrategiesBySlice;
 }
 
@@ -108,7 +105,7 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
  * For a given indexed range, find the best method
  */
 function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
-  input: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>,
+  input: StrategyInput<TObj, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
   // sometimes we just can't batch by address
   if (input.options.maxAddressesPerQuery === 1) {
@@ -200,7 +197,7 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   objKey,
   states,
   options: { maxAddressesPerQuery, maxQueriesPerProduct, maxRangeSize },
-}: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
+}: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
   let toQuery = states.map(({ obj, ranges }) => ({
     obj,
     ranges,
@@ -258,7 +255,7 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
 function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   states,
   options: { maxQueriesPerProduct, maxRangeSize },
-}: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>): StrategyResult<JsonRpcBatchOutput<TObj, TRange>> {
+}: StrategyInput<TObj, TRange>): StrategyResult<JsonRpcBatchOutput<TObj, TRange>> {
   const queries = states.flatMap(({ obj, ranges }) => {
     // split in ranges no greater than the maximum allowed
     // order by new range first since it's more important and more likely to be available via RPC calls

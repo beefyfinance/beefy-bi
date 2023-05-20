@@ -20,8 +20,12 @@ import { ImportRangeResult } from "../../../common/types/import-query";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
-import { optimizeRangeQueries } from "../../../common/utils/query/optimize-range-queries";
-import { extractObjsAndRangeFromOptimizerOutput, importStateToOptimizerRangeInput } from "../../../common/utils/query/optimizer-utils";
+import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
+import {
+  createOptimizerIndexFromState,
+  extractObjsAndRangeFromOptimizerOutput,
+  importStateToOptimizerRangeInput,
+} from "../../../common/utils/query/optimizer-utils";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
@@ -128,32 +132,43 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
           }),
 
           Rx.map(({ items, latestBlockNumber }) =>
-            optimizeRangeQueries({
-              objKey: (item) => item.product.productKey,
-              states: items
-                .map(({ product, importState }) => {
-                  const lastImportedBlockNumber = getLastImportedBlockNumber();
-                  const isLive = !isProductDashboardEOL(product);
-                  const filteredImportState = importStateToOptimizerRangeInput({
-                    importState,
-                    latestBlockNumber,
-                    behaviour: ctx.behaviour,
-                    isLive,
-                    lastImportedBlockNumber,
-                    logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
-                    rpcConfig: ctx.rpcConfig,
-                  });
-                  return { obj: { product, latestBlockNumber }, ...filteredImportState };
-                })
-                // this can happen if we restrict a very recent product with forceConsideredBlockRange
-                .filter((state) => isValidRange(state.fullRange)),
-              options: {
-                ignoreImportState: ctx.behaviour.ignoreImportState,
-                maxAddressesPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize || 1,
-                maxQueriesPerProduct: ctx.behaviour.limitQueriesCountTo.investment,
-                maxRangeSize: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+            optimizeQueries(
+              {
+                objKey: (item) => item.product.productKey,
+                states: items
+                  .map(({ product, importState }) => {
+                    const lastImportedBlockNumber = getLastImportedBlockNumber();
+                    const isLive = !isProductDashboardEOL(product);
+                    const filteredImportState = importStateToOptimizerRangeInput({
+                      importState,
+                      latestBlockNumber,
+                      behaviour: ctx.behaviour,
+                      isLive,
+                      lastImportedBlockNumber,
+                      logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
+                      rpcConfig: ctx.rpcConfig,
+                    });
+                    return { obj: { product, latestBlockNumber }, ...filteredImportState };
+                  })
+                  // this can happen if we restrict a very recent product with forceConsideredBlockRange
+                  .filter((state) => isValidRange(state.fullRange)),
+
+                options: {
+                  ignoreImportState: ctx.behaviour.ignoreImportState,
+                  maxAddressesPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize || 1,
+                  maxQueriesPerProduct: ctx.behaviour.limitQueriesCountTo.investment,
+                  maxRangeSize: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+                },
               },
-            }),
+              (rangesToQuery) =>
+                createOptimizerIndexFromState(
+                  rangesToQuery.map((s) => s.ranges),
+                  {
+                    mergeIfCloserThan: Math.round(ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan / 2),
+                    verticalSlicesSize: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
+                  },
+                ),
+            ),
           ),
           Rx.concatAll(),
         ),

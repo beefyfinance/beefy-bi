@@ -14,7 +14,7 @@ import { fetchERC20TransferToAStakingContract$, fetchErc20Transfers$ } from "../
 import { DbBeefyProduct, productList$ } from "../protocol/common/loader/product";
 import { ImportBehaviour, ImportCtx, createBatchStreamConfig, defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { ImportRangeQuery } from "../protocol/common/types/import-query";
-import { QueryOptimizerOutput } from "../protocol/common/utils/optimize-range-queries";
+import { QueryOptimizerOutput } from "../protocol/common/utils/query/query-types";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
 import { DbClient, withDbClient } from "../utils/db";

@@ -53,7 +53,7 @@ export function fetchMultipleShareRate$<
     fetchSingleBeefyProductShareRateAndDatetime$({
       ctx: options.ctx,
       emitError: (item, report) => options.emitError(item.obj, report),
-      geCallParams: (item) => ({
+      getCallParams: (item) => ({
         type: "fetch",
         ...getCallParamsFromProductAndRange(item.query.obj.product, item.query.range),
       }),
@@ -228,11 +228,11 @@ export function fetchMultipleShareRate$<
   );
 }
 
-export function extractProductShareRateFromOutputAndTransfers<TObj>(
+export function extractShareRateFromOptimizerOutput<TObj>(
   output: QueryOptimizerOutput<TObj, number>,
   getProduct: (obj: TObj) => DbBeefyStdVaultProduct,
   shareRateResults: MultipleShareRateResult[],
-): { obj: TObj; range: Range<number>; shareRate: Decimal; blockNumber: number }[] {
+): { obj: TObj; range: Range<number>; result: BeefyShareRateBatchCallResult }[] {
   return extractObjsAndRangeFromOptimizerOutput({ output, objKey: (o) => getProduct(o).productKey }).flatMap(({ obj, range }) => {
     const product = getProduct(obj);
     const results = shareRateResults.filter((p) => p.product.productKey === product.productKey && isInRange(range, p.result.blockNumber));
@@ -245,8 +245,7 @@ export function extractProductShareRateFromOutputAndTransfers<TObj>(
     return {
       obj,
       range,
-      shareRate: results[0].result.shareRate,
-      blockNumber: results[0].result.blockNumber,
+      result: results[0].result,
     };
   });
 }

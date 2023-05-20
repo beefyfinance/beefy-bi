@@ -1,6 +1,6 @@
-import { isArray, keyBy } from "lodash";
+import { isArray, keyBy, max, sortBy } from "lodash";
 import { RpcConfig } from "../../../../types/rpc-config";
-import { samplingPeriodMs } from "../../../../types/sampling";
+import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
@@ -15,16 +15,7 @@ import {
 } from "../../../../utils/range";
 import { DbBlockNumberRangeImportState } from "../../loader/import-state";
 import { ImportBehaviour } from "../../types/import-context";
-import {
-  AddressBatchOutput,
-  JsonRpcBatchOutput,
-  QueryOptimizerOutput,
-  RangeQueryOptimizerInput,
-  RangeQueryOptimizerOptions,
-  SnapshotQueryOptimizerOptions,
-  StrategyInput,
-  StrategyResult,
-} from "./query-types";
+import { AddressBatchOutput, JsonRpcBatchOutput, OptimizerInput, QueryOptimizerOutput, StrategyInput, StrategyResult } from "./query-types";
 
 const logger = rootLogger.child({ module: "common", component: "query-optimizer-utils" });
 
@@ -64,12 +55,8 @@ export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends Supp
   }
 }
 
-export function getLoggableOptimizerOutput<
-  TObj,
-  TOptions extends RangeQueryOptimizerOptions | SnapshotQueryOptimizerOptions,
-  TRange extends SupportedRangeTypes,
->(
-  input: RangeQueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TOptions, TRange>,
+export function getLoggableOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
+  input: OptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>,
   output: (QueryOptimizerOutput<TObj, TRange> | StrategyResult<QueryOptimizerOutput<TObj, TRange>>) | QueryOptimizerOutput<TObj, TRange>[],
 ): any {
   if (isArray(output)) {
@@ -89,18 +76,14 @@ export function getLoggableOptimizerOutput<
   }
 }
 
-export function getLoggableInput<
-  TObj,
-  TOptions extends RangeQueryOptimizerOptions | SnapshotQueryOptimizerOptions,
-  TRange extends SupportedRangeTypes,
->(input: RangeQueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TOptions, TRange>) {
+export function getLoggableInput<TObj, TRange extends SupportedRangeTypes>(input: OptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>): any {
   return { ...input, states: input.states.map((s) => ({ ...s, obj: input.objKey(s.obj) })) };
 }
 
 /**
  * Split the total range to cover into consecutive blobs that should be handled independently
  */
-export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
+export function createOptimizerIndexFromState<TRange extends SupportedRangeTypes>(
   input: Range<TRange>[][],
   { mergeIfCloserThan, verticalSlicesSize }: { mergeIfCloserThan: number; verticalSlicesSize: number },
 ): Range<TRange>[] {
@@ -244,4 +227,41 @@ export function importStateToOptimizerRangeInput({
   }
 
   return { fullRange, coveredRanges, toRetry };
+}
+
+export function blockListToRanges({
+  blockList,
+  latestBlockNumber,
+  rpcConfig,
+  snapshotInterval,
+}: {
+  blockList: { datetime: Date; block_number: number | null; interpolated_block_number: number }[];
+  latestBlockNumber: number;
+  rpcConfig: RpcConfig;
+  snapshotInterval: SamplingPeriod;
+}): Range<number>[] {
+  const blockRanges: Range<number>[] = [];
+  const sortedBlockList = sortBy(blockList, (block) => block.interpolated_block_number);
+  for (let i = 0; i < sortedBlockList.length - 1; i++) {
+    const block = sortedBlockList[i];
+    const nextBlock = blockList[i + 1];
+    blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
+  }
+  // add a range between last db block and latest block
+  if (blockRanges.length === 0) {
+    return [];
+  }
+  const blockNumbers = sortedBlockList.map((b) => b.interpolated_block_number);
+  const maxDbBlock = max(blockNumbers) as number;
+
+  blockRanges.push({ from: maxDbBlock + 1, to: latestBlockNumber });
+
+  // split ranges in chunks of ~15min
+  const maxBlocksPerQuery = rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
+  const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[rpcConfig.chain];
+  const maxTimeStepMs = samplingPeriodMs[snapshotInterval];
+  const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
+  const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
+
+  return rangeSplitManyToMaxLength(blockRanges, rangeMaxLength);
 }

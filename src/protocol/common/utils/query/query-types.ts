@@ -1,14 +1,13 @@
-import { SamplingPeriod } from "../../../../types/sampling";
 import { Range, SupportedRangeTypes } from "../../../../utils/range";
 
-export interface RangeQueryOptimizerOptions {
+interface OptimizerOptions {
   ignoreImportState: boolean;
   maxAddressesPerQuery: number;
   maxRangeSize: number;
   maxQueriesPerProduct: number;
 }
 
-export interface RangeQueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
+export interface OptimizerInput<TObj, TRange extends SupportedRangeTypes> {
   objKey: (obj: TObj) => string;
   states: {
     obj: TObj;
@@ -16,28 +15,13 @@ export interface RangeQueryOptimizerInput<TObj, TRange extends SupportedRangeTyp
     coveredRanges: Range<TRange>[];
     toRetry: Range<TRange>[];
   }[];
-  options: RangeQueryOptimizerOptions;
+  options: OptimizerOptions;
 }
 
-export interface SnapshotQueryOptimizerOptions {
-  ignoreImportState: boolean;
-  maxAddressesPerQuery: number;
-  maxRangeTimeStep: SamplingPeriod;
-  maxQueriesPerProduct: number;
-}
-
-export interface SnapshotQueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
-  objKey: (obj: TObj) => string;
-  latestBlockNumber: number;
-  blockList: { datetime: Date; block_number: number | null; interpolated_block_number: number }[];
-  states: {
-    obj: TObj;
-    fullRange: Range<TRange>;
-    coveredRanges: Range<TRange>[];
-    toRetry: Range<TRange>[];
-  }[];
-  options: SnapshotQueryOptimizerOptions;
-}
+export type RangeIndexBuilder<TObj, TRange extends SupportedRangeTypes> = (
+  rangesToQuery: { obj: TObj; ranges: Range<TRange>[] }[],
+  options: OptimizerOptions,
+) => Range<TRange>[];
 
 export interface JsonRpcBatchOutput<TObj, TRange extends SupportedRangeTypes> {
   type: "jsonrpc batch";
@@ -57,17 +41,13 @@ export interface AddressBatchOutput<TObj, TRange extends SupportedRangeTypes> {
 }
 export type QueryOptimizerOutput<TObj, TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TObj, TRange> | AddressBatchOutput<TObj, TRange>;
 
-export interface StrategyInput<
-  TObj,
-  TOptions extends RangeQueryOptimizerOptions | SnapshotQueryOptimizerOptions,
-  TRange extends SupportedRangeTypes,
-> {
+export interface StrategyInput<TObj, TRange extends SupportedRangeTypes> {
   objKey: (obj: TObj) => string;
   states: {
     obj: TObj;
     ranges: Range<TRange>[];
   }[];
-  options: TOptions;
+  options: OptimizerOptions;
 }
 
 // anything internal and not exposed
