@@ -1,11 +1,11 @@
-import { groupBy, min } from "lodash";
+import { groupBy, max, min, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
-import { samplingPeriodMs } from "../../../../types/sampling";
+import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { Range, isValidRange, rangeExcludeMany, rangeMerge } from "../../../../utils/range";
+import { Range, isValidRange, rangeExcludeMany, rangeMerge, rangeSlitToMaxLength, rangeSplitManyToMaxLength } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
@@ -15,7 +15,7 @@ import { upsertBlock$ } from "../../../common/loader/blocks";
 import { fetchChainBlockList$ } from "../../../common/loader/chain-block-list";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
 import { createShouldIgnoreFn } from "../../../common/loader/ignore-address";
-import { DbProductShareRateImportState, DbProductShareRateImportState, addMissingImportState$ } from "../../../common/loader/import-state";
+import { DbProductShareRateImportState, addMissingImportState$ } from "../../../common/loader/import-state";
 import { upsertInvestment$ } from "../../../common/loader/investment";
 import { upsertInvestor$ } from "../../../common/loader/investor";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
@@ -38,6 +38,8 @@ import { upsertInvestorCacheChainInfos$ } from "./investor-cache";
 const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
 
 export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; runnerConfig: ChainRunnerConfig<DbPriceFeed> }) {
+  const SNAPSHOT_INTERVAL: SamplingPeriod = "15min";
+
   return createImportStateUpdaterRunner<DbPriceFeed, number>({
     cacheKey: "beefy:product:share-rate:" + options.runnerConfig.behaviour.mode,
     logInfos: { msg: "Importing historical beefy investments", data: { chain: options.chain } },
@@ -122,7 +124,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
           }),
 
           Rx.pipe(
-            // find out an interpolation of block numbers at 15min intervals
+            // find out an interpolation of block numbers at SNAPSHOT_INTERVAL intervals
             fetchChainBlockList$({
               ctx: ctx,
               emitError: (item, report) => {
@@ -131,20 +133,40 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                 throw new Error("Error while adding covering block ranges");
               },
               getChain: () => options.chain,
-              timeStep: "15min",
+              timeStep: SNAPSHOT_INTERVAL,
               getFirstDate: (item) => min(item.items.map((i) => i.importState.importData.contractCreationDate)) as Date,
-              formatOutput: (obj, blockList) => ({ obj, blockList }),
+              formatOutput: (item, blockList) => ({ ...item, blockList }),
             }),
 
-            // transform to ranges
+            // transform to ranges, 1 range between each SNAPSHOT_INTERVAL block, same range for all products
             Rx.map((item) => {
               const blockRanges: Range<number>[] = [];
-              const blockList = sortBy(item.blockList, (block) => block.interpolated_block_number);
-              for (let i = 0; i < blockList.length - 1; i++) {
-                const block = blockList[i];
+              const sortedBlockList = sortBy(item.blockList, (block) => block.interpolated_block_number);
+              for (let i = 0; i < sortedBlockList.length - 1; i++) {
+                const block = sortedBlockList[i];
                 const nextBlock = item.blockList[i + 1];
                 blockRanges.push({ from: block.interpolated_block_number, to: nextBlock.interpolated_block_number - 1 });
               }
+              // add a range between last db block and latest block
+              if (blockRanges.length === 0) {
+                return { ...item, blockRanges: [] };
+              }
+              const blockNumbers = sortedBlockList.map((b) => b.interpolated_block_number);
+              const maxDbBlock = max(blockNumbers) as number;
+
+              blockRanges.push({ from: maxDbBlock + 1, to: item.latestBlockNumber });
+              return { ...item, blockRanges };
+            }),
+
+            // split ranges in chunks of ~15min
+            Rx.map((item) => {
+              const maxBlocksPerQuery = ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan;
+              const avgMsPerBlock = MS_PER_BLOCK_ESTIMATE[options.chain];
+              const maxTimeStepMs = samplingPeriodMs[SNAPSHOT_INTERVAL];
+              const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / avgMsPerBlock);
+              const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
+
+              const blockRanges = rangeSplitManyToMaxLength(item.blockRanges, rangeMaxLength);
               return { ...item, blockRanges };
             }),
           ),

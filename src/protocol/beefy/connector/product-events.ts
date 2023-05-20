@@ -13,14 +13,8 @@ import { ERC20Transfer, mergeErc20Transfers } from "../../common/connector/erc20
 import { DbBeefyProduct, DbProduct } from "../../common/loader/product";
 import { ErrorEmitter, ErrorReport, ImportCtx, Throwable } from "../../common/types/import-context";
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
-import {
-  AddressBatchOutput,
-  JsonRpcBatchOutput,
-  QueryOptimizerOutput,
-  extractObjsAndRangeFromOptimizerOutput,
-  isAddressBatchQueries,
-  isJsonRpcBatchQueries,
-} from "../../common/utils/optimize-range-queries";
+import { extractObjsAndRangeFromOptimizerOutput, isAddressBatchQueries, isJsonRpcBatchQueries } from "../../common/utils/query/optimizer-utils";
+import { AddressBatchOutput, JsonRpcBatchOutput, QueryOptimizerOutput } from "../../common/utils/query/query-types";
 import { getProductContractAddress } from "../utils/contract-accessors";
 import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 

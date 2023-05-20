@@ -1,6 +1,6 @@
-import { chunk, groupBy, isArray, keyBy, max, min, sortBy, sum } from "lodash";
-import { rootLogger } from "../../../utils/logger";
-import { ProgrammerError } from "../../../utils/programmer-error";
+import { chunk, groupBy, max, min, sortBy, sum } from "lodash";
+import { rootLogger } from "../../../../utils/logger";
+import { ProgrammerError } from "../../../../utils/programmer-error";
 import {
   Range,
   SupportedRangeTypes,
@@ -12,101 +12,19 @@ import {
   rangeMerge,
   rangeSortedArrayExclude,
   rangeSortedSplitManyToMaxLengthAndTakeSome,
-  rangeSplitManyToMaxLength,
-  rangeToNumber,
-  rangeValueMax,
-} from "../../../utils/range";
+} from "../../../../utils/range";
+import { _buildRangeIndex, getLoggableInput, getLoggableOptimizerOutput } from "./optimizer-utils";
+import {
+  AddressBatchOutput,
+  JsonRpcBatchOutput,
+  QueryOptimizerOutput,
+  RangeQueryOptimizerInput,
+  RangeQueryOptimizerOptions,
+  StrategyInput,
+  StrategyResult,
+} from "./query-types";
 
 const logger = rootLogger.child({ module: "common", component: "optimise-range-queries" });
-
-interface Options {
-  ignoreImportState: boolean;
-  maxAddressesPerQuery: number;
-  maxRangeSize: number;
-  maxQueriesPerProduct: number;
-}
-
-export interface QueryOptimizerInput<TObj, TRange extends SupportedRangeTypes> {
-  objKey: (obj: TObj) => string;
-  states: {
-    obj: TObj;
-    fullRange: Range<TRange>;
-    coveredRanges: Range<TRange>[];
-    toRetry: Range<TRange>[];
-  }[];
-  options: Options;
-}
-
-interface StrategyInput<TObj, TRange extends SupportedRangeTypes> {
-  objKey: (obj: TObj) => string;
-  states: {
-    obj: TObj;
-    ranges: Range<TRange>[];
-  }[];
-  options: Options;
-}
-
-export interface JsonRpcBatchOutput<TObj, TRange extends SupportedRangeTypes> {
-  type: "jsonrpc batch";
-  obj: TObj;
-  range: Range<TRange>;
-}
-
-export interface AddressBatchOutput<TObj, TRange extends SupportedRangeTypes> {
-  type: "address batch";
-  objs: TObj[];
-  range: Range<TRange>;
-  // filter events after the query since we allow bigger ranges than necessary
-  postFilters: {
-    obj: TObj;
-    filter: Range<TRange>[] | "no-filter";
-  }[];
-}
-
-// anything internal and not exposed
-type StrategyResult<T> = {
-  result: T[];
-  totalCoverage: number;
-  queryCount: number;
-};
-
-export type QueryOptimizerOutput<TObj, TRange extends SupportedRangeTypes> = JsonRpcBatchOutput<TObj, TRange> | AddressBatchOutput<TObj, TRange>;
-
-// some type guards and accessors
-export function isJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>(
-  o: QueryOptimizerOutput<TObj, TRange>,
-): o is JsonRpcBatchOutput<TObj, TRange> {
-  return o.type === "jsonrpc batch";
-}
-export function isAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>(
-  o: QueryOptimizerOutput<TObj, TRange>,
-): o is AddressBatchOutput<TObj, TRange> {
-  return o.type === "address batch";
-}
-
-export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends SupportedRangeTypes>({
-  output,
-  objKey,
-}: {
-  objKey: (obj: TObj) => string;
-  output: QueryOptimizerOutput<TObj, TRange>;
-}): { obj: TObj; range: Range<TRange> }[] {
-  if (isJsonRpcBatchQueries(output)) {
-    return [{ obj: output.obj, range: output.range }];
-  } else if (isAddressBatchQueries(output)) {
-    const postfiltersByObj = keyBy(output.postFilters, (pf) => objKey(pf.obj));
-    return output.objs.flatMap((obj) => {
-      const postFilter = postfiltersByObj[objKey(obj)];
-      if (postFilter && postFilter.filter !== "no-filter") {
-        return postFilter.filter.map((range) => ({ obj: postFilter.obj, range }));
-      } else {
-        return { obj, range: output.range };
-      }
-    });
-  } else {
-    throw new ProgrammerError("Unsupported type of optimizer output: " + output);
-  }
-}
 
 /**
  * Find a good way to batch queries to minimize the quey count while also respecting the following constraints:
@@ -116,7 +34,7 @@ export function extractObjsAndRangeFromOptimizerOutput<TObj, TRange extends Supp
  *
  */
 export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
-  input: QueryOptimizerInput<TObj, TRange>,
+  input: RangeQueryOptimizerInput<TObj, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
   logger.debug({ msg: "Optimising a range queries", data: getLoggableInput(input) });
 
@@ -187,46 +105,10 @@ export function optimizeRangeQueries<TObj, TRange extends SupportedRangeTypes>(
 }
 
 /**
- * Split the total range to cover into consecutive blobs that should be handled independently
- */
-export function _buildRangeIndex<TRange extends SupportedRangeTypes>(
-  input: Range<TRange>[][],
-  { mergeIfCloserThan, verticalSlicesSize }: { mergeIfCloserThan: number; verticalSlicesSize: number },
-): Range<TRange>[] {
-  const ranges = rangeMerge(input.flatMap((s) => s));
-  if (ranges.length <= 1) {
-    return rangeSplitManyToMaxLength(ranges, verticalSlicesSize);
-  }
-
-  // merge the index if the ranges are "close enough"
-  const res: Range<TRange>[] = [];
-  // we take advantage of the ranges being sorted after merge
-  let buildUp = ranges.shift() as Range<TRange>;
-  while (ranges.length > 0) {
-    const currentRange = ranges.shift() as Range<TRange>;
-    const bn = rangeToNumber(buildUp);
-    const cn = rangeToNumber(currentRange);
-
-    // merge if possible
-    if (bn.to + mergeIfCloserThan >= cn.from) {
-      buildUp.to = rangeValueMax([currentRange.to, buildUp.to]) as TRange;
-    } else {
-      // otherwise we changed blob
-      res.push(buildUp);
-      buildUp = currentRange;
-    }
-  }
-  res.push(buildUp);
-
-  // now split into vertical slices
-  return rangeSplitManyToMaxLength(res, verticalSlicesSize);
-}
-
-/**
  * For a given indexed range, find the best method
  */
 function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
-  input: StrategyInput<TObj, TRange>,
+  input: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>,
 ): QueryOptimizerOutput<TObj, TRange>[] {
   // sometimes we just can't batch by address
   if (input.options.maxAddressesPerQuery === 1) {
@@ -318,7 +200,7 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   objKey,
   states,
   options: { maxAddressesPerQuery, maxQueriesPerProduct, maxRangeSize },
-}: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
+}: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
   let toQuery = states.map(({ obj, ranges }) => ({
     obj,
     ranges,
@@ -376,7 +258,7 @@ function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
 function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   states,
   options: { maxQueriesPerProduct, maxRangeSize },
-}: StrategyInput<TObj, TRange>): StrategyResult<JsonRpcBatchOutput<TObj, TRange>> {
+}: StrategyInput<TObj, RangeQueryOptimizerOptions, TRange>): StrategyResult<JsonRpcBatchOutput<TObj, TRange>> {
   const queries = states.flatMap(({ obj, ranges }) => {
     // split in ranges no greater than the maximum allowed
     // order by new range first since it's more important and more likely to be available via RPC calls
@@ -396,29 +278,4 @@ function _getJsonRpcBatchQueries<TObj, TRange extends SupportedRangeTypes>({
     totalCoverage,
     queryCount: queries.length,
   };
-}
-
-function getLoggableInput<TObj, TRange extends SupportedRangeTypes>(input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>) {
-  return { ...input, states: input.states.map((s) => ({ ...s, obj: input.objKey(s.obj) })) };
-}
-
-function getLoggableOptimizerOutput<TObj, TRange extends SupportedRangeTypes>(
-  input: QueryOptimizerInput<TObj, TRange> | StrategyInput<TObj, TRange>,
-  output: (QueryOptimizerOutput<TObj, TRange> | StrategyResult<QueryOptimizerOutput<TObj, TRange>>) | QueryOptimizerOutput<TObj, TRange>[],
-): any {
-  if (isArray(output)) {
-    return output.map((o) => getLoggableOptimizerOutput(input, o));
-  }
-  if ("totalCoverage" in output) {
-    return { ...output, result: getLoggableOptimizerOutput(input, output.result) };
-  }
-  if (isAddressBatchQueries(output)) {
-    return {
-      ...output,
-      objs: output.objs.map(input.objKey),
-      postFilters: output.postFilters.map((f) => ({ ...f, obj: input.objKey(f.obj) })),
-    };
-  } else {
-    return { ...output, obj: input.objKey(output.obj) };
-  }
 }

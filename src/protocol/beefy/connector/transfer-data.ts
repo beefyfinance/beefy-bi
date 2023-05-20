@@ -11,12 +11,8 @@ import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance
 import { fetchBlock$ } from "../../common/loader/blocks";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
-import {
-  BeefyShareRateCallParams,
-  extractRawPpfsFromFunctionResult,
-  fetchSingleBeefyProductShareRateAndDatetime$,
-  ppfsToVaultSharesRate,
-} from "./share-rate";
+import { fetchSingleBeefyProductShareRateAndDatetime$ } from "./share-rate/share-rate-multi-block";
+import { BeefyShareRateCallParams, extractRawPpfsFromFunctionResult, ppfsToVaultSharesRate } from "./share-rate/share-rate-utils";
 
 const logger = rootLogger.child({ module: "beefy", component: "transfer-data" });
 
