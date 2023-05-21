@@ -1,5 +1,6 @@
 import deepFreeze from "deep-freeze";
 import { optimizeQueries } from "./optimize-queries";
+import { createOptimizerIndexFromBlockList } from "./optimizer-index-from-block-list";
 import { createOptimizerIndexFromState } from "./optimizer-index-from-state";
 import { OptimizerInput, RangeIndexBuilder } from "./query-types";
 
@@ -519,5 +520,112 @@ describe("optimizer for range index", () => {
       },
     };
     optimizeQueries(deepFreeze(input) as unknown as T, createIndex);
+  });
+});
+
+describe("optimizer for block list index", () => {
+  it("should respect all rules using an arbitrary block list index ", () => {
+    console.dir(
+      optimizeQueries<{ key: string }, number>(
+        {
+          objKey: (obj) => obj.key,
+          states: [
+            { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
+            { obj: { key: "0xB" }, fullRange: { from: 300, to: 1000 }, coveredRanges: [], toRetry: [] },
+            { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
+          ],
+          options: {
+            ignoreImportState: false,
+            maxAddressesPerQuery: 1000,
+            maxRangeSize: 1000,
+            maxQueriesPerProduct: 1000,
+          },
+        },
+        (_, options) =>
+          createOptimizerIndexFromBlockList({
+            mode: "historical",
+            blockNumberList: [500, 600, 700, 800, 900] as number[],
+            latestBlockNumber: 1000,
+            firstBlockToConsider: 200,
+            snapshotInterval: "15min",
+            msPerBlockEstimate: 1000,
+            maxBlocksPerQuery: options.maxRangeSize,
+          }),
+      ),
+      { depth: null },
+    );
+    expect(
+      optimizeQueries<{ key: string }, number>(
+        {
+          objKey: (obj) => obj.key,
+          states: [
+            { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
+            { obj: { key: "0xB" }, fullRange: { from: 300, to: 1000 }, coveredRanges: [], toRetry: [] },
+            { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
+          ],
+          options: {
+            ignoreImportState: false,
+            maxAddressesPerQuery: 1000,
+            maxRangeSize: 1000,
+            maxQueriesPerProduct: 1000,
+          },
+        },
+        (_, options) =>
+          createOptimizerIndexFromBlockList({
+            mode: "historical",
+            blockNumberList: [500, 600, 700, 800, 900] as number[],
+            latestBlockNumber: 1000,
+            firstBlockToConsider: 200,
+            snapshotInterval: "15min",
+            msPerBlockEstimate: 1000,
+            maxBlocksPerQuery: options.maxRangeSize,
+          }),
+      ),
+    ).toEqual([
+      {
+        type: "jsonrpc batch",
+        obj: { key: "0xB" },
+        range: { from: 900, to: 1000 },
+      },
+      {
+        type: "jsonrpc batch",
+        obj: { key: "0xB" },
+        range: { from: 800, to: 899 },
+      },
+      {
+        type: "jsonrpc batch",
+        obj: { key: "0xB" },
+        range: { from: 700, to: 799 },
+      },
+      {
+        type: "address batch",
+        objs: [{ key: "0xB" }, { key: "0xC" }],
+        range: { from: 600, to: 699 },
+        postFilters: [
+          { obj: { key: "0xB" }, filter: "no-filter" },
+          { obj: { key: "0xC" }, filter: [{ from: 600, to: 630 }] },
+        ],
+      },
+      {
+        type: "address batch",
+        objs: [{ key: "0xA" }, { key: "0xB" }, { key: "0xC" }],
+        range: { from: 500, to: 599 },
+        postFilters: [
+          { obj: { key: "0xA" }, filter: [{ from: 500, to: 500 }] },
+          { obj: { key: "0xB" }, filter: "no-filter" },
+          { obj: { key: "0xC" }, filter: "no-filter" },
+        ],
+      },
+      {
+        type: "address batch",
+        objs: [{ key: "0xA" }, { key: "0xB" }, { key: "0xC" }],
+        range: { from: 200, to: 499 },
+        postFilters: [
+          { obj: { key: "0xA" }, filter: "no-filter" },
+          { obj: { key: "0xB" }, filter: [{ from: 300, to: 499 }] },
+          { obj: { key: "0xC" }, filter: [{ from: 480, to: 499 }] },
+        ],
+      },
+    ]);
   });
 });

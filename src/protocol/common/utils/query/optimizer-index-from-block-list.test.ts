@@ -6,6 +6,7 @@ describe("optimizer create index from block list", () => {
       createOptimizerIndexFromBlockList({
         mode: "historical",
         latestBlockNumber: 100,
+        firstBlockToConsider: 1,
         snapshotInterval: "15min",
         maxBlocksPerQuery: 30,
         msPerBlockEstimate: 1000,
@@ -13,9 +14,10 @@ describe("optimizer create index from block list", () => {
       }),
     ).toEqual([
       { from: 1, to: 9 },
-      { from: 11, to: 40 },
-      { from: 41, to: 70 },
-      { from: 71, to: 100 },
+      { from: 10, to: 39 },
+      { from: 40, to: 69 },
+      { from: 70, to: 99 },
+      { from: 100, to: 100 },
     ]);
   });
 
@@ -24,6 +26,7 @@ describe("optimizer create index from block list", () => {
       createOptimizerIndexFromBlockList({
         mode: "historical",
         latestBlockNumber: 100,
+        firstBlockToConsider: 1,
         snapshotInterval: "15min",
         maxBlocksPerQuery: 30,
         msPerBlockEstimate: 1000,
@@ -48,6 +51,7 @@ describe("optimizer create index from block list", () => {
       createOptimizerIndexFromBlockList({
         mode: "historical",
         latestBlockNumber: 50,
+        firstBlockToConsider: 1,
         snapshotInterval: "15min",
         maxBlocksPerQuery: 300_000,
         msPerBlockEstimate: 60_000,
@@ -55,9 +59,9 @@ describe("optimizer create index from block list", () => {
       }),
     ).toEqual([
       { from: 1, to: 9 },
-      { from: 11, to: 25 },
-      { from: 26, to: 40 },
-      { from: 41, to: 50 },
+      { from: 10, to: 24 },
+      { from: 25, to: 39 },
+      { from: 40, to: 50 },
     ]);
   });
 
@@ -65,12 +69,32 @@ describe("optimizer create index from block list", () => {
     expect(
       createOptimizerIndexFromBlockList({
         mode: "recent",
-        latestBlockNumber: 100,
+        latestBlockNumber: 80,
+        firstBlockToConsider: 1,
         snapshotInterval: "15min",
         maxBlocksPerQuery: 30,
         msPerBlockEstimate: 1000,
         blockNumberList: [1, 10],
       }),
-    ).toEqual([{ from: 71, to: 100 }]);
+    ).toEqual([{ from: 70, to: 80 }]);
+  });
+
+  it("should extend the block list backward if that's necessary", () => {
+    expect(
+      createOptimizerIndexFromBlockList({
+        mode: "historical",
+        latestBlockNumber: 35,
+        firstBlockToConsider: 1,
+        snapshotInterval: "15min",
+        maxBlocksPerQuery: 10,
+        msPerBlockEstimate: 1000,
+        blockNumberList: [10, 20],
+      }),
+    ).toEqual([
+      { from: 1, to: 9 },
+      { from: 10, to: 19 },
+      { from: 20, to: 29 },
+      { from: 30, to: 35 },
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { max, sortBy } from "lodash";
+import { max, min, sortBy } from "lodash";
 import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
 import { Range, rangeSplitManyToMaxLength } from "../../../../utils/range";
 
@@ -6,6 +6,7 @@ export function createOptimizerIndexFromBlockList({
   mode,
   blockNumberList,
   latestBlockNumber,
+  firstBlockToConsider,
   snapshotInterval,
   maxBlocksPerQuery,
   msPerBlockEstimate,
@@ -13,6 +14,7 @@ export function createOptimizerIndexFromBlockList({
   mode: "recent" | "historical";
   blockNumberList: number[];
   latestBlockNumber: number;
+  firstBlockToConsider: number;
   maxBlocksPerQuery: number;
   snapshotInterval: SamplingPeriod;
   msPerBlockEstimate: number;
@@ -30,9 +32,13 @@ export function createOptimizerIndexFromBlockList({
     return [];
   }
   const maxDbBlock = max(blockNumberList) as number;
+  const minDbBlock = min(blockNumberList) as number;
 
   if (latestBlockNumber > maxDbBlock) {
-    blockRanges.push({ from: maxDbBlock + 1, to: latestBlockNumber });
+    blockRanges.push({ from: maxDbBlock, to: latestBlockNumber });
+  }
+  if (minDbBlock > firstBlockToConsider) {
+    blockRanges.unshift({ from: firstBlockToConsider, to: minDbBlock - 1 });
   }
 
   // split ranges in chunks of ~15min

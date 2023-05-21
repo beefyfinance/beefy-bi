@@ -174,7 +174,11 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                 createOptimizerIndexFromBlockList({
                   mode: ctx.behaviour.mode,
                   blockNumberList: blockList.map((b) => b.interpolated_block_number),
-                  latestBlockNumber,
+                  latestBlockNumber: latestBlockNumber - ctx.behaviour.waitForBlockPropagation,
+                  firstBlockToConsider: Math.min(
+                    min(items.map((item) => item.importState.importData.contractCreatedAtBlock)) as number,
+                    blockList.length > 0 ? blockList[0].interpolated_block_number : latestBlockNumber,
+                  ),
                   snapshotInterval: SNAPSHOT_INTERVAL,
                   msPerBlockEstimate: MS_PER_BLOCK_ESTIMATE[options.chain],
                   maxBlocksPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
