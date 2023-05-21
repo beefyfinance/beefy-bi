@@ -102,12 +102,14 @@ export function createOptimizerIndexFromState<TRange extends SupportedRangeTypes
 }
 
 export function blockNumberListToRanges({
+  mode,
   blockNumberList,
   latestBlockNumber,
   snapshotInterval,
   maxBlocksPerQuery,
   msPerBlockEstimate,
 }: {
+  mode: "recent" | "historical";
   blockNumberList: number[];
   latestBlockNumber: number;
   maxBlocksPerQuery: number;
@@ -115,6 +117,7 @@ export function blockNumberListToRanges({
   msPerBlockEstimate: number;
 }): Range<number>[] {
   const blockRanges: Range<number>[] = [];
+
   const sortedBlockNumbers = sortBy(blockNumberList);
   for (let i = 0; i < sortedBlockNumbers.length - 1; i++) {
     const block = sortedBlockNumbers[i];
@@ -127,12 +130,18 @@ export function blockNumberListToRanges({
   }
   const maxDbBlock = max(blockNumberList) as number;
 
-  blockRanges.push({ from: maxDbBlock + 1, to: latestBlockNumber });
+  if (latestBlockNumber > maxDbBlock) {
+    blockRanges.push({ from: maxDbBlock + 1, to: latestBlockNumber });
+  }
 
   // split ranges in chunks of ~15min
   const maxTimeStepMs = samplingPeriodMs[snapshotInterval];
   const avgBlockPerTimeStep = Math.floor(maxTimeStepMs / msPerBlockEstimate);
   const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
 
-  return rangeSplitManyToMaxLength(blockRanges, rangeMaxLength);
+  let finalRanges = rangeSplitManyToMaxLength(blockRanges, rangeMaxLength);
+  if (mode === "recent") {
+    finalRanges = [finalRanges[finalRanges.length - 1]];
+  }
+  return finalRanges;
 }

@@ -171,6 +171,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
               },
               () =>
                 blockNumberListToRanges({
+                  mode: ctx.behaviour.mode,
                   blockNumberList: blockList.map((b) => b.interpolated_block_number),
                   latestBlockNumber,
                   snapshotInterval: SNAPSHOT_INTERVAL,
