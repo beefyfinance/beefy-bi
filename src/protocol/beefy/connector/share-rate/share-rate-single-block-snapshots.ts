@@ -127,7 +127,7 @@ export function fetchMultipleShareRate$<
         }
 
         const results: ResultWithMabeBlockDatetime[] = [];
-        for (let rIdx = 0; rIdx < calls.length; rIdx++) {
+        for (let rIdx = 0; rIdx < item.query.objs.length; rIdx++) {
           const product = item.query.objs[rIdx].product;
           const param = getCallParamsFromProductAndRange(product, item.query.range);
           const ppfsData = multicallResults[rIdx];
