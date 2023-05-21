@@ -32,6 +32,62 @@ const logger = rootLogger.child({ module: "common", component: "optimise-range-q
  * - maxRangeSize: most rpc restrict on how much range we can query
  * - maxQueriesPerProduct: mostly a way to avoid consuming too much memory
  *
+ * Do some batching using this probably not optimal algorithm
+ *
+ * Given the data needs below:
+ *
+ * 0x1: [100,299]
+ * 0x2: [200,399]
+ * 0x3: [250,349]
+ *
+ * Now, we pick a cell size, something like x% of the max size. X being a configuration of this algorithm.
+ *
+ * Say we got a cell size of 50 from now on, a maxRangeSize of 100 and maxAddressesPerQuery of 2.
+ * We place the product queries in a grid like so:
+ *
+ *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] |
+ * ----------------------------------------------------------------- |
+ * 0x1 |     x         x         x         x                         |
+ * 0x2 |                         x         x         x         x     |
+ * 0x3 |                                   x         x               |
+ * ----------------------------------------------------------------- |
+ *
+ * The individual cells represent data needs, please note that it's not a regular grid in the sense that rows are not ordered.
+ *
+ * Now we try to "fill" this grid using rectangles of length `maxRangeSize` and height `maxAddressesPerQuery`. Those will be our queries.
+ * To create a query, we start from the left-most data-need and include the whole `maxRangeSize` of this product.
+ * Until we have filled the `maxAddressesPerQuery` requirement, find the product that would benefit the most from being added to the batch and add it.
+ * Repeat until all the grid is covered.
+ *
+ * For the previous example, the result would be this:
+ *
+ *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] |
+ * ----------------------------------------------------------------- |
+ * 0x1 | [1  x         x  1] [2   x        x  2]                     |
+ * 0x2 |                     [2   x        x  2] [4  x         x  4] |
+ * 0x3 |                     [3            x  3] [4  x            4] |
+ * ----------------------------------------------------------------- |
+ *
+ * A special case that will happen often is when there is recent data to cover and very old data to reimport.
+ * In this case we have a grid with data blobs separated by large gaps we don't want to look at for performance.
+ *
+ * To handle those cases we build a range index composed of every cell span.
+ * Example with 0x4 [150,199] [550,599] below:
+ *
+ *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] [400,449] [450,499] [500,549] [550,599] |
+ * --------------------------------------------------------------------------------------------------------- |
+ * 0x1 |     x         x         x         x                                                                 |
+ * 0x2 |                         x         x         x         x                                             |
+ * 0x3 |                                   x         x                                                       |
+ * 0x4 |               x                                                                     x               |
+ * --------------------------------------------------------------------------------------------------------- |
+ * => Range index: [[100, 399], [500, 549]].
+ *
+ * This way we can realign the range queries each time and have a better coverage for every blob of data.
+ * Sometimes the blobs are close enough that we can merge them
+ *
+ * PS: note that the implementation could be way faster using a grid of bits and bitwise operations.
+ *
  */
 export function optimizeQueries<TObj, TRange extends SupportedRangeTypes>(
   input: OptimizerInput<TObj, TRange>,
@@ -137,66 +193,12 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
 }
 
 /**
- * Do some batching using this probably not optimal algorithm
- *
- * Given the data needs below:
- *
- * 0x1: [100,299]
- * 0x2: [200,399]
- * 0x3: [250,349]
- *
- * Now, we pick a cell size, something like x% of the max size. X being a configuration of this algorithm.
- *
- * Say we got a cell size of 50 from now on, a maxRangeSize of 100 and maxAddressesPerQuery of 2.
- * We place the product queries in a grid like so:
- *
- *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] |
- * ----------------------------------------------------------------- |
- * 0x1 |     x         x         x         x                         |
- * 0x2 |                         x         x         x         x     |
- * 0x3 |                                   x         x               |
- * ----------------------------------------------------------------- |
- *
- * The individual cells represent data needs, please note that it's not a regular grid in the sense that rows are not ordered.
- *
- * Now we try to "fill" this grid using rectangles of length `maxRangeSize` and height `maxAddressesPerQuery`. Those will be our queries.
- * To create a query, we start from the left-most data-need and include the whole `maxRangeSize` of this product.
- * Until we have filled the `maxAddressesPerQuery` requirement, find the product that would benefit the most from being added to the batch and add it.
- * Repeat until all the grid is covered.
- *
- * For the previous example, the result would be this:
- *
- *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] |
- * ----------------------------------------------------------------- |
- * 0x1 | [1  x         x  1] [2   x        x  2]                     |
- * 0x2 |                     [2   x        x  2] [4  x         x  4] |
- * 0x3 |                     [3            x  3] [4  x            4] |
- * ----------------------------------------------------------------- |
- *
- * A special case that will happen often is when there is recent data to cover and very old data to reimport.
- * In this case we have a grid with data blobs separated by large gaps we don't want to look at for performance.
- *
- * To handle those cases we build a range index composed of every cell span.
- * Example with 0x4 [150,199] [550,599] below:
- *
- *     | [100,149] [150,199] [200,249] [250,299] [300,349] [350,399] [400,449] [450,499] [500,549] [550,599] |
- * --------------------------------------------------------------------------------------------------------- |
- * 0x1 |     x         x         x         x                                                                 |
- * 0x2 |                         x         x         x         x                                             |
- * 0x3 |                                   x         x                                                       |
- * 0x4 |               x                                                                     x               |
- * --------------------------------------------------------------------------------------------------------- |
- * => Range index: [[100, 399], [500, 549]].
- *
- * This way we can realign the range queries each time and have a better coverage for every blob of data.
- * Sometimes the blobs are close enough that we can merge them
- *
- * PS: note that the implementation could be way faster using a grid of bits and bitwise operations.
+ * Do the address batching strategy
  */
 function _getAddressBatchQueries<TObj, TRange extends SupportedRangeTypes>({
   objKey,
   states,
-  options: { maxAddressesPerQuery, maxQueriesPerProduct, maxRangeSize },
+  options: { maxAddressesPerQuery },
 }: StrategyInput<TObj, TRange>): StrategyResult<AddressBatchOutput<TObj, TRange>> {
   let toQuery = states.map(({ obj, ranges }) => ({
     obj,

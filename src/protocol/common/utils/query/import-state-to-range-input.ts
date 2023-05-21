@@ -7,6 +7,15 @@ import { ImportBehaviour } from "../../types/import-context";
 
 const logger = rootLogger.child({ module: "common", component: "import-state-to-range-input" });
 
+/**
+ * Apply the behaviour to the considered import state,
+ * There is many options to apply:
+ * - ignore the import state if needed
+ * - skip the recent window if needed
+ * - force a range to be considered
+ * - max blocks per query
+ * - max queries per batch
+ */
 export function importStateToOptimizerRangeInput({
   behaviour,
   maxBlocksPerQuery,

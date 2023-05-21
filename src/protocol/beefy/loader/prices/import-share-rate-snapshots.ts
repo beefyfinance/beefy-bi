@@ -18,7 +18,8 @@ import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
 import { importStateToOptimizerRangeInput } from "../../../common/utils/query/import-state-to-range-input";
 import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
-import { blockNumberListToRanges, extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
+import { createOptimizerIndexFromBlockList } from "../../../common/utils/query/optimizer-index-from-block-list";
+import { extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractShareRateFromOptimizerOutput, fetchMultipleShareRate$ } from "../../connector/share-rate/share-rate-single-block-snapshots";
 import { getPriceFeedImportStateKey } from "../../utils/import-state";
@@ -170,7 +171,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                 },
               },
               () =>
-                blockNumberListToRanges({
+                createOptimizerIndexFromBlockList({
                   mode: ctx.behaviour.mode,
                   blockNumberList: blockList.map((b) => b.interpolated_block_number),
                   latestBlockNumber,

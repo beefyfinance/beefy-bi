@@ -11,7 +11,8 @@
     "db:migrate": "ts-node ./src/script/run.ts db:migrate",
     "redis:console": "docker exec -it redis-dev redis-cli",
     "redis:clear": "docker exec -it redis-dev redis-cli flushall",
-    "test:outdated": "ncu"
+    "test:outdated": "ncu",
+    "test:unused-exports": "ts-unused-exports ./tsconfig.json"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.2.0",

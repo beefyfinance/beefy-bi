@@ -23,7 +23,8 @@ import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline"
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
 import { importStateToOptimizerRangeInput } from "../../../common/utils/query/import-state-to-range-input";
 import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
-import { createOptimizerIndexFromState, extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
+import { createOptimizerIndexFromState } from "../../../common/utils/query/optimizer-index-from-state";
+import { extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
 import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";

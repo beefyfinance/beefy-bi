@@ -1,6 +1,6 @@
 import deepFreeze from "deep-freeze";
 import { optimizeQueries } from "./optimize-queries";
-import { createOptimizerIndexFromState } from "./optimizer-utils";
+import { createOptimizerIndexFromState } from "./optimizer-index-from-state";
 import { OptimizerInput, RangeIndexBuilder } from "./query-types";
 
 describe("optimizer for range index", () => {
