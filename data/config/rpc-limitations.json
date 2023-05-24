@@ -515,7 +515,7 @@
     "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": null,
@@ -951,7 +951,7 @@
     "https://polygon.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": "no-limit",
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": null,
