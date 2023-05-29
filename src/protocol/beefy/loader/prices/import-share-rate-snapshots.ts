@@ -9,7 +9,7 @@ import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-fi
 import { latestBlockNumber$ } from "../../../common/connector/latest-block-number";
 import { fetchChainBlockList$ } from "../../../common/loader/chain-block-list";
 import { fetchPriceFeedContractCreationInfos } from "../../../common/loader/fetch-product-creation-infos";
-import { DbProductShareRateImportState, addMissingImportState$ } from "../../../common/loader/import-state";
+import { DbProductShareRateImportState, addMissingImportState$, fetchImportState$ } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
 import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyStdVaultProduct, fetchProduct$ } from "../../../common/loader/product";
@@ -41,7 +41,14 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
         { priceFeed: DbPriceFeed; importState: DbProductShareRateImportState | null }
       > =
         ctx.behaviour.mode === "recent"
-          ? Rx.pipe(Rx.map((priceFeed) => ({ priceFeed, importState: null })))
+          ? Rx.pipe(
+              fetchImportState$({
+                client: ctx.client,
+                getImportStateKey: (priceFeed) => getPriceFeedImportStateKey({ priceFeedId: priceFeed.priceFeedId }),
+                streamConfig: ctx.streamConfig,
+                formatOutput: (priceFeed, importState) => ({ priceFeed, importState: importState as DbProductShareRateImportState | null }),
+              }),
+            )
           : addMissingImportState$<
               DbPriceFeed,
               { priceFeed: DbPriceFeed; importState: DbProductShareRateImportState },
@@ -89,10 +96,12 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
             });
 
       return Rx.pipe(
-        // create the import state if it does not exists
-        createImportStateIfNeeded$,
+        Rx.pipe(
+          // create the import state if it does not exists
+          createImportStateIfNeeded$,
 
-        excludeNullFields$("importState"),
+          excludeNullFields$("importState"),
+        ),
 
         // get the associated product
         fetchProduct$({
@@ -138,6 +147,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
             getChain: () => options.chain,
             timeStep: SNAPSHOT_INTERVAL,
             getFirstBlock: (item) => min(item.items.map((i) => i.importState.importData.contractCreatedAtBlock)) as number,
+            latestBlock: (item) => ({ approximativeBlockDatetime: new Date(), blockNumber: item.latestBlockNumber }),
             formatOutput: (item, blockList) => ({ ...item, blockList }),
           }),
 

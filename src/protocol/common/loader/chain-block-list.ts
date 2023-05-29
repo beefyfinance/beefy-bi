@@ -17,6 +17,7 @@ export function fetchChainBlockList$<
   emitError: TErr;
   getFirstDate?: (obj: TObj) => Date;
   getFirstBlock?: (obj: TObj) => number;
+  latestBlock?: (obj: TObj) => { approximativeBlockDatetime: Date; blockNumber: number };
   timeStep: SamplingPeriod;
   getChain: (obj: TObj) => Chain;
   formatOutput: (obj: TObj, blockList: TListItem[]) => TRes;
@@ -43,6 +44,8 @@ export function fetchChainBlockList$<
         );
         const firstDateIdMap = keyBy(firstDateResults, "chain");
 
+        const latestBlockData = options.latestBlock?.(objAndData[0].obj.obj) || null;
+
         const blockList = await db_query<TListItem>(
           `
               with blocks as (
@@ -50,7 +53,11 @@ export function fetchChainBlockList$<
                     chain,
                     time_bucket_gapfill(%L, datetime) as datetime,
                     last(block_number, datetime) as block_number,
-                    interpolate(last(block_number, datetime)) as interpolated_block_number
+                    ${
+                      latestBlockData
+                        ? "interpolate(last(block_number, datetime), next => (%L::timestamptz, %L::integer)) as interpolated_block_number"
+                        : "interpolate(last(block_number, datetime)) as interpolated_block_number"
+                    }
                 from block_ts
                 where 
                     datetime between (%L::timestamptz - %L::interval) and (now() - %L::interval)
@@ -63,6 +70,7 @@ export function fetchChainBlockList$<
           `,
           [
             options.timeStep,
+            ...(latestBlockData ? [latestBlockData.approximativeBlockDatetime.toISOString(), latestBlockData.blockNumber] : []),
             min(objAndData.map(({ data }) => firstDateIdMap[data]?.first_date ?? new Date()))?.toISOString(),
             options.timeStep,
             options.timeStep,
