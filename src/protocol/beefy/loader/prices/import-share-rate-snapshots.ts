@@ -166,7 +166,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
                 options: {
                   ignoreImportState: ctx.behaviour.ignoreImportState,
                   maxAddressesPerQuery: ctx.rpcConfig.rpcLimitations.maxGetLogsAddressBatchSize || 1,
-                  maxQueriesPerProduct: ctx.behaviour.limitQueriesCountTo.investment,
+                  maxQueriesPerProduct: ctx.behaviour.limitQueriesCountTo.shareRate,
                   maxRangeSize: ctx.rpcConfig.rpcLimitations.maxGetLogsBlockSpan,
                 },
               },
