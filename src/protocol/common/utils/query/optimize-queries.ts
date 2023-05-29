@@ -135,20 +135,32 @@ export function optimizeQueries<TObj, TRange extends SupportedRangeTypes>(
         states.map(({ obj, toRetry }) => ({ obj, ranges: toRetry.reverse() })),
       ];
 
-  const bestStrategiesBySlice = steps.flatMap((stateRanges) =>
-    // build the coverage index for non-retry ranges
-    buildRangeIndex(stateRanges, input.options)
-      // handle the most recent first
-      .reverse()
-      // limit the amount we need to fetch
-      .slice(0, maxQueriesPerProduct)
-      // restrict ranges by the index
-      .map((rangeIndexPart) =>
-        stateRanges.map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) })).filter(({ ranges }) => ranges.length > 0),
-      )
-      // get the best method for each part of this index
-      .flatMap((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options })),
-  );
+  const bestStrategiesBySlice = steps
+    // remove empty steps for performance
+    .filter((stateRanges) => stateRanges.length > 0)
+    .flatMap((stateRanges) =>
+      // build the coverage index for non-retry ranges
+      buildRangeIndex(stateRanges, input.options)
+        // handle the most recent first
+        .reverse()
+        // restrict ranges by the index
+        .map((rangeIndexPart) =>
+          stateRanges
+            .map(({ obj, ranges }) => ({ obj, ranges: rangeIntersect(ranges, rangeIndexPart) }))
+            // remove empty ranges for performance
+            .filter(({ ranges }) => ranges.length > 0),
+        )
+        // remove empty steps for performance
+        .filter((toQuery) => toQuery.length > 0)
+        // limit the amount we need to fetch
+        .slice(0, maxQueriesPerProduct)
+        // get the best method for each part of this index
+        .map((toQuery) => _findTheBestMethodForRanges<TObj, TRange>({ objKey: input.objKey, states: toQuery, options: input.options }))
+        // filter out empty queries
+        .filter((q) => q.result.length > 0)
+        // only results
+        .flatMap((q) => q.result),
+    );
 
   logger.trace({
     msg: "Best strategy for all slice found",
@@ -162,10 +174,10 @@ export function optimizeQueries<TObj, TRange extends SupportedRangeTypes>(
  */
 function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
   input: StrategyInput<TObj, TRange>,
-): QueryOptimizerOutput<TObj, TRange>[] {
+): StrategyResult<QueryOptimizerOutput<TObj, TRange>> {
   // sometimes we just can't batch by address
   if (input.options.maxAddressesPerQuery === 1) {
-    return _getJsonRpcBatchQueries<TObj, TRange>(input).result;
+    return _getJsonRpcBatchQueries<TObj, TRange>(input);
   }
 
   const jsonRpcBatch = _getJsonRpcBatchQueries(input);
@@ -188,8 +200,13 @@ function _findTheBestMethodForRanges<TObj, TRange extends SupportedRangeTypes>(
     output = jsonRpcBatch.queryCount < addressBatch.queryCount ? jsonRpcBatch : addressBatch;
   }
 
-  logger.trace({ msg: "Best strategy for slice found", data: { input: getLoggableInput(input), output: getLoggableOptimizerOutput(input, output) } });
-  return output.result;
+  if (output.result.length > 0) {
+    logger.trace({
+      msg: "Best strategy for slice found",
+      data: { input: getLoggableInput(input), output: getLoggableOptimizerOutput(input, output) },
+    });
+  }
+  return output;
 }
 
 /**

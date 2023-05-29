@@ -15,7 +15,8 @@ export function fetchChainBlockList$<
 >(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getFirstDate: (obj: TObj) => Date;
+  getFirstDate?: (obj: TObj) => Date;
+  getFirstBlock?: (obj: TObj) => number;
   timeStep: SamplingPeriod;
   getChain: (obj: TObj) => Chain;
   formatOutput: (obj: TObj, blockList: TListItem[]) => TRes;
@@ -96,8 +97,15 @@ export function fetchChainBlockList$<
 
     // filter the block list by the requested first date
     Rx.map((item) => {
-      const afterThisDate = options.getFirstDate(item.obj);
-      const filteredBlockList = item.blockList.filter((block) => block.datetime >= afterThisDate);
+      let filteredBlockList = item.blockList;
+      if (options.getFirstDate) {
+        const afterThisDate = options.getFirstDate(item.obj);
+        filteredBlockList = item.blockList.filter((block) => block.datetime >= afterThisDate);
+      }
+      if (options.getFirstBlock) {
+        const afterThisBlock = options.getFirstBlock(item.obj);
+        filteredBlockList = item.blockList.filter((block) => block.interpolated_block_number >= afterThisBlock);
+      }
       return options.formatOutput(item.obj, filteredBlockList);
     }),
   );

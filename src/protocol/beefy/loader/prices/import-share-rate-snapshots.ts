@@ -137,7 +137,7 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
             },
             getChain: () => options.chain,
             timeStep: SNAPSHOT_INTERVAL,
-            getFirstDate: (item) => min(item.items.map((i) => i.importState.importData.contractCreationDate)) as Date,
+            getFirstBlock: (item) => min(item.items.map((i) => i.importState.importData.contractCreatedAtBlock)) as number,
             formatOutput: (item, blockList) => ({ ...item, blockList }),
           }),
 

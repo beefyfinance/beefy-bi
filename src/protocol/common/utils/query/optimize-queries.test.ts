@@ -1,4 +1,6 @@
 import deepFreeze from "deep-freeze";
+import { range } from "lodash";
+import { samplingPeriodMs } from "../../../../types/sampling";
 import { optimizeQueries } from "./optimize-queries";
 import { createOptimizerIndexFromBlockList } from "./optimizer-index-from-block-list";
 import { createOptimizerIndexFromState } from "./optimizer-index-from-state";
@@ -525,35 +527,6 @@ describe("optimizer for range index", () => {
 
 describe("optimizer for block list index", () => {
   it("should respect all rules using an arbitrary block list index ", () => {
-    console.dir(
-      optimizeQueries<{ key: string }, number>(
-        {
-          objKey: (obj) => obj.key,
-          states: [
-            { obj: { key: "0xA" }, fullRange: { from: 200, to: 500 }, coveredRanges: [], toRetry: [] },
-            { obj: { key: "0xB" }, fullRange: { from: 300, to: 1000 }, coveredRanges: [], toRetry: [] },
-            { obj: { key: "0xC" }, fullRange: { from: 480, to: 630 }, coveredRanges: [], toRetry: [] },
-          ],
-          options: {
-            ignoreImportState: false,
-            maxAddressesPerQuery: 1000,
-            maxRangeSize: 1000,
-            maxQueriesPerProduct: 1000,
-          },
-        },
-        (_, options) =>
-          createOptimizerIndexFromBlockList({
-            mode: "historical",
-            blockNumberList: [500, 600, 700, 800, 900] as number[],
-            latestBlockNumber: 1000,
-            firstBlockToConsider: 200,
-            snapshotInterval: "15min",
-            msPerBlockEstimate: 1000,
-            maxBlocksPerQuery: options.maxRangeSize,
-          }),
-      ),
-      { depth: null },
-    );
     expect(
       optimizeQueries<{ key: string }, number>(
         {
@@ -625,6 +598,90 @@ describe("optimizer for block list index", () => {
           { obj: { key: "0xB" }, filter: [{ from: 300, to: 499 }] },
           { obj: { key: "0xC" }, filter: [{ from: 480, to: 499 }] },
         ],
+      },
+    ]);
+  });
+
+  it("should not return anything it there is no work to be done", () => {
+    expect(
+      optimizeQueries<string, number>(
+        {
+          objKey: (obj) => obj,
+          states: [
+            {
+              obj: "beefy:ethereum:convex-cnc:ppfs",
+              fullRange: { from: 16831493, to: 17366187 },
+              coveredRanges: [{ from: 16831493, to: 17366187 }],
+              toRetry: [],
+            },
+          ],
+          options: {
+            ignoreImportState: false,
+            maxAddressesPerQuery: 100,
+            maxQueriesPerProduct: 100,
+            maxRangeSize: 5000,
+          },
+        },
+        (_, options) =>
+          createOptimizerIndexFromBlockList({
+            mode: "historical",
+            blockNumberList: range(16831567, 17049555, samplingPeriodMs["15min"] / 10000) as number[],
+            latestBlockNumber: 17366316,
+            firstBlockToConsider: 16831493,
+            snapshotInterval: "15min",
+            msPerBlockEstimate: 10000,
+            maxBlocksPerQuery: options.maxRangeSize,
+          }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("should return the right requests when there is a large covered area but still some historical data to fetch", () => {
+    expect(
+      optimizeQueries<string, number>(
+        {
+          objKey: (obj) => obj,
+          states: [
+            {
+              obj: "beefy:ethereum:convex-cnc:ppfs",
+              fullRange: { from: 16831493, to: 17366187 },
+              coveredRanges: [{ to: 17366187, from: 17357265 }],
+              toRetry: [],
+            },
+          ],
+          options: {
+            ignoreImportState: false,
+            maxAddressesPerQuery: 100,
+            maxQueriesPerProduct: 3,
+            maxRangeSize: 5000,
+          },
+        },
+        (_, options) =>
+          createOptimizerIndexFromBlockList({
+            mode: "historical",
+            blockNumberList: range(16831493, 17366367, samplingPeriodMs["15min"] / 10000) as number[],
+            latestBlockNumber: 17366367,
+            firstBlockToConsider: 16831493,
+            snapshotInterval: "15min",
+            msPerBlockEstimate: 10000,
+            maxBlocksPerQuery: options.maxRangeSize,
+          }),
+      ),
+    ).toEqual([
+      {
+        type: "jsonrpc batch",
+        obj: "beefy:ethereum:convex-cnc:ppfs",
+        range: { from: 17357183, to: 17357264 },
+      },
+      {
+        type: "jsonrpc batch",
+        obj: "beefy:ethereum:convex-cnc:ppfs",
+        range: { from: 17357093, to: 17357182 },
+      },
+      {
+        type: "jsonrpc batch",
+        obj: "beefy:ethereum:convex-cnc:ppfs",
+        range: { from: 17357003, to: 17357092 },
       },
     ]);
   });
