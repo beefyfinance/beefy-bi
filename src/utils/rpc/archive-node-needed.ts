@@ -18,23 +18,36 @@ export function isErrorDueToMissingDataFromNode(error: any) {
     const errorMessage = get(rpcBodyError, "error.message");
 
     if (
-      errorCode === -32000 &&
-      isString(errorMessage) &&
-      (errorMessage.includes("Run with --pruning=archive") ||
-        // Cf: https://github.com/ethereum/go-ethereum/issues/20557
-        errorMessage.startsWith("missing trie node"))
+      (errorCode === -32000 &&
+        isString(errorMessage) &&
+        (errorMessage.includes("Run with --pruning=archive") ||
+          // Cf: https://github.com/ethereum/go-ethereum/issues/20557
+          errorMessage.startsWith("missing trie node"))) ||
+      (errorCode === 0 && isString(errorMessage) && errorMessage.includes("we can't execute this request"))
     ) {
       return true;
     }
   }
 
+  // also parse a string content
+  if (isString(error)) {
+    const [successfulParse, parsedErrorContent] = parseJSON(error);
+    if (!successfulParse) {
+      return false;
+    }
+    error = parsedErrorContent;
+  }
+
   // also parse from direct rpc responses
   const directRpcError = get(error, "error");
+  const errorCode = get(directRpcError, "code");
+  const errorMessage = get(directRpcError, "message");
   if (
-    directRpcError &&
-    isObjectLike(directRpcError) &&
-    get(directRpcError, "code") === -32000 &&
-    (get(directRpcError, "message")?.startsWith("missing trie node") || get(directRpcError, "message")?.startsWith("header not found"))
+    (directRpcError &&
+      isObjectLike(directRpcError) &&
+      errorCode === -32000 &&
+      (errorMessage?.startsWith("missing trie node") || errorMessage?.startsWith("header not found"))) ||
+    (errorCode === 0 && isString(errorMessage) && errorMessage?.includes("we can't execute this request"))
   ) {
     return true;
   }
