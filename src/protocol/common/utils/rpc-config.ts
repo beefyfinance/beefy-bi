@@ -170,7 +170,7 @@ function monkeyPatchProvider(chain: Chain, provider: ethers.providers.JsonRpcPro
     monkeyPatchMissingEffectiveGasPriceReceiptFormat(provider);
   }
 
-  const retryDelay = limitations.minDelayBetweenCalls === "no-limit" ? 0 : limitations.minDelayBetweenCalls;
+  const retryDelay = limitations.minDelayBetweenCalls === "no-limit" ? 1000 : limitations.minDelayBetweenCalls;
   if (limitations.isArchiveNode) {
     monkeyPatchArchiveNodeRpcProvider(chain, provider, retryDelay);
   }
