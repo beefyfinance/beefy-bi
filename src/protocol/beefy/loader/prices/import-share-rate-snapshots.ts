@@ -182,7 +182,6 @@ export function createBeefyShareRateSnapshotsRunner(options: { chain: Chain; run
               },
               () =>
                 createOptimizerIndexFromBlockList({
-                  mode: ctx.behaviour.mode,
                   blockNumberList: blockList.map((b) => b.interpolated_block_number),
                   latestBlockNumber: latestBlockNumber - ctx.behaviour.waitForBlockPropagation,
                   firstBlockToConsider: Math.min(

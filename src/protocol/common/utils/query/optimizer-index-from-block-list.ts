@@ -3,7 +3,6 @@ import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
 import { Range, isValidRange, rangeSplitManyToMaxLength } from "../../../../utils/range";
 
 export function createOptimizerIndexFromBlockList({
-  mode,
   blockNumberList,
   latestBlockNumber,
   firstBlockToConsider,
@@ -11,7 +10,6 @@ export function createOptimizerIndexFromBlockList({
   maxBlocksPerQuery,
   msPerBlockEstimate,
 }: {
-  mode: "recent" | "historical";
   blockNumberList: number[];
   latestBlockNumber: number;
   firstBlockToConsider: number;
@@ -50,8 +48,5 @@ export function createOptimizerIndexFromBlockList({
   const rangeMaxLength = Math.min(avgBlockPerTimeStep, maxBlocksPerQuery);
 
   let finalRanges = rangeSplitManyToMaxLength(blockRanges, rangeMaxLength);
-  if (mode === "recent") {
-    finalRanges = [finalRanges[finalRanges.length - 1]];
-  }
   return finalRanges;
 }

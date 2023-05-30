@@ -545,7 +545,6 @@ describe("optimizer for block list index", () => {
         },
         (_, options) =>
           createOptimizerIndexFromBlockList({
-            mode: "historical",
             blockNumberList: [500, 600, 700, 800, 900] as number[],
             latestBlockNumber: 1000,
             firstBlockToConsider: 200,
@@ -624,7 +623,6 @@ describe("optimizer for block list index", () => {
         },
         (_, options) =>
           createOptimizerIndexFromBlockList({
-            mode: "historical",
             blockNumberList: range(16831567, 17049555, samplingPeriodMs["15min"] / 10000) as number[],
             latestBlockNumber: 17366316,
             firstBlockToConsider: 16831493,
@@ -658,7 +656,6 @@ describe("optimizer for block list index", () => {
         },
         (_, options) =>
           createOptimizerIndexFromBlockList({
-            mode: "historical",
             blockNumberList: range(16831493, 17366367, samplingPeriodMs["15min"] / 10000) as number[],
             latestBlockNumber: 17366367,
             firstBlockToConsider: 16831493,
