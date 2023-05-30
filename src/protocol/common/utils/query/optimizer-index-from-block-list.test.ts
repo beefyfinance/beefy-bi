@@ -4,7 +4,6 @@ describe("optimizer create index from block list", () => {
   it("should split a block number list into ranges, respecting the maxBlocksPerQuery parameter", () => {
     expect(
       createOptimizerIndexFromBlockList({
-        mode: "historical",
         latestBlockNumber: 100,
         firstBlockToConsider: 1,
         snapshotInterval: "15min",
@@ -24,7 +23,6 @@ describe("optimizer create index from block list", () => {
   it("should respect the input block number list more than the snapshot interval", () => {
     expect(
       createOptimizerIndexFromBlockList({
-        mode: "historical",
         latestBlockNumber: 100,
         firstBlockToConsider: 1,
         snapshotInterval: "15min",
@@ -49,7 +47,6 @@ describe("optimizer create index from block list", () => {
   it("should split a block number list into ranges, respecting the snapshotInterval and msPerBlockEstimate parameter", () => {
     expect(
       createOptimizerIndexFromBlockList({
-        mode: "historical",
         latestBlockNumber: 50,
         firstBlockToConsider: 1,
         snapshotInterval: "15min",
@@ -65,24 +62,9 @@ describe("optimizer create index from block list", () => {
     ]);
   });
 
-  it("should split a block number list into ranges, and return only the most recent in recent mode", () => {
-    expect(
-      createOptimizerIndexFromBlockList({
-        mode: "recent",
-        latestBlockNumber: 80,
-        firstBlockToConsider: 1,
-        snapshotInterval: "15min",
-        maxBlocksPerQuery: 30,
-        msPerBlockEstimate: 1000,
-        blockNumberList: [1, 10],
-      }),
-    ).toEqual([{ from: 70, to: 80 }]);
-  });
-
   it("should extend the block list backward if that's necessary", () => {
     expect(
       createOptimizerIndexFromBlockList({
-        mode: "historical",
         latestBlockNumber: 35,
         firstBlockToConsider: 1,
         snapshotInterval: "15min",
@@ -101,7 +83,6 @@ describe("optimizer create index from block list", () => {
   it("should not crash when the input parameters lead to an invalid range", () => {
     expect(
       createOptimizerIndexFromBlockList({
-        mode: "historical",
         latestBlockNumber: 10,
         firstBlockToConsider: 1,
         snapshotInterval: "15min",
