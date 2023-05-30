@@ -97,4 +97,18 @@ describe("optimizer create index from block list", () => {
       { from: 30, to: 35 },
     ]);
   });
+
+  it("should not crash when the input parameters lead to an invalid range", () => {
+    expect(
+      createOptimizerIndexFromBlockList({
+        mode: "historical",
+        latestBlockNumber: 10,
+        firstBlockToConsider: 1,
+        snapshotInterval: "15min",
+        maxBlocksPerQuery: 10,
+        msPerBlockEstimate: 1000,
+        blockNumberList: [10, 10],
+      }),
+    ).toEqual([{ from: 1, to: 9 }]);
+  });
 });
