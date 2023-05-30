@@ -12,7 +12,12 @@ import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
 import { fetchBlock$ } from "../../../common/loader/blocks";
 import { DbBeefyStdVaultProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ErrorReport, ImportCtx, Throwable } from "../../../common/types/import-context";
-import { extractObjsAndRangeFromOptimizerOutput, isAddressBatchQueries, isJsonRpcBatchQueries } from "../../../common/utils/query/optimizer-utils";
+import {
+  extractObjsAndRangeFromOptimizerOutput,
+  getLoggableOptimizerOutput,
+  isAddressBatchQueries,
+  isJsonRpcBatchQueries,
+} from "../../../common/utils/query/optimizer-utils";
 import { AddressBatchOutput, JsonRpcBatchOutput, QueryOptimizerOutput } from "../../../common/utils/query/query-types";
 import { fetchSingleBeefyProductShareRateAndDatetime$ } from "./share-rate-multi-block";
 import {
@@ -242,6 +247,7 @@ export function extractShareRateFromOptimizerOutput<TObj>(
         data: {
           productKey: product.productKey,
           range,
+          output,
           results: results.map((r) => ({ result: { ...r.result, shareRate: r.result.shareRate.toString() }, productKey: r.product.productKey })),
           shareRateResults: shareRateResults.map((r) => ({
             result: { ...r.result, shareRate: r.result.shareRate.toString() },
