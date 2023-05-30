@@ -4,7 +4,7 @@ import * as Rx from "rxjs";
 import { EthersProviderDebugEvent } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
-import { isEmptyVaultPPFSError } from "../../beefy/connector/ppfs";
+import { isEmptyVaultPPFSError } from "../../beefy/connector/share-rate/share-rate-utils";
 import { DbRpcError, insertRpcError$ } from "../loader/rpc-error";
 import { ImportCtx } from "../types/import-context";
 

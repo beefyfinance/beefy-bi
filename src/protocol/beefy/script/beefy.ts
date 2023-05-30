@@ -6,27 +6,24 @@ import { SamplingPeriod, allSamplingPeriods } from "../../../types/sampling";
 import { DbClient, withDbClient } from "../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
+import { Range, isValidRange } from "../../../utils/range";
 import { addSecretsToRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
 import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { fetchAllInvestorIds$ } from "../../common/loader/investment";
-import { fetchInvestor$ } from "../../common/loader/investor";
 import { DbPriceFeed, fetchPriceFeed$ } from "../../common/loader/price-feed";
-import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbProduct, productList$ } from "../../common/loader/product";
+import { DbProduct, productList$ } from "../../common/loader/product";
 import { ErrorReport, ImportBehaviour, ImportCtx, createBatchStreamConfig, defaultImportBehaviour } from "../../common/types/import-context";
 import { isProductDashboardEOL } from "../../common/utils/eol";
-import { createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { createRpcConfig } from "../../common/utils/rpc-config";
 import { createBeefyIgnoreAddressRunner } from "../loader/ignore-address";
-import { createBeefyHistoricalInvestmentRunner, createBeefyRecentInvestmentRunner } from "../loader/investment/import-investments";
-import { createBeefyHistoricalPendingRewardsSnapshotsRunner } from "../loader/investment/import-pending-rewards-snapshots";
+import { createBeefyInvestmentImportRunner } from "../loader/investment/import-investments";
 import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
-import { createBeefyHistoricalShareRatePricesRunner, createBeefyRecentShareRatePricesRunner } from "../loader/prices/import-share-rate-prices";
+import { createBeefyShareRateSnapshotsRunner } from "../loader/prices/import-share-rate-snapshots";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
 import { createBeefyProductRunner } from "../loader/products";
 import { createScheduleReimportInvestmentsRunner } from "../loader/schedule-reimport";
 import { getProductContractAddress } from "../utils/contract-accessors";
-import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
+import { isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-script" });
 
@@ -44,11 +41,10 @@ interface CmdParams {
     | "historical-prices"
     | "recent-share-rate"
     | "historical-share-rate"
-    | "reward-snapshots"
     | "investor-cache";
   filterChains: Chain[];
   includeEol: boolean;
-  forceCurrentBlockNumber: number | null;
+  forceConsideredBlockRange: Range<number> | null;
   filterContractAddress: string | null;
   productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
@@ -100,12 +96,6 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               throw new ProgrammerError("fromBlock > toBlock");
             }
 
-            // we use the minimum block span accross all rpcs, this is not super efficient
-            // but will work for now until there is a way to query {from:to} block ranges
-            const minBlockSpan = 100;
-            const blockSpanToCover = toBlock - fromBlock;
-            const queriesToGenerate = Math.ceil(blockSpanToCover / minBlockSpan);
-
             const cmdParams: CmdParams = {
               client,
               rpcCount: argv.rpcCount === undefined || isNaN(argv.rpcCount) ? "all" : argv.rpcCount ?? 0,
@@ -113,15 +103,15 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: true,
               filterChains: [argv.chain] as Chain[],
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: argv.toBlock + 1,
+              forceConsideredBlockRange: { from: fromBlock, to: argv.toBlock + 1 },
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
-              forceGetLogsBlockSpan: minBlockSpan,
+              forceGetLogsBlockSpan: null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
               loopEvery: null,
               loopEveryRandomizeRatio: 0,
               ignoreImportState: true,
               disableWorkConcurrency: true,
-              generateQueryCount: queriesToGenerate,
+              generateQueryCount: null,
               skipRecentWindowWhenHistorical: "none",
               waitForBlockPropagation: 0,
             };
@@ -175,7 +165,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: null,
+              forceConsideredBlockRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -222,7 +212,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             describe: "only import data for this chain",
           },
           contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
-          currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
+          fromBlock: { type: "number", demand: false, describe: "only from this block" },
+          toBlock: { type: "number", demand: false, describe: "to this block, defaults to latest" },
           forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
           forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },
           includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
@@ -236,7 +227,6 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               "historical-prices",
               "recent-share-rate",
               "historical-share-rate",
-              "reward-snapshots",
               "investor-cache",
             ],
             demand: true,
@@ -307,7 +297,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
-              forceCurrentBlockNumber: argv.currentBlockNumber || null,
+              forceConsideredBlockRange: argv.toBlock ? { from: argv.fromBlock ? argv.fromBlock : 0, to: argv.toBlock } : null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -349,8 +339,6 @@ function getTasksToRun(cmdParams: CmdParams) {
     case "recent-share-rate":
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
-    case "reward-snapshots":
-      return cmdParams.filterChains.map((chain) => () => importBeefyRewardSnapshots(chain, cmdParams));
     case "investor-cache":
       return [() => importInvestorCache(cmdParams)];
     default:
@@ -462,40 +450,27 @@ function importBeefyDataPrices(cmdParams: CmdParams) {
 }
 
 async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runnerConfig = {
+  return createBeefyInvestmentImportRunner({
     chain,
-    getInputs,
-    client: cmdParams.client,
-    behaviour: _createImportBehaviourFromCmdParams(cmdParams),
-  };
+    runnerConfig: {
+      chain,
+      getInputs: async () => {
+        const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+          productFilter$(chain, cmdParams),
+          // collect
+          Rx.toArray(),
+        );
 
-  const runner =
-    runnerConfig.behaviour.mode === "recent"
-      ? createBeefyRecentInvestmentRunner({
-          chain,
-          runnerConfig,
-        })
-      : createBeefyHistoricalInvestmentRunner({
-          chain,
-          runnerConfig,
-        });
-
-  return runner.run();
+        const res = await consumeObservable(pipeline$);
+        if (!res) {
+          return [];
+        }
+        return res;
+      },
+      client: cmdParams.client,
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
+    },
+  }).run();
 }
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
@@ -509,112 +484,42 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
     streamConfig,
     behaviour,
   };
-
   const emitError = (item: DbProduct, report: ErrorReport) => {
     logger.error(mergeLogsInfos({ msg: "Error fetching price feed for product", data: { ...item } }, report.infos));
     logger.error(report.error);
     throw new Error(`Error fetching price feed for product ${item.productId}`);
   };
 
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // remove products that don't have a ppfs to fetch
-      // we don't fetch boosts because they would be duplicates anyway
-      Rx.filter((product) => isBeefyStandardVault(product)),
-      // now fetch the price feed we need
-      fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
-      // drop those without a price feed yet
-      excludeNullFields$("priceFeed"),
-      Rx.map(({ priceFeed }) => priceFeed),
-      // remove duplicates
-      Rx.distinct((priceFeed) => priceFeed.priceFeedId),
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runnerConfig = { client: cmdParams.client, chain, getInputs, behaviour };
-  const runner =
-    behaviour.mode === "recent"
-      ? createBeefyRecentShareRatePricesRunner({ chain, runnerConfig })
-      : createBeefyHistoricalShareRatePricesRunner({ chain, runnerConfig });
-
-  return runner.run();
-}
-
-function importBeefyRewardSnapshots(chain: Chain, cmdParams: CmdParams) {
-  const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
-  const rpcConfig = createRpcConfig(chain, behaviour);
-  const streamConfig = createBatchStreamConfig(chain, behaviour);
-  const ctx: ImportCtx = {
+  return createBeefyShareRateSnapshotsRunner({
     chain,
-    client: cmdParams.client,
-    rpcConfig,
-    streamConfig,
-    behaviour,
-  };
-
-  const emitError = (item: DbProduct, report: ErrorReport) => {
-    logger.error(mergeLogsInfos({ msg: "Error fetching rewards for product", data: { ...item } }, report.infos));
-    logger.error(report.error);
-    throw new Error(`Error fetching rewards for product ${item.productId}`);
-  };
-
-  async function getInputs() {
-    const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
-      productFilter$(chain, cmdParams),
-      // Rewards only exists for boosts and governance vaults
-      Rx.filter((product): product is DbBeefyBoostProduct | DbBeefyGovVaultProduct => isBeefyBoost(product) || isBeefyGovVault(product)),
-      // fetch all investors of this product
-      fetchAllInvestorIds$({
-        ctx,
-        emitError,
-        getProductId: (product) => product.productId,
-        formatOutput: (product, investorIds) => ({ product, investorIds }),
-      }),
-      // flatten the result
-      Rx.concatMap(({ product, investorIds }) => investorIds.map((investorId) => ({ product, investorId }))),
-      // fetch investor rows
-      fetchInvestor$({
-        ctx,
-        emitError: (item) => {
-          throw new Error(`Error fetching investor ${item.investorId} for product ${item.product.productId}`);
-        },
-        getInvestorId: (item) => item.investorId,
-        formatOutput: (item, investor) => ({ ...item, investor }),
-      }),
-
-      // collect
-      Rx.toArray(),
-    );
-
-    const res = await consumeObservable(pipeline$);
-    if (!res) {
-      return [];
-    }
-    return res;
-  }
-
-  // now import data for those
-  const runner = createBeefyHistoricalPendingRewardsSnapshotsRunner({
-    chain: chain,
     runnerConfig: {
-      getInputs,
-      client: cmdParams.client,
       chain,
+      getInputs: async () => {
+        const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+          productFilter$(chain, cmdParams),
+          // remove products that don't have a ppfs to fetch
+          // we don't fetch boosts because they would be duplicates anyway
+          Rx.filter((product) => isBeefyStandardVault(product)),
+          // now fetch the price feed we need
+          fetchPriceFeed$({ ctx, emitError, getPriceFeedId: (product) => product.priceFeedId1, formatOutput: (_, priceFeed) => ({ priceFeed }) }),
+          // drop those without a price feed yet
+          excludeNullFields$("priceFeed"),
+          Rx.map(({ priceFeed }) => priceFeed),
+          // remove duplicates
+          Rx.distinct((priceFeed) => priceFeed.priceFeedId),
+          // collect
+          Rx.toArray(),
+        );
+        const res = await consumeObservable(pipeline$);
+        if (!res) {
+          return [];
+        }
+        return res;
+      },
+      client: cmdParams.client,
       behaviour,
     },
-  });
-
-  return runner.run();
+  }).run();
 }
 
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
@@ -652,7 +557,6 @@ const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
   "historical-prices": "historical",
   "recent-share-rate": "recent",
   "historical-share-rate": "historical",
-  "reward-snapshots": "historical",
   "investor-cache": "recent",
 };
 
@@ -668,8 +572,8 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
   if (cmdParams.loopEveryRandomizeRatio !== null) {
     behaviour.repeatJitter = cmdParams.loopEveryRandomizeRatio;
   }
-  if (cmdParams.forceCurrentBlockNumber !== null) {
-    behaviour.forceCurrentBlockNumber = cmdParams.forceCurrentBlockNumber;
+  if (cmdParams.forceConsideredBlockRange !== null) {
+    behaviour.forceConsideredBlockRange = cmdParams.forceConsideredBlockRange;
   }
   if (cmdParams.forceGetLogsBlockSpan !== null) {
     behaviour.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
@@ -704,9 +608,15 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
 }
 
 function _verifyCmdParams(cmdParams: CmdParams, argv: any) {
-  if (cmdParams.forceCurrentBlockNumber !== null && cmdParams.filterChains.length > 1) {
+  if (cmdParams.forceConsideredBlockRange !== null && cmdParams.filterChains.length > 1) {
     throw new ProgrammerError({
       msg: "Cannot force current block number without a chain filter",
+      data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
+    });
+  }
+  if (cmdParams.forceConsideredBlockRange !== null && !isValidRange(cmdParams.forceConsideredBlockRange)) {
+    throw new ProgrammerError({
+      msg: "The fromBlock-toBlock range is not valid",
       data: { cmdParams: { ...cmdParams, client: "<redacted>" }, argv },
     });
   }

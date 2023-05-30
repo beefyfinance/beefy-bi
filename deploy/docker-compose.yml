@@ -51,7 +51,6 @@ x-importer: &importer
 x-importer-env: &importer-env
   REDIS_URL: redis://redis:6379
   TIMESCALEDB_URL: postgres://beefy:beefy@timescaledb:5432/beefy
-  DATA_DIRECTORY: /data
   GIT_WORK_DIRECTORY: /git_work
 
 volumes:
@@ -213,12 +212,6 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c all -l 15min"
-
-  #importer-reward-snapshots:
-  #  <<: *importer
-  #  environment:
-  #    <<: *importer-env
-  #    WORK_CMD: "./dist/src/script/run.js beefy:run -t reward-snapshots -c all -l 4hour"
 
   # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 

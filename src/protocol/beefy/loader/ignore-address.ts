@@ -1,11 +1,11 @@
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
-import { DbClient, db_query } from "../../../utils/db";
+import { DbClient } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { DbIgnoreAddress, upsertIgnoreAddress$ } from "../../common/loader/ignore-address";
 import { productList$ } from "../../common/loader/product";
 import { ImportCtx } from "../../common/types/import-context";
-import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
+import { NoRpcRunnerConfig, createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { beefyZapsFromGit$ } from "../connector/zap-list";
 import { getProductContractAddress } from "../utils/contract-accessors";
 

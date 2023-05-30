@@ -2,7 +2,7 @@ import { groupBy, keyBy, min, uniq } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { SamplingPeriod } from "../../../types/sampling";
-import { db_query, db_query_one } from "../../../utils/db";
+import { db_query } from "../../../utils/db";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
@@ -15,7 +15,9 @@ export function fetchChainBlockList$<
 >(options: {
   ctx: ImportCtx;
   emitError: TErr;
-  getFirstDate: (obj: TObj) => Date;
+  getFirstDate?: (obj: TObj) => Date;
+  getFirstBlock?: (obj: TObj) => number;
+  latestBlock?: (obj: TObj) => { approximativeBlockDatetime: Date; blockNumber: number };
   timeStep: SamplingPeriod;
   getChain: (obj: TObj) => Chain;
   formatOutput: (obj: TObj, blockList: TListItem[]) => TRes;
@@ -42,6 +44,8 @@ export function fetchChainBlockList$<
         );
         const firstDateIdMap = keyBy(firstDateResults, "chain");
 
+        const latestBlockData = options.latestBlock?.(objAndData[0].obj.obj) || null;
+
         const blockList = await db_query<TListItem>(
           `
               with blocks as (
@@ -49,7 +53,11 @@ export function fetchChainBlockList$<
                     chain,
                     time_bucket_gapfill(%L, datetime) as datetime,
                     last(block_number, datetime) as block_number,
-                    interpolate(last(block_number, datetime)) as interpolated_block_number
+                    ${
+                      latestBlockData
+                        ? "interpolate(last(block_number, datetime), next => (%L::timestamptz, %L::integer)) as interpolated_block_number"
+                        : "interpolate(last(block_number, datetime)) as interpolated_block_number"
+                    }
                 from block_ts
                 where 
                     datetime between (%L::timestamptz - %L::interval) and (now() - %L::interval)
@@ -62,6 +70,7 @@ export function fetchChainBlockList$<
           `,
           [
             options.timeStep,
+            ...(latestBlockData ? [latestBlockData.approximativeBlockDatetime.toISOString(), latestBlockData.blockNumber] : []),
             min(objAndData.map(({ data }) => firstDateIdMap[data]?.first_date ?? new Date()))?.toISOString(),
             options.timeStep,
             options.timeStep,
@@ -96,8 +105,15 @@ export function fetchChainBlockList$<
 
     // filter the block list by the requested first date
     Rx.map((item) => {
-      const afterThisDate = options.getFirstDate(item.obj);
-      const filteredBlockList = item.blockList.filter((block) => block.datetime >= afterThisDate);
+      let filteredBlockList = item.blockList;
+      if (options.getFirstDate) {
+        const afterThisDate = options.getFirstDate(item.obj);
+        filteredBlockList = item.blockList.filter((block) => block.datetime >= afterThisDate);
+      }
+      if (options.getFirstBlock) {
+        const afterThisBlock = options.getFirstBlock(item.obj);
+        filteredBlockList = item.blockList.filter((block) => block.interpolated_block_number >= afterThisBlock);
+      }
       return options.formatOutput(item.obj, filteredBlockList);
     }),
   );

@@ -7,7 +7,7 @@ import { Range } from "../../../utils/range";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 
-export interface PriceSnapshot {
+interface PriceSnapshot {
   oracleId: string;
   datetime: Date;
   value: number;
@@ -55,7 +55,7 @@ export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRe
   );
 }
 
-export async function fetchBeefyPrices(
+async function fetchBeefyPrices(
   samplingPeriod: SamplingPeriod,
   oracleId: string,
   options?: {

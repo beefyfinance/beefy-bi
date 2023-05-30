@@ -138,7 +138,7 @@ export function cloneBatchProvider(
   return batchProvider;
 }
 
-export function monkeyPatchProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, limitations: RpcLimitations) {
+function monkeyPatchProvider(chain: Chain, provider: ethers.providers.JsonRpcProvider, limitations: RpcLimitations) {
   const isBatchProvider = provider instanceof ethers.providers.JsonRpcBatchProvider;
   const networkish = {
     name: chain,

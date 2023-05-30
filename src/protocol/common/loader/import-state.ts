@@ -18,7 +18,7 @@ import {
   rangeValueMax,
 } from "../../../utils/range";
 import { BatchStreamConfig, ErrorEmitter, ImportCtx } from "../types/import-context";
-import { ImportRangeResult, ImportRangeResultMaybeLatest } from "../types/import-query";
+import { ImportRangeResultMaybeLatest } from "../types/import-query";
 import { ImportRanges, hydrateDateImportRangesFromDb, hydrateNumberImportRangesFromDb, updateImportRanges } from "../utils/import-ranges";
 
 const logger = rootLogger.child({ module: "common-loader", component: "import-state" });
@@ -58,7 +58,7 @@ export interface DbProductShareRateImportState extends DbBaseImportState {
     ranges: ImportRanges<number>;
   };
 }
-export interface DbPendingRewardsImportState extends DbBaseImportState {
+interface DbPendingRewardsImportState extends DbBaseImportState {
   importData: {
     type: "rewards:snapshots";
     productId: number;
@@ -81,10 +81,10 @@ export function isProductInvestmentImportState(o: DbImportState): o is DbProduct
 export function isOraclePriceImportState(o: DbImportState): o is DbOraclePriceImportState {
   return o.importData.type === "oracle:price";
 }
-export function isProductShareRateImportState(o: DbImportState): o is DbProductShareRateImportState {
+function isProductShareRateImportState(o: DbImportState): o is DbProductShareRateImportState {
   return o.importData.type === "product:share-rate";
 }
-export function isPendingRewardsImportState(o: DbImportState): o is DbPendingRewardsImportState {
+function isPendingRewardsImportState(o: DbImportState): o is DbPendingRewardsImportState {
   return o.importData.type === "rewards:snapshots";
 }
 
@@ -206,6 +206,9 @@ export function updateImportState$<
     if (hasCoveredRangeOverlap) {
       // this should never happen, seeing this in the logs means there is something duplicating input queries
       logger.error({ msg: "covered ranges should not be overlapping", data: { importState, coveredRanges, items } });
+      if (process.env.NODE_ENV === "development") {
+        throw new ProgrammerError("covered ranges should not be overlapping");
+      }
       coveredRanges = rangeMerge(coveredRanges);
     }
 
@@ -373,8 +376,7 @@ export function updateImportState$<
 }
 
 export function addMissingImportState$<TInput, TRes, TImport extends DbImportState>(options: {
-  client: DbClient;
-  streamConfig: BatchStreamConfig;
+  ctx: ImportCtx;
   getImportStateKey: (obj: TInput) => string;
   createDefaultImportState$: Rx.OperatorFunction<TInput, { obj: TInput; importData: TImport["importData"] }>;
   formatOutput: (obj: TInput, importState: TImport) => TRes;
@@ -382,8 +384,8 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
   return Rx.pipe(
     // find the current import state for these objects (if already created)
     fetchImportState$({
-      client: options.client,
-      streamConfig: options.streamConfig,
+      client: options.ctx.client,
+      streamConfig: options.ctx.streamConfig,
       getImportStateKey: options.getImportStateKey,
       formatOutput: (obj, importState) => ({ obj, importState }),
     }),
@@ -403,8 +405,8 @@ export function addMissingImportState$<TInput, TRes, TImport extends DbImportSta
 
           // create the import state in the database
           upsertImportState$({
-            client: options.client,
-            streamConfig: options.streamConfig,
+            client: options.ctx.client,
+            streamConfig: options.ctx.streamConfig,
             getImportStateData: (item) =>
               ({
                 importKey: options.getImportStateKey(item.obj),

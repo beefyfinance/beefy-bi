@@ -1,5 +1,5 @@
 import { BlockTag, Filter, FilterByBlockHash, Log } from "@ethersproject/abstract-provider";
-import { deepCopy, resolveProperties, shallowCopy } from "@ethersproject/properties";
+import { deepCopy, resolveProperties } from "@ethersproject/properties";
 import { Formatter } from "@ethersproject/providers";
 import { fetchJson } from "@ethersproject/web";
 import AsyncLock from "async-lock";
@@ -537,51 +537,5 @@ export class JsonRpcProviderWithMultiAddressGetLogs extends ethers.providers.Jso
 
     const address = addressOrName;
     return address;
-  }
-}
-export class ContractWithMultiAddressGetLogs extends ethers.Contract {
-  declare readonly provider: JsonRpcProviderWithMultiAddressGetLogs;
-
-  constructor(addressOrName: string, contractInterface: ethers.ContractInterface, signerOrProvider?: JsonRpcProviderWithMultiAddressGetLogs) {
-    super(addressOrName, contractInterface, signerOrProvider);
-  }
-
-  public queryFilterMultiAddress(
-    event: MultiAddressEventFilter,
-    fromBlockOrBlockhash?: BlockTag | string,
-    toBlock?: BlockTag,
-  ): ReturnType<ethers.Contract["queryFilter"]> {
-    const runningEvent = this.__getRunningEvent(event);
-    const filter = shallowCopy<MultiAddressEventFilter>(runningEvent.filter);
-    filter.address = event.address;
-
-    if (typeof fromBlockOrBlockhash === "string" && ethers.utils.isHexString(fromBlockOrBlockhash, 32)) {
-      if (toBlock != null) {
-        ethersLogger.throwArgumentError("cannot specify toBlock with blockhash", "toBlock", toBlock);
-      }
-      filter.blockHash = fromBlockOrBlockhash;
-    } else {
-      filter.fromBlock = fromBlockOrBlockhash != null ? fromBlockOrBlockhash : 0;
-      filter.toBlock = toBlock != null ? toBlock : "latest";
-    }
-
-    return this.provider.getLogsMultiAddress(filter).then((logs) => {
-      return logs.map((log) => this.__wrapEvent(runningEvent, log, null as any));
-    });
-  }
-
-  /**
-   * make some private method callable from our class
-   * https://stackoverflow.com/a/48908067/2523414
-   *
-   * Technically, in current versions of TypeScript private methods are only compile-time checked to be private - so you can call them.
-   */
-  protected __wrapEvent(runningEvent: any, log: Log, listener: any) {
-    // @ts-ignore
-    return super._wrapEvent(runningEvent, log, listener);
-  }
-  private __getRunningEvent(eventName: MultiAddressEventFilter | string): any {
-    // @ts-ignore
-    return super._getRunningEvent(eventName);
   }
 }

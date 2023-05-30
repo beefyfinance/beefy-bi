@@ -5,10 +5,6 @@ const logger = rootLogger.child({ module: "process", component: "exit-handler" }
 type ExitCallback = () => Promise<any>;
 const exitCallbacks: ExitCallback[] = [];
 
-export function onExit(callback: ExitCallback) {
-  exitCallbacks.push(callback);
-}
-
 let called = false;
 async function exitHandler() {
   if (called) {

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { get, isArray, isString } from "lodash";
+import { isArray, isString } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
@@ -20,7 +20,7 @@ interface ContractCallParams {
   chain: Chain;
 }
 
-export interface ContractCreationInfos {
+interface ContractCreationInfos {
   blockNumber: number;
   datetime: Date;
 }

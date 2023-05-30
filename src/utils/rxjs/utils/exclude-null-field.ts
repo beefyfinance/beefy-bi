@@ -1,18 +1,8 @@
 import * as Rx from "rxjs";
+import { NonNullField, NullField } from "../../../types/ts";
 import { rootLogger } from "../../logger";
 
 const logger = rootLogger.child({ module: "common", component: "exclude-null-field" });
-
-// https://stackoverflow.com/a/73083447/2523414
-type NonNullFields<T> = {
-  [P in keyof T]: NonNullable<T[P]>;
-};
-export type NonNullField<T, K extends keyof T> = Omit<Omit<T, K> & NonNullFields<Pick<T, K>>, "">;
-
-type NullFields<T> = {
-  [P in keyof T]: null;
-};
-export type NullField<T, K extends keyof T> = Omit<Omit<T, K> & NullFields<Pick<T, K>>, "">;
 
 export function excludeNullFields$<TObj, TKey extends keyof TObj, TRes extends NonNullField<TObj, TKey>>(
   key: TKey,
@@ -29,7 +19,8 @@ export function excludeNullFields$<TObj, TKey extends keyof TObj, TRes extends N
     Rx.map((obj): TRes => obj as unknown as TRes),
   );
 }
-export function excludeNotNullFields$<TObj, TKey extends keyof TObj, TRes extends NullField<TObj, TKey>>(
+
+function excludeNotNullFields$<TObj, TKey extends keyof TObj, TRes extends NullField<TObj, TKey>>(
   key: TKey,
 ): Rx.OperatorFunction<TObj, NullField<TObj, TKey>> {
   return Rx.pipe(

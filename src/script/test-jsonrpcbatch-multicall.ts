@@ -21,7 +21,7 @@ async function main() {
     includeEol: true,
     filterChains: [chain],
     filterContractAddress: null,
-    forceCurrentBlockNumber: null,
+    forceConsideredBlockRange: null,
     forceRpcUrl: null, //"https://rpc.ankr.com/bsc",
     forceGetLogsBlockSpan: null,
     productRefreshInterval: null,

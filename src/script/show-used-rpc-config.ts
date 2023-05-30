@@ -1,14 +1,10 @@
 import yargs from "yargs";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
-import { defaultImportBehaviour } from "../protocol/common/types/import-context";
 import { createRpcConfig, getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain, allChainIds } from "../types/chain";
 import { SamplingPeriod, allSamplingPeriods } from "../types/sampling";
-import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { addSecretsToRpcUrl, removeSecretsFromRpcUrl } from "../utils/rpc/remove-secrets-from-rpc-url";
-
-const logger = rootLogger.child({ module: "show-used-rpc-config", component: "main" });
 
 async function main() {
   const argv = await yargs.usage("$0 <cmd> [args]").options({
@@ -34,7 +30,6 @@ async function main() {
         "recent-prices",
         "historical-prices",
         "historical-share-rate",
-        "reward-snapshots",
         "investor-cache",
       ],
       demand: true,
@@ -99,7 +94,7 @@ async function main() {
     includeEol: argv.includeEol,
     filterChains: argv.chain.includes("all") ? allChainIds : ([argv.chain] as Chain[]),
     filterContractAddress: argv.contractAddress || null,
-    forceCurrentBlockNumber: argv.currentBlockNumber || null,
+    forceConsideredBlockRange: argv.currentBlockNumber ? { from: 0, to: argv.currentBlockNumber } : null,
     forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
     forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
     productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,

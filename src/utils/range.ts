@@ -67,6 +67,7 @@ export function isNumberRange(range: Range<any>): range is Range<number> {
 
 export function isValidRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>): boolean {
   const strat = strategy || getRangeStrategy(range);
+
   return strat.compare(range.from, range.to) <= 0;
 }
 function checkRange<T extends SupportedRangeTypes>(range: Range<T>, strategy?: RangeStrategy<T>) {
@@ -316,7 +317,7 @@ export function rangeExclude<T extends SupportedRangeTypes>(range: Range<T>, exc
   return [];
 }
 
-export function rangeSort<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
+function rangeSort<T extends SupportedRangeTypes>(ranges: Range<T>[], strategy?: RangeStrategy<T>): Range<T>[] {
   if (ranges.length <= 1) {
     return ranges;
   }

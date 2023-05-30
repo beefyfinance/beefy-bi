@@ -1,15 +1,12 @@
 import { cloneDeep } from "lodash";
 import * as Rx from "rxjs";
-import { fetchBeefyPPFS$ } from "../protocol/beefy/connector/ppfs";
+import { fetchSingleBeefyProductShareRateAndDatetime$ } from "../protocol/beefy/connector/share-rate/share-rate-multi-block";
 import { _createImportBehaviourFromCmdParams } from "../protocol/beefy/script/beefy";
 import { createBatchStreamConfig, defaultImportBehaviour, ImportBehaviour, ImportCtx } from "../protocol/common/types/import-context";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { Chain } from "../types/chain";
-import { rootLogger } from "../utils/logger";
 import { runMain } from "../utils/process";
 import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
-
-const logger = rootLogger.child({ module: "show-used-rpc-config", component: "main" });
 
 async function main() {
   const options = {
@@ -49,13 +46,13 @@ async function main() {
   ]).pipe(
     Rx.toArray(),
     Rx.concatAll(),
-    fetchBeefyPPFS$({
+    fetchSingleBeefyProductShareRateAndDatetime$({
       ctx,
       emitError: (obj, err) => {
         console.dir(err, { depth: null });
         throw new Error();
       },
-      getPPFSCallParams: (item) => item,
+      getCallParams: (item) => ({ type: "fetch", ...item }),
       formatOutput: (obj, ppfs) => ({ obj, ppfs }),
     }),
     Rx.tap((res) => console.dir({ obj: res.obj, ppfs: res.ppfs.toString() }, { depth: 10 })),

@@ -11,22 +11,23 @@ import { GetBalanceCallParams, fetchERC20TokenBalance$, vaultRawBalanceToBalance
 import { fetchBlock$ } from "../../common/loader/blocks";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { RPCBatchCallResult, batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
-import { BeefyPPFSCallParams, extractRawPpfsFromFunctionResult, fetchBeefyPPFS$, ppfsToVaultSharesRate } from "./ppfs";
+import { fetchSingleBeefyProductShareRateAndDatetime$ } from "./share-rate/share-rate-multi-block";
+import { BeefyShareRateCallParams, extractRawPpfsFromFunctionResult, ppfsToVaultSharesRate } from "./share-rate/share-rate-utils";
 
 const logger = rootLogger.child({ module: "beefy", component: "transfer-data" });
 
-interface NoPpfsCallParams {
+interface NoShareRateCallParams {
   balance: Omit<GetBalanceCallParams, "blockNumber">;
   blockNumber: number;
-  fetchPpfs: false;
+  fetchShareRate: false;
 }
-interface WithPpfsCallParams {
-  ppfs: Omit<BeefyPPFSCallParams, "blockNumber">;
+interface WithShareRateCallParams {
+  shareRateParams: Omit<BeefyShareRateCallParams, "blockNumber">;
   balance: Omit<GetBalanceCallParams, "blockNumber">;
   blockNumber: number;
-  fetchPpfs: true;
+  fetchShareRate: true;
 }
-type BeefyTransferCallParams = NoPpfsCallParams | WithPpfsCallParams;
+type BeefyTransferCallParams = NoShareRateCallParams | WithShareRateCallParams;
 type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDatetime: Date };
 
 /**
@@ -48,30 +49,26 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
     Rx.map((obj) => ({ obj, param: options.getCallParams(obj) })),
 
     // fetch the ppfs if needed
-    Rx.connect((items$) =>
-      Rx.merge(
-        items$.pipe(
-          Rx.filter((item): item is { obj: TObj; param: WithPpfsCallParams } => item.param.fetchPpfs),
-          fetchBeefyPPFS$({
-            ctx: options.ctx,
-            emitError: (item, errReport) => options.emitError(item.obj, errReport),
-            getPPFSCallParams: (item) => {
-              return {
-                vaultAddress: item.param.ppfs.vaultAddress,
-                underlyingDecimals: item.param.ppfs.underlyingDecimals,
-                vaultDecimals: item.param.ppfs.vaultDecimals,
-                blockNumber: item.param.blockNumber,
-              };
-            },
-            formatOutput: (item, shareRate) => ({ ...item, shareRate }),
-          }),
-        ),
-        items$.pipe(
-          Rx.filter((item) => !item.param.fetchPpfs),
-          Rx.map((item) => ({ ...item, shareRate: new Decimal(1) })),
-        ),
-      ),
-    ),
+    fetchSingleBeefyProductShareRateAndDatetime$({
+      ctx: options.ctx,
+      emitError: (item, errReport) => options.emitError(item.obj, errReport),
+      getCallParams: (item) => {
+        if (!item.param.fetchShareRate) {
+          return {
+            type: "set-to-1",
+            blockNumber: item.param.blockNumber,
+          };
+        }
+        return {
+          type: "fetch",
+          vaultAddress: item.param.shareRateParams.vaultAddress,
+          underlyingDecimals: item.param.shareRateParams.underlyingDecimals,
+          vaultDecimals: item.param.shareRateParams.vaultDecimals,
+          blockNumber: item.param.blockNumber,
+        };
+      },
+      formatOutput: (item, result) => ({ ...item, ...result }),
+    }),
 
     // we need the balance of each owner
     fetchERC20TokenBalance$({
@@ -84,14 +81,6 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
         ownerAddress: item.param.balance.ownerAddress,
       }),
       formatOutput: (item, balance) => ({ ...item, balance }),
-    }),
-
-    // we also need the date of each block
-    fetchBlockDatetime$({
-      ctx: options.ctx,
-      emitError: (item, errReport) => options.emitError(item.obj, errReport),
-      getBlockNumber: (item) => item.param.blockNumber,
-      formatOutput: (item, blockDatetime) => ({ ...item, blockDatetime }),
     }),
   );
 
@@ -106,7 +95,9 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
       emitError: (item, errReport) => options.emitError(item.obj, errReport),
       logInfos: { msg: "Fetching transfer data, maybe using multicall" },
       rpcCallsPerInputObj: {
-        eth_call: 1,
+        // this should be 1 but it's an heavy call so we virtually add 1 so batches are smaller
+        // this lowers the probability that the RPC will timeout
+        eth_call: 2,
         eth_blockNumber: 0,
         eth_getBlockByNumber: 0,
         eth_getLogs: 0,
@@ -149,11 +140,11 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
                 target: multicallAddress,
               });
             }
-            if (param.fetchPpfs) {
+            if (param.fetchShareRate) {
               calls.push({
                 allowFailure: false,
                 callData: BeefyVaultV6AbiInterface.encodeFunctionData("getPricePerFullShare"),
-                target: param.ppfs.vaultAddress,
+                target: param.shareRateParams.vaultAddress,
               });
             }
             return multicallContract.callStatic.aggregate3(calls, { blockTag });
@@ -183,11 +174,11 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
             }
 
             let shareRate = new Decimal(1);
-            if (param.fetchPpfs) {
+            if (param.fetchShareRate) {
               const rawPpfs = extractRawPpfsFromFunctionResult(
                 BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", r[rIdx++].returnData),
               ) as ethers.BigNumber;
-              shareRate = ppfsToVaultSharesRate(param.ppfs.vaultDecimals, param.ppfs.underlyingDecimals, rawPpfs);
+              shareRate = ppfsToVaultSharesRate(param.shareRateParams.vaultDecimals, param.shareRateParams.underlyingDecimals, rawPpfs);
             }
 
             return [param, { result: { balance, blockDatetime, shareRate } }] as const;

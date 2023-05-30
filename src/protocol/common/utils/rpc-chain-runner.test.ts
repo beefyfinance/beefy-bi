@@ -1,6 +1,4 @@
-import * as Rx from "rxjs";
 import { RpcConfig } from "../../../types/rpc-config";
-import { consumeObservable } from "../../../utils/rxjs/utils/consume-observable";
 import { _getRpcWeight, _weightedDistribute } from "./rpc-chain-runner";
 
 describe("createChainRunner$", () => {

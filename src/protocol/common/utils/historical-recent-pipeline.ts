@@ -2,13 +2,13 @@ import { get, sortBy } from "lodash";
 import * as Rx from "rxjs";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { LogInfos, mergeLogsInfos, rootLogger } from "../../../utils/logger";
-import { Range, rangeExcludeMany, rangeValueMax, SupportedRangeTypes } from "../../../utils/range";
+import { Range, SupportedRangeTypes, rangeExcludeMany, rangeValueMax } from "../../../utils/range";
 import { createObservableWithNext } from "../../../utils/rxjs/utils/create-observable-with-next";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
-import { addMissingImportState$, DbImportState, fetchImportState$, updateImportState$ } from "../loader/import-state";
+import { DbImportState, addMissingImportState$, fetchImportState$, updateImportState$ } from "../loader/import-state";
 import { ErrorEmitter, ErrorReport, ImportCtx } from "../types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../types/import-query";
-import { createChainRunner, RunnerConfig } from "./rpc-chain-runner";
+import { RunnerConfig, createChainRunner } from "./rpc-chain-runner";
 
 const logger = rootLogger.child({ module: "common", component: "historical-import" });
 
@@ -39,8 +39,7 @@ export function createHistoricalImportRunner<TInput, TRange extends SupportedRan
 
     return Rx.pipe(
       addMissingImportState$({
-        client: options.runnerConfig.client,
-        streamConfig: ctx.streamConfig,
+        ctx,
         getImportStateKey: options.getImportStateKey,
         createDefaultImportState$: options.createDefaultImportState$(ctx, (obj, report) => {
           logger.error(

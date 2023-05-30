@@ -69,7 +69,7 @@ export type DbClient = {
 
 let sharedClient: DbClient | null = null;
 const appNameCounters: Record<string, number> = {};
-export async function getDbClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
+async function getDbClient({ appName = "beefy", freshClient = false }: { appName?: string; freshClient?: boolean }) {
   if (!appNameCounters[appName]) {
     appNameCounters[appName] = 0;
   }
@@ -181,14 +181,6 @@ export async function db_query_one<RowType>(sql: string, params: any[] = [], cli
 export function strAddressToPgBytea(evmAddress: string) {
   // 0xABC -> // \xABC
   return "\\x" + evmAddress.slice(2);
-}
-
-export function strArrToPgStrArr(strings: string[]) {
-  return "{" + pgf.withArray("%L", strings) + "}";
-}
-
-export function pgStrArrToStrArr(pgArray: string[]) {
-  return pgArray.map((s) => s.slice(1, -1).replace("''", "'"));
 }
 
 async function hasPolicy(
@@ -721,7 +713,7 @@ export async function db_migrate() {
               p.chain,
               p.product_id,
               i.import_data->>'type' as import_type,
-              (p.product_data->>'dashboardEol') = 'true' as eol,
+              coalesce((p.product_data->>'dashboardEol'), 'false') = 'true' as eol,
               b.last_covered - (import_data->>'contractCreatedAtBlock')::integer + 1 as total_blocks_to_cover,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'coveredRanges') as blocks_covered,
               jsonb_int_ranges_size_sum(import_data->'ranges'->'toRetry') as blocks_to_retry
