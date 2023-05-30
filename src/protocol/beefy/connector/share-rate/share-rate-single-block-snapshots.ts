@@ -5,7 +5,7 @@ import { BeefyVaultV6AbiInterface, Multicall3AbiInterface } from "../../../../ut
 import { MULTICALL3_ADDRESS_MAP } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
-import { Range, isInRange } from "../../../../utils/range";
+import { Range } from "../../../../utils/range";
 import { forkOnNullableField$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { callLockProtectedRpc } from "../../../../utils/shared-resources/shared-rpc";
 import { fetchBlockDatetime$ } from "../../../common/connector/block-datetime";
