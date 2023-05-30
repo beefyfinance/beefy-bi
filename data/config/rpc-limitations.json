@@ -13,8 +13,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
-        "eth_getLogs": null,
-        "eth_call": null,
+        "eth_getLogs": 5,
+        "eth_call": 10,
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 16,
         "eth_getTransactionReceipt": 8
