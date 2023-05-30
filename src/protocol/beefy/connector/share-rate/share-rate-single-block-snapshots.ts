@@ -235,7 +235,7 @@ export function extractShareRateFromOptimizerOutput<TObj>(
 ): { obj: TObj; range: Range<number>; result: BeefyShareRateBatchCallResult }[] {
   return extractObjsAndRangeFromOptimizerOutput({ output, objKey: (o) => getProduct(o).productKey }).flatMap(({ obj, range }) => {
     const product = getProduct(obj);
-    const results = shareRateResults.filter((p) => p.product.productKey === product.productKey && isInRange(range, p.result.blockNumber));
+    const results = shareRateResults.filter((p) => p.product.productKey === product.productKey);
     if (results.length !== 1) {
       throw new ProgrammerError({
         msg: "Not exactly 1 ppfs result for vault",
