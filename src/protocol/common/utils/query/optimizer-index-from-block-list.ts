@@ -1,6 +1,6 @@
 import { max, min, sortBy } from "lodash";
 import { SamplingPeriod, samplingPeriodMs } from "../../../../types/sampling";
-import { Range, rangeSplitManyToMaxLength } from "../../../../utils/range";
+import { Range, isValidRange, rangeSplitManyToMaxLength } from "../../../../utils/range";
 
 export function createOptimizerIndexFromBlockList({
   mode,
@@ -19,7 +19,7 @@ export function createOptimizerIndexFromBlockList({
   snapshotInterval: SamplingPeriod;
   msPerBlockEstimate: number;
 }): Range<number>[] {
-  const blockRanges: Range<number>[] = [];
+  let blockRanges: Range<number>[] = [];
 
   const sortedBlockNumbers = sortBy(blockNumberList);
   for (let i = 0; i < sortedBlockNumbers.length - 1; i++) {
@@ -40,6 +40,9 @@ export function createOptimizerIndexFromBlockList({
   if (minDbBlock > firstBlockToConsider) {
     blockRanges.unshift({ from: firstBlockToConsider, to: minDbBlock - 1 });
   }
+
+  // remove invalid blocks
+  blockRanges = blockRanges.filter((r) => isValidRange(r));
 
   // split ranges in chunks of ~15min
   const maxTimeStepMs = samplingPeriodMs[snapshotInterval];
