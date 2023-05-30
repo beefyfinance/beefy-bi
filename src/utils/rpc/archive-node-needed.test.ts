@@ -120,4 +120,12 @@ describe("test archive node needed error parsing", () => {
       }),
     ).toBe(true);
   });
+
+  it("should detect missing trie nodes from ankr's error message", () => {
+    expect(isErrorDueToMissingDataFromNode({ jsonrpc: "2.0", error: { code: 0, message: "we can't execute this request" }, id: null })).toBe(true);
+  });
+
+  it("should detect missing trie nodes errors from ankr's error message from the string content", () => {
+    expect(isErrorDueToMissingDataFromNode(`{"jsonrpc":"2.0","error":{"code":0,"message":"we can't execute this request"},"id":null}`)).toBe(true);
+  });
 });
