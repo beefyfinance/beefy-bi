@@ -130,6 +130,7 @@ describe("Prepare the import state for the optimizer based on current configurat
   const behaviour: ImportBehaviour = {
     ...defaultImportBehaviour,
     mode: "historical",
+    skipRecentWindowWhenHistorical: "none",
     waitForBlockPropagation: 5,
   };
 
@@ -205,6 +206,113 @@ describe("Prepare the import state for the optimizer based on current configurat
         },
       }),
     ).toEqual({ fullRange: { from: 45, to: 75 }, coveredRanges: [], toRetry: [] });
+  });
+
+  it("should account for the skipRecentWindowWhenHistorical behaviour", () => {
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "all" },
+        isLive: true,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 500,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 395 }, coveredRanges: [], toRetry: [] });
+
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "live" },
+        isLive: true,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 500,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 395 }, coveredRanges: [], toRetry: [] });
+
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "live" },
+        isLive: false,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 500,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 495 }, coveredRanges: [], toRetry: [] });
+
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "eol" },
+        isLive: true,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 500,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 495 }, coveredRanges: [], toRetry: [] });
+
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "eol" },
+        isLive: false,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 500,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 395 }, coveredRanges: [], toRetry: [] });
   });
 
   it("should ignore the lastImportedBlockNumber as the starting point when provided", () => {

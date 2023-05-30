@@ -70,7 +70,7 @@ export function importStateToOptimizerRangeInput({
     // this is the whole range we have to cover
     fullRange = {
       from: importState.importData.contractCreatedAtBlock,
-      to: Math.min(latestBlockNumber - behaviour.waitForBlockPropagation, doSkip ? recentFullRange.to : Infinity),
+      to: Math.min(latestBlockNumber - behaviour.waitForBlockPropagation, doSkip ? recentFullRange.from : Infinity),
     };
   } else {
     fullRange = recentFullRange;
