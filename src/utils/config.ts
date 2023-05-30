@@ -132,7 +132,7 @@ export const ETHERSCAN_API_KEY: {
 };
 
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
-  arbitrum: 2200,
+  arbitrum: 250,
   aurora: 1000,
   avax: 3400,
   bsc: 3630,
