@@ -241,6 +241,7 @@ export function extractShareRateFromOptimizerOutput<TObj>(
         msg: "Not exactly 1 ppfs result for vault",
         data: {
           productKey: product.productKey,
+          range,
           results: results.map((r) => ({ result: { ...r.result, shareRate: r.result.shareRate.toString() }, productKey: r.product.productKey })),
           shareRateResults: shareRateResults.map((r) => ({
             result: { ...r.result, shareRate: r.result.shareRate.toString() },
