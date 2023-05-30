@@ -313,6 +313,27 @@ describe("Prepare the import state for the optimizer based on current configurat
         },
       }),
     ).toEqual({ fullRange: { from: 1, to: 395 }, coveredRanges: [], toRetry: [] });
+
+    expect(
+      importStateToOptimizerRangeInput({
+        behaviour: { ...behaviour, mode: "historical", skipRecentWindowWhenHistorical: "all" },
+        isLive: false,
+        lastImportedBlockNumber: null,
+        latestBlockNumber: 100,
+        maxBlocksPerQuery: 100,
+        msPerBlockEstimate: 5000,
+        importState: {
+          importKey: "test",
+          importData: {
+            contractCreatedAtBlock: 1,
+            ranges: {
+              coveredRanges: [],
+              toRetry: [],
+            },
+          } as any,
+        },
+      }),
+    ).toEqual({ fullRange: { from: 1, to: 0 }, coveredRanges: [], toRetry: [] });
   });
 
   it("should ignore the lastImportedBlockNumber as the starting point when provided", () => {
