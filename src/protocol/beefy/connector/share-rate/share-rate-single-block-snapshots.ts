@@ -239,7 +239,11 @@ export function extractShareRateFromOptimizerOutput<TObj>(
     if (results.length !== 1) {
       throw new ProgrammerError({
         msg: "Not exactly 1 ppfs result for vault",
-        data: { productKey: product.productKey, results: results.map((r) => ({ ...r, vault: r.product.productKey })) },
+        data: {
+          productKey: product.productKey,
+          results: results.map((r) => ({ ...r, vault: r.product.productKey })),
+          shareRateResults: shareRateResults.map((r) => ({ ...r, vault: r.product.productKey })),
+        },
       });
     }
     return {
