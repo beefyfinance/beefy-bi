@@ -166,10 +166,40 @@ services:
       REDIS_URL: redis://redis:6379
       TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       API_LISTEN: "::" # listen on all interfaces inside the container
-      WORK_CMD: "./dist/src/api/server.js"
+      WORK_CMD: "./dist/src/api/public-server.js"
       LETSENCRYPT_HOST: databarn.beefy.com,databarn.beefy.finance
       VIRTUAL_HOST: databarn.beefy.com,databarn.beefy.finance
       VIRTUAL_PORT: 8080
+      TRUST_DOWNSTREAM_PROXY: true
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
+    networks:
+      - backend
+      - proxy-exposed
+    depends_on:
+      - redis
+      - timescaledb
+
+  private-api:
+    image: beefy-data-importer
+    restart: always
+    env_file: ../.env
+    expose:
+      - "8081"
+    stop_signal: SIGINT
+    environment:
+      TZ: UTC
+      REDIS_URL: redis://redis:6379
+      TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
+      API_PORT: 8081
+      API_LISTEN: "::" # listen on all interfaces inside the container
+      WORK_CMD: "./dist/src/api/private-server.js"
+      LETSENCRYPT_HOST: databarn-core.beefy.com,databarn-core.beefy.finance
+      VIRTUAL_HOST: databarn-core.beefy.com,databarn-core.beefy.finance
+      VIRTUAL_PORT: 8081
       TRUST_DOWNSTREAM_PROXY: true
     logging:
       driver: "local"

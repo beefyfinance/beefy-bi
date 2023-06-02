@@ -1,4 +1,5 @@
-export * from "./api/server";
+export * from "./api/private-server";
+export * from "./api/public-server";
 export * from "./script/find-out-rpc-limitations";
 export * from "./script/run";
 export * from "./script/show-contract-creation-infos";

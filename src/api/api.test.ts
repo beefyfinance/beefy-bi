@@ -3,7 +3,7 @@ import { asValue } from "awilix";
 import { FastifyInstance } from "fastify";
 import { DbClient } from "../utils/db";
 import { ProgrammerError } from "../utils/programmer-error";
-import { buildApi } from "./api";
+import { buildPublicApi } from "./api";
 import { InvestorService } from "./service/investor";
 import { BeefyPortfolioService } from "./service/protocol/beefy";
 
@@ -16,7 +16,7 @@ describe("Api tests", () => {
     let getInvestorTimeline: jest.Mock<ReturnType<BeefyPortfolioService["getInvestorTimeline"]>> = jest.fn();
 
     const abCache = AbstractCache({ useAwait: false });
-    app = buildApi({
+    app = buildPublicApi({
       rateLimit: {
         timeWindow: "1 minute",
         max: 1, // should be 1 per test
