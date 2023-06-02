@@ -1,7 +1,7 @@
 import { API_LISTEN, API_PORT } from "../utils/config";
-import { buildApi } from "./api";
+import { buildPrivateApi } from "./api";
 
-const server = buildApi();
+const server = buildPrivateApi();
 server.listen({ port: API_PORT, host: API_LISTEN }, (err, address) => {
   if (err) {
     console.error(err);

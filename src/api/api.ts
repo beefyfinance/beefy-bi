@@ -1,4 +1,5 @@
 import FastifyDI, { diContainer } from "@fastify/awilix";
+import FastifyBearerAuth from "@fastify/bearer-auth";
 import FastifyCaching from "@fastify/caching";
 import FastifyCors from "@fastify/cors";
 import FastifyHelmet from "@fastify/helmet";
@@ -6,42 +7,50 @@ import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit, { RateLimitPluginOptions } from "@fastify/rate-limit";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify, { FastifyInstance } from "fastify";
-import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
+import {
+  API_DISABLE_HTTPS,
+  API_FRONTEND_URL,
+  API_PRIVATE_TOKEN,
+  API_URL,
+  APP_LOCAL_BUILDS_URL,
+  APP_PR_BUILDS_URL,
+  TIMESCALEDB_URL,
+} from "../utils/config";
 import { rootLogger } from "../utils/logger";
-import routes from "./route";
+import privateRoutes from "./route/private";
+import publicRoutes from "./route/public";
 import { registerDI } from "./service"; // register DI services
 
 const logger = rootLogger.child({ module: "api", component: "main" });
+
+type ServerOptions = { registerDI: (instance: FastifyInstance) => Promise<void>; rateLimit: RateLimitPluginOptions };
+const optionsDefaults: ServerOptions = {
+  registerDI,
+  rateLimit: {
+    global: true,
+    max: 25,
+    timeWindow: 5000,
+    cache: 10000,
+    continueExceeding: true,
+    skipOnError: false,
+    enableDraftSpec: true, // default false. Uses IEFT draft header standard
+  },
+};
 
 /**
  * Add all plugins to fastify
  * Make dependecy injection configurable for testing
  */
-export function buildApi(
-  options: { registerDI: (instance: FastifyInstance) => Promise<void>; rateLimit: RateLimitPluginOptions } = {
-    registerDI,
-    rateLimit: {
-      global: true,
-      max: 25,
-      timeWindow: 5000,
-      cache: 10000,
-      continueExceeding: true,
-      skipOnError: false,
-      enableDraftSpec: true, // default false. Uses IEFT draft header standard
-    },
-  },
-) {
+export function buildPublicApi(options: ServerOptions = optionsDefaults) {
   const server = fastify({
     logger,
     trustProxy: true, // cloudflare or nginx http termination
   });
 
-  // register anything that connects to redis (caching mostly)
-  server.register(async (instance, opts, done) => {
-    await options.registerDI(instance);
+  server.register(async (publicInstance, opts, done) => {
+    await options.registerDI(publicInstance);
 
-    instance
-      //.register(FastifyRedis, { client: diContainer.cradle.redis })
+    publicInstance
       .register(FastifyPostgres, { connectionString: TIMESCALEDB_URL, application_name: "api" })
       .register(FastifyDI.fastifyAwilixPlugin)
       .register(FastifyUnderPressure)
@@ -64,8 +73,42 @@ export function buildApi(
         global: true,
         ...options.rateLimit,
       })
-      .register(routes, { prefix: "/api/v1" });
+      .register(publicRoutes, { prefix: "/api/v1" });
     done();
+  });
+
+  return server;
+}
+
+export function buildPrivateApi(options: ServerOptions = optionsDefaults) {
+  const server = fastify({
+    logger,
+    trustProxy: true, // cloudflare or nginx http termination
+  });
+
+  server.register(async function plugin(privateInstance, opts) {
+    await options.registerDI(privateInstance);
+    const keys = new Set([API_PRIVATE_TOKEN]);
+
+    privateInstance
+      .register(FastifyPostgres, { connectionString: TIMESCALEDB_URL, application_name: "api" })
+      .register(FastifyDI.fastifyAwilixPlugin)
+      .register(FastifyUnderPressure)
+      // cors and just helmet just in case these are ever exposed
+      .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
+      .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
+      .register(FastifyBearerAuth, { keys })
+      // generous rate limit for private endpoints
+      .register(FastifyRateLimit, {
+        global: true,
+        max: 100,
+        timeWindow: 1000,
+        cache: 10000,
+        continueExceeding: true,
+        skipOnError: false,
+        enableDraftSpec: true, // default false. Uses IEFT draft header standard
+      })
+      .register(privateRoutes, { prefix: "/api/v1" });
   });
 
   return server;

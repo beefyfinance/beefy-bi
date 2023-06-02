@@ -6,6 +6,7 @@ import { Redis } from "ioredis";
 import { DbClient } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
 import { getRedisClient } from "../../utils/shared-resources/shared-lock";
+import { BlockService } from "./block";
 import { AsyncCache } from "./cache";
 import { ImportStateService } from "./import-state";
 import { InvestorService } from "./investor";
@@ -22,6 +23,7 @@ declare module "@fastify/awilix" {
     beefy: BeefyPortfolioService;
     product: ProductService;
     price: PriceService;
+    block: BlockService;
     importState: ImportStateService;
     abCache: AbstractCacheCompliantObject;
     cache: AsyncCache;
@@ -68,6 +70,9 @@ export async function registerDI(instance: FastifyInstance) {
       lifetime: Lifetime.SINGLETON,
     }),
     price: asClass(PriceService, {
+      lifetime: Lifetime.SINGLETON,
+    }),
+    block: asClass(BlockService, {
       lifetime: Lifetime.SINGLETON,
     }),
     importState: asClass(ImportStateService, {
