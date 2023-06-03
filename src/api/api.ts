@@ -10,7 +10,7 @@ import fastify, { FastifyInstance } from "fastify";
 import {
   API_DISABLE_HTTPS,
   API_FRONTEND_URL,
-  API_PRIVATE_TOKEN,
+  API_PRIVATE_TOKENS,
   API_URL,
   APP_LOCAL_BUILDS_URL,
   APP_PR_BUILDS_URL,
@@ -88,7 +88,7 @@ export function buildPrivateApi(options: ServerOptions = optionsDefaults) {
 
   server.register(async function plugin(privateInstance, opts) {
     await options.registerDI(privateInstance);
-    const keys = new Set([API_PRIVATE_TOKEN]);
+    const keys = new Set(API_PRIVATE_TOKENS);
 
     privateInstance
       .register(FastifyPostgres, { connectionString: TIMESCALEDB_URL, application_name: "api" })
