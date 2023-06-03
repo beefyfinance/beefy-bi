@@ -3,7 +3,7 @@ import S from "fluent-json-schema";
 import { merge } from "lodash";
 import { SamplingPeriod } from "../../../types/sampling";
 import { dateTimeSchema } from "../../schema/datetime";
-import { samplingPeriodSchema } from "../../schema/enums";
+import { shortSamplingPeriodSchema } from "../../schema/enums";
 import { PriceService } from "../../service/price";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
@@ -11,7 +11,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     querystring: S.object()
       .prop("oracle_id", S.string().minLength(1).maxLength(20).required())
       .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
-      .prop("look_around", samplingPeriodSchema.default("1day"))
+      .prop("look_around", shortSamplingPeriodSchema.default("1day"))
       .prop("half_limit", S.number().minimum(1).maximum(100).default(10)),
     tags: ["price"],
     summary: "Find the prices closest to a given date",

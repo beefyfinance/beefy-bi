@@ -4,4 +4,5 @@ import { allSamplingPeriods } from "../../types/sampling";
 
 // <bucket_size>_<time_range>
 export const samplingPeriodSchema = S.string().enum(allSamplingPeriods);
+export const shortSamplingPeriodSchema = S.string().enum(allSamplingPeriods.filter((p) => !p.includes("month") && !p.includes("year")));
 export const chainSchema = S.string().enum(allChainIds);
