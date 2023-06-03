@@ -117,7 +117,12 @@ export class PriceService {
     const isoDatetime = datetime.toISOString();
     const priceFeed = await db_query_one<{ price_feed_id: number; feed_key: string }>(
       `
-      select price_feed_id, feed_key from price_feed where price_feed_data->>'externalId' = %L limit 1
+      select 
+        price_feed_id, feed_key 
+      from price_feed 
+      where price_feed_data->>'externalId' = %L 
+      order by price_feed_id asc
+      limit 1
     `,
       [oracle_id],
       this.services.db,
@@ -157,7 +162,7 @@ export class PriceService {
           FROM price_ts
           WHERE price_feed_id = %L
             and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
-            and datetime >= %L 
+            and datetime > %L 
           ORDER BY datetime ASC 
           LIMIT %L
         )
