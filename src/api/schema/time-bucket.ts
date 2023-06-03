@@ -4,7 +4,12 @@ import { SamplingPeriod } from "../../types/sampling";
 // <bucket_size>_<time_range>
 export type TimeBucket = "1h_1d" | "1h_1w" | "1h_1M" | "4h_3M" | "1d_1M" | "1d_1Y" | "1d_all";
 const timeBucketValues: TimeBucket[] = ["1h_1d", "1h_1w", "1h_1M", "4h_3M", "1d_1M", "1d_1Y", "1d_all"];
-export const timeBucketSchema = S.string().enum(timeBucketValues).required();
+export const timeBucketSchema = S.string()
+  .enum(timeBucketValues)
+  .description(
+    "Defines a bucket size and a time range like <bucket size>_<time range>. For example, `1d_1M` means: 1 month of data aggregated by buckets of 1 day.",
+  )
+  .required();
 
 export function timeBucketToSamplingPeriod(timeBucket: TimeBucket) {
   const bucketParamMap: { [key in TimeBucket]: { bucketSize: SamplingPeriod; timeRange: SamplingPeriod } } = {

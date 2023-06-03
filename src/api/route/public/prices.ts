@@ -1,17 +1,27 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { merge } from "lodash";
-import { productKeySchema } from "../schema/product";
-import { TimeBucket, timeBucketSchema } from "../schema/time-bucket";
+import { productKeySchema } from "../../schema/product";
+import { TimeBucket, timeBucketSchema } from "../../schema/time-bucket";
+import { PriceService } from "../../service/price";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
-  const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"]).required();
+  const priceType = S.string()
+    .enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"])
+    .description("`share_to_underlying` is the ratio from share token to LP token. `underlying_to_usd` is the ratio from an LP token to $.")
+    .required();
 
   const schema = {
     querystring: S.object()
       .prop("product_key", productKeySchema.required())
       .prop("price_type", priceType.required())
       .prop("time_bucket", timeBucketSchema.required()),
+
+    tags: ["price"],
+    summary: "Get a quick price time series for a given product and time bucket",
+    response: {
+      200: PriceService.priceTsResponseSchema,
+    },
   };
   type TRoute = {
     Querystring: {
@@ -21,7 +31,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     };
   };
 
-  instance.get<TRoute>("/", merge(opts.routeOpts, { schema }), async (req, reply) => {
+  instance.get<TRoute>("/", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
     const { product_key, price_type, time_bucket } = req.query;
     const product = await instance.diContainer.cradle.product.getProductByProductKey(product_key);
     if (!product) {

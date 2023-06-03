@@ -1,7 +1,7 @@
 import FastifySwagger from "@fastify/swagger";
 import FastifySwaggerUI from "@fastify/swagger-ui";
 import { FastifyInstance } from "fastify";
-import { API_DISABLE_HTTPS } from "../../utils/config";
+import { API_DISABLE_HTTPS } from "../../../utils/config";
 
 import importStateRoutes from "./import-state";
 import pricesRoutes from "./prices";
