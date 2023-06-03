@@ -5,7 +5,7 @@ import { SamplingPeriod } from "../../types/sampling";
 import { dateTimeSchema } from "../schema/datetime";
 import { chainSchema, samplingPeriodSchema } from "../schema/enums";
 
-export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
+export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const schema = {
     querystring: S.object()
       .prop("chain", chainSchema.required())
@@ -22,7 +22,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     };
   };
 
-  instance.get<TRoute>("/around-a-date", { schema }, async (req, reply) => {
+  instance.get<TRoute>("/around-a-date", { ...opts.routeOpts, schema }, async (req, reply) => {
     const { chain, utc_datetime, half_limit, look_around } = req.query;
 
     let datetime: Date;
@@ -35,6 +35,4 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     const blocks = await instance.diContainer.cradle.block.getBlockAroundADate(chain, datetime, look_around, half_limit);
     return reply.send(blocks);
   });
-
-  done();
 }

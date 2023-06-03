@@ -11,7 +11,7 @@ export class BlockService {
     const queryParams = [isoDatetime, chain, isoDatetime, lookAround, isoDatetime, lookAround, isoDatetime, halfLimit];
     return db_query<{
       datetime: Date;
-      diff: string;
+      diff_sec: number;
       chain: Chain;
       block_number: number;
     }>(

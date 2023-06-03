@@ -3,7 +3,7 @@ import S from "fluent-json-schema";
 import { productKeySchema } from "../schema/product";
 import { TimeBucket, timeBucketSchema } from "../schema/time-bucket";
 
-export default async function (instance: FastifyInstance, opts: FastifyPluginOptions, done: (err?: Error) => void) {
+export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const priceType = S.string().enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"]).required();
 
   const schema = {
@@ -20,7 +20,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     };
   };
 
-  instance.get<TRoute>("/", { schema }, async (req, reply) => {
+  instance.get<TRoute>("/", { ...opts.routeOpts, schema }, async (req, reply) => {
     const { product_key, price_type, time_bucket } = req.query;
     const product = await instance.diContainer.cradle.product.getProductByProductKey(product_key);
     if (!product) {
@@ -50,6 +50,4 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     const priceTs = await instance.diContainer.cradle.price.getPriceTs(priceFeedId, time_bucket);
     return reply.send(priceTs.map((price) => [price.datetime, price.price_open, price.price_high, price.price_low, price.price_close]));
   });
-
-  done();
 }
