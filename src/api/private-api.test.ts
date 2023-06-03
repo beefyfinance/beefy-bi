@@ -2,7 +2,6 @@ import { diContainer } from "@fastify/awilix";
 import { asValue } from "awilix";
 import { FastifyInstance } from "fastify";
 import { sample } from "lodash";
-import { Chain } from "../types/chain";
 import { API_PRIVATE_TOKENS } from "../utils/config";
 import { DbClient } from "../utils/db";
 import { ProgrammerError } from "../utils/programmer-error";
@@ -95,13 +94,11 @@ describe("Private api tests", () => {
       {
         datetime: new Date("2022-10-22T12:12:12"),
         diff_sec: 123,
-        chain: "avax" as Chain,
         block_number: 1,
       },
       {
         datetime: new Date("2022-10-23T12:12:12"),
         diff_sec: -124,
-        chain: "avax" as Chain,
         block_number: 2,
       },
     ];
