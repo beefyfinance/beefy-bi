@@ -3,7 +3,6 @@ import S from "fluent-json-schema";
 import { merge } from "lodash";
 import { productKeySchema } from "../../schema/product";
 import { TimeBucket, timeBucketSchema } from "../../schema/time-bucket";
-import { PriceService } from "../../service/price";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const priceType = S.string()
@@ -19,9 +18,6 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
 
     tags: ["price"],
     summary: "Get a quick price time series for a given product and time bucket",
-    response: {
-      200: PriceService.priceTsResponseSchema,
-    },
   };
   type TRoute = {
     Querystring: {
