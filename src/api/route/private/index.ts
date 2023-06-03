@@ -3,8 +3,9 @@ import fastifyBearerAuth from "@fastify/bearer-auth";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import { FastifyInstance } from "fastify";
-import { API_DISABLE_HTTPS, API_PRIVATE_TOKENS } from "../../utils/config";
+import { API_DISABLE_HTTPS, API_PRIVATE_TOKENS } from "../../../utils/config";
 import blockRoutes from "./blocks";
+import priceRoutes from "./prices";
 
 export default async function (instance: FastifyInstance) {
   const keys = new Set(API_PRIVATE_TOKENS);
@@ -20,6 +21,10 @@ export default async function (instance: FastifyInstance) {
           title: "API",
           version: "0.0.1",
         },
+        tags: [
+          { name: "price", description: "Price related end-points" },
+          { name: "block", description: "Block related end-points" },
+        ],
         components: {
           securitySchemes: {
             bearerToken: {
@@ -44,8 +49,5 @@ export default async function (instance: FastifyInstance) {
   // register all protected routes
   // this needs to be done after the auth plugin is registered and awaited
   const routeOpts = { preHandler: instance.auth([instance.verifyBearerAuth as any]), schema: { security: [{ bearerToken: [] }] } };
-  await instance.register(blockRoutes, {
-    prefix: "/block",
-    routeOpts,
-  });
+  await instance.register(blockRoutes, { prefix: "/block", routeOpts }).register(priceRoutes, { prefix: "/price", routeOpts });
 }

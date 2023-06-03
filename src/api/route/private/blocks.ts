@@ -1,11 +1,11 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { merge } from "lodash";
-import { Chain } from "../../types/chain";
-import { SamplingPeriod } from "../../types/sampling";
-import { dateTimeSchema } from "../schema/datetime";
-import { chainSchema, samplingPeriodSchema } from "../schema/enums";
-import { BlockService } from "../service/block";
+import { Chain } from "../../../types/chain";
+import { SamplingPeriod } from "../../../types/sampling";
+import { dateTimeSchema } from "../../schema/datetime";
+import { chainSchema, samplingPeriodSchema } from "../../schema/enums";
+import { BlockService } from "../../service/block";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const schema = {
@@ -31,7 +31,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     };
   };
 
-  instance.get<TRoute>("/around-a-date", merge(opts.routeOpts, { schema }), async (req, reply) => {
+  await instance.get<TRoute>("/around-a-date", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
     const { chain, utc_datetime, half_limit, look_around } = req.query;
 
     let datetime: Date;

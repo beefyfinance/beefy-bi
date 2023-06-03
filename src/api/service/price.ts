@@ -1,10 +1,28 @@
-import { DbClient, db_query } from "../../utils/db";
+import { SamplingPeriod } from "../../types/sampling";
+import { DbClient, db_query, db_query_one } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
 import { TimeBucket, timeBucketToSamplingPeriod } from "../schema/time-bucket";
 import { AsyncCache } from "./cache";
 
 export class PriceService {
   constructor(private services: { db: DbClient; cache: AsyncCache }) {}
+
+  public static priceTsResponseSchema = {
+    description: "Get price time series for a given product and time bucket. This endpoint is cached for 5 minutes.",
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        datetime: { type: "string", format: "date-time", description: "The time bucket start date" },
+        price_avg: { type: "string", example: "12.23516", description: "Average price in the time bucket" },
+        price_high: { type: "string", example: "12.23516", description: "Highest price in the time bucket" },
+        price_low: { type: "string", example: "12.23516", description: "Lowest price in the time bucket" },
+        price_open: { type: "string", example: "12.23516", description: "First price in the time bucket" },
+        price_close: { type: "string", example: "12.23516", description: "Last price in the time bucket" },
+      },
+      required: ["datetime", "price_avg", "price_high", "price_low", "price_open", "price_close"],
+    },
+  };
 
   async getPriceTs(priceFeedId: number, timeBucket: TimeBucket) {
     const { timeRange } = timeBucketToSamplingPeriod(timeBucket);
@@ -82,5 +100,91 @@ export class PriceService {
       price_open: row.price_open,
       price_close: row.price_close,
     }));
+  }
+
+  public static pricesAroundADateResponseSchema = {
+    description: "List of 2*`half_limit` prices closest to the `utc_datetime`, for the given `oracle_id` and `look_around` period.",
+    type: "object",
+    properties: {
+      priceFeed: {
+        type: "object",
+        properties: {
+          price_feed_id: { type: "number", description: "The price feed id" },
+          feed_key: { type: "string", description: "The price feed key" },
+        },
+        required: ["price_feed_id", "feed_key"],
+      },
+      priceRows: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            datetime: { type: "string", format: "date-time", description: "Datetime of the price, provided by the price feed" },
+            diff_sec: { type: "number", description: "Difference between the requested `utc_datetime` and price `datetime`" },
+            price: { type: "string", example: "12.345678" },
+          },
+          required: ["datetime", "diff_sec", "price"],
+        },
+      },
+    },
+    required: ["priceFeed", "priceRows"],
+  };
+
+  async getPricesAroundADate(oracle_id: string, datetime: Date, lookAround: SamplingPeriod, halfLimit: number) {
+    const isoDatetime = datetime.toISOString();
+    const priceFeed = await db_query_one<{ price_feed_id: number; feed_key: string }>(
+      `
+      select price_feed_id, feed_key from price_feed where price_feed_data->>'externalId' = %L limit 1
+    `,
+      [oracle_id],
+      this.services.db,
+    );
+    if (!priceFeed) {
+      return null;
+    }
+    const queryParams = [isoDatetime, priceFeed.price_feed_id, isoDatetime, lookAround, isoDatetime, lookAround, isoDatetime, halfLimit];
+
+    const priceRows = await db_query<{
+      datetime: Date;
+      diff_sec: number;
+      price: string;
+    }>(
+      `
+      SELECT
+        *
+      FROM (
+        (
+          SELECT 
+            datetime, 
+            EXTRACT(EPOCH FROM (datetime - %L::timestamptz))::integer as diff_sec,
+            price
+          FROM price_ts
+          WHERE price_feed_id = %L
+            and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
+            and datetime <= %L 
+          ORDER BY datetime DESC 
+          LIMIT %L
+        ) 
+          UNION ALL
+        (
+          SELECT 
+            datetime, 
+            EXTRACT(EPOCH FROM (datetime - %L::timestamptz))::integer as diff_sec,
+            price
+          FROM price_ts
+          WHERE price_feed_id = %L
+            and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
+            and datetime >= %L 
+          ORDER BY datetime DESC 
+          LIMIT %L
+        )
+      ) as t
+      ORDER BY abs(diff_sec) ASC
+      `,
+      [...queryParams, ...queryParams],
+      this.services.db,
+    );
+
+    return { priceFeed, priceRows };
   }
 }
