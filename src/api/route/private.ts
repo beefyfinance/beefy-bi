@@ -20,6 +20,14 @@ export default async function (instance: FastifyInstance) {
           title: "API",
           version: "0.0.1",
         },
+        components: {
+          securitySchemes: {
+            bearerToken: {
+              type: "http",
+              scheme: "bearer",
+            },
+          },
+        },
       },
     })
     .register(fastifySwaggerUi, {
@@ -35,7 +43,7 @@ export default async function (instance: FastifyInstance) {
 
   // register all protected routes
   // this needs to be done after the auth plugin is registered and awaited
-  const routeOpts = { preHandler: instance.auth([instance.verifyBearerAuth as any]) };
+  const routeOpts = { preHandler: instance.auth([instance.verifyBearerAuth as any]), schema: { security: [{ bearerToken: [] }] } };
   await instance.register(blockRoutes, {
     prefix: "/block",
     routeOpts,

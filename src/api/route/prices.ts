@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
+import { merge } from "lodash";
 import { productKeySchema } from "../schema/product";
 import { TimeBucket, timeBucketSchema } from "../schema/time-bucket";
 
@@ -20,7 +21,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     };
   };
 
-  instance.get<TRoute>("/", { ...opts.routeOpts, schema }, async (req, reply) => {
+  instance.get<TRoute>("/", merge(opts.routeOpts, { schema }), async (req, reply) => {
     const { product_key, price_type, time_bucket } = req.query;
     const product = await instance.diContainer.cradle.product.getProductByProductKey(product_key);
     if (!product) {
