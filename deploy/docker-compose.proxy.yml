@@ -13,6 +13,11 @@ services:
       - nginx-certs:/etc/nginx/certs
       - nginx-vhosts:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
     networks:
       - proxy-exposed
 
@@ -27,6 +32,11 @@ services:
       - nginx-certs:/etc/nginx/certs
       - nginx-vhosts:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
+    logging:
+      driver: "local"
+      options:
+        max-size: "5M"
+        max-file: "3"
     depends_on:
       - nginx-proxy
 
