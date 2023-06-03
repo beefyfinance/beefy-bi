@@ -20,7 +20,7 @@ export class PriceService {
         price_open: { type: "string", example: "12.23516", description: "First price in the time bucket" },
         price_close: { type: "string", example: "12.23516", description: "Last price in the time bucket" },
       },
-      required: ["datetime", "price_avg", "price_high", "price_low", "price_open", "price_close"],
+      //required: ["datetime", "price_avg", "price_high", "price_low", "price_open", "price_close"],
     },
   };
 
