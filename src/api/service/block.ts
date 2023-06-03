@@ -1,4 +1,4 @@
-import { Chain, allChainIds } from "../../types/chain";
+import { Chain } from "../../types/chain";
 import { SamplingPeriod } from "../../types/sampling";
 import { DbClient, db_query } from "../../utils/db";
 import { AsyncCache } from "./cache";
@@ -14,7 +14,6 @@ export class BlockService {
       properties: {
         datetime: { type: "string", format: "date-time", description: "Block datetime, provided by the RPC" },
         diff_sec: { type: "number", description: "Difference between the requested `utc_datetime` and block `datetime`" },
-        chain: { type: "string", enum: Object.values(allChainIds) },
         block_number: { type: "number" },
       },
       required: ["datetime", "diff_sec", "chain", "block_number"],
@@ -27,7 +26,6 @@ export class BlockService {
     return db_query<{
       datetime: Date;
       diff_sec: number;
-      chain: Chain;
       block_number: number;
     }>(
       `
@@ -38,7 +36,6 @@ export class BlockService {
           SELECT 
             datetime, 
             EXTRACT(EPOCH FROM (datetime - %L::timestamptz))::integer as diff_sec,
-            chain,
             block_number 
           FROM block_ts
           WHERE chain = %L 
@@ -52,12 +49,11 @@ export class BlockService {
           SELECT 
             datetime, 
             EXTRACT(EPOCH FROM (datetime - %L::timestamptz))::integer as diff_sec,
-            chain,
             block_number 
           FROM block_ts
           WHERE chain = %L 
             and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
-            and datetime >= %L 
+            and datetime > %L 
           ORDER BY datetime ASC 
           LIMIT %L
         )
