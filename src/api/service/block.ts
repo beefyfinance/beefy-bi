@@ -1,12 +1,14 @@
 import { Chain } from "../../types/chain";
+import { SamplingPeriod } from "../../types/sampling";
 import { DbClient, db_query } from "../../utils/db";
 import { AsyncCache } from "./cache";
 
 export class BlockService {
   constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
-  async getBlockAroundADate(chain: Chain, datetime: Date) {
+  async getBlockAroundADate(chain: Chain, datetime: Date, lookAround: SamplingPeriod, halfLimit: number) {
     const isoDatetime = datetime.toISOString();
+    const queryParams = [isoDatetime, chain, isoDatetime, lookAround, isoDatetime, lookAround, isoDatetime, halfLimit];
     return db_query<{
       datetime: Date;
       diff: string;
@@ -25,10 +27,10 @@ export class BlockService {
             block_number 
           FROM block_ts
           WHERE chain = %L 
-            and datetime between %L::timestamptz - '1 day'::interval and %L::timestamptz + '1 day'::interval 
+            and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
             and datetime <= %L 
           ORDER BY datetime DESC 
-          LIMIT 10
+          LIMIT %L
         ) 
           UNION ALL
         (
@@ -39,15 +41,15 @@ export class BlockService {
             block_number 
           FROM block_ts
           WHERE chain = %L 
-            and datetime between %L::timestamptz - '1 day'::interval and %L::timestamptz + '1 day'::interval 
+            and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
             and datetime >= %L 
           ORDER BY datetime DESC 
-          LIMIT 10
+          LIMIT %L
         )
       ) as t
       ORDER BY abs(diff_sec) ASC
       `,
-      [isoDatetime, chain, isoDatetime, isoDatetime, isoDatetime, isoDatetime, chain, isoDatetime, isoDatetime, isoDatetime],
+      [...queryParams, ...queryParams],
       this.services.db,
     );
   }
