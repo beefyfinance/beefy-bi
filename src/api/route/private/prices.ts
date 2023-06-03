@@ -12,7 +12,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       .prop("oracle_id", S.string().minLength(1).maxLength(20).required())
       .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
       .prop("look_around", shortSamplingPeriodSchema.default("1day"))
-      .prop("half_limit", S.number().minimum(1).maximum(100).default(10)),
+      .prop("half_limit", S.number().minimum(1).maximum(100).default(1)),
     tags: ["price"],
     summary: "Find the prices closest to a given date",
     description:
