@@ -7,23 +7,6 @@ import { AsyncCache } from "./cache";
 export class PriceService {
   constructor(private services: { db: DbClient; cache: AsyncCache }) {}
 
-  public static priceTsResponseSchema = {
-    description: "Get price time series for a given product and time bucket. This endpoint is cached for 5 minutes.",
-    type: "array",
-    items: {
-      type: "object",
-      properties: {
-        datetime: { type: "string", format: "date-time", description: "The time bucket start date" },
-        price_avg: { type: "string", example: "12.23516", description: "Average price in the time bucket" },
-        price_high: { type: "string", example: "12.23516", description: "Highest price in the time bucket" },
-        price_low: { type: "string", example: "12.23516", description: "Lowest price in the time bucket" },
-        price_open: { type: "string", example: "12.23516", description: "First price in the time bucket" },
-        price_close: { type: "string", example: "12.23516", description: "Last price in the time bucket" },
-      },
-      //required: ["datetime", "price_avg", "price_high", "price_low", "price_open", "price_close"],
-    },
-  };
-
   async getPriceTs(priceFeedId: number, timeBucket: TimeBucket) {
     const { timeRange } = timeBucketToSamplingPeriod(timeBucket);
 
