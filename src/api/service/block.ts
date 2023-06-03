@@ -16,7 +16,7 @@ export class BlockService {
         diff_sec: { type: "number", description: "Difference between the requested `utc_datetime` and block `datetime`" },
         block_number: { type: "number" },
       },
-      required: ["datetime", "diff_sec", "chain", "block_number"],
+      required: ["datetime", "diff_sec", "block_number"],
     },
   };
 
