@@ -197,8 +197,8 @@ services:
       API_PORT: 8081
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/private-server.js"
-      LETSENCRYPT_HOST: databarn-core.beefy.com,databarn-core.beefy.finance
-      VIRTUAL_HOST: databarn-core.beefy.com,databarn-core.beefy.finance
+      LETSENCRYPT_HOST: db-core.beefy.com,db-core.beefy.finance
+      VIRTUAL_HOST: db-core.beefy.com,db-core.beefy.finance
       VIRTUAL_PORT: 8081
       TRUST_DOWNSTREAM_PROXY: true
     logging:
