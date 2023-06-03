@@ -13,7 +13,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       .prop("chain", chainSchema.required())
       .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
       .prop("look_around", shortSamplingPeriodSchema.default("1day"))
-      .prop("half_limit", S.number().minimum(1).maximum(100).default(10)),
+      .prop("half_limit", S.number().minimum(1).maximum(100).default(1)),
     tags: ["block"],
     summary: "Find the blocks closest to a given date",
     description:

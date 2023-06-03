@@ -158,7 +158,7 @@ export class PriceService {
           WHERE price_feed_id = %L
             and datetime between %L::timestamptz - %L::interval and %L::timestamptz + %L::interval 
             and datetime >= %L 
-          ORDER BY datetime DESC 
+          ORDER BY datetime ASC 
           LIMIT %L
         )
       ) as t
