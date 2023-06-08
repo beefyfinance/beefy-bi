@@ -41,11 +41,15 @@ type RpcConfig = {
     blocksAvailable: number; // <- Infinity for archive nodes, probably something around 250 for non-archive nodes
     stateChangeOnSameBlock: boolean; // <- if true, you can read the transaction result on the same block, ex: getBalance on the same block as the trx happened
     // ... other limitations that helps make the batching logic
+    maxRequestMb: number | null; // <- max request size in MB if relevant
+    optimalResponseTimeMs: number; // <- optimal response time in ms, if RPC suddenly becomes less efficient we should reduce the batch size or log span at runtime
+    callBatchSize: number; // <- initial batch size to use for this RPC, should be adapted on the fly based on the response time
+    logMaxRange: number; // <- max range to use for the log queries
   };
-  multicall3?: {
+  multicall3: {
     address: string;
     canGetBlockTimestampWithBlockTag: boolean; // <-- cosmos-based chains are broken here
-  };
+  } | null;
   rateLimitProfile:
     | {
         type: "no-limit";
