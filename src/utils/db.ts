@@ -666,6 +666,31 @@ export async function db_migrate() {
     `);
   }
 
+  // track down rpc errors to be able to understand what's going on without looking at logs
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS product_stats_ts (
+      datetime timestamp with time zone,
+      product_id integer,
+      total_share_balance double precision,
+      total_underlying_balance double precision,
+      total_usd_balance double precision,
+      approx_count_investor_hll hyperloglog,
+      approx_count_investor_hll_0_10 hyperloglog,
+      approx_count_investor_hll_10_100 hyperloglog,
+      approx_count_investor_hll_100_1000 hyperloglog,
+      approx_count_investor_hll_1000_10000 hyperloglog,
+      approx_count_investor_hll_10000_100000 hyperloglog,
+      approx_count_investor_hll_100000_1000000 hyperloglog
+    );
+
+    SELECT create_hypertable(
+      relation => 'product_stats_ts', 
+      time_column_name => 'datetime',
+      if_not_exists => true,
+      chunk_time_interval => INTERVAL '1 week'
+    );
+  `);
+
   // create a job to snapshot import metrics every 15 minutes
   if (!(await timescaledbJobExists("snapshot_import_metrics"))) {
     await db_query(`
@@ -741,3 +766,90 @@ export async function db_migrate() {
 
   logger.info({ msg: "Migrate done" });
 }
+
+/**
+ * 
+
+PREPARE product_stats_ts_insert_date(timestamptz) AS
+  INSERT INTO product_stats_ts 
+  (
+    datetime,
+    product_id,
+    total_share_balance,
+    total_underlying_balance,
+    total_usd_balance,
+    approx_count_investor_hll,
+    approx_count_investor_hll_0_10,
+    approx_count_investor_hll_10_100,
+    approx_count_investor_hll_100_1000,
+    approx_count_investor_hll_1000_10000,
+    approx_count_investor_hll_10000_100000,
+    approx_count_investor_hll_100000_1000000
+  )
+  (
+  with investor_last_balance_for_date as (
+    select
+      product_id, 
+      investor_id,
+      last(balance, datetime) as share_balance,
+      last(underlying_balance, datetime) as underlying_balance,
+      last(usd_balance, datetime) as usd_balance
+    from beefy_investor_timeline_cache_ts
+    where
+        datetime <= $1::timestamptz
+        and balance_diff != 0
+    group by 1,2
+    having last(balance, datetime) > 0
+  ),
+  product_total_balance_for_date as (
+    select 
+      product_id,
+      sum(share_balance) as total_share_balance,
+      sum(underlying_balance) as total_underlying_balance,
+      sum(usd_balance) as total_usd_balance,
+      toolkit_experimental.approx_count_distinct(investor_id) as approx_count_investor_hll,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 0 and usd_balance < 10) as approx_count_investor_hll_0_10,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 10 and usd_balance < 100) as approx_count_investor_hll_10_100,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 100 and usd_balance < 1000) as approx_count_investor_hll_100_1000,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 1000 and usd_balance < 10000) as approx_count_investor_hll_1000_10000,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 10000 and usd_balance < 100000) as approx_count_investor_hll_10000_100000,
+      toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 100000) as approx_count_investor_hll_100000_1000000
+    from investor_last_balance_for_date
+    group by 1
+  )
+  select 
+    $1 as datetime,
+    product_id,
+    total_share_balance,
+    total_underlying_balance,
+    total_usd_balance,
+    approx_count_investor_hll,
+    approx_count_investor_hll_0_10,
+    approx_count_investor_hll_10_100,
+    approx_count_investor_hll_100_1000,
+    approx_count_investor_hll_1000_10000,
+    approx_count_investor_hll_10000_100000,
+    approx_count_investor_hll_100000_1000000
+  from product_total_balance_for_date
+  )
+  ;
+
+
+DO
+$$
+DECLARE
+  refresh_interval INTERVAL = '4h'::INTERVAL;
+  start_timestamp TIMESTAMPTZ = (select time_bucket('4h', min(datetime)) from beefy_investor_timeline_cache_ts);
+  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
+BEGIN
+  WHILE start_timestamp < now() LOOP
+    EXECUTE format('EXECUTE product_stats_ts_insert_date(''%s''::timestamptz);', start_timestamp);
+    RAISE NOTICE 'finished with timestamp %', end_timestamp;
+    start_timestamp = end_timestamp;
+    end_timestamp = end_timestamp + refresh_interval;
+  END LOOP;
+END
+$$;
+
+ * 
+ */
