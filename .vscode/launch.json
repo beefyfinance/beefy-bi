@@ -17,6 +17,14 @@
       "runtimeArgs": ["-r", "ts-node/register"],
       "program": "${workspaceFolder}/src/script/run.ts",
       "args": ["beefy:run", "-i", "historical", "-c", "celo", "-a", "0x2D250016E3621CfC50A0ff7e5f6E34bbC6bfE50E"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "DEbug viem",
+      "program": "${workspaceFolder}/src/script/test-viem.ts",
+      "preLaunchTask": "tsc: build - tsconfig.json",
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     }
   ]
 }
