@@ -388,8 +388,8 @@ async function importIgnoreAddress(cmdParams: CmdParams) {
 function importBeefyDataPrices(cmdParams: CmdParams) {
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
   async function getInputs() {
-    const rpcConfig = createRpcConfig("bsc", behaviour); // never used
     const streamConfig = createBatchStreamConfig("bsc", behaviour);
+    const rpcConfig = createRpcConfig("bsc", behaviour, streamConfig); // never used
     const ctx: ImportCtx = {
       chain: "bsc" as Chain, // not used here
       client: cmdParams.client,
@@ -475,8 +475,8 @@ async function importInvestmentData(chain: Chain, cmdParams: CmdParams) {
 
 function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
-  const rpcConfig = createRpcConfig(chain, behaviour);
   const streamConfig = createBatchStreamConfig(chain, behaviour);
+  const rpcConfig = createRpcConfig(chain, behaviour, streamConfig);
   const ctx: ImportCtx = {
     chain,
     client: cmdParams.client,
