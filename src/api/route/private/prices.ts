@@ -11,7 +11,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   const schema = {
     querystring: S.object()
       .prop("price_type", priceTypeSchema.required())
-      .prop("oracle_id", S.string().minLength(1).maxLength(20).required())
+      .prop("oracle_id", S.string().minLength(1).maxLength(100).required())
       .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
       .prop("look_around", shortSamplingPeriodSchema.default("1day"))
       .prop("half_limit", S.number().minimum(1).maximum(100).default(1)),
