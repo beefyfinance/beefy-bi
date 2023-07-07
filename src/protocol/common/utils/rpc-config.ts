@@ -5,8 +5,9 @@ import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
 import { ETHERSCAN_API_KEY } from "../../../utils/config";
 import {
-  addDebugLogsToProvider,
   JsonRpcProviderWithMultiAddressGetLogs,
+  MultiChainEtherscanProvider,
+  addDebugLogsToProvider,
   monkeyPatchAnkrBscLinearProvider,
   monkeyPatchArchiveNodeRpcProvider,
   monkeyPatchCeloProvider,
@@ -15,17 +16,17 @@ import {
   monkeyPatchLayer2ReceiptFormat,
   monkeyPatchMissingEffectiveGasPriceReceiptFormat,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
-  MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
-import { rootLogger } from "../../../utils/logger";
+import { LogInfos, rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { removeSecretsFromRpcUrl } from "../../../utils/rpc/remove-secrets-from-rpc-url";
-import { getBestRpcUrlsForChain, getRpcLimitations, RpcLimitations } from "../../../utils/rpc/rpc-limitations";
-import { ImportBehaviour } from "../types/import-context";
+import { RpcLimitations, getBestRpcUrlsForChain, getRpcLimitations } from "../../../utils/rpc/rpc-limitations";
+import { BatchStreamConfig, ImportBehaviour } from "../types/import-context";
+import { createViemPublicClient } from "./viem/client";
 
 const logger = rootLogger.child({ module: "rpc-utils", component: "rpc-config" });
 
-export function getMultipleRpcConfigsForChain(options: { chain: Chain; behaviour: ImportBehaviour }): RpcConfig[] {
+export function getMultipleRpcConfigsForChain(options: { chain: Chain; behaviour: ImportBehaviour; streamConfig: BatchStreamConfig }): RpcConfig[] {
   let rpcUrls = getBestRpcUrlsForChain(options.chain, options.behaviour);
   if (options.behaviour.rpcCount !== "all") {
     rpcUrls = rpcUrls.slice(0, options.behaviour.rpcCount);
@@ -39,7 +40,7 @@ export function getMultipleRpcConfigsForChain(options: { chain: Chain; behaviour
 
   logger.debug({ msg: "Using RPC URLs", data: { chain: options.chain, rpcUrls: rpcUrls.map((url) => removeSecretsFromRpcUrl(options.chain, url)) } });
 
-  return rpcUrls.map((rpcUrl) => createRpcConfig(options.chain, { ...options.behaviour, forceRpcUrl: rpcUrl }));
+  return rpcUrls.map((rpcUrl) => createRpcConfig(options.chain, { ...options.behaviour, forceRpcUrl: rpcUrl }, options.streamConfig));
 }
 
 const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
@@ -58,7 +59,7 @@ const defaultRpcOptions: Partial<ethers.utils.ConnectionInfo> = {
   skipFetchSetup: true,
 };
 
-export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcConfig {
+export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour, streamConfig: BatchStreamConfig): RpcConfig {
   const rpcUrls = getBestRpcUrlsForChain(chain, behaviour);
   const urlObj = new URL(behaviour.forceRpcUrl || rpcUrls[0]);
 
@@ -73,11 +74,24 @@ export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcCo
 
   const rpcOptions: ethers.utils.ConnectionInfo = { ...defaultRpcOptions, url: rpcUrl, user, password, timeout: behaviour.rpcTimeoutMs };
   const networkish = { name: chain, chainId: getChainNetworkId(chain) };
+  const limitations = getRpcLimitations(chain, rpcOptions.url, behaviour);
+
   const rpcConfig: RpcConfig = {
     chain,
     linearProvider: new JsonRpcProviderWithMultiAddressGetLogs(rpcOptions, networkish),
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
-    rpcLimitations: getRpcLimitations(chain, rpcOptions.url, behaviour),
+    getViemClient: (type: "linear" | "batch", logInfos: LogInfos, streamConfig: BatchStreamConfig) =>
+      createViemPublicClient({
+        type,
+        chain,
+        rpcUrl,
+        logInfos,
+        limitations,
+        behaviour,
+        auth: user && password ? { user, password } : undefined,
+        streamConfig,
+      }),
+    rpcLimitations: limitations,
   };
 
   // instantiate etherscan provider

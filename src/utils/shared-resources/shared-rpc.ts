@@ -1,6 +1,7 @@
 import AsyncLock from "async-lock";
 import { ethers } from "ethers";
 import { backOff, IBackOffOptions } from "exponential-backoff";
+import { isString } from "lodash";
 import { createHash } from "node:crypto";
 import { Chain } from "../../types/chain";
 import { sleep } from "../../utils/async";
@@ -29,7 +30,7 @@ type CallLockProtectedRpcOptions = {
   maxTotalRetryMs: number;
   logInfos: LogInfos;
   chain: Chain;
-  provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider;
+  provider: ethers.providers.JsonRpcProvider | ethers.providers.JsonRpcBatchProvider | ethers.providers.EtherscanProvider | string;
   rpcLimitations: RpcLimitations;
   // if true, we will not call the work function behind a AsyncLock
   // it's up to the caller to ensure the work function is properly batched
@@ -58,7 +59,12 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
   const redlock = await getRedlock();
 
   // create a string we can log as raw rpc url may contain an api key
-  const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
+  const url =
+    options.provider instanceof ethers.providers.EtherscanProvider
+      ? options.provider.getBaseUrl()
+      : isString(options.provider)
+      ? options.provider
+      : options.provider.connection.url;
   const publicRpcUrl = removeSecretsFromRpcUrl(options.chain, url);
   const rpcLockId = `${options.chain}:rpc:lock:${getRpcPublicUniqueId(options.chain, url)}`;
   const lastCallCacheKey = `${options.chain}:rpc:last-call-date:${getRpcPublicUniqueId(options.chain, url)}`;
@@ -145,7 +151,12 @@ export async function callLockProtectedRpc<TRes>(work: () => Promise<TRes>, opti
  */
 async function callNoLimitRpc<TRes>(work: () => Promise<TRes>, options: CallLockProtectedRpcOptions) {
   // create a string we can log as raw rpc url may contain an api key
-  const url = options.provider instanceof ethers.providers.EtherscanProvider ? options.provider.getBaseUrl() : options.provider.connection.url;
+  const url =
+    options.provider instanceof ethers.providers.EtherscanProvider
+      ? options.provider.getBaseUrl()
+      : isString(options.provider)
+      ? options.provider
+      : options.provider.connection.url;
   const publicRpcUrl = removeSecretsFromRpcUrl(options.chain, url);
   const rpcLockId = `${options.chain}:rpc:lock:${publicRpcUrl}`;
 

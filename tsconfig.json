@@ -16,5 +16,5 @@
     "noImplicitThis": true
     //"noImplicitReturns": true
   },
-  "include": ["./src/main.ts", "./src/**/*.ts", "./data/interfaces/**/*.json", "./data/config/**/*.json"]
+  "include": ["./src/main.ts", "./src/**/*.ts", "./data/interfaces/**/*.json", "./data/config/**/*.json", "data/interfaces/standard/Multicall3.ts"]
 }

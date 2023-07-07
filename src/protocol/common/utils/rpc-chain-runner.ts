@@ -55,17 +55,18 @@ export function createChainRunner<TInput>(
         chain: "bsc",
       };
 
+  const streamConfig = createBatchStreamConfig(options.chain, options.behaviour);
+
   // get our rpc configs and associated workers
   const rpcConfigs = options.behaviour.forceRpcUrl
-    ? [createRpcConfig(options.chain, options.behaviour)]
+    ? [createRpcConfig(options.chain, options.behaviour, streamConfig)]
     : getMultipleRpcConfigsForChain({
         chain: options.chain,
         behaviour: options.behaviour,
+        streamConfig: streamConfig,
       });
 
   logger.debug({ msg: "splitting inputs between rpcs", data: { rpcCount: rpcConfigs.length } });
-
-  const streamConfig = createBatchStreamConfig(options.chain, options.behaviour);
 
   const workers = rpcConfigs.map((rpcConfig) => {
     const ctx: ImportCtx = {
