@@ -1,6 +1,7 @@
 import { SamplingPeriod } from "../../types/sampling";
 import { DbClient, db_query, db_query_one } from "../../utils/db";
 import { ProgrammerError } from "../../utils/programmer-error";
+import { PriceType } from "../schema/price-type";
 import { TimeBucket, timeBucketToSamplingPeriod } from "../schema/time-bucket";
 import { AsyncCache } from "./cache";
 
@@ -113,7 +114,7 @@ export class PriceService {
     required: ["priceFeed", "priceRows"],
   };
 
-  async getPricesAroundADate(oracle_id: string, datetime: Date, lookAround: SamplingPeriod, halfLimit: number) {
+  async getPricesAroundADate(priceType: PriceType, oracle_id: string, datetime: Date, lookAround: SamplingPeriod, halfLimit: number) {
     const isoDatetime = datetime.toISOString();
     const priceFeed = await db_query_one<{ price_feed_id: number; feed_key: string }>(
       `
@@ -121,10 +122,19 @@ export class PriceService {
         price_feed_id, feed_key 
       from price_feed 
       where price_feed_data->>'externalId' = %L 
+        and (
+          case 
+            when %L = 'share_to_underlying' 
+              then feed_key like 'beefy:%:ppfs' 
+            when %L = 'underlying_to_usd'
+              then feed_key like 'beefy-data:%' 
+            else false
+          end
+        )
       order by price_feed_id asc
       limit 1
     `,
-      [oracle_id],
+      [oracle_id, priceType, priceType],
       this.services.db,
     );
     if (!priceFeed) {

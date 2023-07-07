@@ -5,10 +5,12 @@ import { SamplingPeriod } from "../../../types/sampling";
 import { dateTimeSchema } from "../../schema/datetime";
 import { shortSamplingPeriodSchema } from "../../schema/enums";
 import { PriceService } from "../../service/price";
+import { PriceType, priceTypeSchema } from "../../schema/price-type";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const schema = {
     querystring: S.object()
+      .prop("price_type", priceTypeSchema.required())
       .prop("oracle_id", S.string().minLength(1).maxLength(20).required())
       .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
       .prop("look_around", shortSamplingPeriodSchema.default("1day"))
@@ -23,6 +25,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   };
   type TRoute = {
     Querystring: {
+      price_type: PriceType;
       oracle_id: string;
       utc_datetime: string;
       look_around: SamplingPeriod;
@@ -31,7 +34,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   };
 
   await instance.get<TRoute>("/around-a-date", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
-    const { oracle_id, utc_datetime, half_limit, look_around } = req.query;
+    const { price_type, oracle_id, utc_datetime, half_limit, look_around } = req.query;
 
     let datetime: Date;
     try {
@@ -40,7 +43,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       return reply.code(400).send({ error: "Could not parse date" });
     }
 
-    const response = await instance.diContainer.cradle.price.getPricesAroundADate(oracle_id, datetime, look_around, half_limit);
+    const response = await instance.diContainer.cradle.price.getPricesAroundADate(price_type, oracle_id, datetime, look_around, half_limit);
     if (!response) {
       return reply.code(404).send({ error: "Price feed not found" });
     }
