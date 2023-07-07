@@ -3,17 +3,13 @@ import S from "fluent-json-schema";
 import { merge } from "lodash";
 import { productKeySchema } from "../../schema/product";
 import { TimeBucket, timeBucketSchema } from "../../schema/time-bucket";
+import { PriceType, priceTypeSchema } from "../../schema/price-type";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
-  const priceType = S.string()
-    .enum(["share_to_underlying", "underlying_to_usd", "pending_rewards_to_usd"])
-    .description("`share_to_underlying` is the ratio from share token to LP token. `underlying_to_usd` is the ratio from an LP token to $.")
-    .required();
-
   const schema = {
     querystring: S.object()
       .prop("product_key", productKeySchema.required())
-      .prop("price_type", priceType.required())
+      .prop("price_type", priceTypeSchema.required())
       .prop("time_bucket", timeBucketSchema.required()),
 
     tags: ["price"],
@@ -21,7 +17,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   };
   type TRoute = {
     Querystring: {
-      price_type: "share_to_underlying" | "underlying_to_usd" | "pending_rewards_to_usd";
+      price_type: PriceType;
       product_key: string;
       time_bucket: TimeBucket;
     };
@@ -43,12 +39,8 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       priceFeedId = priceFeedIds.price_feed_1_id;
     } else if (price_type === "underlying_to_usd") {
       priceFeedId = priceFeedIds.price_feed_2_id;
-    } else if (price_type === "pending_rewards_to_usd") {
-      priceFeedId = priceFeedIds.pending_rewards_price_feed_id;
-      // some products don't have pending rewards price feeds
-      if (!priceFeedId) {
-        return reply.send([]);
-      }
+    } else {
+      return reply.send([]);
     }
     if (!priceFeedId) {
       return reply.code(404).send({ error: "Price feed not found" });
