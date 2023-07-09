@@ -75,7 +75,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },
   polygon: { type: "etherscan", url: "https://api.polygonscan.com/api" },
   syscoin: { type: "etherscan", url: "https://explorer.syscoin.org/api" },
-  zksync: { type: "zksync", url: "https://zksync2-mainnet-explorer.zksync.io" },
+  zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
 };
 
 export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
