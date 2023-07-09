@@ -265,8 +265,9 @@ async function getFromZksyncExplorerApi(contractAddress: string, explorerUrl: st
   callUrl.pathname = `/address/${contractAddress}`;
 
   try {
-    const contractResp = await axios.get<{ info: { createdInBlockNumber: number } }>(callUrl.href);
-    const blockNumber = contractResp.data?.info?.createdInBlockNumber;
+    const contractResp = await axios.get<{ createdInBlockNumber: number }>(callUrl.href);
+    const blockNumber = contractResp.data?.createdInBlockNumber;
+    logger.trace({ msg: "Fetched contract creation block", data: { contractAddress, blockNumber } });
     if (!blockNumber) {
       logger.error({
         msg: "Could not find a valid block number",
@@ -275,14 +276,19 @@ async function getFromZksyncExplorerApi(contractAddress: string, explorerUrl: st
       throw new Error("Could not find a valid block number");
     }
 
-    callUrl.pathname = `/block/${blockNumber}`;
-    const blockResp = await axios.get<{ timestamp: number }>(callUrl.href);
+    callUrl.pathname = `/blocks/${blockNumber}`;
+    const blockResp = await axios.get<{ timestamp: string }>(callUrl.href);
     const timeStamp = blockResp.data?.timestamp;
     if (!timeStamp) {
       logger.error({ msg: "Could not find a valid timestamp", data: { contractAddress, explorerUrl: callUrl.href, data: blockResp.data } });
       throw new Error("Could not find a valid block number");
     }
-    const datetime = new Date(timeStamp * 1000);
+    logger.trace({ msg: "Fetched contract creation block timestamp", data: { contractAddress, blockNumber, timeStamp } });
+    const datetime = new Date(timeStamp);
+    if (isNaN(datetime.getTime())) {
+      logger.error({ msg: "Could not parse timestamp", data: { contractAddress, explorerUrl: callUrl.href, data: blockResp.data } });
+      throw new Error("Could not parse timestamp");
+    }
 
     return { blockNumber, datetime };
   } catch (error) {
