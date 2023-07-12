@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2023-07-12T19:09:48.935Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" etag="xatZlr5rNs4X2kCMe0Ac" version="21.2.3" type="github">
+<mxfile host="app.diagrams.net" modified="2023-07-12T19:22:32.768Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" etag="VR6QoIphYd2dE10T43HR" version="21.2.3" type="github">
   <diagram name="Page-1" id="OcyrxSaOLKTO3twHUCwc">
     <mxGraphModel dx="1804" dy="1752" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -7,22 +7,11 @@
         <mxCell id="02symyp6Dsfdwm89dj8b-20" value="&lt;p style=&quot;margin:0px;margin-top:4px;margin-left:10px;text-align:left;&quot;&gt;&lt;b&gt;RPC data sources&lt;/b&gt;&lt;/p&gt;" style="html=1;shape=mxgraph.sysml.package;html=1;overflow=fill;whiteSpace=wrap;labelX=169;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="-135" y="25" width="335" height="225" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-1" target="02symyp6Dsfdwm89dj8b-3">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-12" value="Knows about" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="02symyp6Dsfdwm89dj8b-11">
-          <mxGeometry x="0.0167" y="2" relative="1" as="geometry">
-            <mxPoint y="1" as="offset" />
-          </mxGeometry>
-        </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-59" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;endArrow=block;endFill=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-1" target="02symyp6Dsfdwm89dj8b-55">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-1" value="RPC Worker" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="622.5" y="147.5" width="100" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-3" value="RPC config&lt;br&gt;- limitations&lt;br&gt;- rate limits&lt;br&gt;- # of blocks available" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
-          <mxGeometry x="620" y="242.5" width="105" height="90" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-6" value="Events" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
           <mxGeometry x="-75" y="55" width="60" height="70" as="geometry" />
@@ -171,6 +160,9 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-102" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-55" target="02symyp6Dsfdwm89dj8b-101">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-55" value="Data Source Worker" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="810" y="15" width="100" height="40" as="geometry" />
         </mxCell>
@@ -199,14 +191,14 @@
         <mxCell id="02symyp6Dsfdwm89dj8b-58" value="Explorer Worker" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1000" y="147.5" width="100" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-64" value="Rate limit config" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
-          <mxGeometry x="735" y="-110" width="75" height="50" as="geometry" />
+        <mxCell id="02symyp6Dsfdwm89dj8b-64" value="Rate limit policy" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
+          <mxGeometry x="778.75" y="-110" width="75" height="50" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-66" value="Query Limitations" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
-          <mxGeometry x="822.5" y="-110" width="75" height="50" as="geometry" />
+          <mxGeometry x="866.25" y="-110" width="75" height="50" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-68" value="Cost Config" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
-          <mxGeometry x="910" y="-110" width="75" height="50" as="geometry" />
+          <mxGeometry x="953.75" y="-110" width="75" height="50" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-79" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-70" target="02symyp6Dsfdwm89dj8b-78">
           <mxGeometry relative="1" as="geometry" />
@@ -220,14 +212,14 @@
         <mxCell id="02symyp6Dsfdwm89dj8b-73" value="&amp;nbsp; Reorderable&lt;br&gt;&amp;nbsp; Work queue" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;align=left;" vertex="1" parent="1">
           <mxGeometry x="1180" y="242.5" width="110" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-76" value="Events" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
-          <mxGeometry x="1870" y="-103.75" width="60" height="70" as="geometry" />
+        <mxCell id="02symyp6Dsfdwm89dj8b-76" value="Import state" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="-55" width="60" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;dashed=1;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-77" target="02symyp6Dsfdwm89dj8b-70">
+        <mxCell id="02symyp6Dsfdwm89dj8b-80" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;dashed=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-77" target="02symyp6Dsfdwm89dj8b-70">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-77" value="&amp;nbsp; - 1 per chain, can be same process or separate&lt;br&gt;&amp;nbsp; - Maintain import&amp;nbsp;&lt;br&gt;&amp;nbsp; - Ex: &lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; - If queue grows, use more paid workers&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; - If calm, use free only&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; - If worker become slow, lower it&#39;s usage&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp; &amp;nbsp; or send less work" style="shape=note;strokeWidth=2;fontSize=9;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;align=left;" vertex="1" parent="1">
-          <mxGeometry x="1170" y="332.5" width="220" height="102.5" as="geometry" />
+          <mxGeometry x="1040" y="320" width="220" height="102.5" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-78" value="Worker performance" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
           <mxGeometry x="1295" y="242.5" width="85" height="70" as="geometry" />
@@ -246,8 +238,8 @@
         <mxCell id="02symyp6Dsfdwm89dj8b-85" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=none;endFill=0;dashed=1;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-84" target="02symyp6Dsfdwm89dj8b-82">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-84" value="&amp;nbsp; - Knows about workers and work to be done&lt;br&gt;&amp;nbsp; - Decides to what each worker should do" style="shape=note;strokeWidth=2;fontSize=9;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;align=left;" vertex="1" parent="1">
-          <mxGeometry x="1250" y="-90" width="220" height="56.25" as="geometry" />
+        <mxCell id="02symyp6Dsfdwm89dj8b-84" value="&amp;nbsp; - Knows about workers and work to be done&lt;br&gt;&amp;nbsp; - Decides to what each worker should do&lt;br&gt;&amp;nbsp; - Make sure no 2 workers are doing the same thing&lt;br&gt;&amp;nbsp; - Schedule retries properly (to avoid blocking)&lt;br&gt;&amp;nbsp; - Decides which type of query is best for the work to be done&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp;-&amp;gt; /!\&amp;nbsp;implies it has knowledge about workers internals /!\&lt;br&gt;&amp;nbsp; - Knows how to split large work in smaller pieces&lt;br&gt;&amp;nbsp; &amp;nbsp; &amp;nbsp;-&amp;gt; /!\ implies it has knowledge about the work" style="shape=note;strokeWidth=2;fontSize=9;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1225" y="-150" width="270" height="109.38" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-87" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;endArrow=block;endFill=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-86" target="02symyp6Dsfdwm89dj8b-82">
           <mxGeometry relative="1" as="geometry" />
@@ -261,8 +253,21 @@
         <mxCell id="02symyp6Dsfdwm89dj8b-88" value="Dumb work queue" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;whiteSpace=wrap;align=left;" vertex="1" parent="1">
           <mxGeometry x="1415" y="215" width="110" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="02symyp6Dsfdwm89dj8b-91" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-90" target="02symyp6Dsfdwm89dj8b-82">
+        <mxCell id="02symyp6Dsfdwm89dj8b-91" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;startArrow=classic;startFill=1;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-90" target="02symyp6Dsfdwm89dj8b-82">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-107" value="&amp;lt;- request large work items&lt;br&gt;-&amp;gt; gets partial results as they come in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="02symyp6Dsfdwm89dj8b-91">
+          <mxGeometry x="0.0303" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-106" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-90" target="02symyp6Dsfdwm89dj8b-76">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-108" value="Updates" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="02symyp6Dsfdwm89dj8b-106">
+          <mxGeometry x="0.04" y="-3" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-90" value="Consumer Script" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1740" y="15" width="100" height="40" as="geometry" />
@@ -271,19 +276,31 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-92" value="Product List script" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="1690" y="125" width="100" height="40" as="geometry" />
+          <mxGeometry x="1680" y="125" width="100" height="40" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-99" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;endArrow=block;endFill=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-95" target="02symyp6Dsfdwm89dj8b-90">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-95" value="Product Events script" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="1750" y="180" width="100" height="40" as="geometry" />
+          <mxGeometry x="1740" y="180" width="100" height="40" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-98" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;endArrow=block;endFill=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-96" target="02symyp6Dsfdwm89dj8b-90">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="02symyp6Dsfdwm89dj8b-96" value="Event Data script" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1820" y="125" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-100" value="&amp;nbsp; - Knows about workers and work to be done&lt;br&gt;&amp;nbsp; - Decides to what each worker should do" style="shape=note;strokeWidth=2;fontSize=9;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1670" y="-96.87" width="220" height="56.25" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-101" value="Retry Policy" style="whiteSpace=wrap;html=1;shape=mxgraph.basic.document" vertex="1" parent="1">
+          <mxGeometry x="691.25" y="-110" width="75" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-104" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=1;endArrow=none;endFill=0;" edge="1" parent="1" source="02symyp6Dsfdwm89dj8b-103" target="02symyp6Dsfdwm89dj8b-86">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="02symyp6Dsfdwm89dj8b-103" value="&amp;nbsp; - used for simple sources&lt;br&gt;&amp;nbsp; - or when only 1 rpc is available for a chain" style="shape=note;strokeWidth=2;fontSize=9;size=20;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#666600;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1450" y="290" width="200" height="50" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
