@@ -313,11 +313,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c ethereum -c optimism -l 15min -S all"
 
-  importer-investment-historical-fantom-polygon:
+  importer-investment-historical-fantom-polygon-zkevm:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c polygon -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c polygon -c zkevm -l 15min -S all"
 
   # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
