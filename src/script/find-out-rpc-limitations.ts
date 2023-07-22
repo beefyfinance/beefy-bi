@@ -193,7 +193,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       //optimism: 1000,
       optimism: 12334163, // beefy first contract is at 13334163
       polygon: 4931456,
-      syscoin: 1523,
+      zkevm: 129,
       zksync: 9648,
     };
     // disable the baked in retry logic just temporarily
