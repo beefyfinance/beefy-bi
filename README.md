@@ -145,8 +145,8 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 
 - Update the chain enum in the `src/types/chain.ts` file
 - Run `npx ncu --upgrade blockchain-addressbook` and `npm install` to get the wtoken address
-- Run `npm run build` and solve any remainning typescript error
 - Add a new RPC using the above guide
+- Run `npm run build` and solve any remainning typescript error
 - Configure import scripts in `deploy/docker-compose.yml`
 
 ### Update a grafana dashboard

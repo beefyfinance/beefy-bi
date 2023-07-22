@@ -74,7 +74,7 @@ export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscou
   moonriver: { type: "etherscan", url: "https://api-moonriver.moonscan.io/api" },
   optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },
   polygon: { type: "etherscan", url: "https://api.polygonscan.com/api" },
-  syscoin: { type: "etherscan", url: "https://explorer.syscoin.org/api" },
+  zkevm: { type: "etherscan", url: "https://api-zkevm.polygonscan.com/api" },
   zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
 };
 
@@ -98,7 +98,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   moonriver: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1597904 },
   optimism: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 4286263 },
   polygon: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 25770160 },
-  syscoin: null,
+  zkevm: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 57746 },
   zksync: { multicallAddress: "0x47898B2C52C957663aE9AB46922dCec150a2272c", createdAtBlock: 1536804 },
 };
 
@@ -128,10 +128,14 @@ export const ETHERSCAN_API_KEY: {
   moonriver: _getExplorerApiKey("moonriver"),
   optimism: _getExplorerApiKey("optimism"),
   polygon: _getExplorerApiKey("polygon"),
-  syscoin: _getExplorerApiKey("syscoin"),
+  zkevm: _getExplorerApiKey("zkevm"),
   zksync: _getExplorerApiKey("zksync"),
 };
 
+/**
+ * Use the following command:
+ * npx ts-node ./src/script/show-estimated-ms-per-block.ts -c <chain>
+ */
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   arbitrum: 250,
   aurora: 1000,
@@ -152,7 +156,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   moonriver: 13000,
   optimism: 375,
   polygon: 2170,
-  syscoin: 152864,
+  zkevm: 1208,
   zksync: 1000,
 };
 
