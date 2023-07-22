@@ -18,7 +18,7 @@ export type Chain =
   | "moonriver"
   | "optimism"
   | "polygon"
-  | "syscoin"
+  | "zkevm"
   | "zksync";
 
 export const allChainIds: Chain[] = [
@@ -41,6 +41,6 @@ export const allChainIds: Chain[] = [
   "moonriver",
   "optimism",
   "polygon",
-  "syscoin",
+  "zkevm",
   "zksync",
 ];

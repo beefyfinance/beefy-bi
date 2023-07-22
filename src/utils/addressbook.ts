@@ -3,12 +3,12 @@ import { Chain } from "../types/chain";
 import { normalizeAddressOrThrow } from "./ethers";
 
 function getAddressBookTokensConfig(chain: Chain) {
-  const addrBookChain = chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
+  const addrBookChain = chain === "harmony" ? "one" : chain;
   return addressbook.addressBook[addrBookChain].tokens;
 }
 
 export function getChainNetworkId(chain: Chain): number {
-  const addrBookChain = chain === "harmony" ? "one" : chain === "syscoin" ? "sys" : chain;
+  const addrBookChain = chain === "harmony" ? "one" : chain;
   return addressbook.ChainId[addrBookChain];
 }
 

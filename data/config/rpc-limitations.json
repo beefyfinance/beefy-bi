@@ -1031,5 +1031,27 @@
         "eth_getTransactionReceipt": 50
       }
     }
+  },
+  "zkevm": {
+    "https://rpc.ankr.com/polygon_zkevm/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": 10000,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 50,
+        "eth_call": 64,
+        "eth_getBlockByNumber": 128,
+        "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 100
+      }
+    }
   }
 }
