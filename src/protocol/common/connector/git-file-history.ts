@@ -72,7 +72,9 @@ export async function* gitStreamFileVersions(options: {
     file: options.filePath,
     format: "%H",
   });
-  let logs = log.all as any as { hash: string; date: string }[];
+  let logs = (log.all as any as { hash: string; date: string }[])
+    // parse dates as objects as they are not sortable due to the timezone
+    .map((l) => ({ hash: l.hash, date: Date.parse(l.date) }));
 
   let latestVersionIndex = 0;
   if (options.order === "old-to-recent") {
