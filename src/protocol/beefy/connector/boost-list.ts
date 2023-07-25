@@ -84,26 +84,13 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
         acc[boostAddress].foundInCurrentBatch = false;
       }
 
-      // add vaults to the accumulator
+      // add boosts to the accumulator
       for (const boost of boosts) {
         const boostAddress = normalizeAddressOrThrow(boost.earnContractAddress);
         if (!acc[boostAddress]) {
           const eolDate = boost.status === "closed" ? fileVersion.date : null;
           acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
         } else {
-          if (acc[boostAddress].fileVersion.date > fileVersion.date) {
-            logger.warn({
-              msg: "Found a boost with a newer version in the past",
-              data: {
-                boostAddress,
-                previousDate: acc[boostAddress].fileVersion.date,
-                newDate: fileVersion.date,
-                boost,
-              },
-            });
-            continue;
-          }
-
           const eolDate = boost.status === "closed" ? acc[boostAddress].eolDate || fileVersion.date : null;
           acc[boostAddress] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
         }

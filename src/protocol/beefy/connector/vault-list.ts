@@ -152,17 +152,6 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
           const eolDate = vault.status === "eol" ? fileVersion.date : null;
           acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
         } else {
-          if (acc[vaultAddress].fileVersion.date > fileVersion.date) {
-            logger.warn({
-              msg: "Found a vault with a newer version in the past",
-              data: {
-                vaultAddress,
-                previousDate: acc[vaultAddress].fileVersion.date,
-                newDate: fileVersion.date,
-                vault,
-              },
-            });
-          }
           acc[vaultAddress].foundInCurrentBatch = true;
 
           const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
