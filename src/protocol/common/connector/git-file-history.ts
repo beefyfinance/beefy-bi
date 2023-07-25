@@ -2,6 +2,7 @@ import { sortBy } from "lodash";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GIT_WORK_DIRECTORY } from "../../../utils/config";
+import { isoStringToDate } from "../../../utils/date";
 import { fileOrDirExists } from "../../../utils/fs";
 import { rootLogger } from "../../../utils/logger";
 import { callLockProtectedGitRepo } from "../../../utils/shared-resources/shared-gitrepo";
@@ -74,7 +75,7 @@ export async function* gitStreamFileVersions(options: {
   });
   let logs = (log.all as any as { hash: string; date: string }[])
     // parse dates as objects as they are not sortable due to the timezone
-    .map((l) => ({ hash: l.hash, date: Date.parse(l.date) }));
+    .map((l) => ({ hash: l.hash, date: isoStringToDate(l.date) }));
 
   let latestVersionIndex = 0;
   if (options.order === "old-to-recent") {
