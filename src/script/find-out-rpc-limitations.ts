@@ -173,6 +173,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       arbitrum: 55,
       aurora: 51919680,
       avax: 820,
+      base: 1, // weth created on genesis block
       bsc: 149268,
       canto: 85395,
       celo: 2919,
@@ -187,11 +188,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       metis: 1400, // couldn't find the exact wtoken creation block
       moonbeam: 171210,
       moonriver: 413534,
-      // not sure if this is correct, explorer shows a weird block
-      // https://optimistic.etherscan.io/address/0x4200000000000000000000000000000000000006
-      // https://optimistic.etherscan.io/tx/GENESIS_4200000000000000000000000000000000000006 -> 404
-      //optimism: 1000,
-      optimism: 12334163, // beefy first contract is at 13334163
+      optimism: 1, // weth created on genesis block
       polygon: 4931456,
       zkevm: 129,
       zksync: 9648,
