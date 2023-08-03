@@ -1,0 +1,854 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 26,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 16,
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 10,
+            "x": 0,
+            "y": 1
+          },
+          "id": 23,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "## How counts are calculated\n\n- We take a daily snapshot of all investors balance per product\n- The snapshot has a 2 days delay to give some time to the importer to get all the data\n- For each product we compute an [hyperloglog](https://en.wikipedia.org/wiki/HyperLogLog)\n- The total investor count has a precision of 15\n- Segmented counts has a precision of 13\n- We count investor ids, an investor id does not depends on the chain\n- If a user has positive balances on multiple products or chains, we count 1\n\n### HyperLogLog precision table\n\n| Precision | Max storage size | 65% CI | 95% CI | 99% CI |\n| --------- | ---------------- | ------ | ------ | ------ |\n| 10 | 1 KiB + 28 B | ±3.25% | ±6.50% | ±9.75% |\n| 11 | 2 KiB + 28 B | ±2.30% | ±4.60% | ±6.89% |\n| 12 | 4 KiB + 28 B | ±1.63% | ±3.25% | ±4.88% |\n| 13 | 8 KiB + 28 B | ±1.15% | ±2.30% | ±3.45% |\n| 14 | 16 KiB + 30 B | ±0.81% | ±1.63% | ±2.44% |\n| 15 (default) | 32 KiB + 30 B | ±0.57% | ±1.15% | ±1.72% |\n| 16 | 64 KiB + 30 B | ±0.41% | ±0.81% | ±1.22% |\n| 17 | 128 KiB + 30 B | ±0.29% | ±0.57% | ±0.86% |",
+            "mode": "markdown"
+          },
+          "pluginVersion": "9.2.15",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "time_series",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": false,
+              "rawSql": "SELECT\n  datetime AS \"time\",\n  balance\nFROM beefy_investor_timeline_cache_ts\nWHERE\n  $__timeFilter(datetime)\nORDER BY 1",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["balance"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "beefy_investor_timeline_cache_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Documentation",
+          "type": "text"
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 14,
+            "x": 10,
+            "y": 1
+          },
+          "id": 13,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": ["sum"],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "9.2.15",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "P1A7A05C63CAD1F73"
+              },
+              "format": "table",
+              "group": [],
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "with table_names as (\n  select * \n  from (values \n    ('product_stats_investor_counts_with_segments_1d_ts')\n  ) as t(table_name)\n)\nselect \n  table_name,\n  total_size,\n  data_size,\n  index_size,\n  external_size\nfrom (\n(\n  select --schemaname as table_schema,\n         relname as table_name,\n         pg_size_pretty(pg_total_relation_size(relid)) as total_size,\n         pg_size_pretty(pg_relation_size(relid)) as data_size,\n         pg_size_pretty(pg_indexes_size(relid)) as index_size,\n         pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as external_size,\n         pg_total_relation_size(relid) as raw_total_relation_size\n  from pg_catalog.pg_statio_user_tables\n  where schemaname not in ('_timescaledb_config', '_timescaledb_internal', '_timescaledb_catalog', '_timescaledb_cache')\n  and relname not like '%_ts'\n  and relname in (select table_name from table_names)\n  order by pg_total_relation_size(relid) desc,\n           pg_relation_size(relid) desc\n)\nUNION ALL\n(\n  with timescale_objects as (\n      select\n          'hypertable' as object_type,\n          hypertable_schema || '.' || hypertable_name as table_display_name,\n          hypertable_schema || '.' || hypertable_name as table_internal_name\n      from timescaledb_information.hypertables\n      where hypertable_name in (select table_name from table_names)\n      UNION ALL\n      select\n          'continuous aggregate' as object_type,\n          view_schema || '.' || view_name as table_display_name,\n          materialization_hypertable_schema || '.' || materialization_hypertable_name as table_internal_name\n      from timescaledb_information.continuous_aggregates\n      where view_name in (select table_name from table_names)\n  )\n  select --ht.object_type, \n      ht.table_display_name, \n      --ht.table_internal_name,\n      pg_size_pretty(htds.total_bytes) as total_bytes,\n      pg_size_pretty(htds.table_bytes) as table_size,\n      pg_size_pretty(htds.index_bytes) as index_bytes,\n      pg_size_pretty(htds.toast_bytes) as toast_bytes,\n      htds.total_bytes as raw_total_bytes\n  from timescale_objects as ht,\n  lateral (\n      select\n          sum(table_bytes) as table_bytes,\n          sum(index_bytes) as index_bytes,\n          sum(toast_bytes) as toast_bytes,\n          sum(total_bytes) as total_bytes\n      from hypertable_detailed_size(ht.table_internal_name)\n  ) as htds\n  order by htds.total_bytes desc\n)\n) as t\norder by raw_total_relation_size desc",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": ["balance"],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "table": "beefy_investor_timeline_cache_ts",
+              "timeColumn": "datetime",
+              "timeColumnType": "timestamp",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "Table sizes",
+          "type": "table"
+        }
+      ],
+      "title": "Doc & admin stats",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Investor count",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 2
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with chain_stats_ts as (\nSELECT\n    time_bucket('4h', s.datetime) AS \"datetime\",\n    p.chain,\n    distinct_count(rollup(s.approx_count_investor_hll_all)) as approx_investor_count\n  FROM product_stats_investor_counts_with_segments_1d_ts s\n  join product p using (product_id)\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in ($_product_ids)\n  group by\n    1,2\n  order by 1\n)\nselect \n    time_bucket('$interval', datetime) AS \"time\",\n    chain,\n    last(approx_investor_count, datetime) as approx_investor_count\nfrom chain_stats_ts\ngroup by 1,2\norder by 1\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investor count / chain",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "\nSELECT\n    time_bucket('4h', s.datetime) AS \"time\",\n    distinct_count(rollup(s.approx_count_investor_hll_all)) as approx_investor_count\n  FROM product_stats_investor_counts_with_segments_1d_ts s\n  join product p using (product_id)\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in ($_product_ids)\n  group by\n    1\n  order by 1\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "distinct investor count all chains",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "approx_investor_count_diff_percent"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": -0.001
+                    },
+                    {
+                      "color": "green",
+                      "value": 0.0001
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "approx_investor_count_diff.*"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "product_key"
+            },
+            "properties": [
+              {
+                "id": "custom.width"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 17,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "approx_investor_count_diff"
+          }
+        ]
+      },
+      "pluginVersion": "9.2.15",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with product_stats_ts_recent as (\n  SELECT\n      s.product_id,\n      last(s.datetime, s.datetime) AS \"datetime\",\n      last(distinct_count(s.approx_count_investor_hll_all), s.datetime) as approx_investor_count\n    FROM product_stats_investor_counts_with_segments_1d_ts s\n    WHERE\n      datetime < '${__to:date:iso}'\n      and product_id in ($_product_ids)\n    group by 1\n),\nproduct_stats_ts_compare_to as (\n  SELECT\n      s.product_id,\n      last(s.datetime, s.datetime) AS \"datetime\",\n      last(distinct_count(s.approx_count_investor_hll_all), s.datetime) as approx_investor_count\n    FROM product_stats_investor_counts_with_segments_1d_ts s\n    WHERE\n      datetime < '${__from:date:iso}'\n      and product_id in ($_product_ids)\n    group by 1\n),\nproduct_stats_ts_compared as (\n  select recent.product_id,\n    compare_to.datetime as compare_to_datetime,\n    recent.datetime as recent_datetime,\n    recent.datetime - compare_to.datetime as datetime_diff,\n    compare_to.approx_investor_count as compare_to_approx_investor_count,\n    recent.approx_investor_count as recent_approx_investor_count,\n    recent.approx_investor_count - compare_to.approx_investor_count as approx_investor_count_diff,\n    (recent.approx_investor_count - compare_to.approx_investor_count)::double precision / compare_to.approx_investor_count::double precision as approx_investor_count_diff_percent\n  from product_stats_ts_recent recent\n  left join product_stats_ts_compare_to compare_to using (product_id)\n)\nselect p.product_key,\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as beefy_id,\n  ts.*\nfrom product_stats_ts_compared ts\njoin product p using (product_id)\norder by ts.approx_investor_count_diff desc",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investor count progress ${__from:date:iso} -> ${__to:date:iso}",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 10,
+      "panels": [],
+      "title": "Investor segments",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 24,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 18,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n   s.datetime AS \"time\",   \n   distinct_count(rollup(approx_count_investor_hll_0_10) filter (where approx_count_investor_hll_0_10 is not null)) as \"approx_count_investor [$0->$10)\",\n   distinct_count(rollup(approx_count_investor_hll_10_100) filter (where approx_count_investor_hll_10_100 is not null)) as \"approx_count_investor [$10->$100)\",\n   distinct_count(rollup(approx_count_investor_hll_100_1000) filter (where approx_count_investor_hll_100_1000 is not null)) as \"approx_count_investor [$100->$1,000)\",\n   distinct_count(rollup(approx_count_investor_hll_1000_10000) filter (where approx_count_investor_hll_1000_10000 is not null)) as \"approx_count_investor [$1,000->$10,000)\",\n   distinct_count(rollup(approx_count_investor_hll_10000_100000) filter (where approx_count_investor_hll_10000_100000 is not null)) as \"approx_count_investor [$10,000->$100,000)\",\n   distinct_count(rollup(approx_count_investor_hll_100000_1000000) filter (where approx_count_investor_hll_100000_1000000 is not null)) as \"approx_count_investor [$100,000->inf)\"\nFROM product_stats_investor_counts_with_segments_1d_ts s\njoin product p using (product_id)\nWHERE\n  $__timeFilter(datetime)\n  and product_id in ($_product_ids)\ngroup by\n  1\norder by 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Investor count",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": false,
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": ["bsc", "optimism"],
+          "value": ["bsc", "optimism"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select distinct chain from product where chain not in ('harmony', 'heco')",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from product where chain not in ('harmony', 'heco')",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "no",
+          "value": "no"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "include_eol",
+        "options": [
+          {
+            "selected": true,
+            "text": "no",
+            "value": "no"
+          },
+          {
+            "selected": false,
+            "text": "yes",
+            "value": "yes"
+          }
+        ],
+        "query": "no, yes",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select chain || ':' || case when product_data->'vault' is not null then 'vault' else 'boost' end || ':' || coalesce(product_data->'vault'->>'id', product_data->'boost'->>'id') || ' ' || product_key\nfrom product \nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'boost', product_data->'vault')->>'eol' = 'false'\n    END",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_keys",
+        "options": [],
+        "query": "select chain || ':' || case when product_data->'vault' is not null then 'vault' else 'boost' end || ':' || coalesce(product_data->'vault'->>'id', product_data->'boost'->>'id') || ' ' || product_key\nfrom product \nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'boost', product_data->'vault')->>'eol' = 'false'\n    END",
+        "refresh": 1,
+        "regex": "/(?<text>[^ ]+) (?<value>[^ ]+)/",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "auto": false,
+        "auto_count": 30,
+        "auto_min": "10s",
+        "current": {
+          "selected": false,
+          "text": "1d",
+          "value": "1d"
+        },
+        "hide": 0,
+        "name": "interval",
+        "options": [
+          {
+            "selected": false,
+            "text": "4h",
+            "value": "4h"
+          },
+          {
+            "selected": true,
+            "text": "1d",
+            "value": "1d"
+          },
+          {
+            "selected": false,
+            "text": "7d",
+            "value": "7d"
+          },
+          {
+            "selected": false,
+            "text": "14d",
+            "value": "14d"
+          },
+          {
+            "selected": false,
+            "text": "30d",
+            "value": "30d"
+          }
+        ],
+        "query": "4h,1d,7d,14d,30d",
+        "queryValue": "",
+        "refresh": 2,
+        "skipUrlSync": false,
+        "type": "interval"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_id \nfrom product \nwhere product_key in ($product_keys)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "_product_ids",
+        "options": [],
+        "query": "select product_id \nfrom product \nwhere product_key in ($product_keys)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-20d",
+    "to": "now-1d"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Approx Investor counts",
+  "uid": "WWZwz8lVz",
+  "version": 54,
+  "weekStart": ""
+}

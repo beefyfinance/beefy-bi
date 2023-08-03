@@ -739,62 +739,39 @@ export async function db_migrate() {
     `);
   }
 
-  logger.info({ msg: "Migrate done" });
-}
+  // create a job to snapshot import metrics every 15 minutes
+  if (!(await timescaledbJobExists("snapshot_user_counts"))) {
+    // use this to run for a specific date
+    // call snapshot_user_counts(0, '{"for_date":"2023-07-30T00:00:00"}'::jsonb);
+    await db_query(`
+      create table if not exists product_stats_investor_counts_with_segments_1d_ts (
+        datetime timestamp with time zone,
+        product_id integer,
+        approx_count_investor_hll_all hyperloglog,
+        approx_count_investor_hll_0_10 hyperloglog,
+        approx_count_investor_hll_10_100 hyperloglog,
+        approx_count_investor_hll_100_1000 hyperloglog,
+        approx_count_investor_hll_1000_10000 hyperloglog,
+        approx_count_investor_hll_10000_100000 hyperloglog,
+        approx_count_investor_hll_100000_1000000 hyperloglog
+      );
+      create index if not exists product_stats_investor_counts_with_segments_1d_ts on product_stats_investor_counts_with_segments_1d_ts (product_id, datetime);
 
-/**
- * 
- * 
- *   await db_query(`
-    CREATE TABLE IF NOT EXISTS product_stats_ts (
-      datetime timestamp with time zone,
-      product_id integer,
-      total_share_balance double precision,
-      total_underlying_balance double precision,
-      total_usd_balance double precision,
-      approx_count_investor_hll hyperloglog,
-      approx_count_investor_hll_0_10 hyperloglog,
-      approx_count_investor_hll_10_100 hyperloglog,
-      approx_count_investor_hll_100_1000 hyperloglog,
-      approx_count_investor_hll_1000_10000 hyperloglog,
-      approx_count_investor_hll_10000_100000 hyperloglog,
-      approx_count_investor_hll_100000_1000000 hyperloglog
-    );
-
-    SELECT create_hypertable(
-      relation => 'product_stats_ts', 
-      time_column_name => 'datetime',
-      if_not_exists => true,
-      chunk_time_interval => INTERVAL '1 week'
-    );
-
-
-    CREATE TABLE IF NOT EXISTS product_stats_tvl_ts (
-      datetime timestamp with time zone,
-      product_id integer,
-      total_usd_balance double precision
-    );
-
-    create index if not exists product_stats_tvl_ts_dashboard_idx on product_stats_tvl_ts (product_id, datetime);
-
-    SELECT create_hypertable(
-      relation => 'product_stats_tvl_ts', 
-      time_column_name => 'datetime',
-      if_not_exists => true,
-      chunk_time_interval => INTERVAL '1 month'
-    );
-  `);
-
-create or replace PROCEDURE _tmp_compute_product_stats(compute_for_timestamp timestamptz DEFAULT now() - interval '1 day', align_interval interval DEFAULT '4h')
+      
+      SELECT create_hypertable(
+        relation => 'product_stats_investor_counts_with_segments_1d_ts', 
+        time_column_name => 'datetime',
+        chunk_time_interval => INTERVAL '30 days',
+        if_not_exists => true
+      );
+      
+      create or replace PROCEDURE snapshot_user_counts(job_id INT, config JSONB) 
       as $$
-      INSERT INTO product_stats_ts 
+      INSERT INTO product_stats_investor_counts_with_segments_1d_ts 
       (
         datetime,
         product_id,
-        total_share_balance,
-        total_underlying_balance,
-        total_usd_balance,
-        approx_count_investor_hll,
+        approx_count_investor_hll_all,
         approx_count_investor_hll_0_10,
         approx_count_investor_hll_10_100,
         approx_count_investor_hll_100_1000,
@@ -803,101 +780,55 @@ create or replace PROCEDURE _tmp_compute_product_stats(compute_for_timestamp tim
         approx_count_investor_hll_100000_1000000
       )
       (
-      with investor_last_balance_for_date as (
-        select
-          product_id, 
-          investor_id,
-          last(balance, datetime) as share_balance,
-          last(underlying_balance, datetime) as underlying_balance,
-          last(usd_balance, datetime) as usd_balance
-        from beefy_investor_timeline_cache_ts
-        where
-            datetime <= compute_for_timestamp
-            and balance_diff != 0
-        group by 1,2
-        having last(balance, datetime) > 0
-      ),
-      product_total_balance_for_date as (
+        with investor_last_balance_for_date as (
+          select
+            product_id, 
+            investor_id,
+            last(balance, datetime) as share_balance,
+            last(underlying_balance, datetime) as underlying_balance,
+            last(usd_balance, datetime) as usd_balance
+          from beefy_investor_timeline_cache_ts
+          where
+              -- use "for_date" in the config or default to 2 days ago
+              datetime <= date_trunc('day', coalesce(to_date(config->>'for_date', 'YYYY-MM-DD"T"HH24:MI:SS'), (now() - interval '2 day')))
+              and balance_diff != 0
+          group by 1,2
+          having last(balance, datetime) > 0
+        ),
+        product_total_balance_for_date as (
+          select 
+            product_id,
+            -- more details on bucket count: https://cloud.google.com/bigquery/docs/sketches#sketches_hll
+            -- 15 buckets is a good default precision for hyperloglog++: 
+            hyperloglog(power(2,15)::integer, investor_id) as approx_count_investor_hll,
+            -- we don't need as much precision for the segments
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 0 and usd_balance < 10) as approx_count_investor_hll_0_10,
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 10 and usd_balance < 100) as approx_count_investor_hll_10_100,
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 100 and usd_balance < 1000) as approx_count_investor_hll_100_1000,
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 1000 and usd_balance < 10000) as approx_count_investor_hll_1000_10000,
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 10000 and usd_balance < 100000) as approx_count_investor_hll_10000_100000,
+            hyperloglog(power(2,13)::integer, investor_id) filter (where usd_balance >= 100000) as approx_count_investor_hll_100000_1000000
+          from investor_last_balance_for_date
+          group by 1
+        )
         select 
+          time_bucket('1 day'::interval, date_trunc('day', coalesce(to_date(config->>'for_date', 'YYYY-MM-DD"T"HH24:MI:SS'), (now() - interval '2 day')))) as datetime,
           product_id,
-          sum(share_balance) as total_share_balance,
-          sum(underlying_balance) as total_underlying_balance,
-          sum(usd_balance) as total_usd_balance,
-          toolkit_experimental.approx_count_distinct(investor_id) as approx_count_investor_hll,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 0 and usd_balance < 10) as approx_count_investor_hll_0_10,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 10 and usd_balance < 100) as approx_count_investor_hll_10_100,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 100 and usd_balance < 1000) as approx_count_investor_hll_100_1000,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 1000 and usd_balance < 10000) as approx_count_investor_hll_1000_10000,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 10000 and usd_balance < 100000) as approx_count_investor_hll_10000_100000,
-          toolkit_experimental.approx_count_distinct(investor_id) filter (where usd_balance >= 100000) as approx_count_investor_hll_100000_1000000
-        from investor_last_balance_for_date
-        group by 1
-      )
-      select 
-        time_bucket(align_interval, compute_for_timestamp) as datetime,
-        product_id,
-        total_share_balance,
-        total_underlying_balance,
-        total_usd_balance,
-        approx_count_investor_hll,
-        approx_count_investor_hll_0_10,
-        approx_count_investor_hll_10_100,
-        approx_count_investor_hll_100_1000,
-        approx_count_investor_hll_1000_10000,
-        approx_count_investor_hll_10000_100000,
-        approx_count_investor_hll_100000_1000000
-        from product_total_balance_for_date
+          approx_count_investor_hll,
+          approx_count_investor_hll_0_10,
+          approx_count_investor_hll_10_100,
+          approx_count_investor_hll_100_1000,
+          approx_count_investor_hll_1000_10000,
+          approx_count_investor_hll_10000_100000,
+          approx_count_investor_hll_100000_1000000
+          from product_total_balance_for_date
       )
       $$
         LANGUAGE SQL;
+        
+      SELECT add_job('snapshot_user_counts', '1 day', config => null, initial_start => date_trunc('day', now() + interval '1 day') + interval '1 hour');
+    `);
+  }
 
-
-
-
-
-
-
-
-
-# apk add python3 py3-pip 
-# pip3 install psycopg2-binary
-import psycopg2
-
-conn = psycopg2.connect("postgres://beefy:beefy@timescaledb:5432/beefy")
-
-DATES_SQL = """
-    select time_bucket('4h'::interval, datetime)::varchar as dt 
-    from generate_series((select time_bucket('4h'::interval, min(datetime)) from beefy_investor_timeline_cache_ts), now(), '4h'::interval) as t(datetime)
-"""
-DATETIME_VAR = "____DATETIME____"
-INSERT_TEMPLATE = f"""call _tmp_compute_product_stats('{DATETIME_VAR}'::timestamptz, '4h'::interval);"""
-
-all_dates = [] 
-with conn:
-    conn.set_session(autocommit=True)
-    with conn.cursor() as curs:
-        curs.execute(DATES_SQL)
-        for row in curs:
-            date_string = row[0]
-            all_dates.append(date_string)
-    
-for n, date_string in enumerate(all_dates):
-    insert_sql = INSERT_TEMPLATE.replace(DATETIME_VAR, date_string)
-    print(insert_sql)
-    print(f"select '{n}/{len(all_dates)}';")
-
-# leaving contexts doesn't close the connection
-conn.close()
-
-
-
-
-
-
-
-
-
-
-        call _tmp_compute_product_stats('2020-11-26 16:00:00+00'::timestamptz, '4h'::interval);
- * 
- */
+  logger.info({ msg: "Migrate done" });
+}
