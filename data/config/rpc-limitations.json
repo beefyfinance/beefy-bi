@@ -103,6 +103,28 @@
       }
     }
   },
+  "base": {
+    "https://rpc.ankr.com/base/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": 10000,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 16,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 300,
+        "eth_blockNumber": 300,
+        "eth_getTransactionReceipt": 200
+      }
+    }
+  },
   "bsc": {
     "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
       "restrictToMode": "historical",

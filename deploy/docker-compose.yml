@@ -16,7 +16,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml logs -f importer
 
-# export TASK_LIST="importer-products importer-ignore-addresses importer-investor-cache importer-prices-historical importer-prices-recent importer-investment-recent-arbitrum importer-investment-recent-aurora importer-investment-recent-avax importer-investment-recent-bsc importer-investment-recent-canto importer-investment-recent-celo importer-investment-recent-cronos importer-investment-recent-ethereum importer-investment-recent-emerald importer-investment-recent-fantom importer-investment-recent-fuse importer-investment-recent-harmony importer-investment-recent-heco importer-investment-recent-kava importer-investment-recent-metis importer-investment-recent-moonbeam importer-investment-recent-moonriver importer-investment-recent-optimism importer-investment-recent-polygon importer-investment-recent-syscoin importer-investment-historical-arbitrum importer-investment-historical-aurora importer-investment-historical-avax importer-investment-historical-bsc importer-investment-historical-canto importer-investment-historical-celo importer-investment-historical-cronos importer-investment-historical-ethereum importer-investment-historical-emerald importer-investment-historical-fantom importer-investment-historical-fuse importer-investment-historical-harmony importer-investment-historical-heco importer-investment-historical-kava importer-investment-historical-metis importer-investment-historical-moonbeam importer-investment-historical-moonriver importer-investment-historical-optimism importer-investment-historical-polygon importer-investment-historical-syscoin importer-investment-historical-share-rate-arbitrum importer-investment-historical-share-rate-aurora importer-investment-historical-share-rate-avax importer-investment-historical-share-rate-bsc importer-investment-historical-share-rate-canto importer-investment-historical-share-rate-celo importer-investment-historical-share-rate-cronos importer-investment-historical-share-rate-ethereum importer-investment-historical-share-rate-emerald importer-investment-historical-share-rate-fantom importer-investment-historical-share-rate-fuse importer-investment-historical-share-rate-harmony importer-investment-historical-share-rate-heco importer-investment-historical-share-rate-kava importer-investment-historical-share-rate-metis importer-investment-historical-share-rate-moonbeam importer-investment-historical-share-rate-moonriver importer-investment-historical-share-rate-optimism importer-investment-historical-share-rate-polygon importer-investment-historical-share-rate-syscoin"
+# export TASK_LIST="importer-products importer-ignore-addresses importer-investor-cache importer-prices-historical importer-prices-recent importer-investment-recent-arbitrum ..."
 # docker build -t beefy-data-importer -f ./deploy/import/Dockerfile ./
 # docker compose -f deploy/docker-compose.yml stop $TASK_LIST
 # docker compose -f deploy/docker-compose.yml up $TASK_LIST -d --force-recreate
@@ -243,7 +243,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c all -l 15min"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
 
   importer-investment-recent-arbitrum-avax:
     <<: *importer
@@ -251,11 +251,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c arbitrum -c avax -l 1min"
 
-  importer-investment-recent-aurora-celo-emerald-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-base-kava-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c aurora -c celo -c emerald -c kava -c metis -c moonbeam -c moonriver -c zksync -l 1min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 1min"
 
   importer-investment-recent-bsc:
     <<: *importer
@@ -281,7 +281,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c fantom -c polygon -c zkevm -l 1min"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
 
   importer-investment-historical-arbitrum-avax:
     <<: *importer
@@ -289,11 +289,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-aurora-celo-emerald-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-base-kava-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c aurora -c celo -c emerald -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
   importer-investment-historical-bsc:
     <<: *importer
@@ -319,7 +319,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c polygon -c zkevm -l 15min -S all"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zksync
 
   importer-investment-historical-share-rate-arbitrum-avax:
     <<: *importer
@@ -327,11 +327,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-share-rate-aurora-celo-emerald-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-share-rate-base-kava-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c aurora -c celo -c emerald -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
   importer-investment-historical-share-rate-bsc:
     <<: *importer
@@ -357,7 +357,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c fantom -c polygon -c zkevm -l 15min -S all"
 
-  # arbitrum aurora avax bsc canto celo cronos ethereum emerald fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
 
   importer-investment-recent-share-rate-arbitrum-avax:
     <<: *importer
@@ -365,11 +365,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c arbitrum -c avax -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-aurora-celo-emerald-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-share-rate-base-kava-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c aurora -c celo -c emerald -c kava -c metis -c moonbeam -c moonriver -c zksync -L 0 -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -L 0 -l 15min -S all"
 
   importer-investment-recent-share-rate-bsc:
     <<: *importer
