@@ -13,6 +13,7 @@ import { InvestorService } from "./investor";
 import { PriceService } from "./price";
 import { ProductService } from "./product";
 import { BeefyPortfolioService } from "./protocol/beefy";
+import { BeefyApiService } from "./protocol/beefy-api";
 
 const AbstractCache: any = require("abstract-cache"); // todo: add or install types
 
@@ -25,6 +26,7 @@ declare module "@fastify/awilix" {
     price: PriceService;
     block: BlockService;
     importState: ImportStateService;
+    beefyApi: BeefyApiService;
     abCache: AbstractCacheCompliantObject;
     cache: AsyncCache;
     redis: Redis;
@@ -60,24 +62,13 @@ export async function registerDI(instance: FastifyInstance) {
       },
       { lifetime: Lifetime.TRANSIENT },
     ),
-    investor: asClass(InvestorService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    beefy: asClass(BeefyPortfolioService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    product: asClass(ProductService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    price: asClass(PriceService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    block: asClass(BlockService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
-    importState: asClass(ImportStateService, {
-      lifetime: Lifetime.SINGLETON,
-    }),
+    investor: asClass(InvestorService, { lifetime: Lifetime.SINGLETON }),
+    beefy: asClass(BeefyPortfolioService, { lifetime: Lifetime.SINGLETON }),
+    beefyApi: asClass(BeefyApiService, { lifetime: Lifetime.SINGLETON }),
+    product: asClass(ProductService, { lifetime: Lifetime.SINGLETON }),
+    price: asClass(PriceService, { lifetime: Lifetime.SINGLETON }),
+    block: asClass(BlockService, { lifetime: Lifetime.SINGLETON }),
+    importState: asClass(ImportStateService, { lifetime: Lifetime.SINGLETON }),
     cache: asValue(cache),
     abCache: asValue(abCache),
     redis: asValue(redisClient),
