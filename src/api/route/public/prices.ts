@@ -82,7 +82,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
         .prop("to_date_utc", dateTimeSchema.required().description("Exclusive date time to fetch data to, interpreted as utc tz")),
 
       tags: ["price"],
-      summary: "Get a raw time series for a given time range.",
+      summary: "Get a raw historical time series for a given time range.",
       description:
         "This endpoint can be used to request raw historical data but the time range must not exceede a week and the result will be truncated to 1000 elements. `from_date` is inclusive and `to_date` is exclusive to make is easier to use in loops",
 
