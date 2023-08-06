@@ -4,15 +4,15 @@ import { merge } from "lodash";
 import { SamplingPeriod } from "../../../types/sampling";
 import { dateTimeSchema } from "../../schema/datetime";
 import { shortSamplingPeriodSchema } from "../../schema/enums";
-import { PriceType, priceTypeSchema } from "../../schema/price-type";
 import { PriceService } from "../../service/price";
+import { PriceType, priceTypeSchema } from "../../schema/price-type";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const schema = {
     querystring: S.object()
       .prop("price_type", priceTypeSchema.required())
       .prop("oracle_id", S.string().minLength(1).maxLength(100).required())
-      .prop("utc_datetime", dateTimeSchema.required())
+      .prop("utc_datetime", dateTimeSchema.examples(["2023-01-01T00:00:00"]).required())
       .prop("look_around", shortSamplingPeriodSchema.default("1day"))
       .prop("half_limit", S.number().minimum(1).maximum(100).default(1)),
     tags: ["price"],
