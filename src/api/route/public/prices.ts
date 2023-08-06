@@ -1,9 +1,9 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { merge } from "lodash";
+import { PriceType, priceTypeSchema } from "../../schema/price-type";
 import { productKeySchema } from "../../schema/product";
 import { TimeBucket, timeBucketSchema } from "../../schema/time-bucket";
-import { PriceType, priceTypeSchema } from "../../schema/price-type";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   const schema = {
