@@ -7,7 +7,7 @@ const timeBucketValues: TimeBucket[] = ["1h_1d", "1h_1w", "1h_1M", "4h_3M", "1d_
 export const timeBucketSchema = S.string()
   .enum(timeBucketValues)
   .description(
-    "Defines a bucket size and a time range like <bucket size>_<time range>. For example, `1d_1M` means: 1 month of data aggregated by buckets of 1 day.",
+    "Defines a bucket size and a time range like `<bucket size>_<time range>`. For example, `1d_1M` means: 1 month of data aggregated by buckets of 1 day.",
   )
   .required();
 
