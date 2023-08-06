@@ -86,6 +86,35 @@ export class PriceService {
     }));
   }
 
+  async getRawPriceTs(priceFeedId: number, fromInclusive: Date, toExclusive: Date, limit: number) {
+    type Ret = {
+      datetime: Date;
+      block_number: number;
+      price: string;
+    };
+    const result = await db_query<Ret>(
+      `
+        SELECT 
+          datetime,
+          block_number,
+          price
+        FROM price_ts
+        WHERE price_feed_id = %L
+          AND datetime >= %L AND datetime < %L
+        ORDER BY 1 asc
+        LIMIT %L
+        `,
+      [priceFeedId, fromInclusive, toExclusive, limit],
+      this.services.db,
+    );
+
+    return result.map((row) => ({
+      datetime: new Date(row.datetime),
+      block_number: row.block_number,
+      price: row.price,
+    }));
+  }
+
   public static pricesAroundADateResponseSchema = {
     description: "List of 2*`half_limit` prices closest to the `utc_datetime`, for the given `oracle_id` and `look_around` period.",
     type: "object",
