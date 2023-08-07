@@ -1,6 +1,7 @@
 import { DbProduct } from "../../protocol/common/loader/product";
 import { Chain } from "../../types/chain";
 import { DbClient, db_query, db_query_one } from "../../utils/db";
+import { productKeyExamples } from "../schema/product";
 import { AsyncCache } from "./cache";
 
 export class ProductService {
@@ -159,7 +160,7 @@ export class ProductService {
       type: "object",
       description: "A product definition",
       properties: {
-        productKey: { type: "string", description: "Functional product identifier" },
+        productKey: { type: "string", description: "Functional product identifier", example: productKeyExamples },
         chain: { $ref: "ChainEnum" },
         productData: {
           oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }],

@@ -1,5 +1,6 @@
 import { Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
+import { productKeyExamples } from "../../schema/product";
 import { AsyncCache } from "../cache";
 import { PriceService } from "../price";
 import { ProductService } from "../product";
@@ -13,7 +14,7 @@ export class BeefyPortfolioService {
       type: "object",
       properties: {
         datetime: { type: "string", format: "date-time", description: "The transaction datetime" },
-        product_key: { type: "string", description: "The product key" },
+        product_key: { type: "string", description: "The product key", example: productKeyExamples },
         display_name: { type: "string", description: "The product display name" },
         chain: { $ref: "ChainEnum" },
         is_eol: { type: "boolean", description: "Whether the product is EOL" },
