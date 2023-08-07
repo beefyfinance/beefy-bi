@@ -15,11 +15,16 @@ export class BeefyPortfolioService {
       properties: {
         datetime: { type: "string", format: "date-time", description: "The transaction datetime" },
         product_key: { type: "string", description: "The product key", example: productKeyExamples[0] },
-        display_name: { type: "string", description: "The product display name" },
+        display_name: { type: "string", description: "The product display name", example: "synapse-syn-weth" },
         chain: { $ref: "ChainEnum" },
         is_eol: { type: "boolean", description: "Whether the product is EOL" },
         is_dashboard_eol: { type: "boolean", description: "Whether the product is EOL on the dashboard" },
-        transaction_hash: { type: "string", nullable: true, description: "The transaction hash" },
+        transaction_hash: {
+          type: "string",
+          nullable: true,
+          description: "The transaction hash",
+          example: "0x63437809ee6419b892ad12a3b2b9ac7f72c151600c0c65484c9fa2113f4bfb54",
+        },
         share_to_underlying_price: { type: "number", description: "The share to underlying price" },
         underlying_to_usd_price: { type: "number", nullable: true, description: "The underlying to USD price" },
         share_balance: { type: "number", description: "The share balance" },
