@@ -1,4 +1,4 @@
-import { Chain, allChainIds } from "../../../types/chain";
+import { Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
 import { AsyncCache } from "../cache";
 import { PriceService } from "../price";
@@ -7,16 +7,15 @@ import { ProductService } from "../product";
 export class BeefyPortfolioService {
   constructor(private services: { db: DbClient; cache: AsyncCache; product: ProductService; price: PriceService }) {}
 
-  public static investorTimelineSchema = {
-    description: "The investor timeline, list of all deposit and withdraw transaction for a given investor",
-    type: "array",
-    items: {
+  public static schemaComponents = {
+    InvestorTimelineRow: {
+      $id: "InvestorTimelineRow",
       type: "object",
       properties: {
         datetime: { type: "string", format: "date-time", description: "The transaction datetime" },
         product_key: { type: "string", description: "The product key" },
         display_name: { type: "string", description: "The product display name" },
-        chain: { type: "string", enum: allChainIds, description: "The chain identifier" },
+        chain: { $ref: "ChainEnum" },
         is_eol: { type: "boolean", description: "Whether the product is EOL" },
         is_dashboard_eol: { type: "boolean", description: "Whether the product is EOL on the dashboard" },
         transaction_hash: { type: "string", nullable: true, description: "The transaction hash" },
@@ -47,6 +46,12 @@ export class BeefyPortfolioService {
         "usd_diff",
       ],
     },
+  };
+
+  public static investorTimelineSchema = {
+    description: "The investor timeline, list of all deposit and withdraw transaction for a given investor",
+    type: "array",
+    items: { $ref: "InvestorTimelineRow" },
   };
 
   async getInvestorTimeline(investorId: number) {
