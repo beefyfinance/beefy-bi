@@ -160,7 +160,7 @@ export class ProductService {
       type: "object",
       description: "A product definition",
       properties: {
-        productKey: { type: "string", description: "Functional product identifier", example: productKeyExamples },
+        productKey: { type: "string", description: "Functional product identifier", example: productKeyExamples[0] },
         chain: { $ref: "ChainEnum" },
         productData: {
           oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }],

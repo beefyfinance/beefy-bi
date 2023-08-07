@@ -14,7 +14,7 @@ export class BeefyPortfolioService {
       type: "object",
       properties: {
         datetime: { type: "string", format: "date-time", description: "The transaction datetime" },
-        product_key: { type: "string", description: "The product key", example: productKeyExamples },
+        product_key: { type: "string", description: "The product key", example: productKeyExamples[0] },
         display_name: { type: "string", description: "The product display name" },
         chain: { $ref: "ChainEnum" },
         is_eol: { type: "boolean", description: "Whether the product is EOL" },
