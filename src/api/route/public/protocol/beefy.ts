@@ -11,10 +11,10 @@ import { BeefyPortfolioService } from "../../../service/protocol/beefy";
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   {
     const schema = {
-      querystring: S.object().prop("address", addressSchema.required()),
+      querystring: S.object().prop("address", addressSchema.required().description("The investor address")),
       tags: ["portfolio"],
       summary: "Fetches the investor timeline",
-      description: "Describes all transactions for a given investor",
+      description: "Lists all transactions for a given investor, including deposits, withdraws and transfers of share tokens.",
       response: {
         200: BeefyPortfolioService.investorTimelineSchema,
       },
