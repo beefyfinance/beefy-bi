@@ -20,6 +20,7 @@ import { createBeefyInvestmentImportRunner } from "../loader/investment/import-i
 import { createBeefyInvestorCacheRunner } from "../loader/investor-cache-prices";
 import { createBeefyShareRateSnapshotsRunner } from "../loader/prices/import-share-rate-snapshots";
 import { createBeefyHistoricalUnderlyingPricesRunner, createBeefyRecentUnderlyingPricesRunner } from "../loader/prices/import-underlying-prices";
+import { createBeefyProductStatisticsRunner } from "../loader/product-statistics-snapshots";
 import { createBeefyProductRunner } from "../loader/products";
 import { createScheduleReimportInvestmentsRunner } from "../loader/schedule-reimport";
 import { getProductContractAddress } from "../utils/contract-accessors";
@@ -41,7 +42,9 @@ interface CmdParams {
     | "historical-prices"
     | "recent-share-rate"
     | "historical-share-rate"
-    | "investor-cache";
+    | "investor-cache"
+    | "recent-product-statistics"
+    | "historical-product-statistics";
   filterChains: Chain[];
   includeEol: boolean;
   forceConsideredBlockRange: Range<number> | null;
@@ -228,6 +231,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               "recent-share-rate",
               "historical-share-rate",
               "investor-cache",
+              "recent-product-statistics",
+              "historical-product-statistics",
             ],
             demand: true,
             alias: "t",
@@ -339,6 +344,9 @@ function getTasksToRun(cmdParams: CmdParams) {
     case "recent-share-rate":
     case "historical-share-rate":
       return cmdParams.filterChains.map((chain) => () => importBeefyDataShareRate(chain, cmdParams));
+    case "recent-product-statistics":
+    case "historical-product-statistics":
+      return cmdParams.filterChains.map((chain) => () => importBeefyProductStatistics(chain, cmdParams));
     case "investor-cache":
       return [() => importInvestorCache(cmdParams)];
     default:
@@ -522,6 +530,30 @@ function importBeefyDataShareRate(chain: Chain, cmdParams: CmdParams) {
   }).run();
 }
 
+async function importBeefyProductStatistics(chain: Chain, cmdParams: CmdParams) {
+  return createBeefyProductStatisticsRunner({
+    chain,
+    runnerConfig: {
+      chain,
+      getInputs: async () => {
+        const pipeline$ = productList$(cmdParams.client, "beefy", chain).pipe(
+          productFilter$(chain, cmdParams),
+          // collect
+          Rx.toArray(),
+        );
+
+        const res = await consumeObservable(pipeline$);
+        if (!res) {
+          return [];
+        }
+        return res;
+      },
+      client: cmdParams.client,
+      behaviour: _createImportBehaviourFromCmdParams(cmdParams),
+    },
+  }).run();
+}
+
 function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
   return Rx.pipe(
     Rx.filter((product: DbProduct) => {
@@ -558,6 +590,8 @@ const defaultModeByTask: Record<CmdParams["task"], "recent" | "historical"> = {
   "recent-share-rate": "recent",
   "historical-share-rate": "historical",
   "investor-cache": "recent",
+  "recent-product-statistics": "recent",
+  "historical-product-statistics": "historical",
 };
 
 export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceMode?: "historical" | "recent"): ImportBehaviour {
