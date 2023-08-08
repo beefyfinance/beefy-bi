@@ -1,0 +1,256 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 27,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 19,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  time_bucket('1d', datetime) AS \"time\",\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as beefy_id,\n  max(underlying_capture_percentage)\nFROM beefy_vault_stats_ts\njoin product p using(product_id)\nWHERE\n  $__timeFilter(datetime)\n  and product_id in ($product_ids)\ngroup by 1, 2\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": ["balance"],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "% capture by vault",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "zksync",
+          "value": "zksync"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select distinct chain from product where chain not in ('harmony', 'heco', 'aurora', 'celo', 'emerald')",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "chain",
+        "options": [],
+        "query": "select distinct chain from product where chain not in ('harmony', 'heco', 'aurora', 'celo', 'emerald')",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "no",
+          "value": "no"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "include_eol",
+        "options": [
+          {
+            "selected": true,
+            "text": "no",
+            "value": "no"
+          },
+          {
+            "selected": false,
+            "text": "yes",
+            "value": "yes"
+          }
+        ],
+        "query": "no, yes",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select chain || ':' || case when product_data->'vault' is not null then 'vault' else 'boost' end || ':' || coalesce(product_data->'vault'->>'id', product_data->'boost'->>'id') || ' ' || product_key\nfrom product \nwhere chain = '$chain'\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'boost', product_data->'vault')->>'eol' = 'false'\n    END",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_keys",
+        "options": [],
+        "query": "select chain || ':' || case when product_data->'vault' is not null then 'vault' else 'boost' end || ':' || coalesce(product_data->'vault'->>'id', product_data->'boost'->>'id') || ' ' || product_key\nfrom product \nwhere chain = '$chain'\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->'boost', product_data->'vault')->>'eol' = 'false'\n    END",
+        "refresh": 1,
+        "regex": "/(?<text>[^ ]+) (?<value>[^ ]+)/",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_id \nfrom product \nwhere product_key in ($product_keys)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product_ids",
+        "options": [],
+        "query": "select product_id \nfrom product \nwhere product_key in ($product_keys)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Vault % Capture",
+  "uid": "iS1zbpeVz",
+  "version": 8,
+  "weekStart": ""
+}
