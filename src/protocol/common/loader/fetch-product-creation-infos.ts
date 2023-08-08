@@ -33,8 +33,8 @@ export function fetchPriceFeedContractCreationInfos<TObj, TErr extends ErrorEmit
       const fieldName = options.which === "price-feed-1" ? "price_feed_1_id" : "price_feed_2_id";
       const results = await db_query<TRes>(
         `SELECT 
-              p.${fieldName} as "priceFeedId",
               p.product_id as "productId",
+              p.${fieldName} as "priceFeedId",
               p.chain as "chain",
               (import_data->'contractCreatedAtBlock')::integer as "contractCreatedAtBlock",
               (import_data->>'contractCreationDate')::timestamptz as "contractCreationDate"

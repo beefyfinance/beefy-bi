@@ -235,14 +235,20 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-prices -c all -e false -S live -l 1hour"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -e false -S live -l 1hour"
 
   importer-prices-recent:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c all -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -l 15min"
 
+  importer-historical-product-statistics:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-product-statistics -e false -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -l 1day"
+ 
   # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
 
   importer-investment-recent-arbitrum-avax:

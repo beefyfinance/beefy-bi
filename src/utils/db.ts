@@ -637,6 +637,33 @@ export async function db_migrate() {
     CREATE INDEX IF NOT EXISTS beefy_investor_cache_empty_price_idx ON beefy_investor_timeline_cache_ts (time_bucket('15min', datetime)) where underlying_to_usd_price is null;
   `);
 
+  // create a denormalized table specifically built to serve beefy's investor page
+  // this table is partitioned by investor id and is meant to be optimized for retrieving
+  // the whole investor history in one go so the client can compute P&L locally.
+  // Most fields are denormalized to avoid joins and nullable to account for data arriving at different times
+  // it's only a timescaledb hypertable so we don't have to manage partitions manually, nothing else
+  await db_query(`
+    CREATE TABLE IF NOT EXISTS beefy_vault_stats_ts (
+      product_id integer not null references product(product_id),
+      datetime timestamptz not null,
+      block_number integer not null,
+      vault_total_supply evm_decimal_256,
+      share_to_underlying_price evm_decimal_256,
+      staked_underlying evm_decimal_256,
+      underlying_total_supply evm_decimal_256,
+      underlying_capture_percentage double precision
+    );
+
+    SELECT create_hypertable(
+      relation => 'beefy_vault_stats_ts', 
+      time_column_name => 'datetime',
+      if_not_exists => true,
+      chunk_time_interval => INTERVAL '4 weeks'
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS beefy_vault_stats_ts_uniq_idx ON beefy_vault_stats_ts (product_id, block_number, datetime);
+  `);
+
   // track down rpc errors to be able to understand what's going on without looking at logs
   await db_query(`
     CREATE TABLE IF NOT EXISTS rpc_error_ts (
