@@ -68,8 +68,14 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
     Rx.map((fileVersion) => {
-      const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyBoost[];
-      return { fileVersion, boosts };
+      try {
+        const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyBoost[];
+        return { fileVersion, boosts };
+      } catch (error) {
+        logger.error({ msg: "Could not parse boost file", data: { fileVersion }, error });
+        logger.debug(error);
+      }
+      return { fileVersion, boosts: [] as RawBeefyBoost[] };
     }),
   );
 
