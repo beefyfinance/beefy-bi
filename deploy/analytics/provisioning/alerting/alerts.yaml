@@ -345,8 +345,8 @@ groups:
 
 
 # List of alert rule UIDs that should be deleted
-deleteRules:
-  # <int> organization ID, default = 1
-  - orgId: 1
-    # <string, required> unique identifier for the rule
-    uid: dc9f0913-e192-4281-a345-10ef832c91ff
+#deleteRules:
+#  # <int> organization ID, default = 1
+#  - orgId: 1
+#    # <string, required> unique identifier for the rule
+#    uid: dc9f0913-e192-4281-a345-10ef832c91ff
