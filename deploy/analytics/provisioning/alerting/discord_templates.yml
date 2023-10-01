@@ -1,0 +1,54 @@
+apiVersion: 1
+
+# grafana prefixes template content with a " " (space) prefix
+# so we use {{- print ""   }} before each line to remove it
+# but that also removes \n (newlines) so we have to re-add them
+templates:
+  - orgID: 1
+    name: discord.title
+    template: |-2
+      {{- print ""   }}{{ len .Alerts.Firing }} firing alert(s), {{ len .Alerts.Resolved }} resolved alert(s)
+  - orgID: 1
+    name: beefy.alert.action_urls
+    template: |-2
+      {{- print ""   }}{{- if .SilenceURL -}}[Silence]({{ .SilenceURL }}){{ end }} | {{ if .DashboardURL -}}[Dashboard]({{ .DashboardURL }}){{ end -}}
+  - orgID: 1
+    name: beefy.alert.status
+    template: >
+      {{- print ""   }}{{- if eq .Status "firing" }}🔥{{ end }}{{ if eq .Status "resolved" }}✅{{ end }} {{.Status -}}
+  - orgID: 1
+    name: beefy.default.alert_print
+    template: |-2
+      {{- print ""   }}{{ template "beefy.alert.status" . }} {{ .Labels.alertname }} {{ if eq .Status "firing" }}: {{end}}{{ template "beefy.alert.action_urls" . }}
+      {{- print ""   }}{{ range .Labels.SortedPairs -}}
+      {{- print "\n" }}- {{ .Name }}: {{ .Value }}
+      {{- print ""   }}{{ end -}}
+      {{- print ""   }}{{ if .Annotations -}}
+      {{- print ""   }}{{   range .Annotations.SortedPairs -}}
+      {{- print "\n" }}- {{ .Name }}: {{ .Value }}
+      {{- print "\n" }}{{   end -}}
+      {{- print "\n"   }}{{ end -}}
+  - orgID: 1
+    name: beefy.default.message
+    template: |-2
+      {{- print ""   }}{{ if .Alerts.Firing -}}
+      {{- print "\n" }}### {{ len .Alerts.Firing }} firing alert(s):
+      {{- print "\n" }}{{   range .Alerts.Firing }}
+      {{- print ""   }}{{     template "beefy.default.alert_print" . }}
+      {{- print ""   }}{{   end -}}
+      {{- print ""   }}{{ end }}
+      {{- print ""   }}{{ if .Alerts.Resolved -}}
+      {{- print "\n" }}### {{ len .Alerts.Resolved }} resolved alert(s):
+      {{- print "\n" }}{{   range .Alerts.Resolved }}
+      {{- print ""   }}{{     template "beefy.default.alert_print" .}}
+      {{- print ""   }}{{   end -}}
+      {{- print ""   }}{{ end }}
+  - orgID: 1
+    name: discord.message
+    template: |-2
+      {{- print ""   }}{{- template "beefy.default.message" . -}}
+
+# List of alert rule UIDs that should be deleted
+# deleteTemplates:
+#   - orgId: 1
+#     name: beefy.alert_vault_harvest_needs_eol.message
