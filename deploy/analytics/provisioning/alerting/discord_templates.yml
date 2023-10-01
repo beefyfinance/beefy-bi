@@ -17,6 +17,16 @@ templates:
     template: >
       {{- print ""   }}{{- if eq .Status "firing" }}🔥{{ end }}{{ if eq .Status "resolved" }}✅{{ end }} {{.Status -}}
   - orgID: 1
+    name: beefy.alert.chain_infos
+    template: >
+      {{- if .Labels.chain_discord_link -}}
+        {{- .Labels.chain_discord_link -}}
+        {{- print " " -}}
+      {{- else -}}
+        {{ index .Labels "chain" }}
+        {{- print " " -}}
+      {{- end -}}
+  - orgID: 1
     name: beefy.default.alert_print
     template: |-2
       {{- print ""   }}{{ template "beefy.alert.status" . }} {{ .Labels.alertname }} {{ if eq .Status "firing" }}: {{end}}{{ template "beefy.alert.action_urls" . }}
@@ -44,9 +54,22 @@ templates:
       {{- print ""   }}{{   end -}}
       {{- print ""   }}{{ end }}
   - orgID: 1
+    name: beefy.chain_error.message
+    template: |-2
+      {{- print "\n" }}### {{ .CommonLabels.alertname }}: {{ len .Alerts.Firing }} firing alert(s), {{ len .Alerts.Resolved }} resolved alert(s)
+      {{- print ""   }}{{ range .Alerts -}}
+      {{- print "\n" }}- {{ template "beefy.alert.status" . }}: {{ template "beefy.alert.chain_infos" . }}
+      {{- print ""   }}{{ end }}
+      {{- print "\n" }}{{- if ne (len .Alerts.Firing) 0 -}}: {{- end -}}{{with $a := index .Alerts 0}}{{ template "beefy.alert.action_urls" $a }}{{end}}
+  - orgID: 1
     name: discord.message
     template: |-2
-      {{- print ""   }}{{- template "beefy.default.message" . -}}
+      {{- print ""   }}{{- $template := .CommonLabels.template -}}
+      {{- print ""   }}{{- if eq $template "chain_error" -}}
+      {{- print ""   }}{{-   template "beefy.chain_error.message" . -}}
+      {{- print ""   }}{{- else -}}
+      {{- print ""   }}{{-   template "beefy.default.message" . -}}
+      {{- print ""   }}{{- end -}}
 
 # List of alert rule UIDs that should be deleted
 # deleteTemplates:

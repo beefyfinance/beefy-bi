@@ -1,0 +1,339 @@
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: ETL Alerts
+      folder: ETL daily
+      interval: 4h
+      rules:
+        - uid: e7f06cf8-00f2-47be-a4b0-e53582bdc2c4
+          title: New product without import state
+          condition: product_counts_without_import_state_by_chain_reduce
+          data:
+            - refId: product_counts_without_import_state_by_chain
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: P1A7A05C63CAD1F73
+              model:
+                editorMode: code
+                format: table
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: "select p.chain, count(*)\nfrom product p\nwhere p.product_id not in (\n  select (i.import_data->'productId')::integer \n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n)\nGROUP BY 1"
+                refId: product_counts_without_import_state_by_chain
+                sql:
+                    columns:
+                        - parameters: []
+                          type: function
+                    groupBy:
+                        - property:
+                            type: string
+                          type: groupBy
+                    limit: 50
+            - refId: product_counts_without_import_state_by_chain_reduce
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: product_counts_without_import_state_by_chain
+                intervalMs: 1000
+                maxDataPoints: 43200
+                reducer: max
+                refId: product_counts_without_import_state_by_chain_reduce
+                type: reduce
+          dashboardUid: rpL7jwV4k
+          panelId: 32
+          noDataState: OK
+          execErrState: Error
+          for: 2d
+          annotations:
+            __dashboardUid__: rpL7jwV4k
+            __panelId__: "32"
+          labels:
+            policy: follow_up
+            template: chain_error
+          isPaused: false
+        - uid: ce33d2cc-0a8e-4908-8d72-730dc842bf96
+          title: Too many price missing in cache table
+          condition: missing_price_count_by_chain_threshold
+          data:
+            - refId: missing_price_count_by_chain
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: P1A7A05C63CAD1F73
+              model:
+                editorMode: code
+                format: table
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: "select chain, count(*) price_cache_without_price\nfrom beefy_investor_timeline_cache_ts\nleft join product using (product_id) \nwhere underlying_to_usd_price is null\ngroup by 1"
+                refId: missing_price_count_by_chain
+                sql:
+                    columns:
+                        - parameters: []
+                          type: function
+                    groupBy:
+                        - property:
+                            type: string
+                          type: groupBy
+                    limit: 50
+            - refId: missing_price_count_by_chain_reduce
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params: []
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - B
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: missing_price_count_by_chain
+                intervalMs: 1000
+                maxDataPoints: 43200
+                reducer: last
+                refId: missing_price_count_by_chain_reduce
+                type: reduce
+            - refId: missing_price_count_by_chain_threshold
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 200
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: missing_price_count_by_chain_reduce
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: missing_price_count_by_chain_threshold
+                type: threshold
+          dashboardUid: rpL7jwV4k
+          panelId: 71
+          noDataState: OK
+          execErrState: Error
+          for: 12h
+          annotations:
+            __dashboardUid__: rpL7jwV4k
+            __panelId__: "71"
+          labels:
+            policy: follow_up
+            template: chain_error
+          isPaused: false
+        - uid: abc705da-5606-4d0f-bd64-17e5aeb13440
+          title: Work Amount is raising up
+          condition: work_amount_is_increasing_rapidly_reduce
+          data:
+            - refId: work_amount_is_increasing_rapidly
+              relativeTimeRange:
+                from: 345600
+                to: 0
+              datasourceUid: P1A7A05C63CAD1F73
+              model:
+                editorMode: code
+                format: time_series
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: |-
+                    with work_amount_by_chain_1h_ts as (
+                      SELECT
+                        time_bucket('1h', datetime) as "datetime",
+                        chain,
+                        sum(errors_count) + sum(not_covered_yet) as total_work
+                      FROM import_state_metrics_ts
+                      WHERE
+                        $__timeFilter(datetime)
+                        and datetime < time_bucket('1h', now()) -- don't consider unfinished time buckets
+                        and import_type in ('product:investment', 'product:share-rate')
+                        and chain not in ('aurora', 'emerald', 'celo', 'harmony', 'heco')
+                      group by 1, 2
+                    ),
+                    work_amount_stats_by_chain as (
+                      select chain, stats_agg(total_work) total_work_stats, last(total_work, datetime) as last_total_work
+                      from work_amount_by_chain_1h_ts
+                      GROUP BY 1
+                    )
+                    select now() as time, chain, (last_total_work > (average(total_work_stats) + 2.5 * stddev(total_work_stats)))::integer as work_amount_is_increasing_rapidly
+                    FROM work_amount_stats_by_chain
+                refId: work_amount_is_increasing_rapidly
+                sql:
+                    columns:
+                        - parameters: []
+                          type: function
+                    groupBy:
+                        - property:
+                            type: string
+                          type: groupBy
+                    limit: 50
+            - refId: work_amount_is_increasing_rapidly_reduce
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: work_amount_is_increasing_rapidly
+                intervalMs: 1000
+                maxDataPoints: 43200
+                reducer: last
+                refId: work_amount_is_increasing_rapidly_reduce
+                type: reduce
+          dashboardUid: qNZkQmJ4z
+          panelId: 759
+          noDataState: NoData
+          execErrState: Error
+          for: 4h
+          annotations:
+            __dashboardUid__: qNZkQmJ4z
+            __panelId__: "759"
+          labels:
+            policy: one_shot
+            template: chain_error
+          isPaused: false
+        - uid: f3eb84c7-7eb5-41db-87c1-31ae50b7e715
+          title: too many rpc errors
+          condition: error_count_is_increasing_rapidly
+          data:
+            - refId: error_count_is_increasing_rapidly
+              relativeTimeRange:
+                from: 21600
+                to: 0
+              datasourceUid: P1A7A05C63CAD1F73
+              model:
+                editorMode: code
+                format: time_series
+                intervalMs: 1000
+                maxDataPoints: 43200
+                rawQuery: true
+                rawSql: |-
+                    with rpc_errors_by_chain_1h_ts as (
+                      SELECT
+                        time_bucket('1h', datetime) as "datetime",
+                        chain,
+                        count(*) as error_count
+                      FROM rpc_error_ts
+                      WHERE
+                        $__timeFilter(datetime)
+                        and datetime < time_bucket('1h', now()) -- don't consider unfinished time buckets
+                        and chain not in ('aurora', 'emerald', 'celo', 'harmony', 'heco')
+                      group by 1, 2
+                    ),
+                    rpc_errors_stats_by_chain as (
+                      select chain, stats_agg(error_count) error_count_stats, last(error_count, datetime) as last_error_count
+                      from rpc_errors_by_chain_1h_ts
+                      GROUP BY 1
+                    )
+                    select now() as time, chain, (last_error_count > (average(error_count_stats) + 2.5 * stddev(error_count_stats)))::integer as error_count_is_increasing_rapidly
+                    FROM rpc_errors_stats_by_chain
+                refId: error_count_is_increasing_rapidly
+                sql:
+                    columns:
+                        - parameters: []
+                          type: function
+                    groupBy:
+                        - property:
+                            type: string
+                          type: groupBy
+                    limit: 50
+            - refId: A
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                            - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: []
+                      reducer:
+                        params: []
+                        type: avg
+                      type: query
+                datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                expression: error_count_is_increasing_rapidly
+                intervalMs: 1000
+                maxDataPoints: 43200
+                reducer: last
+                refId: A
+                type: reduce
+          dashboardUid: slqCbg1Vz
+          panelId: 6
+          noDataState: OK
+          execErrState: Error
+          for: 1d
+          annotations:
+            __dashboardUid__: slqCbg1Vz
+            __panelId__: "6"
+          labels:
+            policy: follow_up
+            template: chain_error
+          isPaused: false
