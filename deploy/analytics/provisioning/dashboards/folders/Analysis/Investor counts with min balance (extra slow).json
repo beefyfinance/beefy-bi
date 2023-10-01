@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 42,
+  "id": 3,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -105,7 +105,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -171,13 +173,15 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -193,7 +197,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -282,7 +288,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -371,7 +379,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -431,7 +441,9 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -442,7 +454,7 @@
           }
         ]
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -458,7 +470,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -486,8 +500,16 @@
       {
         "current": {
           "selected": true,
-          "text": ["bsc", "optimism", "polygon"],
-          "value": ["bsc", "optimism", "polygon"]
+          "text": [
+            "bsc",
+            "optimism",
+            "polygon"
+          ],
+          "value": [
+            "bsc",
+            "optimism",
+            "polygon"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -508,9 +530,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": ["beefy:vault:bsc:bifi-maxi", "beefy:vault:optimism:optimism-bifi-maxi", "beefy:vault:polygon:polygon-bifi-maxi"],
-          "value": ["beefy:vault:bsc:bifi-maxi", "beefy:vault:optimism:optimism-bifi-maxi", "beefy:vault:polygon:polygon-bifi-maxi"]
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "postgres",
@@ -551,8 +573,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -574,8 +600,12 @@
       {
         "current": {
           "selected": false,
-          "text": "2021-05-19T19:01:09Z",
-          "value": "2021-05-19T19:01:09Z"
+          "text": "2020-10-08T18:33:22Z",
+          "value": "2020-10-08T18:33:22Z"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
         },
         "definition": "  select TO_CHAR(min((i.import_data->>'contractCreationDate')::timestamptz), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')\n  from import_state i\n  left join product p on p.product_id = (i.import_data->>'productId')::integer and i.import_data->>'type' = 'product:investment'\n  where p.product_id in ($_product_ids)",
         "hide": 0,
@@ -667,8 +697,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Investor list with min balance",
+  "title": "Investor counts with min balance (extra slow)",
   "uid": "lRLUVbOVz",
-  "version": 9,
+  "version": 3,
   "weekStart": ""
 }

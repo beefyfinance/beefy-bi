@@ -144,8 +144,8 @@
         ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 15,
+        "h": 10,
+        "w": 14,
         "x": 0,
         "y": 1
       },
@@ -156,7 +156,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "",
           "values": true
         },
@@ -178,7 +180,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -228,7 +232,10 @@
       },
       "id": 898,
       "options": {
-        "displayLabels": ["name", "percent"],
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
@@ -236,7 +243,9 @@
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "/^total_work$/",
           "values": true
         },
@@ -261,7 +270,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -311,7 +322,10 @@
       },
       "id": 899,
       "options": {
-        "displayLabels": ["name", "percent"],
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
@@ -319,7 +333,9 @@
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "/^total_work$/",
           "values": true
         },
@@ -344,7 +360,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -394,7 +412,10 @@
       },
       "id": 900,
       "options": {
-        "displayLabels": ["name", "percent"],
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
@@ -402,7 +423,9 @@
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "/^total_work$/",
           "values": true
         },
@@ -427,7 +450,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -645,7 +670,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 11
       },
       "id": 756,
       "options": {
@@ -675,7 +700,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -753,7 +780,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 11
       },
       "id": 905,
       "options": {
@@ -783,7 +810,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -809,7 +838,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 21
       },
       "id": 829,
       "panels": [],
@@ -924,7 +953,7 @@
         "h": 3,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 22
       },
       "id": 492,
       "options": {
@@ -933,7 +962,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "",
           "values": true
         },
@@ -955,7 +986,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -1083,7 +1116,7 @@
         "h": 3,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 22
       },
       "id": 1231,
       "options": {
@@ -1092,7 +1125,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "",
           "values": true
         },
@@ -1114,7 +1149,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -1179,8 +1216,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1332,7 +1368,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 20
+        "y": 25
       },
       "id": 970,
       "options": {
@@ -1362,7 +1398,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -1427,8 +1465,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -1580,7 +1617,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 20
+        "y": 25
       },
       "id": 1035,
       "options": {
@@ -1610,7 +1647,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -1636,7 +1675,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 35
       },
       "id": 2,
       "panels": [],
@@ -1842,7 +1881,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 36
       },
       "id": 1100,
       "options": {
@@ -1872,7 +1911,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -2089,7 +2130,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 31
+        "y": 36
       },
       "id": 1101,
       "options": {
@@ -2119,7 +2160,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -2174,13 +2217,15 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 46
       },
       "id": 687,
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -2201,7 +2246,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -2230,7 +2277,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": [
             "arbitrum",
             "aurora",
@@ -2274,13 +2321,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select distinct chain from import_state_metrics_ts",
+        "definition": "select distinct chain from product where chain not in ('harmony', 'heco')",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "chains",
         "options": [],
-        "query": "select distinct chain from import_state_metrics_ts",
+        "query": "select distinct chain from product where chain not in ('harmony', 'heco')",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -2289,9 +2336,13 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": ["false"],
-          "value": ["false"]
+          "selected": true,
+          "text": [
+            "false"
+          ],
+          "value": [
+            "false"
+          ]
         },
         "hide": 0,
         "includeAll": true,
@@ -2325,8 +2376,8 @@
         "auto_min": "10s",
         "current": {
           "selected": false,
-          "text": "1m",
-          "value": "1m"
+          "text": "1h",
+          "value": "1h"
         },
         "hide": 0,
         "name": "interval",
@@ -2337,7 +2388,7 @@
             "value": "$__auto_interval_interval"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "1m",
             "value": "1m"
           },
@@ -2352,7 +2403,7 @@
             "value": "30m"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "1h",
             "value": "1h"
           },
@@ -2403,6 +2454,6 @@
   "timezone": "",
   "title": "Import Stats Over time",
   "uid": "qNZkQmJ4z",
-  "version": 49,
+  "version": 50,
   "weekStart": ""
 }

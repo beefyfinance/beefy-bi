@@ -83,13 +83,15 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -105,7 +107,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -180,13 +184,15 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -202,7 +208,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -277,13 +285,15 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -299,7 +309,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -326,29 +338,33 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": false,
-          "text": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
-          "value": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76"
-        },
+        "current": {},
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
-            "value": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76"
+            "text": "",
+            "value": ""
           }
         ],
-        "query": "0xbeEF1EFee5938C2bB2FD99F5fb7EE015C3D81c76",
+        "query": "",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
         },
         "definition": "select distinct chain from product",
         "hide": 0,
@@ -366,8 +382,16 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
         },
         "definition": "select distinct product_key from product where product_id in (\n select product_id \n from beefy_investor_timeline_cache_ts\n where investor_id = $_investor_id\n)\nand product_id in (\n select product_id\n from product\n where chain in ($chains)\n)",
         "hide": 0,
@@ -384,9 +408,10 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "6248",
-          "value": "6248"
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
         },
         "datasource": {
           "type": "postgres",
@@ -408,8 +433,16 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
         },
         "definition": "select product_id from product where product_key in ($product_keys)",
         "hide": 0,

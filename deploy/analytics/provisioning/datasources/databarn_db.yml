@@ -5,6 +5,7 @@ apiVersion: 1
 
 datasources:
   - name: Beefy TimescaleDB
+    uid: P1A7A05C63CAD1F73
     type: postgres
     access: proxy
     url: ${POSTGRES_HOST}:${POSTGRES_PORT}

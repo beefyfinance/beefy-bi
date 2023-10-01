@@ -58,8 +58,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -80,7 +79,9 @@
           "options": {
             "footer": {
               "fields": "",
-              "reducer": ["sum"],
+              "reducer": [
+                "sum"
+              ],
               "show": false
             },
             "showHeader": true
@@ -101,7 +102,9 @@
               "select": [
                 [
                   {
-                    "params": ["value"],
+                    "params": [
+                      "value"
+                    ],
                     "type": "column"
                   }
                 ]
@@ -176,13 +179,15 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["allValues"],
+          "calcs": [
+            "allValues"
+          ],
           "fields": "/.*/",
           "values": false
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -198,7 +203,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -255,12 +262,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -276,7 +285,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -333,12 +344,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -354,7 +367,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -414,12 +429,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -435,7 +452,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -495,12 +514,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -511,12 +532,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select * \nfrom investment_balance_ts\nwhere product_id in ($_product_ids)\nand investor_id in ($_investor_ids)\norder by datetime desc;",
+          "rawSql": "select datetime, block_number, product_id, investor_id, balance, balance_diff, pending_rewards, pending_rewards_diff, bytea_to_hexstr(transaction_hash)\nfrom investment_balance_ts\nwhere product_id in ($_product_ids)\nand investor_id in ($_investor_ids)\norder by datetime desc;",
           "refId": "A",
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -554,8 +577,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -576,12 +598,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -597,7 +621,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -635,8 +661,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -706,13 +731,15 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -728,7 +755,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -754,9 +783,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "optimism",
-          "value": "optimism"
+          "selected": false,
+          "text": "bsc",
+          "value": "bsc"
         },
         "datasource": {
           "type": "postgres",
@@ -778,27 +807,27 @@
       {
         "current": {
           "selected": false,
-          "text": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
-          "value": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76"
+          "text": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
+          "value": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55"
         },
         "hide": 0,
         "name": "investor_address",
         "options": [
           {
             "selected": true,
-            "text": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
-            "value": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76"
+            "text": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
+            "value": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55"
           }
         ],
-        "query": "0xbeef1efee5938c2bb2fd99f5fb7ee015c3d81c76",
+        "query": "0x9a43e2d3f7d28f0bb8a6b5952dc563ab51b8cb55",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
-          "selected": true,
-          "text": "beefy:vault:optimism:0x6992333e5df2364eb1b6cf14dc0c86eb0865d6e2",
-          "value": "beefy:vault:optimism:0x6992333e5df2364eb1b6cf14dc0c86eb0865d6e2"
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "postgres",
@@ -818,40 +847,36 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
-          "value": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2"
-        },
+        "current": {},
         "hide": 0,
         "name": "transaction_hash",
         "options": [
           {
             "selected": true,
-            "text": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
-            "value": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2"
+            "text": "",
+            "value": ""
           }
         ],
-        "query": "0xf78d6f69a15946c36a6eb269bee8c5e63ca9b1feb648fc5b1832f5d7847216b2",
+        "query": "",
         "skipUrlSync": false,
         "type": "textbox"
       },
       {
         "current": {
           "selected": false,
-          "text": "72817938",
-          "value": "72817938"
+          "text": "21556814",
+          "value": "21556814"
         },
         "hide": 0,
         "name": "block_number",
         "options": [
           {
             "selected": true,
-            "text": "72817938",
-            "value": "72817938"
+            "text": "21556814",
+            "value": "21556814"
           }
         ],
-        "query": "72817938",
+        "query": "21556814",
         "skipUrlSync": false,
         "type": "textbox"
       },
@@ -873,8 +898,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -896,8 +925,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -919,8 +952,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -947,8 +984,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Debug user transaction",
+  "title": "User debug transaction",
   "uid": "pLvOZZd4k",
-  "version": 5,
+  "version": 6,
   "weekStart": ""
 }
