@@ -119,7 +119,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -179,13 +181,15 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["uniqueValues"],
+          "calcs": [
+            "uniqueValues"
+          ],
           "fields": "",
           "values": true
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -201,7 +205,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -257,7 +263,9 @@
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["uniqueValues"],
+          "calcs": [
+            "uniqueValues"
+          ],
           "fields": "",
           "values": true
         },
@@ -281,7 +289,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -337,7 +347,9 @@
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["uniqueValues"],
+          "calcs": [
+            "uniqueValues"
+          ],
           "fields": "",
           "values": true
         },
@@ -361,7 +373,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -423,12 +437,14 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -444,7 +460,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -472,9 +490,13 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": ["optimism"],
-          "value": ["optimism"]
+          "selected": true,
+          "text": [
+            "optimism"
+          ],
+          "value": [
+            "optimism"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -567,6 +589,6 @@
   "timezone": "",
   "title": "RPC errors",
   "uid": "slqCbg1Vz",
-  "version": 9,
+  "version": 10,
   "weekStart": ""
 }

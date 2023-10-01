@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 38,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -130,13 +130,15 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.3",
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
@@ -152,7 +154,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -261,7 +265,9 @@
           "select": [
             [
               {
-                "params": ["value"],
+                "params": [
+                  "value"
+                ],
                 "type": "column"
               }
             ]
@@ -338,9 +344,13 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": ["All"],
-          "value": ["$__all"]
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -369,6 +379,6 @@
   "timezone": "",
   "title": "Raw PPFS",
   "uid": "K1oFpkdVk",
-  "version": 7,
+  "version": 2,
   "weekStart": ""
 }

@@ -114,7 +114,8 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:9.2.15
+    image: grafana/grafana:10.1.4
+    env_file: ../.env-grafana
     expose:
       - "3000"
     deploy:
@@ -133,6 +134,8 @@ services:
       POSTGRES_USER: grafana_ro
       POSTGRES_PASSWORD: grafana_ro
       POSTGRES_DB: beefy
+      PORT: 3000
+      GRAFANA_WEBAPP_DOMAIN_NAME: dm-control.beefy.com
       GF_INSTALL_PLUGINS: marcusolsson-json-datasource
       LETSENCRYPT_HOST: dm-control.beefy.com
       VIRTUAL_HOST: dm-control.beefy.com
@@ -146,8 +149,10 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - grafana_plugins:/var/lib/grafana/plugins
-      - ./db/grafana.ini:/etc/grafana/grafana.ini
-      - ./db/grafana_datasource.yml:/etc/grafana/provisioning/datasources/timescaledb.yml
+      - ./analytics/custom.ini:/etc/grafana/grafana.ini
+      - ./analytics/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./analytics/provisioning/alerting:/etc/grafana/provisioning/alerting
+      - ./analytics/provisioning/datasources:/etc/grafana/provisioning/datasources
     depends_on:
       - timescaledb
     networks:

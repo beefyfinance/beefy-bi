@@ -142,7 +142,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -263,7 +265,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -374,7 +378,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -485,7 +491,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -619,7 +627,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -740,7 +750,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -818,8 +830,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -874,7 +885,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -939,8 +952,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -995,7 +1007,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -1048,8 +1062,8 @@
       {
         "current": {
           "selected": false,
-          "text": "beefy:vault:optimism:0xcccebc4551ff20aca4e0356dad8875806ce8df10",
-          "value": "beefy:vault:optimism:0xcccebc4551ff20aca4e0356dad8875806ce8df10"
+          "text": "beefy:vault:optimism:0x3532b6f723948ef39d5dcf44c16855239af81082",
+          "value": "beefy:vault:optimism:0x3532b6f723948ef39d5dcf44c16855239af81082"
         },
         "datasource": {
           "type": "postgres",
@@ -1124,8 +1138,8 @@
       {
         "current": {
           "selected": false,
-          "text": "4076",
-          "value": "4076"
+          "text": "4020",
+          "value": "4020"
         },
         "datasource": {
           "type": "postgres",
@@ -1147,8 +1161,8 @@
       {
         "current": {
           "selected": false,
-          "text": "4565",
-          "value": "4565"
+          "text": "4510",
+          "value": "4510"
         },
         "datasource": {
           "type": "postgres",
@@ -1170,8 +1184,8 @@
     ]
   },
   "time": {
-    "from": "2022-06-27T00:00:00.000Z",
-    "to": "2022-06-28T00:00:00.000Z"
+    "from": "now-90d",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",

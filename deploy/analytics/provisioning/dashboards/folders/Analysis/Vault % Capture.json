@@ -87,7 +87,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
+        "h": 15,
         "w": 24,
         "x": 0,
         "y": 0
@@ -120,7 +120,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -148,6 +150,233 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with product_staked_underlying as (\n  SELECT\n    time_bucket('1d', ts.datetime) as datetime,\n    ts.product_id,\n    max(ts.staked_underlying * pr.price) as max_staked_value_usd\n  FROM beefy_vault_stats_ts ts\n  join product p using(product_id)\n  join price_ts pr on pr.price_feed_id = p.price_feed_2_id and time_bucket('1d', ts.datetime) = pr.datetime\n  WHERE\n    $__timeFilter(ts.datetime)\n    and product_id in ($_product_ids)\n  group by 1, 2\n)\nselect \n  ts.datetime as time,\n  coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as beefy_id,\n  sum(ts.max_staked_value_usd) as staked_value_usd\nfrom product_staked_underlying ts\njoin product p using(product_id)\ngroup by 1, 2\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "balance"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "TVL by vault (beta)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "P1A7A05C63CAD1F73"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with product_staked_underlying as (\n  SELECT\n    time_bucket('1d', ts.datetime) as datetime,\n    ts.product_id,\n    max(ts.staked_underlying * pr.price) as max_staked_value_usd\n  FROM beefy_vault_stats_ts ts\n  join product p using(product_id)\n  join price_ts pr on pr.price_feed_id = p.price_feed_2_id and time_bucket('1d', ts.datetime) = pr.datetime\n  WHERE\n    $__timeFilter(ts.datetime)\n    and product_id in ($_product_ids)\n  group by 1, 2\n)\nselect \n  ts.datetime as time,\n  p.chain,\n  sum(ts.max_staked_value_usd) as staked_value_usd\nfrom product_staked_underlying ts\njoin product p using(product_id)\ngroup by 1, 2\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "balance"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "beefy_investor_timeline_cache_ts",
+          "timeColumn": "datetime",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Chain TVL ",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "P1A7A05C63CAD1F73"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "thresholds"
           },
           "custom": {
@@ -160,8 +389,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -183,8 +411,7 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "red",
-                      "value": null
+                      "color": "red"
                     },
                     {
                       "color": "yellow",
@@ -221,13 +448,15 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 49
       },
       "id": 4,
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -254,7 +483,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -294,8 +525,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -310,13 +540,15 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 60
       },
       "id": 6,
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -337,7 +569,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -365,9 +599,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "polygon",
-          "value": "polygon"
+          "selected": false,
+          "text": "arbitrum",
+          "value": "arbitrum"
         },
         "datasource": {
           "type": "postgres",
@@ -416,8 +650,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -439,8 +677,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -462,13 +704,13 @@
     ]
   },
   "time": {
-    "from": "now-7d",
-    "to": "now"
+    "from": "now-9d",
+    "to": "now-2d"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Vault % Capture",
   "uid": "iS1zbpeVz",
-  "version": 10,
+  "version": 14,
   "weekStart": ""
 }

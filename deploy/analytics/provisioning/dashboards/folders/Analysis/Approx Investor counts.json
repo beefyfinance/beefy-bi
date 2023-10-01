@@ -75,7 +75,9 @@
               "select": [
                 [
                   {
-                    "params": ["balance"],
+                    "params": [
+                      "balance"
+                    ],
                     "type": "column"
                   }
                 ]
@@ -136,7 +138,9 @@
           "options": {
             "footer": {
               "fields": "",
-              "reducer": ["sum"],
+              "reducer": [
+                "sum"
+              ],
               "show": false
             },
             "showHeader": true
@@ -157,7 +161,9 @@
               "select": [
                 [
                   {
-                    "params": ["balance"],
+                    "params": [
+                      "balance"
+                    ],
                     "type": "column"
                   }
                 ]
@@ -286,7 +292,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -398,7 +406,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -521,7 +531,9 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -548,7 +560,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -672,7 +686,9 @@
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -702,20 +718,26 @@
       {
         "current": {
           "selected": true,
-          "text": ["bsc", "optimism"],
-          "value": ["bsc", "optimism"]
+          "text": [
+            "bsc",
+            "optimism"
+          ],
+          "value": [
+            "bsc",
+            "optimism"
+          ]
         },
         "datasource": {
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select distinct chain from product where chain not in ('harmony', 'heco')",
+        "definition": "select distinct chain from product where chain not in ('harmony', 'heco', 'aurora', 'celo', 'emerald')",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "chain",
         "options": [],
-        "query": "select distinct chain from product where chain not in ('harmony', 'heco')",
+        "query": "select distinct chain from product where chain not in ('harmony', 'heco', 'aurora', 'celo', 'emerald')",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -752,8 +774,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -819,8 +845,12 @@
       {
         "current": {
           "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "postgres",
@@ -842,13 +872,13 @@
     ]
   },
   "time": {
-    "from": "now-20d",
+    "from": "now-31d",
     "to": "now-1d"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Approx Investor counts",
   "uid": "WWZwz8lVz",
-  "version": 54,
+  "version": 56,
   "weekStart": ""
 }

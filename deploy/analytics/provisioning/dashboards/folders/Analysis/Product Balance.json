@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 21,
+  "id": 28,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -61,8 +61,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 24,
+        "h": 23,
+        "w": 17,
         "x": 0,
         "y": 0
       },
@@ -70,7 +70,9 @@
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -86,12 +88,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT *, CASE when feed_key ~ '^[a-z0-9:_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END as asset_type FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9:_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)\nand (case when '$filter_feed_list' = '' then true else \n  feed_key like '%' || '$filter_feed_list' || '%'\nend) \n\n",
+          "rawSql": "with balance_ts as (\n  SELECT\n    investor_id,\n    last(balance, datetime) as balance,\n    last(datetime, datetime) as last_event,\n    last(block_number, datetime) as last_event_block_number\n  FROM investment_balance_ts\n  WHERE\n    product_id = $_product_id\n  group by 1\n  having last(balance, datetime) > 0\n)\nselect bytea_to_hexstr(i.address) as investor_address, balance::varchar as balance_txt, balance as balance_num, last_event, last_event_block_number\nfrom balance_ts\njoin investor i using (investor_id)",
           "refId": "A",
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -108,7 +112,7 @@
           ]
         }
       ],
-      "title": "Price Feeds",
+      "title": "Balances (accounting for ignored addresses)",
       "type": "table"
     },
     {
@@ -119,39 +123,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -165,46 +138,50 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "currencyUSD"
+          }
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 14,
-        "w": 24,
-        "x": 0,
-        "y": 9
+        "h": 7,
+        "w": 6,
+        "x": 17,
+        "y": 0
       },
       "id": 4,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
+        "textMode": "auto"
       },
+      "pluginVersion": "9.2.15",
       "targets": [
         {
           "datasource": {
             "type": "postgres",
             "uid": "P1A7A05C63CAD1F73"
           },
-          "format": "time_series",
+          "format": "table",
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  feed_key,\n  price::double precision\nFROM price_ts \n  left join price_feed using(price_feed_id)\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id in ($_price_feed_ids)\n\nORDER BY 1",
+          "rawSql": "with balance_ts as (\n  SELECT\n    investor_id,\n    last(balance, datetime) as balance,\n    last(datetime, datetime) as last_event\n  FROM investment_balance_ts\n  WHERE\n    product_id = $_product_id\n  group by 1\n  having last(balance, datetime) > 0\n)\nselect count(*) from balance_ts",
           "refId": "A",
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -221,8 +198,8 @@
           ]
         }
       ],
-      "title": "Feed Prices",
-      "type": "timeseries"
+      "title": "Total holders (accounting for ignored addresses)",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -257,16 +234,18 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 14,
-        "w": 24,
-        "x": 0,
-        "y": 23
+        "h": 16,
+        "w": 6,
+        "x": 17,
+        "y": 7
       },
-      "id": 5,
+      "id": 3,
       "options": {
         "footer": {
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -282,12 +261,14 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  datetime AS \"time\",\n  feed_key,\n  price::varchar\nFROM price_ts \n  left join price_feed using(price_feed_id)\nWHERE\n  $__timeFilter(datetime)\n  and price_feed_id in ($_price_feed_ids)\n\nORDER BY 1",
+          "rawSql": "select bytea_to_hexstr(address) as address \nfrom ignore_address \nwhere chain = '$chain'",
           "refId": "A",
           "select": [
             [
               {
-                "params": ["balance"],
+                "params": [
+                  "balance"
+                ],
                 "type": "column"
               }
             ]
@@ -304,7 +285,7 @@
           ]
         }
       ],
-      "title": "Feed Prices",
+      "title": "Ignored addresses",
       "type": "table"
     }
   ],
@@ -316,94 +297,20 @@
       {
         "current": {
           "selected": false,
-          "text": "",
-          "value": ""
-        },
-        "description": "Search the price_feed list on the feed_key field",
-        "hide": 0,
-        "name": "filter_feed_list",
-        "options": [
-          {
-            "selected": true,
-            "text": "",
-            "value": ""
-          }
-        ],
-        "query": "",
-        "skipUrlSync": false,
-        "type": "textbox"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "hide": 0,
-        "includeAll": true,
-        "multi": true,
-        "name": "token_type",
-        "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "$__all"
-          },
-          {
-            "selected": false,
-            "text": "mooToken",
-            "value": "mooToken"
-          },
-          {
-            "selected": false,
-            "text": "token",
-            "value": "token"
-          }
-        ],
-        "query": "mooToken,token",
-        "queryValue": "",
-        "skipUrlSync": false,
-        "type": "custom"
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": [
-            "beefy-data:avax:BIFI",
-            "beefy-data:beefy:arbitrum:BIFI",
-            "beefy-data:beefy:aurora:BIFI",
-            "beefy-data:beefy:avax:BIFI",
-            "beefy-data:beefy:bsc:BIFI",
-            "beefy-data:beefy:canto:BIFI",
-            "beefy-data:beefy:celo:BIFI",
-            "beefy-data:beefy:cronos:BIFI",
-            "beefy-data:beefy:ethereum:BIFI",
-            "beefy-data:beefy:fantom:BIFI"
-          ],
-          "value": [
-            "beefy-data:avax:BIFI",
-            "beefy-data:beefy:arbitrum:BIFI",
-            "beefy-data:beefy:aurora:BIFI",
-            "beefy-data:beefy:avax:BIFI",
-            "beefy-data:beefy:bsc:BIFI",
-            "beefy-data:beefy:canto:BIFI",
-            "beefy-data:beefy:celo:BIFI",
-            "beefy-data:beefy:cronos:BIFI",
-            "beefy-data:beefy:ethereum:BIFI",
-            "beefy-data:beefy:fantom:BIFI"
-          ]
+          "text": "fuse",
+          "value": "fuse"
         },
         "datasource": {
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "SELECT feed_key FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)",
+        "definition": "select distinct chain from product",
         "hide": 0,
         "includeAll": false,
-        "multi": true,
-        "name": "price_feed_keys",
+        "multi": false,
+        "name": "chain",
         "options": [],
-        "query": "SELECT feed_key FROM price_feed where to_asset_key = 'fiat:USD'\nand (CASE when feed_key ~ '^[a-z0-9_-]+$' or feed_key ~ ':moo[^:]+$'  then 'mooToken' else 'token' END) in ($token_type)",
+        "query": "select distinct chain from product",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -412,21 +319,44 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
+          "selected": false,
+          "text": "beefy:vault:fuse:0x8d81807f19b97fa86eecab32f1376645fbb4d2f9",
+          "value": "beefy:vault:fuse:0x8d81807f19b97fa86eecab32f1376645fbb4d2f9"
         },
         "datasource": {
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select price_feed_id from price_feed where feed_key in ($price_feed_keys)",
+        "definition": "select product_key from product where chain = '$chain'",
         "hide": 0,
-        "includeAll": true,
-        "multi": true,
-        "name": "_price_feed_ids",
+        "includeAll": false,
+        "multi": false,
+        "name": "product_key",
         "options": [],
-        "query": "select price_feed_id from price_feed where feed_key in ($price_feed_keys)",
+        "query": "select product_key from product where chain = '$chain'",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 5,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "18180821",
+          "value": "18180821"
+        },
+        "datasource": {
+          "type": "postgres",
+          "uid": "P1A7A05C63CAD1F73"
+        },
+        "definition": "select product_id from product where product_key = '$product_key'",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "_product_id",
+        "options": [],
+        "query": "select product_id from product where product_key = '$product_key'",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -441,8 +371,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Find a Token Price",
-  "uid": "Wax7DUU4z",
-  "version": 11,
+  "title": "Product Balance",
+  "uid": "LcQJsBgSz",
+  "version": 5,
   "weekStart": ""
 }
