@@ -253,9 +253,9 @@ groups:
             policy: one_shot
             template: chain_error
           isPaused: false
-        - uid: f3eb84c7-7eb5-41db-87c1-31ae50b7e715
-          title: too many rpc errors
-          condition: error_count_is_increasing_rapidly
+        - uid: dc9f0913-e192-4281-a345-10ef832c91ff
+          title: too many rpc errors (copy)
+          condition: error_count_is_increasing_rapidly_reduce
           data:
             - refId: error_count_is_increasing_rapidly
               relativeTimeRange:
@@ -298,7 +298,10 @@ groups:
                             type: string
                           type: groupBy
                     limit: 50
-            - refId: A
+            - refId: error_count_is_increasing_rapidly_reduce
+              relativeTimeRange:
+                from: 21600
+                to: 0
               datasourceUid: __expr__
               model:
                 conditions:
@@ -323,7 +326,9 @@ groups:
                 intervalMs: 1000
                 maxDataPoints: 43200
                 reducer: last
-                refId: A
+                refId: error_count_is_increasing_rapidly_reduce
+                settings:
+                    mode: ""
                 type: reduce
           dashboardUid: slqCbg1Vz
           panelId: 6

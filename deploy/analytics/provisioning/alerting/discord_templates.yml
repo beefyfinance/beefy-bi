@@ -60,7 +60,7 @@ templates:
       {{- print ""   }}{{ range .Alerts -}}
       {{- print "\n" }}- {{ template "beefy.alert.status" . }}: {{ template "beefy.alert.chain_infos" . }}
       {{- print ""   }}{{ end }}
-      {{- print "\n" }}{{- if ne (len .Alerts.Firing) 0 -}}: {{- end -}}{{with $a := index .Alerts 0}}{{ template "beefy.alert.action_urls" $a }}{{end}}
+      {{- print "\n" }}{{- if ne (len .Alerts.Firing) 0 -}}{{- end -}}{{with $a := index .Alerts 0}}{{ template "beefy.alert.action_urls" $a }}{{end}}
   - orgID: 1
     name: discord.message
     template: |-2
