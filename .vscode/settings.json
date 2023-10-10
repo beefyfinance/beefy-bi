@@ -53,5 +53,6 @@
   "typescript.tsdk": "./node_modules/typescript/lib",
   "githubPullRequests.ignoredPullRequestBranches": [
     "main"
-  ]
+  ],
+  "editor.formatOnSave": true
 }

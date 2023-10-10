@@ -30,7 +30,7 @@ import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } fr
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { getInvestmentsImportStateKey } from "../../utils/import-state";
-import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
+import { isBeefyBoost, isBeefyBridgedVault, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
 import { upsertInvestorCacheChainInfos$ } from "./investor-cache";
 
 const logger = rootLogger.child({ module: "beefy", component: "investment-import" });
@@ -277,6 +277,17 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
             balance,
             blockNumber,
             fetchShareRate: true,
+          };
+        } else if (isBeefyBridgedVault(item.target.product)) {
+          return {
+            shareRateParams: {
+              vaultAddress: item.target.product.productData.vault.contract_address,
+              underlyingDecimals: item.target.product.productData.vault.want_decimals,
+              vaultDecimals: item.target.product.productData.vault.token_decimals,
+            },
+            balance,
+            blockNumber,
+            fetchShareRate: false, // we don't have a share rate on the same chain for bridged vaults
           };
         } else if (isBeefyBoost(item.target.product)) {
           return {

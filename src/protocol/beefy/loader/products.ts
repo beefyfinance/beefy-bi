@@ -10,7 +10,7 @@ import { upsertPriceFeed$ } from "../../common/loader/price-feed";
 import { upsertProduct$ } from "../../common/loader/product";
 import { ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { computeIsDashboardEOL } from "../../common/utils/eol";
-import { createChainRunner, NoRpcRunnerConfig } from "../../common/utils/rpc-chain-runner";
+import { NoRpcRunnerConfig, createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { BeefyBoost, beefyBoostsFromGitHistory$ } from "../connector/boost-list";
 import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
@@ -49,12 +49,14 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           ctx,
           emitError: emitVaultError,
           getFeedData: (item) => {
-            const vaultId = normalizeVaultId(item.vault.id);
+            // we want to use the same price feed for all versions of the same product
+            const vault = item.vault.bridged_version_of ?? item.vault;
+            const vaultId = normalizeVaultId(vault.id);
             return {
-              feedKey: `beefy:${item.vault.chain}:${vaultId}:ppfs`,
-              fromAssetKey: `beefy:${item.vault.chain}:${vaultId}`, // from the vault
-              toAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // to underlying amount
-              priceFeedData: { active: !item.vault.eol, externalId: vaultId },
+              feedKey: `beefy:${vault.chain}:${vaultId}:ppfs`,
+              fromAssetKey: `beefy:${vault.chain}:${vaultId}`, // from the vault
+              toAssetKey: `${vault.protocol}:${vault.chain}:${vault.protocol_product}`, // to underlying amount
+              priceFeedData: { active: !vault.eol, externalId: vaultId },
             };
           },
           formatOutput: (item, priceFeed1) => ({ ...item, priceFeed1 }),
@@ -64,15 +66,17 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           ctx,
           emitError: emitVaultError,
           getFeedData: (item) => {
+            // we want to use the same price feed for all versions of the same product
+            const vault = item.vault.bridged_version_of ?? item.vault;
             return {
               // feed key tells us that this prices comes from beefy's data
               // we may have another source of prices for the same asset
-              feedKey: `beefy-data:${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`,
-              fromAssetKey: `${item.vault.protocol}:${item.vault.chain}:${item.vault.protocol_product}`, // from underlying amount
+              feedKey: `beefy-data:${vault.protocol}:${vault.chain}:${vault.protocol_product}`,
+              fromAssetKey: `${vault.protocol}:${vault.chain}:${vault.protocol_product}`, // from underlying amount
               toAssetKey: "fiat:USD", // to USD
               priceFeedData: {
-                active: !computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
-                externalId: item.vault.want_price_feed_key, // the id that the data api knows
+                active: !computeIsDashboardEOL(ctx.behaviour, vault.eol, vault.eol_date),
+                externalId: vault.want_price_feed_key, // the id that the data api knows
               },
             };
           },
@@ -94,17 +98,18 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
                 ctx,
                 emitError: emitVaultError,
                 getFeedData: (item) => {
+                  const vault = item.vault.bridged_version_of ?? item.vault;
                   // gov vaults are rewarded in gas token
-                  const rewardToken = getChainWNativeTokenSymbol(item.vault.chain);
+                  const rewardToken = getChainWNativeTokenSymbol(vault.chain);
                   return {
                     // feed key tells us that this prices comes from beefy's data
                     // we may have another source of prices for the same asset
-                    feedKey: `beefy-data:${item.vault.chain}:${rewardToken}`,
+                    feedKey: `beefy-data:${vault.chain}:${rewardToken}`,
 
-                    fromAssetKey: `${item.vault.chain}:${rewardToken}`,
+                    fromAssetKey: `${vault.chain}:${rewardToken}`,
                     toAssetKey: "fiat:USD", // to USD
                     priceFeedData: {
-                      active: !computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
+                      active: !computeIsDashboardEOL(ctx.behaviour, vault.eol, vault.eol_date),
                       externalId: rewardToken, // the id that the data api knows
                     },
                   };
@@ -120,7 +125,24 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           emitError: emitVaultError,
           getProductData: (item) => {
             const isGov = item.vault.is_gov_vault;
-
+            const dashboardEol = computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date);
+            const productData = item.vault.bridged_version_of
+              ? {
+                  type: "beefy:bridged-vault" as const,
+                  dashboardEol,
+                  vault: item.vault as BeefyVault & { bridged_version_of: Required<BeefyVault["bridged_version_of"]> },
+                }
+              : isGov
+              ? {
+                  type: "beefy:gov-vault" as const,
+                  dashboardEol,
+                  vault: item.vault as BeefyVault & { bridged_version_of: null },
+                }
+              : {
+                  type: "beefy:vault" as const,
+                  dashboardEol,
+                  vault: item.vault as BeefyVault & { bridged_version_of: null },
+                };
             return {
               // vault ids are unique by chain
               productKey: `beefy:vault:${item.vault.chain}:${item.vault.contract_address.toLocaleLowerCase()}`,
@@ -128,11 +150,7 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
               priceFeedId2: item.priceFeed2.priceFeedId,
               pendingRewardsPriceFeedId: item.pendingRewardsPriceFeed?.priceFeedId || null,
               chain: item.vault.chain,
-              productData: {
-                type: isGov ? "beefy:gov-vault" : "beefy:vault",
-                dashboardEol: computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date),
-                vault: item.vault,
-              },
+              productData: productData,
             };
           },
           formatOutput: (item, product) => ({ ...item, product }),
