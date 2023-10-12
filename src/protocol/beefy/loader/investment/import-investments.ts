@@ -267,34 +267,41 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
           ownerAddress: item.target.transfer.ownerAddress,
         };
         const blockNumber = item.target.transfer.blockNumber;
+
         if (isBeefyStandardVault(item.target.product)) {
+          const vault = item.target.product.productData.vault;
           return {
             shareRateParams: {
-              vaultAddress: item.target.product.productData.vault.contract_address,
-              underlyingDecimals: item.target.product.productData.vault.want_decimals,
-              vaultDecimals: item.target.product.productData.vault.token_decimals,
+              chain: options.ctx.chain,
+              vaultAddress: vault.contract_address,
+              underlyingDecimals: vault.want_decimals,
+              vaultDecimals: vault.token_decimals,
             },
             balance,
             blockNumber,
             fetchShareRate: true,
           };
         } else if (isBeefyBridgedVault(item.target.product)) {
+          const originalVault = item.target.product.productData.vault.bridged_version_of;
           return {
             shareRateParams: {
-              vaultAddress: item.target.product.productData.vault.contract_address,
-              underlyingDecimals: item.target.product.productData.vault.want_decimals,
-              vaultDecimals: item.target.product.productData.vault.token_decimals,
+              chain: originalVault.chain,
+              vaultAddress: originalVault.contract_address,
+              underlyingDecimals: originalVault.want_decimals,
+              vaultDecimals: originalVault.token_decimals,
             },
             balance,
             blockNumber,
             fetchShareRate: false, // we don't have a share rate on the same chain for bridged vaults
           };
         } else if (isBeefyBoost(item.target.product)) {
+          const boost = item.target.product.productData.boost;
           return {
             shareRateParams: {
-              vaultAddress: item.target.product.productData.boost.staked_token_address,
-              underlyingDecimals: item.target.product.productData.boost.vault_want_decimals,
-              vaultDecimals: item.target.product.productData.boost.staked_token_decimals,
+              chain: options.ctx.chain,
+              vaultAddress: boost.staked_token_address,
+              underlyingDecimals: boost.vault_want_decimals,
+              vaultDecimals: boost.staked_token_decimals,
             },
             balance,
             blockNumber,

@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { cloneDeep } from "lodash";
 import * as path from "path";
 import prettier from "prettier";
 import * as Rx from "rxjs";
@@ -8,7 +9,6 @@ import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config"
 import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { GitFileVersion, gitStreamFileVersions } from "../../common/connector/git-file-history";
-import { cloneDeep } from "lodash";
 
 const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 
@@ -26,7 +26,7 @@ interface RawBeefyVault {
   assets?: string[];
 }
 
-export interface BeefyVault {
+interface BeefyBaseVaultConfig {
   id: string;
   chain: Chain;
   token_name: string;
@@ -40,11 +40,42 @@ export interface BeefyVault {
   protocol_product: string;
   assets: string[];
   want_price_feed_key: string;
-  is_gov_vault: boolean;
-  bridged_version_of: BeefyVault | null;
-  gov_vault_reward_token_symbol: string | null;
-  gov_vault_reward_token_address: string | null;
-  gov_vault_reward_token_decimals: number | null;
+}
+
+export interface BeefyGovVaultConfig extends BeefyBaseVaultConfig {
+  is_gov_vault: true;
+  bridged_version_of: null;
+  gov_vault_reward_token_symbol: string;
+  gov_vault_reward_token_address: string;
+  gov_vault_reward_token_decimals: number;
+}
+
+export interface BeefyStdVaultConfig extends BeefyBaseVaultConfig {
+  is_gov_vault: false;
+  bridged_version_of: null;
+  gov_vault_reward_token_symbol: null;
+  gov_vault_reward_token_address: null;
+  gov_vault_reward_token_decimals: null;
+}
+
+export interface BeefyBridgedVersionOfStdVault extends BeefyBaseVaultConfig {
+  is_gov_vault: false;
+  bridged_version_of: BeefyStdVaultConfig;
+  gov_vault_reward_token_symbol: null;
+  gov_vault_reward_token_address: null;
+  gov_vault_reward_token_decimals: null;
+}
+
+export type BeefyVault = BeefyGovVaultConfig | BeefyStdVaultConfig | BeefyBridgedVersionOfStdVault;
+
+export function isBeefyStdVaultConfig(vault: BeefyVault): vault is BeefyStdVaultConfig {
+  return !vault.is_gov_vault && vault.bridged_version_of === null;
+}
+export function isBeefyGovVaultConfig(vault: BeefyVault): vault is BeefyGovVaultConfig {
+  return vault.is_gov_vault;
+}
+export function isBeefyBridgedVersionOfStdVaultConfig(vault: BeefyVault): vault is BeefyBridgedVersionOfStdVault {
+  return !vault.is_gov_vault && vault.bridged_version_of !== null;
 }
 
 export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVault> {
@@ -204,6 +235,11 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
         return [vault];
       }
 
+      if (!isBeefyStdVaultConfig(vault)) {
+        logger.error({ msg: "Expected vault to be a standard vault", data: { vault } });
+        return [vault];
+      }
+
       // TODO: remove the fake eol
       // currently the maxi vault is eol but we need to test the bridged token
       // but eol vaults are not fetched
@@ -211,22 +247,22 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       vault.eol_date = null;
 
       const bridgedVaults = allChainIds
-        .map(chain => ({chain, address: getBridgedMooBifiTokenAddress(chain)}))
-        .filter((p): p is {chain: Chain, address: string}  => p.address !== null)
-        .map(({chain, address}): BeefyVault => {
-          const bridgedMooBifiVault = cloneDeep(vault);
-          
-          bridgedMooBifiVault.id = `${chain}-bridged-${vault.id}`;
-          bridgedMooBifiVault.is_gov_vault = false;
-          bridgedMooBifiVault.bridged_version_of = vault;
-          bridgedMooBifiVault.contract_address = address;
-          bridgedMooBifiVault.chain = chain;
-          bridgedMooBifiVault.token_name = `${chain} ${vault.token_name}`;
-          bridgedMooBifiVault.token_decimals = 18;
+        .map((chain) => ({ chain, address: getBridgedMooBifiTokenAddress(chain) }))
+        .filter((p): p is { chain: Chain; address: string } => p.address !== null)
+        .map(({ chain, address }): BeefyBridgedVersionOfStdVault => {
+          const bridgedMooBifiVault: BeefyBridgedVersionOfStdVault = {
+            ...cloneDeep(vault),
+            id: `${chain}-bridged-${vault.id}`,
+            is_gov_vault: false,
+            bridged_version_of: vault,
+            contract_address: address,
+            chain,
+            token_name: `${chain} ${vault.token_name}`,
+            token_decimals: 18,
+          };
           return bridgedMooBifiVault;
         });
       return [vault, ...bridgedVaults];
-
     }),
 
     Rx.concatAll(),
@@ -273,11 +309,20 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       protocol,
       protocol_product,
       want_price_feed_key: rawVault.oracleId,
-      is_gov_vault: rawVault.isGovVault || false,
       bridged_version_of: null,
-      gov_vault_reward_token_symbol: rawVault.isGovVault ? rawVault.earnedToken : null,
-      gov_vault_reward_token_address: rawVault.isGovVault ? rawVault.earnedTokenAddress : null,
-      gov_vault_reward_token_decimals: rawVault.isGovVault ? rawVault.earnedTokenDecimals : null,
+      ...(rawVault.isGovVault
+        ? {
+            is_gov_vault: true,
+            gov_vault_reward_token_symbol: rawVault.earnedToken,
+            gov_vault_reward_token_address: rawVault.earnedTokenAddress,
+            gov_vault_reward_token_decimals: rawVault.earnedTokenDecimals,
+          }
+        : {
+            is_gov_vault: false,
+            gov_vault_reward_token_symbol: null,
+            gov_vault_reward_token_address: null,
+            gov_vault_reward_token_decimals: null,
+          }),
     };
   } catch (error) {
     logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault }, error });

@@ -5,7 +5,7 @@ import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
-import { BeefyVault } from "../../beefy/connector/vault-list";
+import { BeefyBridgedVersionOfStdVault, BeefyGovVaultConfig, BeefyStdVaultConfig } from "../../beefy/connector/vault-list";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
@@ -24,7 +24,7 @@ export interface DbBeefyStdVaultProduct extends DbBaseProduct {
   productData: {
     type: "beefy:vault";
     dashboardEol: boolean;
-    vault: BeefyVault & { bridged_version_of: null };
+    vault: BeefyStdVaultConfig;
   };
 }
 export interface DbBeefyGovVaultProduct extends DbBaseProduct {
@@ -34,7 +34,7 @@ export interface DbBeefyGovVaultProduct extends DbBaseProduct {
   productData: {
     type: "beefy:gov-vault";
     dashboardEol: boolean;
-    vault: BeefyVault & { bridged_version_of: null };
+    vault: BeefyGovVaultConfig;
   };
 }
 export interface DbBeefyBridgedVaultProduct extends DbBaseProduct {
@@ -44,7 +44,7 @@ export interface DbBeefyBridgedVaultProduct extends DbBaseProduct {
   productData: {
     type: "beefy:bridged-vault";
     dashboardEol: boolean;
-    vault: BeefyVault & { bridged_version_of: Required<BeefyVault["bridged_version_of"]> };
+    vault: BeefyBridgedVersionOfStdVault;
   };
 }
 export interface DbBeefyBoostProduct extends DbBaseProduct {

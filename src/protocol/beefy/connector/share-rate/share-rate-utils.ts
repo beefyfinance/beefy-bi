@@ -1,12 +1,14 @@
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
 import { get, isArray } from "lodash";
+import { Chain } from "../../../../types/chain";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range, isInRange } from "../../../../utils/range";
 import { DbBeefyStdVaultProduct } from "../../../common/loader/product";
 import { ImportCtx } from "../../../common/types/import-context";
 
 export interface BeefyShareRateCallParams {
+  chain: Chain;
   vaultDecimals: number;
   underlyingDecimals: number;
   vaultAddress: string;

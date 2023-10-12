@@ -12,7 +12,7 @@ import { ErrorReport, ImportCtx } from "../../common/types/import-context";
 import { computeIsDashboardEOL } from "../../common/utils/eol";
 import { NoRpcRunnerConfig, createChainRunner } from "../../common/utils/rpc-chain-runner";
 import { BeefyBoost, beefyBoostsFromGitHistory$ } from "../connector/boost-list";
-import { BeefyVault, beefyVaultsFromGitHistory$ } from "../connector/vault-list";
+import { BeefyVault, beefyVaultsFromGitHistory$, isBeefyBridgedVersionOfStdVaultConfig, isBeefyGovVaultConfig } from "../connector/vault-list";
 import { normalizeVaultId } from "../utils/normalize-vault-id";
 
 const logger = rootLogger.child({ module: "beefy", component: "import-products" });
@@ -124,24 +124,23 @@ export function createBeefyProductRunner(options: { client: DbClient; runnerConf
           ctx,
           emitError: emitVaultError,
           getProductData: (item) => {
-            const isGov = item.vault.is_gov_vault;
             const dashboardEol = computeIsDashboardEOL(ctx.behaviour, item.vault.eol, item.vault.eol_date);
-            const productData = item.vault.bridged_version_of
+            const productData = isBeefyBridgedVersionOfStdVaultConfig(item.vault)
               ? {
                   type: "beefy:bridged-vault" as const,
                   dashboardEol,
-                  vault: item.vault as BeefyVault & { bridged_version_of: Required<BeefyVault["bridged_version_of"]> },
+                  vault: item.vault,
                 }
-              : isGov
+              : isBeefyGovVaultConfig(item.vault)
               ? {
                   type: "beefy:gov-vault" as const,
                   dashboardEol,
-                  vault: item.vault as BeefyVault & { bridged_version_of: null },
+                  vault: item.vault,
                 }
               : {
                   type: "beefy:vault" as const,
                   dashboardEol,
-                  vault: item.vault as BeefyVault & { bridged_version_of: null },
+                  vault: item.vault,
                 };
             return {
               // vault ids are unique by chain
