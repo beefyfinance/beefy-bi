@@ -40,9 +40,9 @@ function isChainRunnerConfig<TInput>(o: RunnerConfig<TInput>): o is ChainRunnerC
  * - for each one, create and start a runner
  * - pull input data from time to time and split them amongst runners
  */
-export function createChainRunner<TInput>(
+export function createChainRunner<TInput, TOutput>(
   _options: RunnerConfig<TInput>,
-  createPipeline: (ctx: ImportCtx) => Rx.OperatorFunction<TInput, any /* we don't use this result */>,
+  createPipeline: (ctx: ImportCtx) => Rx.OperatorFunction<TInput, TOutput>,
 ) {
   let inputs: TInput[] = [];
   let pollerHandle: NodeJS.Timer;
@@ -75,10 +75,12 @@ export function createChainRunner<TInput>(
       streamConfig,
       behaviour: options.behaviour,
     };
+    const pipeline = createPipeline(ctx);
     return {
+      pipeline,
       runner: createRpcRunner({
         ctx,
-        pipeline$: createPipeline(ctx),
+        pipeline$: pipeline,
       }),
       weight: _getRpcWeight(rpcConfig),
     };
@@ -118,6 +120,36 @@ export function createChainRunner<TInput>(
   }
 
   return { run, stop };
+}
+
+export function createChainPipeline<TInput, TOutput>(
+  options: {
+    chain: Chain;
+    client: DbClient;
+    behaviour: ImportBehaviour;
+  },
+  createPipeline: (ctx: ImportCtx) => Rx.OperatorFunction<TInput, TOutput>,
+) {
+  // get our rpc configs and associated workers
+  const rpcConfigs = options.behaviour.forceRpcUrl
+    ? [createRpcConfig(options.chain, options.behaviour)]
+    : getMultipleRpcConfigsForChain({
+        chain: options.chain,
+        behaviour: options.behaviour,
+      });
+
+  const streamConfig = createBatchStreamConfig(options.chain, options.behaviour);
+
+  const rpcConfig = rpcConfigs[0];
+  const ctx: ImportCtx = {
+    chain: options.chain,
+    client: options.client,
+    rpcConfig,
+    streamConfig,
+    behaviour: options.behaviour,
+  };
+  const pipeline = createPipeline(ctx);
+  return pipeline;
 }
 
 export function _getRpcWeight(rpcConfig: RpcConfig): number {
@@ -195,7 +227,7 @@ export function _weightedDistribute<TInput, TBranch extends { weight: number }>(
  * - apply the pipeline to the input list
  * - When the pipeline ends, restart it with potentially updated input, but respect the `minInterval` param
  */
-function createRpcRunner<TInput>(options: { ctx: ImportCtx; pipeline$: Rx.OperatorFunction<TInput, any /* we don't use this result */> }) {
+function createRpcRunner<TInput, TOutput>(options: { ctx: ImportCtx; pipeline$: Rx.OperatorFunction<TInput, TOutput> }) {
   const logData = {
     chain: options.ctx.rpcConfig.chain,
     rpcUrl: removeSecretsFromRpcUrl(options.ctx.rpcConfig.chain, options.ctx.rpcConfig.linearProvider.connection.url),

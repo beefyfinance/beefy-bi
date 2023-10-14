@@ -1,11 +1,13 @@
 import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
+import { getBridgedVaultOriginChains, getBridgedVaultTargetChains } from "../../../../utils/addressbook";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range, isValidRange, rangeExcludeMany } from "../../../../utils/range";
 import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
+import { fetchBlockFromDatetime$ } from "../../../common/connector/block-from-datetime";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
 import { latestBlockNumber$ } from "../../../common/connector/latest-block-number";
@@ -25,7 +27,7 @@ import { importStateToOptimizerRangeInput } from "../../../common/utils/query/im
 import { optimizeQueries } from "../../../common/utils/query/optimize-queries";
 import { createOptimizerIndexFromState } from "../../../common/utils/query/optimizer-index-from-state";
 import { extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/query/optimizer-utils";
-import { ChainRunnerConfig } from "../../../common/utils/rpc-chain-runner";
+import { ChainRunnerConfig, createChainPipeline } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
 import { getProductContractAddress } from "../../utils/contract-accessors";
@@ -272,7 +274,6 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
           const vault = item.target.product.productData.vault;
           return {
             shareRateParams: {
-              chain: options.ctx.chain,
               vaultAddress: vault.contract_address,
               underlyingDecimals: vault.want_decimals,
               vaultDecimals: vault.token_decimals,
@@ -280,25 +281,19 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
             balance,
             blockNumber,
             fetchShareRate: true,
+            fetchBalance: true,
           };
         } else if (isBeefyBridgedVault(item.target.product)) {
-          const originalVault = item.target.product.productData.vault.bridged_version_of;
           return {
-            shareRateParams: {
-              chain: originalVault.chain,
-              vaultAddress: originalVault.contract_address,
-              underlyingDecimals: originalVault.want_decimals,
-              vaultDecimals: originalVault.token_decimals,
-            },
             balance,
             blockNumber,
             fetchShareRate: false, // we don't have a share rate on the same chain for bridged vaults
+            fetchBalance: true,
           };
         } else if (isBeefyBoost(item.target.product)) {
           const boost = item.target.product.productData.boost;
           return {
             shareRateParams: {
-              chain: options.ctx.chain,
               vaultAddress: boost.staked_token_address,
               underlyingDecimals: boost.vault_want_decimals,
               vaultDecimals: boost.staked_token_decimals,
@@ -306,20 +301,104 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
             balance,
             blockNumber,
             fetchShareRate: true,
+            fetchBalance: true,
           };
         } else if (isBeefyGovVault(item.target.product)) {
           return {
             balance,
             blockNumber,
             fetchShareRate: false,
+            fetchBalance: true,
           };
         }
         logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
         throw new ProgrammerError("Unsupported product type");
       },
-      formatOutput: (item, { balance, blockDatetime, shareRate }) => ({ ...item, blockDatetime, balance, shareRate }),
+      formatOutput: (item, { balance, blockDatetime, shareRate }) => ({
+        ...item,
+        blockDatetime,
+        balance,
+        shareRate,
+        shareRateBlockNumber: item.target.transfer.blockNumber,
+        shareRateDatetime: blockDatetime,
+      }),
     }),
 
+    // fetch bridged vault share rate if needed
+    getBridgedVaultTargetChains().includes(options.ctx.chain)
+      ? Rx.connect((items$) =>
+          Rx.merge(
+            items$.pipe(
+              Rx.filter((item) => !isBeefyBridgedVault(item.target.product)),
+              Rx.tap((item) => logger.trace({ msg: "not fetching bridged vault share rate", data: { chain: options.ctx.chain, item } })),
+            ),
+            ...getBridgedVaultOriginChains().map((originChain) =>
+              items$.pipe(
+                Rx.filter(
+                  (item): item is any =>
+                    isBeefyBridgedVault(item.target.product) && item.target.product.productData.vault.bridged_version_of.chain === originChain,
+                ),
+                createChainPipeline(
+                  {
+                    chain: originChain,
+                    client: options.ctx.client,
+                    behaviour: options.ctx.behaviour,
+                  },
+                  (ctx) =>
+                    Rx.pipe(
+                      Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
+
+                      // first we need to map the vault transfer block in the bridged chain to a block in the origin chain
+                      fetchBlockFromDatetime$({
+                        ctx,
+                        emitError: options.emitError,
+                        getBlockDate: (item) => item.blockDatetime,
+                        formatOutput: (item, shareRateBlockNumber) => ({ ...item, shareRateBlockNumber }),
+                      }),
+
+                      // then we can fetch the share rate in the context of the origin chain
+                      fetchBeefyTransferData$({
+                        ctx,
+                        emitError: options.emitError,
+                        getCallParams: (item) => {
+                          const balance = {
+                            decimals: item.target.transfer.tokenDecimals,
+                            contractAddress: item.target.transfer.tokenAddress,
+                            ownerAddress: item.target.transfer.ownerAddress,
+                          };
+                          const blockNumber = item.shareRateBlockNumber;
+
+                          if (isBeefyBridgedVault(item.target.product)) {
+                            const vault = item.target.product.productData.vault.bridged_version_of;
+                            return {
+                              shareRateParams: {
+                                vaultAddress: vault.contract_address,
+                                underlyingDecimals: vault.want_decimals,
+                                vaultDecimals: vault.token_decimals,
+                              },
+                              balance,
+                              blockNumber,
+                              fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
+                              fetchBalance: false,
+                            };
+                          }
+                          logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
+                          throw new ProgrammerError("Unsupported product type");
+                        },
+                        formatOutput: (item, { blockDatetime, shareRate }) => ({
+                          ...item,
+                          shareRate,
+                          shareRateBlockNumber: item.shareRateBlockNumber,
+                          shareRateDatetime: blockDatetime,
+                        }),
+                      }),
+                    ),
+                ),
+              ),
+            ),
+          ),
+        )
+      : Rx.pipe(),
     // ==============================
     // now we are ready for the insertion
     // ==============================
@@ -353,9 +432,9 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
       emitError: options.emitError,
       getPriceData: (item) => ({
         priceFeedId: item.target.product.priceFeedId1,
-        blockNumber: item.target.transfer.blockNumber,
+        blockNumber: item.shareRateBlockNumber,
         price: item.shareRate,
-        datetime: item.blockDatetime,
+        datetime: item.shareRateDatetime,
       }),
       formatOutput: (item, priceRow) => ({ ...item, priceRow }),
     }),

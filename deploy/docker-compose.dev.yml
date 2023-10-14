@@ -63,6 +63,7 @@ services:
       GF_AUTH_DISABLE_LOGIN: false
       GF_AUTH_DISABLE_LOGIN_FORM: false
       GF_AUTH_GITHUB_ENABLED: false
+      DISCORD_ALERT_WEBHOOK_URL: "http://localhost"
     volumes:
       - grafana_data_wtf:/var/lib/grafana
       - grafana_plugins:/var/lib/grafana/plugins

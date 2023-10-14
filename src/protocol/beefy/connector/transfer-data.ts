@@ -20,12 +20,14 @@ interface NoShareRateCallParams {
   balance: Omit<GetBalanceCallParams, "blockNumber">;
   blockNumber: number;
   fetchShareRate: false;
+  fetchBalance: boolean;
 }
 interface WithShareRateCallParams {
   shareRateParams: Omit<BeefyShareRateCallParams, "blockNumber">;
   balance: Omit<GetBalanceCallParams, "blockNumber">;
   blockNumber: number;
   fetchShareRate: true;
+  fetchBalance: boolean;
 }
 type BeefyTransferCallParams = NoShareRateCallParams | WithShareRateCallParams;
 type BeefyTransferCallResult = { shareRate: Decimal; balance: Decimal; blockDatetime: Date };
@@ -71,17 +73,28 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
     }),
 
     // we need the balance of each owner
-    fetchERC20TokenBalance$({
-      ctx: options.ctx,
-      emitError: (item, errReport) => options.emitError(item.obj, errReport),
-      getQueryParams: (item) => ({
-        blockNumber: item.param.blockNumber,
-        decimals: item.param.balance.decimals,
-        contractAddress: item.param.balance.contractAddress,
-        ownerAddress: item.param.balance.ownerAddress,
-      }),
-      formatOutput: (item, balance) => ({ ...item, balance }),
-    }),
+    Rx.connect((items$) =>
+      Rx.merge(
+        items$.pipe(
+          Rx.filter((item) => item.param.fetchBalance),
+          fetchERC20TokenBalance$({
+            ctx: options.ctx,
+            emitError: (item, errReport) => options.emitError(item.obj, errReport),
+            getQueryParams: (item) => ({
+              blockNumber: item.param.blockNumber,
+              decimals: item.param.balance.decimals,
+              contractAddress: item.param.balance.contractAddress,
+              ownerAddress: item.param.balance.ownerAddress,
+            }),
+            formatOutput: (item, balance) => ({ ...item, balance }),
+          }),
+        ),
+        items$.pipe(
+          Rx.filter((item) => !item.param.fetchBalance),
+          Rx.map((item) => ({ ...item, balance: new Decimal(0) })),
+        ),
+      ),
+    ),
   );
 
   const maybeMulticallPipeline = Rx.pipe(
@@ -126,13 +139,15 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
             if (!options.ctx.rpcConfig.rpcLimitations.stateChangeReadsOnSameBlock) {
               blockTag = param.blockNumber + 1;
             }
-            const calls = [
-              {
+            const calls = [];
+            if (param.fetchBalance) {
+              calls.push({
                 allowFailure: false,
                 callData: BeefyVaultV6AbiInterface.encodeFunctionData("balanceOf", [param.balance.ownerAddress]),
                 target: param.balance.contractAddress,
-              },
-            ];
+              });
+            }
+
             if (options.ctx.rpcConfig.rpcLimitations.canUseMulticallBlockTimestamp) {
               calls.push({
                 allowFailure: false,
@@ -156,8 +171,11 @@ export function fetchBeefyTransferData$<TObj, TErr extends ErrorEmitter<TObj>, T
             const r = result[i];
 
             let rIdx = 0;
-            const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", r[rIdx++].returnData)[0] as ethers.BigNumber;
-            const balance = vaultRawBalanceToBalance(param.balance.decimals, rawBalance);
+            let balance = new Decimal(0);
+            if (param.fetchBalance) {
+              const rawBalance = BeefyVaultV6AbiInterface.decodeFunctionResult("balanceOf", r[rIdx++].returnData)[0] as ethers.BigNumber;
+              balance = vaultRawBalanceToBalance(param.balance.decimals, rawBalance);
+            }
 
             let blockDatetime: Date | null = null;
             if (options.ctx.rpcConfig.rpcLimitations.canUseMulticallBlockTimestamp) {
