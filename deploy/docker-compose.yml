@@ -253,7 +253,7 @@ services:
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-product-statistics -e false -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -l 1day"
- 
+
   # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
 
   importer-investment-recent-arbitrum-avax:
@@ -348,7 +348,7 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c bsc -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c bsc -l 5min -S all"
 
   importer-investment-historical-share-rate-canto-cronos-fuse:
     <<: *importer
