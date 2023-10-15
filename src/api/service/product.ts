@@ -206,7 +206,7 @@ export class ProductService {
         productKey: { type: "string", description: "Functional product identifier", example: productKeyExamples[0] },
         chain: { $ref: "ChainEnum" },
         productData: {
-          oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }],
+          oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }, { $ref: "ProductBridgedVault" }],
           discriminator: {
             propertyName: "type",
             mapping: {
