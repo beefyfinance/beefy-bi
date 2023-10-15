@@ -1,9 +1,10 @@
 import { ethers } from "ethers";
+import { cloneDeep } from "lodash";
 import * as path from "path";
 import prettier from "prettier";
 import * as Rx from "rxjs";
-import { Chain } from "../../../types/chain";
-import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
+import { Chain, allChainIds } from "../../../types/chain";
+import { getBridgedMooBifiTokenAddress, getChainWNativeTokenAddress } from "../../../utils/addressbook";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
@@ -25,7 +26,7 @@ interface RawBeefyVault {
   assets?: string[];
 }
 
-export interface BeefyVault {
+interface BeefyBaseVaultConfig {
   id: string;
   chain: Chain;
   token_name: string;
@@ -39,10 +40,42 @@ export interface BeefyVault {
   protocol_product: string;
   assets: string[];
   want_price_feed_key: string;
-  is_gov_vault: boolean;
-  gov_vault_reward_token_symbol: string | null;
-  gov_vault_reward_token_address: string | null;
-  gov_vault_reward_token_decimals: number | null;
+}
+
+export interface BeefyGovVaultConfig extends BeefyBaseVaultConfig {
+  is_gov_vault: true;
+  bridged_version_of: null;
+  gov_vault_reward_token_symbol: string;
+  gov_vault_reward_token_address: string;
+  gov_vault_reward_token_decimals: number;
+}
+
+export interface BeefyStdVaultConfig extends BeefyBaseVaultConfig {
+  is_gov_vault: false;
+  bridged_version_of: null;
+  gov_vault_reward_token_symbol: null;
+  gov_vault_reward_token_address: null;
+  gov_vault_reward_token_decimals: null;
+}
+
+export interface BeefyBridgedVersionOfStdVault extends BeefyBaseVaultConfig {
+  is_gov_vault: false;
+  bridged_version_of: BeefyStdVaultConfig;
+  gov_vault_reward_token_symbol: null;
+  gov_vault_reward_token_address: null;
+  gov_vault_reward_token_decimals: null;
+}
+
+export type BeefyVault = BeefyGovVaultConfig | BeefyStdVaultConfig | BeefyBridgedVersionOfStdVault;
+
+export function isBeefyStdVaultConfig(vault: BeefyVault): vault is BeefyStdVaultConfig {
+  return !vault.is_gov_vault && vault.bridged_version_of === null;
+}
+export function isBeefyGovVaultConfig(vault: BeefyVault): vault is BeefyGovVaultConfig {
+  return vault.is_gov_vault;
+}
+export function isBeefyBridgedVersionOfStdVaultConfig(vault: BeefyVault): vault is BeefyBridgedVersionOfStdVault {
+  return !vault.is_gov_vault && vault.bridged_version_of !== null;
 }
 
 export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVault> {
@@ -122,76 +155,117 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   return Rx.concat(v1$, v2$).pipe(
     Rx.filter(({ error }) => !error),
 
-    // process the vaults in chronolical order and mark the eol date if found
-    Rx.reduce((acc, { fileVersion, vaults }) => {
-      // reset the foundInCurrentBatch flag
-      for (const vaultAddress of Object.keys(acc)) {
-        acc[vaultAddress].foundInCurrentBatch = false;
-      }
-
-      // add vaults to the accumulator
-      for (const vault of vaults) {
-        // ignore those without earned token address
-        if (!vault.earnedTokenAddress) {
-          logger.error({ msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } });
-          logger.trace(vault);
-          continue;
+    Rx.pipe(
+      // process the vaults in chronolical order and mark the eol date if found
+      Rx.reduce((acc, { fileVersion, vaults }) => {
+        // reset the foundInCurrentBatch flag
+        for (const vaultAddress of Object.keys(acc)) {
+          acc[vaultAddress].foundInCurrentBatch = false;
         }
 
-        // index by contract address since beefy's team changes ids when the vault is eol
-        if (!ethers.utils.isAddress(vault.earnContractAddress)) {
+        // add vaults to the accumulator
+        for (const vault of vaults) {
+          // ignore those without earned token address
+          if (!vault.earnedTokenAddress) {
+            logger.error({ msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } });
+            logger.trace(vault);
+            continue;
+          }
+
+          // index by contract address since beefy's team changes ids when the vault is eol
+          if (!ethers.utils.isAddress(vault.earnContractAddress)) {
+            logger.error({
+              msg: "Vault earnContractAddress is invalid, ignoring",
+              data: { vaultId: vault.id, earnContractAddress: vault.earnContractAddress },
+            });
+            logger.trace(vault);
+            continue;
+          }
+          const vaultAddress = normalizeAddressOrThrow(vault.earnContractAddress);
+          if (!acc[vaultAddress]) {
+            const eolDate = vault.status === "eol" ? fileVersion.date : null;
+            acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
+          } else {
+            acc[vaultAddress].foundInCurrentBatch = true;
+
+            const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
+            acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
+          }
+        }
+
+        // mark all deleted vaults as eol if not already done
+        for (const vaultAddress of Object.keys(acc)) {
+          if (!acc[vaultAddress].foundInCurrentBatch) {
+            acc[vaultAddress].vault.status = "eol";
+            acc[vaultAddress].eolDate = acc[vaultAddress].eolDate || fileVersion.date;
+          }
+        }
+
+        return acc;
+      }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; vault: RawBeefyVault }>),
+      // flatten the accumulator
+      Rx.map((acc) => Object.values(acc)),
+      Rx.concatAll(),
+
+      Rx.tap(({ fileVersion, vault, eolDate }) =>
+        logger.trace({
+          msg: "Vault from git history",
+          data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, isEol: vault.status === "eol", eolDate },
+        }),
+      ),
+
+      Rx.tap(({ fileVersion, vault, eolDate }) => {
+        if (vault.status === "eol" && !eolDate) {
           logger.error({
-            msg: "Vault earnContractAddress is invalid, ignoring",
-            data: { vaultId: vault.id, earnContractAddress: vault.earnContractAddress },
+            msg: "product marked as eol but no eol date found",
+            data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, eolDate },
           });
-          logger.trace(vault);
-          continue;
         }
-        const vaultAddress = normalizeAddressOrThrow(vault.earnContractAddress);
-        if (!acc[vaultAddress]) {
-          const eolDate = vault.status === "eol" ? fileVersion.date : null;
-          acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
-        } else {
-          acc[vaultAddress].foundInCurrentBatch = true;
-
-          const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
-          acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
-        }
-      }
-
-      // mark all deleted vaults as eol if not already done
-      for (const vaultAddress of Object.keys(acc)) {
-        if (!acc[vaultAddress].foundInCurrentBatch) {
-          acc[vaultAddress].vault.status = "eol";
-          acc[vaultAddress].eolDate = acc[vaultAddress].eolDate || fileVersion.date;
-        }
-      }
-
-      return acc;
-    }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; vault: RawBeefyVault }>),
-
-    // flatten the accumulator
-    Rx.map((acc) => Object.values(acc)),
-    Rx.concatAll(),
-
-    Rx.tap(({ fileVersion, vault, eolDate }) =>
-      logger.trace({
-        msg: "Vault from git history",
-        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, isEol: vault.status === "eol", eolDate },
       }),
+
+      // just emit the vault
+      Rx.map(({ vault, eolDate }) => rawVaultToBeefyVault(chain, vault, eolDate)),
     ),
 
-    Rx.tap(({ fileVersion, vault, eolDate }) => {
-      if (vault.status === "eol" && !eolDate) {
-        logger.error({
-          msg: "product marked as eol but no eol date found",
-          data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, eolDate },
-        });
+    // add the bridged moo bifi vault
+    Rx.map((vault) => {
+      // our only bridged vault is mooBifi on eth
+      // TODO: update this when we go live
+      if (vault.id !== "ethereum-bifi-maxi") {
+        return [vault];
       }
+
+      if (!isBeefyStdVaultConfig(vault)) {
+        logger.error({ msg: "Expected vault to be a standard vault", data: { vault } });
+        return [vault];
+      }
+
+      // TODO: remove the fake eol
+      // currently the maxi vault is eol but we need to test the bridged token
+      // but eol vaults are not fetched
+      vault.eol = false;
+      vault.eol_date = null;
+
+      const bridgedVaults = allChainIds
+        .map((chain) => ({ chain, address: getBridgedMooBifiTokenAddress(chain) }))
+        .filter((p): p is { chain: Chain; address: string } => p.address !== null)
+        .map(({ chain, address }): BeefyBridgedVersionOfStdVault => {
+          const bridgedMooBifiVault: BeefyBridgedVersionOfStdVault = {
+            ...cloneDeep(vault),
+            id: `${chain}-bridged-${vault.id}`,
+            is_gov_vault: false,
+            bridged_version_of: vault,
+            contract_address: address,
+            chain,
+            token_name: `${chain} ${vault.token_name}`,
+            token_decimals: 18,
+          };
+          return bridgedMooBifiVault;
+        });
+      return [vault, ...bridgedVaults];
     }),
 
-    // just emit the vault
-    Rx.map(({ vault, eolDate }) => rawVaultToBeefyVault(chain, vault, eolDate)),
+    Rx.concatAll(),
 
     Rx.tap({
       complete: () => logger.debug({ msg: "Finished fetching vault list from beefy-v2 repo git history", data: { chain } }),
@@ -235,10 +309,20 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       protocol,
       protocol_product,
       want_price_feed_key: rawVault.oracleId,
-      is_gov_vault: rawVault.isGovVault || false,
-      gov_vault_reward_token_symbol: rawVault.isGovVault ? rawVault.earnedToken : null,
-      gov_vault_reward_token_address: rawVault.isGovVault ? rawVault.earnedTokenAddress : null,
-      gov_vault_reward_token_decimals: rawVault.isGovVault ? rawVault.earnedTokenDecimals : null,
+      bridged_version_of: null,
+      ...(rawVault.isGovVault
+        ? {
+            is_gov_vault: true,
+            gov_vault_reward_token_symbol: rawVault.earnedToken,
+            gov_vault_reward_token_address: rawVault.earnedTokenAddress,
+            gov_vault_reward_token_decimals: rawVault.earnedTokenDecimals,
+          }
+        : {
+            is_gov_vault: false,
+            gov_vault_reward_token_symbol: null,
+            gov_vault_reward_token_address: null,
+            gov_vault_reward_token_decimals: null,
+          }),
     };
   } catch (error) {
     logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault }, error });

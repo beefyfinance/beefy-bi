@@ -534,26 +534,6 @@
     }
   },
   "ethereum": {
-    "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": false,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 200,
-        "eth_getBlockByNumber": 200,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 10
-      }
-    },
     "https://rpc.ankr.com/eth/<RPC_API_KEY_ANKR>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -572,6 +552,26 @@
         "eth_getBlockByNumber": null,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 8
+      }
+    },
+    "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 200,
+        "eth_getBlockByNumber": 200,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 10
       }
     }
   },

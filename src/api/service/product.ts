@@ -1,4 +1,4 @@
-import { DbProduct } from "../../protocol/common/loader/product";
+import { DbProduct, appProductTypes } from "../../protocol/common/loader/product";
 import { Chain } from "../../types/chain";
 import { DbClient, db_query, db_query_one } from "../../utils/db";
 import { productKeyExamples } from "../schema/product";
@@ -11,7 +11,7 @@ export class ProductService {
     ProductTypeEnum: {
       $id: "ProductTypeEnum",
       type: "string",
-      enum: ["beefy:vault", "beefy:boost", "beefy:gov-vault"],
+      enum: appProductTypes,
       description: "The product type",
     },
     ProductStdVault: {
@@ -52,6 +52,53 @@ export class ProductService {
             "protocol",
             "protocol_product",
             "want_price_feed_key",
+          ],
+        },
+      },
+      required: ["type", "dashboardEol", "vault"],
+    },
+    ProductBridgedVault: {
+      $id: "ProductBridgedVault",
+      type: "object",
+      description: "A bridged vault definition",
+      properties: {
+        type: { $ref: "ProductTypeEnum", description: "The product type" },
+        dashboardEol: { type: "boolean", description: "Whether the product is EOL on the dashboard" },
+        vault: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "The vault id", example: "convex-steth" },
+            chain: { $ref: "ChainEnum" },
+            token_name: { type: "string", description: "The token name", example: "mooConvexStETH" },
+            token_decimals: { type: "number", description: "The token decimals", example: 18 },
+            contract_address: { type: "string", description: "The vault contract address", example: "0xa7739fd3d12ac7F16D8329AF3Ee407e19De10D8D" },
+            want_address: { type: "string", description: "The want token address", example: "0x06325440D014e39736583c165C2963BA99fAf14E" },
+            want_decimals: { type: "number", description: "The want token decimals", example: 18 },
+            eol: { type: "boolean", description: "Whether the vault is EOL" },
+            eol_date: { type: "string", nullable: true, format: "date-time", description: "The EOL date" },
+            assets: { type: "array", items: { type: "string" }, example: ["stETH", "ETH"] },
+            protocol: { type: "string", description: "The protocol identifier", example: "convex" },
+            protocol_product: { type: "string", description: "The protocol product identifier", example: "steth" },
+            want_price_feed_key: { type: "string", description: "The want token external price feed id", example: "convex-steth" },
+            bridged_version_of: {
+              $ref: "ProductStdVault",
+            },
+          },
+          required: [
+            "id",
+            "chain",
+            "token_name",
+            "token_decimals",
+            "contract_address",
+            "want_address",
+            "want_decimals",
+            "eol",
+            "eol_date",
+            "assets",
+            "protocol",
+            "protocol_product",
+            "want_price_feed_key",
+            "bridged_version_of",
           ],
         },
       },
@@ -159,13 +206,14 @@ export class ProductService {
         productKey: { type: "string", description: "Functional product identifier", example: productKeyExamples[0] },
         chain: { $ref: "ChainEnum" },
         productData: {
-          oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }],
+          oneOf: [{ $ref: "ProductStdVault" }, { $ref: "ProductBoost" }, { $ref: "ProductGovVault" }, { $ref: "ProductBridgedVault" }],
           discriminator: {
             propertyName: "type",
             mapping: {
               "beefy:vault": "ProductStdVault",
               "beefy:boost": "ProductBoost",
               "beefy:gov-vault": "ProductGovVault",
+              "beefy:bridged-vault": "ProductBridgedVault",
             },
           },
         },

@@ -1,4 +1,10 @@
-import { DbBeefyBoostProduct, DbBeefyGovVaultProduct, DbBeefyProduct, DbBeefyStdVaultProduct } from "../../common/loader/product";
+import {
+  DbBeefyBoostProduct,
+  DbBeefyBridgedVaultProduct,
+  DbBeefyGovVaultProduct,
+  DbBeefyProduct,
+  DbBeefyStdVaultProduct,
+} from "../../common/loader/product";
 import { ImportRangeQuery } from "../../common/types/import-query";
 
 export function isBeefyGovVault(o: DbBeefyProduct): o is DbBeefyGovVaultProduct {
@@ -6,6 +12,9 @@ export function isBeefyGovVault(o: DbBeefyProduct): o is DbBeefyGovVaultProduct 
 }
 export function isBeefyStandardVault(o: DbBeefyProduct): o is DbBeefyStdVaultProduct {
   return o.productData.type === "beefy:vault";
+}
+export function isBeefyBridgedVault(o: DbBeefyProduct): o is DbBeefyBridgedVaultProduct {
+  return o.productData.type === "beefy:bridged-vault";
 }
 export function isBeefyBoost(o: DbBeefyProduct): o is DbBeefyBoostProduct {
   return o.productData.type === "beefy:boost";

@@ -16,7 +16,7 @@ import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import { extractObjsAndRangeFromOptimizerOutput, isAddressBatchQueries, isJsonRpcBatchQueries } from "../../common/utils/query/optimizer-utils";
 import { AddressBatchOutput, JsonRpcBatchOutput, QueryOptimizerOutput } from "../../common/utils/query/query-types";
 import { getProductContractAddress } from "../utils/contract-accessors";
-import { isBeefyBoost, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
+import { isBeefyBoost, isBeefyBridgedVault, isBeefyGovVault, isBeefyStandardVault } from "../utils/type-guard";
 
 const logger = rootLogger.child({ module: "beefy", component: "product-events" });
 
@@ -198,6 +198,8 @@ const getProductDecimals = (product: DbProduct) => {
     return product.productData.vault.want_decimals;
   } else if (isBeefyStandardVault(product)) {
     return product.productData.vault.token_decimals;
+  } else if (isBeefyBridgedVault(product)) {
+    return product.productData.vault.token_decimals;
   } else {
     throw new ProgrammerError("Unknown product type");
   }
@@ -265,6 +267,8 @@ const filterLogByTypeOfProduct = (log: Log, product: DbBeefyProduct) => {
   } else if (isBeefyGovVault(product)) {
     return log.eventName === "Staked" || log.eventName === "Withdrawn";
   } else if (isBeefyStandardVault(product)) {
+    return log.eventName === "Transfer";
+  } else if (isBeefyBridgedVault(product)) {
     return log.eventName === "Transfer";
   } else {
     throw new ProgrammerError("Unknown product type");

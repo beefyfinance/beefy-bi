@@ -13,7 +13,8 @@
     "redis:clear": "docker exec -it redis-dev redis-cli flushall",
     "test:outdated": "ncu",
     "test:unused-exports": "ts-unused-exports ./tsconfig.json",
-    "test:all": "npm run build && npm run test && npm run test:unused-exports"
+    "test:all": "npm run build && npm run test && npm run test:unused-exports",
+    "test:ts": "tsc --noEmit"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.2.0",

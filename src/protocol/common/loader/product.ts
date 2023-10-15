@@ -1,11 +1,11 @@
 import { groupBy, keyBy, uniq } from "lodash";
 import * as Rx from "rxjs";
-import { allChainIds, Chain } from "../../../types/chain";
+import { Chain, allChainIds } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { cacheOperatorResult$ } from "../../../utils/rxjs/utils/cache-operator-result";
 import { BeefyBoost } from "../../beefy/connector/boost-list";
-import { BeefyVault } from "../../beefy/connector/vault-list";
+import { BeefyBridgedVersionOfStdVault, BeefyGovVaultConfig, BeefyStdVaultConfig } from "../../beefy/connector/vault-list";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
@@ -24,7 +24,7 @@ export interface DbBeefyStdVaultProduct extends DbBaseProduct {
   productData: {
     type: "beefy:vault";
     dashboardEol: boolean;
-    vault: BeefyVault;
+    vault: BeefyStdVaultConfig;
   };
 }
 export interface DbBeefyGovVaultProduct extends DbBaseProduct {
@@ -34,7 +34,17 @@ export interface DbBeefyGovVaultProduct extends DbBaseProduct {
   productData: {
     type: "beefy:gov-vault";
     dashboardEol: boolean;
-    vault: BeefyVault;
+    vault: BeefyGovVaultConfig;
+  };
+}
+export interface DbBeefyBridgedVaultProduct extends DbBaseProduct {
+  priceFeedId1: number; // ppfs
+  priceFeedId2: number; // underlying price
+  pendingRewardsPriceFeedId: number; // in gas token
+  productData: {
+    type: "beefy:bridged-vault";
+    dashboardEol: boolean;
+    vault: BeefyBridgedVersionOfStdVault;
   };
 }
 export interface DbBeefyBoostProduct extends DbBaseProduct {
@@ -47,9 +57,10 @@ export interface DbBeefyBoostProduct extends DbBaseProduct {
     boost: BeefyBoost;
   };
 }
-export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | DbBeefyBoostProduct;
-
+export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | DbBeefyBridgedVaultProduct | DbBeefyBoostProduct;
 export type DbProduct = DbBeefyProduct;
+export type DbProductType = DbProduct["productData"]["type"];
+export const appProductTypes: DbProductType[] = ["beefy:vault", "beefy:gov-vault", "beefy:bridged-vault", "beefy:boost"];
 
 export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Omit<DbProduct, "productId">>(options: {
   ctx: ImportCtx;
