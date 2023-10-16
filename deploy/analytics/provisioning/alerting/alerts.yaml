@@ -133,7 +133,7 @@ groups:
                 conditions:
                     - evaluator:
                         params:
-                            - 200
+                            - 25
                             - 0
                         type: gt
                       operator:
