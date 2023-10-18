@@ -182,6 +182,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       ethereum: 4719568,
       fantom: 640717,
       fuse: 7216440,
+      gnosis: 11173937,
       harmony: 5481181,
       heco: 404035,
       kava: 393,

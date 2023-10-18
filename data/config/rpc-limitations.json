@@ -637,6 +637,28 @@
       }
     }
   },
+  "gnosis": {
+    "https://rpc.ankr.com/gnosis/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 48,
+        "eth_call": 10,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    }
+  },
   "harmony": {
     "https://rpc.ankr.com/harmony/<RPC_API_KEY_ANKR>": {
       "restrictToMode": null,

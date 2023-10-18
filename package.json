@@ -54,7 +54,7 @@
     "abstract-cache-redis": "^2.0.0",
     "async-lock": "^1.4.0",
     "axios": "^1.3.4",
-    "blockchain-addressbook": "^0.43.77",
+    "blockchain-addressbook": "^0.44.23",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.0.3",
     "ethereum-multicall": "^2.16.1",

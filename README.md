@@ -148,6 +148,7 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 - Add a new RPC using the above guide
 - Run `npm run build` and solve any remainning typescript error
 - Configure import scripts in `deploy/docker-compose.yml`
+- Run `npm run db:migrate` to apply db migrations
 
 ### Update a grafana dashboard
 
