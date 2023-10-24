@@ -325,80 +325,8 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
     }),
 
     // fetch bridged vault share rate if needed
-    getBridgedVaultTargetChains().includes(options.ctx.chain)
-      ? Rx.connect((items$) =>
-          Rx.merge(
-            items$.pipe(
-              Rx.filter((item) => !isBeefyBridgedVault(item.target.product)),
-              Rx.tap((item) => logger.trace({ msg: "not fetching bridged vault share rate", data: { chain: options.ctx.chain, item } })),
-            ),
-            ...getBridgedVaultOriginChains().map((originChain) =>
-              items$.pipe(
-                Rx.filter(
-                  (item): item is any =>
-                    isBeefyBridgedVault(item.target.product) && item.target.product.productData.vault.bridged_version_of.chain === originChain,
-                ),
-                createChainPipeline(
-                  {
-                    chain: originChain,
-                    client: options.ctx.client,
-                    behaviour: options.ctx.behaviour,
-                  },
-                  (ctx) =>
-                    Rx.pipe(
-                      Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
+    fetchBeefyBridgedVaultShareRateIfNeeded(options),
 
-                      // first we need to map the vault transfer block in the bridged chain to a block in the origin chain
-                      fetchBlockFromDatetime$({
-                        ctx,
-                        emitError: options.emitError,
-                        getBlockDate: (item) => item.blockDatetime,
-                        formatOutput: (item, shareRateBlockNumber) => ({ ...item, shareRateBlockNumber }),
-                      }),
-
-                      // then we can fetch the share rate in the context of the origin chain
-                      fetchBeefyTransferData$({
-                        ctx,
-                        emitError: options.emitError,
-                        getCallParams: (item) => {
-                          const balance = {
-                            decimals: item.target.transfer.tokenDecimals,
-                            contractAddress: item.target.transfer.tokenAddress,
-                            ownerAddress: item.target.transfer.ownerAddress,
-                          };
-                          const blockNumber = item.shareRateBlockNumber;
-
-                          if (isBeefyBridgedVault(item.target.product)) {
-                            const vault = item.target.product.productData.vault.bridged_version_of;
-                            return {
-                              shareRateParams: {
-                                vaultAddress: vault.contract_address,
-                                underlyingDecimals: vault.want_decimals,
-                                vaultDecimals: vault.token_decimals,
-                              },
-                              balance,
-                              blockNumber,
-                              fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
-                              fetchBalance: false,
-                            };
-                          }
-                          logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
-                          throw new ProgrammerError("Unsupported product type");
-                        },
-                        formatOutput: (item, { blockDatetime, shareRate }) => ({
-                          ...item,
-                          shareRate,
-                          shareRateBlockNumber: item.shareRateBlockNumber,
-                          shareRateDatetime: blockDatetime,
-                        }),
-                      }),
-                    ),
-                ),
-              ),
-            ),
-          ),
-        )
-      : Rx.pipe(),
     // ==============================
     // now we are ready for the insertion
     // ==============================
@@ -481,5 +409,87 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
       }),
       formatOutput: (item, investorCacheChainInfos) => ({ ...item, investorCacheChainInfos }),
     }),
+  );
+}
+
+function fetchBeefyBridgedVaultShareRateIfNeeded<TInput extends { target: { product: DbBeefyProduct } }>(options: {
+  ctx: ImportCtx;
+  emitError: ErrorEmitter<any>;
+}): Rx.OperatorFunction<TInput, TInput> {
+  if (!getBridgedVaultTargetChains().includes(options.ctx.chain)) {
+    return Rx.pipe();
+  }
+  // fetch bridged vault share rate if needed
+  return Rx.connect((items$) =>
+    Rx.merge(
+      items$.pipe(
+        Rx.filter((item) => !isBeefyBridgedVault(item.target.product)),
+        Rx.tap((item) => logger.trace({ msg: "not fetching bridged vault share rate", data: { chain: options.ctx.chain, item } })),
+      ),
+      ...getBridgedVaultOriginChains().map((originChain) =>
+        items$.pipe(
+          Rx.filter(
+            (item): item is any =>
+              isBeefyBridgedVault(item.target.product) && item.target.product.productData.vault.bridged_version_of.chain === originChain,
+          ),
+          createChainPipeline(
+            {
+              chain: originChain,
+              client: options.ctx.client,
+              behaviour: options.ctx.behaviour,
+            },
+            (ctx) =>
+              Rx.pipe(
+                Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
+
+                // first we need to map the vault transfer block in the bridged chain to a block in the origin chain
+                fetchBlockFromDatetime$({
+                  ctx,
+                  emitError: options.emitError,
+                  getBlockDate: (item) => item.blockDatetime,
+                  formatOutput: (item, shareRateBlockNumber) => ({ ...item, shareRateBlockNumber }),
+                }),
+
+                // then we can fetch the share rate in the context of the origin chain
+                fetchBeefyTransferData$({
+                  ctx,
+                  emitError: options.emitError,
+                  getCallParams: (item) => {
+                    const balance = {
+                      decimals: item.target.transfer.tokenDecimals,
+                      contractAddress: item.target.transfer.tokenAddress,
+                      ownerAddress: item.target.transfer.ownerAddress,
+                    };
+                    const blockNumber = item.shareRateBlockNumber;
+
+                    if (isBeefyBridgedVault(item.target.product)) {
+                      const vault = item.target.product.productData.vault.bridged_version_of;
+                      return {
+                        shareRateParams: {
+                          vaultAddress: vault.contract_address,
+                          underlyingDecimals: vault.want_decimals,
+                          vaultDecimals: vault.token_decimals,
+                        },
+                        balance,
+                        blockNumber,
+                        fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
+                        fetchBalance: false,
+                      };
+                    }
+                    logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
+                    throw new ProgrammerError("Unsupported product type");
+                  },
+                  formatOutput: (item, { blockDatetime, shareRate }) => ({
+                    ...item,
+                    shareRate,
+                    shareRateBlockNumber: item.shareRateBlockNumber,
+                    shareRateDatetime: blockDatetime,
+                  }),
+                }),
+              ),
+          ),
+        ),
+      ),
+    ),
   );
 }

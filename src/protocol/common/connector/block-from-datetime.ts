@@ -33,8 +33,56 @@ export function fetchBlockFromDatetime$<TObj, TErr extends ErrorEmitter<TObj>, T
 
     // TODO: fetch block from db if it exists and is close enough
 
-    // fetch block from etherscan api
+    // take a batch of items
+    Rx.bufferTime(options.ctx.streamConfig.maxInputWaitMs, undefined, options.ctx.streamConfig.maxInputTake),
+    Rx.filter((objs) => objs.length > 0),
 
+    // split by datetime (and chain but we are already in the context of a single chain)
+    Rx.pipe(
+      Rx.map((objs) => {
+        const byDatetime = new Map<number, TObj[]>();
+        for (const obj of objs) {
+          const datetime = options.getBlockDate(obj).getTime();
+          const list = byDatetime.get(datetime) || [];
+          list.push(obj);
+          byDatetime.set(datetime, list);
+        }
+        return Array.from(byDatetime.values());
+      }),
+      Rx.concatAll(),
+      Rx.filter((objs) => objs.length > 0),
+    ),
+
+    // fetch block from etherscan api for the first item of the batch
+    fetchBlockFromDatetimeUsingExplorerAPI$({
+      ctx: options.ctx,
+      emitError: (objs, report) => objs.forEach((obj) => options.emitError(obj, report)),
+      getBlockDate: (objs: TObj[]) => options.getBlockDate(objs[0]),
+      formatOutput: (objs, blockNumber) => ({ objs, blockNumber }),
+    }),
+
+    Rx.concatMap(({ objs, blockNumber }) => objs.map((obj) => options.formatOutput(obj, blockNumber))),
+  );
+}
+
+function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Date>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+  getBlockDate: (obj: TObj) => TParams;
+  formatOutput: (obj: TObj, blockNumber: number) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  const chain = options.ctx.chain;
+
+  if (!options.ctx.rpcConfig.etherscan) {
+    throw new ProgrammerError(`etherscan config is missing`);
+  }
+
+  const explorerConfig = EXPLORER_URLS[chain];
+  if (explorerConfig.type !== "etherscan") {
+    throw new ProgrammerError(`etherscan config is missing`);
+  }
+  return Rx.pipe(
+    // fetch block from etherscan api
     // make sure we don't hit the rate limit of the explorers
     rateLimit$(samplingPeriodMs[options.ctx.behaviour.minDelayBetweenExplorerCalls]),
 
