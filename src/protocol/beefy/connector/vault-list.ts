@@ -3,8 +3,8 @@ import { cloneDeep } from "lodash";
 import * as path from "path";
 import prettier from "prettier";
 import * as Rx from "rxjs";
-import { Chain, allChainIds } from "../../../types/chain";
-import { getBridgedMooBifiTokenAddress, getChainWNativeTokenAddress } from "../../../utils/addressbook";
+import { Chain } from "../../../types/chain";
+import { getChainWNativeTokenAddress } from "../../../utils/addressbook";
 import { GITHUB_RO_AUTH_TOKEN, GIT_WORK_DIRECTORY } from "../../../utils/config";
 import { normalizeAddressOrThrow } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
@@ -24,6 +24,7 @@ interface RawBeefyVault {
   oracleId: string;
   status?: string;
   assets?: string[];
+  bridged?: Record<Chain, string>; // { "optimism": "0xc55E93C62874D8100dBd2DfE307EDc1036ad5434" },
 }
 
 interface BeefyBaseVaultConfig {
@@ -224,14 +225,12 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       }),
 
       // just emit the vault
-      Rx.map(({ vault, eolDate }) => rawVaultToBeefyVault(chain, vault, eolDate)),
+      Rx.map(({ vault, eolDate }) => ({ vault: rawVaultToBeefyVault(chain, vault, eolDate), rawVault: vault })),
     ),
 
-    // add the bridged moo bifi vault
-    Rx.map((vault) => {
-      // our only bridged vault is mooBifi on eth
-      // TODO: update this when we go live
-      if (vault.id !== "ethereum-bifi-maxi") {
+    // add a virtual product of the bridged version of the vault
+    Rx.map(({ vault, rawVault }) => {
+      if (!rawVault.bridged) {
         return [vault];
       }
 
@@ -246,8 +245,10 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       vault.eol = false;
       vault.eol_date = null;
 
-      const bridgedVaults = allChainIds
-        .map((chain) => ({ chain, address: getBridgedMooBifiTokenAddress(chain) }))
+      type K = keyof Required<RawBeefyVault>["bridged"];
+      type V = Required<RawBeefyVault>["bridged"][K];
+      const bridgedVaults = (Object.entries(rawVault.bridged) as [K, V][])
+        .map(([chain, address]) => ({ chain, address }))
         .filter((p): p is { chain: Chain; address: string } => p.address !== null)
         .map(({ chain, address }): BeefyBridgedVersionOfStdVault => {
           const bridgedMooBifiVault: BeefyBridgedVersionOfStdVault = {
@@ -287,7 +288,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
     } else if (rawVault.oracleId.startsWith("be")) {
       protocol = "beefy";
       protocol_product = rawVault.oracleId;
-    } else if (rawVault.oracleId === "BIFI") {
+    } else if (rawVault.oracleId === "BIFI" || rawVault.oracleId === "oldBIFI") {
       protocol = "beefy";
       protocol_product = rawVault.oracleId;
     } else {
