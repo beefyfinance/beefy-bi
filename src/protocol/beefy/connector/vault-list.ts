@@ -239,12 +239,6 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
         return [vault];
       }
 
-      // TODO: remove the fake eol
-      // currently the maxi vault is eol but we need to test the bridged token
-      // but eol vaults are not fetched
-      vault.eol = false;
-      vault.eol_date = null;
-
       type K = keyof Required<RawBeefyVault>["bridged"];
       type V = Required<RawBeefyVault>["bridged"][K];
       const bridgedVaults = (Object.entries(rawVault.bridged) as [K, V][])
