@@ -1055,6 +1055,28 @@
       }
     }
   },
+  "rollux": {
+    "https://rpc.ankr.com/rollux/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 100,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    }
+  },
   "scroll": {
     "https://rpc.ankr.com/scroll/<RPC_API_KEY_ANKR>": {
       "restrictToMode": null,

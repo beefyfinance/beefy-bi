@@ -24,6 +24,10 @@ function getAddressBookTokensConfig(chain: Chain) {
     return {
       WNATIVE: { address: "0x5300000000000000000000000000000000000004" },
     };
+  } else if (chain === "rollux") {
+    return {
+      WNATIVE: { address: "0x4200000000000000000000000000000000000006" },
+    };
   }
 
   throw new Error(`Unknown chain ${chain}`);
@@ -38,6 +42,8 @@ export function getChainNetworkId(chain: Chain): number {
     return 59144;
   } else if (chain === "scroll") {
     return 534352;
+  } else if (chain === "rollux") {
+    return 570;
   }
   throw new Error(`Unknown chain ${chain}`);
 }

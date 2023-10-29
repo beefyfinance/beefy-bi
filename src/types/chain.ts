@@ -21,6 +21,7 @@ export type Chain =
   | "moonriver"
   | "optimism"
   | "polygon"
+  | "rollux"
   | "scroll"
   | "zkevm"
   | "zksync";
@@ -48,6 +49,7 @@ export const allChainIds: Chain[] = [
   "moonriver",
   "optimism",
   "polygon",
+  "rollux",
   "scroll",
   "zkevm",
   "zksync",
