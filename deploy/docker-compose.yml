@@ -286,7 +286,7 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c ethereum -c optimism -l 1min"
 
-  importer-investment-recent-fantom-gnosis-polygon-zkevm:
+  importer-investment-recent-fantom-gnosis-polygon-scroll-zkevm:
     <<: *importer
     environment:
       <<: *importer-env
