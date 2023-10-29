@@ -765,6 +765,28 @@
       }
     }
   },
+  "linea": {
+    "https://rpc.ankr.com/linea/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 20,
+        "eth_call": 30,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 50,
+        "eth_getTransactionReceipt": 50
+      }
+    }
+  },
   "metis": {
     "https://andromeda.metis.io": {
       "restrictToMode": null,
@@ -1029,6 +1051,28 @@
         "eth_call": 64,
         "eth_getBlockByNumber": 128,
         "eth_blockNumber": 500,
+        "eth_getTransactionReceipt": 100
+      }
+    }
+  },
+  "scroll": {
+    "https://rpc.ankr.com/scroll/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 24,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 100
       }
     }

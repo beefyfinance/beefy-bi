@@ -186,11 +186,13 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       harmony: 5481181,
       heco: 404035,
       kava: 393,
+      linea: 624,
       metis: 1400, // couldn't find the exact wtoken creation block
       moonbeam: 171210,
       moonriver: 413534,
       optimism: 1, // weth created on genesis block
       polygon: 4931456,
+      scroll: 1, // weth created on genesis block
       zkevm: 129,
       zksync: 9648,
     };

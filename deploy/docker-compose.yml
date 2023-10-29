@@ -25,7 +25,7 @@ version: "3.9" # optional since v1.27.0
 
 # docker compose -f deploy/docker-compose.yml up public-api -d --force-recreate
 # RUN a command
-# docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava
+# docker exec -it -e LOG_LEVEL=trace deploy-importer-investment-historical-1 node ./dist/src/script/run.js beefy:run -i historical -c kava -c linea
 # docker exec -it -e LOG_LEVEL=trace deploy-importer-products-1 node ./dist/src/script/run.js db:migrate
 
 x-importer: &importer
@@ -240,21 +240,21 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -e false -S live -l 1hour"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c linea -c metis -c moonbeam -c moonriver -c optimism -c polygon -c scroll -c zkevm -c zksync -e false -S live -l 1hour"
 
   importer-prices-recent:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -l 15min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t recent-prices -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c linea -c metis -c moonbeam -c moonriver -c optimism -c polygon -c scroll -c zkevm -c zksync -l 15min"
 
   importer-historical-product-statistics:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-product-statistics -e false -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c metis -c moonbeam -c moonriver -c optimism -c polygon -c zkevm -c zksync -l 1day"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -t historical-product-statistics -e false -c arbitrum -c avax -c base -c bsc -c canto -c cronos -c ethereum -c fantom -c fuse -c gnosis -c kava -c linea -c metis -c moonbeam -c moonriver -c optimism -c polygon -c scroll -c zkevm -c zksync -l 1day"
 
-  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava linea metis moonbeam moonriver optimism polygon scroll zkevm zksync
 
   importer-investment-recent-arbitrum-avax:
     <<: *importer
@@ -262,11 +262,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c arbitrum -c avax -l 1min"
 
-  importer-investment-recent-base-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-base-kava-linea-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 1min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c base -c kava -c linea -c metis -c moonbeam -c moonriver -c zksync -l 1min"
 
   importer-investment-recent-bsc:
     <<: *importer
@@ -290,9 +290,9 @@ services:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c fantom -c gnosis -c polygon -c zkevm -l 1min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c fantom -c gnosis -c polygon -c scroll -c zkevm -l 1min"
 
-  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava linea metis moonbeam moonriver optimism polygon scroll zkevm zksync
 
   importer-investment-historical-arbitrum-avax:
     <<: *importer
@@ -300,11 +300,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-base-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-base-kava-linea-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c base -c kava -c linea -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
   importer-investment-historical-bsc:
     <<: *importer
@@ -324,13 +324,13 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c ethereum -c optimism -l 15min -S all"
 
-  importer-investment-historical-fantom-gnosis-polygon-zkevm:
+  importer-investment-historical-fantom-gnosis-polygon-scroll-zkevm:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c gnosis -c polygon -c zkevm -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c gnosis -c polygon -c scroll -c zkevm -l 15min -S all"
 
-  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava linea metis moonbeam moonriver optimism polygon scroll zkevm zksync
 
   importer-investment-historical-share-rate-arbitrum-avax:
     <<: *importer
@@ -338,11 +338,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-share-rate-base-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-share-rate-base-kava-linea-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c base -c kava -c linea -c metis -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
   importer-investment-historical-share-rate-bsc:
     <<: *importer
@@ -362,13 +362,13 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c ethereum -c optimism -l 15min -S all"
 
-  importer-investment-historical-share-rate-fantom-gnosis-polygon-zkevm:
+  importer-investment-historical-share-rate-fantom-gnosis-polygon-scroll-zkevm:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c fantom -c gnosis -c polygon -c zkevm -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c fantom -c gnosis -c polygon -c scroll -c zkevm -l 15min -S all"
 
-  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava metis moonbeam moonriver optimism polygon zkevm zksync
+  # arbitrum avax base bsc canto cronos ethereum fantom fuse kava linea metis moonbeam moonriver optimism polygon scroll zkevm zksync
 
   importer-investment-recent-share-rate-arbitrum-avax:
     <<: *importer
@@ -376,11 +376,11 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c arbitrum -c avax -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-base-kava-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-share-rate-base-kava-linea-metis-moonbeam-moonriver-zksync:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c base -c kava -c metis -c moonbeam -c moonriver -c zksync -L 0 -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c base -c kava -c linea -c metis -c moonbeam -c moonriver -c zksync -L 0 -l 15min -S all"
 
   importer-investment-recent-share-rate-bsc:
     <<: *importer
@@ -400,8 +400,8 @@ services:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c ethereum -c optimism -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-fantom-gnosis-polygon-zkevm:
+  importer-investment-recent-share-rate-fantom-gnosis-polygon-scroll-zkevm:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -c gnosis -c polygon -c zkevm -L 0 -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -c gnosis -c polygon -c scroll -c zkevm -L 0 -l 15min -S all"

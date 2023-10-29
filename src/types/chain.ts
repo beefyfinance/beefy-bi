@@ -15,11 +15,13 @@ export type Chain =
   | "harmony"
   | "heco"
   | "kava"
+  | "linea"
   | "metis"
   | "moonbeam"
   | "moonriver"
   | "optimism"
   | "polygon"
+  | "scroll"
   | "zkevm"
   | "zksync";
 
@@ -40,11 +42,13 @@ export const allChainIds: Chain[] = [
   "harmony",
   "heco",
   "kava",
+  "linea",
   "metis",
   "moonbeam",
   "moonriver",
   "optimism",
   "polygon",
+  "scroll",
   "zkevm",
   "zksync",
 ];
