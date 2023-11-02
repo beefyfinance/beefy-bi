@@ -109,7 +109,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   rollux: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 119222 },
   scroll: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14 },
   zkevm: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 57746 },
-  zksync: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1536804 },
+  zksync: { multicallAddress: "0xF9cda624FBC7e059355ce98a31693d299FACd963", createdAtBlock: 324 },
 };
 
 function _getExplorerApiKey(chain: Chain) {
