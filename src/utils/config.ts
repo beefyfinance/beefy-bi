@@ -54,10 +54,12 @@ export const RPC_API_URL_CHAINSTACK_CRONOS = process.env.RPC_API_URL_CHAINSTACK_
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
 export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
 
-export const EXPLORER_URLS: { [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony" | "zksync"; url: string } } = {
+export const EXPLORER_URLS: {
+  [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony" | "routescan" | "zksync"; url: string };
+} = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
-  avax: { type: "etherscan", url: "https://api.snowtrace.io/api" },
+  avax: { type: "routescan", url: "https://api.routescan.io" },
   base: { type: "etherscan", url: "https://api.basescan.org/api" },
   bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
   canto: { type: "blockscout-json", url: "https://tuber.build" },

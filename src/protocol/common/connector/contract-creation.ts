@@ -62,6 +62,8 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await getBlockScoutJSONAPICreationInfo(ctx, contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "routescan") {
+    return await getRouteScanAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
     logger.trace({
       msg: "Using Harmony RPC method for this chain",
@@ -88,6 +90,40 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
     return await getFromZksyncExplorerApi(contractAddress, EXPLORER_URLS[chain].url);
   } else {
     throw new Error("Unsupported explorer type: " + explorerType);
+  }
+}
+
+async function getRouteScanAPICreationInfo(contractAddress: string, explorerUrl: string, chain: Chain) {
+  if (chain !== "avax") {
+    throw new ProgrammerError("RouteScan is only supported for Avalanche");
+  }
+
+  //https://api.routescan.io/v2/network/mainnet/evm/43114/address/0x595786A3848B1de66C6056C87BA91977935fBC46/transactions?ecosystem=avalanche&includedChainIds=43114&categories=evm_tx&sort=asc&limit=1
+  const params = {
+    ecosystem: "avalanche",
+    includedChainIds: 43114,
+    categories: "evm_tx",
+    sort: "asc",
+    limit: 1,
+  };
+  const apiPath = `${explorerUrl}/v2/network/mainnet/evm/43114/address/${encodeURIComponent(contractAddress)}/transactions`;
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, apiPath, params } });
+  try {
+    const resp = await axios.get(apiPath, { params });
+
+    if (!isArray(resp.data.items) || resp.data.items.length === 0) {
+      logger.error({ msg: "No contract creation transaction found", data: { contractAddress, apiPath, params, data: resp.data } });
+      throw new Error("No contract creation transaction found");
+    }
+    let blockNumber: number = resp.data.items[0].blockNumber;
+    let timeStamp: string = resp.data.items[0].timestamp;
+    const datetime = new Date(timeStamp);
+
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, apiPath, params, error: error } });
+    logger.error(error);
+    throw error;
   }
 }
 
