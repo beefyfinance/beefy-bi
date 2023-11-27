@@ -17,7 +17,8 @@ export default async function (instance: FastifyInstance) {
       ChainEnum: { $id: "ChainEnum", type: "string", enum: allChainIds, description: "The chain identifier" },
     },
     ProductService.schemaComponents,
-    BeefyPortfolioService.schemaComponents,
+    BeefyPortfolioService.timelineSchemaComponents,
+    BeefyPortfolioService.investorCountsSchemaComponents,
   );
 
   for (const component of Object.values(mergedComponents)) {

@@ -34,6 +34,23 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
 
   {
     const schema = {
+      tags: ["stats"],
+      summary: "Get investor counts",
+      description: "Returns the number of investors for each chain",
+      response: {
+        200: BeefyPortfolioService.investorCountsSchema,
+      },
+    };
+    type TRoute = {};
+
+    instance.get<TRoute>("/investor-counts", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
+      const investorCounts = await instance.diContainer.cradle.beefy.getInvestorCounts();
+      return reply.send(investorCounts);
+    });
+  }
+
+  {
+    const schema = {
       params: S.object().prop("chain", chainSchema.required().description("Only include produce for this chain")),
       querystring: S.object().prop(
         "include_eol",
