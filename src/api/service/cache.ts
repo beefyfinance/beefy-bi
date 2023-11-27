@@ -1,10 +1,24 @@
 import { AbstractCacheCompliantObject } from "@fastify/caching";
+import AsyncLock from "async-lock";
 import { rootLogger } from "../../utils/logger";
 
 const logger = rootLogger.child({ module: "api", component: "cache" });
 
 export class AsyncCache {
-  constructor(protected services: { abCache: AbstractCacheCompliantObject }) {}
+  private asyncLock: AsyncLock;
+
+  constructor(protected services: { abCache: AbstractCacheCompliantObject }) {
+    this.asyncLock = new AsyncLock({
+      // max amount of time an item can remain in the queue before acquiring the lock
+      timeout: 10_000, // 10 seconds
+      // we don't want a lock to be reentered
+      domainReentrant: false,
+      //max amount of time allowed between entering the queue and completing execution
+      maxOccupationTime: 0, // never
+      // max number of tasks allowed in the queue at a time
+      maxPending: 100_000,
+    });
+  }
 
   async get<T>(key: string): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -37,8 +51,13 @@ export class AsyncCache {
       logger.trace({ msg: "wrap: cache hit", data: { key, ttlMs } });
       return cached.item;
     }
-    logger.trace({ msg: "wrap: cache miss", data: { key, ttlMs } });
-    const value = await fn();
+    logger.trace({ msg: "wrap: cache miss, acquiring lock", data: { key, ttlMs } });
+    const value = await this.asyncLock.acquire(key, async () => {
+      logger.trace({ msg: "wrap: lock acquired", data: { key, ttlMs } });
+      const value = await fn();
+      logger.trace({ msg: "wrap: lock fn executed", data: { key, ttlMs } });
+      return value;
+    });
     if (value !== null && value !== undefined) {
       logger.trace({ msg: "wrap: setting non null cache value", data: { key, ttlMs } });
       await this.set(key, value, ttlMs);
