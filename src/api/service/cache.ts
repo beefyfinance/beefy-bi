@@ -45,24 +45,26 @@ export class AsyncCache {
   }
 
   async wrap<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
-    logger.debug({ msg: "wrap: called", data: { key, ttlMs } });
-    const cached = await this.get<{ item: T; stored: number; ttl: number }>(key);
-    if (cached) {
-      logger.trace({ msg: "wrap: cache hit", data: { key, ttlMs } });
-      return cached.item;
-    }
-    logger.trace({ msg: "wrap: cache miss, acquiring lock", data: { key, ttlMs } });
-    const value = await this.asyncLock.acquire(key, async () => {
+    // async-lock is used to prevent multiple requests from refreshing the cache at the same time
+    // this only works because the api is not a distributed system and the cache is "local"
+    logger.trace({ msg: "wrap: acquiring lock", data: { key, ttlMs } });
+    return await this.asyncLock.acquire(key, async () => {
       logger.trace({ msg: "wrap: lock acquired", data: { key, ttlMs } });
+
+      logger.debug({ msg: "wrap: getting cached value", data: { key, ttlMs } });
+      const cached = await this.get<{ item: T; stored: number; ttl: number }>(key);
+      if (cached) {
+        logger.trace({ msg: "wrap: cache hit", data: { key, ttlMs } });
+        return cached.item;
+      }
+      logger.trace({ msg: "wrap: cache miss, fetching value", data: { key, ttlMs } });
       const value = await fn();
-      logger.trace({ msg: "wrap: lock fn executed", data: { key, ttlMs } });
+      if (value !== null && value !== undefined) {
+        logger.trace({ msg: "wrap: setting non null cache value", data: { key, ttlMs } });
+        await this.set(key, value, ttlMs);
+        logger.trace({ msg: "wrap: cache value set", data: { key, ttlMs } });
+      }
       return value;
     });
-    if (value !== null && value !== undefined) {
-      logger.trace({ msg: "wrap: setting non null cache value", data: { key, ttlMs } });
-      await this.set(key, value, ttlMs);
-      logger.trace({ msg: "wrap: cache value set", data: { key, ttlMs } });
-    }
-    return value;
   }
 }
