@@ -1,3 +1,4 @@
+import { keyBy } from "lodash";
 import { Chain } from "../../../types/chain";
 import { DbClient, db_query } from "../../../utils/db";
 import { productKeyExamples } from "../../schema/product";
@@ -119,13 +120,26 @@ export class BeefyPortfolioService {
           description: "The columns for the investor counts as the actual data is contained in an array to reduce the size of the response",
           example: ["investor_count", "investor_count_more_than_1_usd", "investor_count_more_than_10_usd"],
         },
+        investor_count_historical_columns: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "The columns for the historical investor counts as the actual data is contained in an array to reduce the size of the response",
+          example: ["hist_3d", "hist_7d", "hist_15d", "hist_30d"],
+        },
+        historical_datetimes: {
+          type: "array",
+          items: { type: "string", format: "date-time" },
+          description: "The datetime for the historical investor counts",
+          example: ["2021-08-01T00:00:00.000Z", "2021-08-02T00:00:00.000Z", "2021-08-03T00:00:00.000Z", "2021-08-04T00:00:00.000Z"],
+        },
         items: {
           type: "array",
           items: { $ref: "InvestorCountItem" },
           description: "The actual investor counts for each product",
         },
       },
-      required: ["investor_count_columns", "items"],
+      required: ["investor_count_columns", "investor_count_historical_columns", "historical_datetimes", "items"],
     },
 
     InvestorCountItem: {
@@ -141,8 +155,15 @@ export class BeefyPortfolioService {
             "Investor counts, each value corresponds to the column names in investor_count_columns. The first value is the total investor count, the second value is the investor count with a balance > 1 USD, the third value is the investor count with a balance > 10 USD, etc.",
           example: [123, 12, 1],
         },
+        historical_counts: {
+          type: "array",
+          items: { type: ["number", "null"] },
+          description:
+            "Historical investor counts, each value corresponds to the column names in investor_count_historical_columns. The first value is the investor count diff 3 days ago, the second value is the investor count diff 7 days ago, the third value is the investor count diff 15 days ago, etc.",
+          example: [123, 12, 1],
+        },
       },
-      required: ["product_key", "beefy_id", "investor_counts"],
+      required: ["product_key", "beefy_id", "investor_counts", "historical_counts"],
     },
   };
 
@@ -155,8 +176,31 @@ export class BeefyPortfolioService {
   async getInvestorCounts() {
     const cacheKey = `api:portfolio-service:investor-count`;
     const ttl = 1000 * 60 * 60 * 24; // 1 day cache
+
+    const countCols = [
+      "investor_count",
+      "investor_count_more_than_1_usd",
+      "investor_count_more_than_10_usd",
+      "investor_count_more_than_100_usd",
+      "investor_count_more_than_1000_usd",
+      "investor_count_more_than_10000_usd",
+      "investor_count_more_than_100000_usd",
+      "investor_count_more_than_1000000_usd",
+      "investor_count_more_than_10000000_usd",
+    ];
+
+    const liveProducts = await this.services.product.getProducts(false);
+    const liveProductIds = liveProducts.map((p) => p.productId);
+    if (liveProductIds.length <= 0) {
+      return {
+        investor_count_columns: countCols,
+        items: [],
+      };
+    }
+
     return this.services.cache.wrap(cacheKey, ttl, async () => {
-      const results = await db_query<{
+      const latestCountResult = await db_query<{
+        product_id: number;
         product_key: string;
         beefy_id: string;
         investor_count: number;
@@ -176,11 +220,7 @@ export class BeefyPortfolioService {
               investor_id,
               last(usd_balance, datetime) as last_usd_balance
             from beefy_investor_timeline_cache_ts
-            where product_id IN ( 
-                select product_id 
-                from product 
-                where coalesce(product_data->>'dashboardEol')::text = 'false'
-            )
+            where product_id IN (%L)
             group by 1,2
           ), 
           investor_count_by_product_id as (
@@ -199,6 +239,7 @@ export class BeefyPortfolioService {
             group by 1
           )
           select 
+            p.product_id,
             p.product_key, 
             coalesce(p.product_data->'vault'->>'id', p.product_data->'boost'->>'id') as beefy_id, 
             c.investor_count,
@@ -213,23 +254,63 @@ export class BeefyPortfolioService {
           from investor_count_by_product_id c
           join product p using(product_id)
         `,
-        [],
+        [liveProductIds],
         this.services.db,
       );
 
-      return {
-        investor_count_columns: [
-          "investor_count",
-          "investor_count_more_than_1_usd",
-          "investor_count_more_than_10_usd",
-          "investor_count_more_than_100_usd",
-          "investor_count_more_than_1000_usd",
-          "investor_count_more_than_10000_usd",
-          "investor_count_more_than_100000_usd",
-          "investor_count_more_than_1000000_usd",
-          "investor_count_more_than_10000000_usd",
-        ],
-        items: results.map((row) => ({
+      const historicalCountsResult = await db_query<{
+        product_id: number;
+        hist_3d_datetime: string;
+        hist_3d_approx_investor_count: number;
+        hist_7d_datetime: string;
+        hist_7d_approx_investor_count: number;
+        hist_15d_datetime: string;
+        hist_15d_approx_investor_count: number;
+        hist_30d_datetime: string;
+        hist_30d_approx_investor_count: number;
+      }>(
+        `
+          SELECT
+            s.product_id,
+            last(s.datetime, s.datetime) filter (where datetime < now() - interval '3 day') AS "hist_3d_datetime",
+            last(s.datetime, s.datetime) filter (where datetime < now() - interval '7 days') AS "hist_7d_datetime",
+            last(s.datetime, s.datetime) filter (where datetime < now() - interval '15 days') AS "hist_15d_datetime",
+            last(s.datetime, s.datetime) filter (where datetime < now() - interval '30 days') AS "hist_30d_datetime",
+            (last(distinct_count(s.approx_count_investor_hll_all), s.datetime) filter (where datetime < now() - interval '3 day'))::integer as "hist_3d_approx_investor_count",
+            (last(distinct_count(s.approx_count_investor_hll_all), s.datetime) filter (where datetime < now() - interval '7 day'))::integer as "hist_7d_approx_investor_count",
+            (last(distinct_count(s.approx_count_investor_hll_all), s.datetime) filter (where datetime < now() - interval '15 day'))::integer as "hist_15d_approx_investor_count",
+            (last(distinct_count(s.approx_count_investor_hll_all), s.datetime) filter (where datetime < now() - interval '30 day'))::integer as "hist_30d_approx_investor_count"
+          FROM product_stats_investor_counts_with_segments_1d_ts s
+          WHERE
+            datetime < now() - interval '1 day'
+            and datetime >= now() - interval '31 day'
+            and product_id in (%L)
+          group by 1
+        `,
+        [liveProductIds],
+        this.services.db,
+      );
+
+      const historicalCountsResultByProductId = keyBy(historicalCountsResult, "product_id");
+      const histDatetimes: Array<Date | null> = [null, null, null, null];
+      const productCounts = latestCountResult.map((row) => {
+        const histDiff = historicalCountsResultByProductId[row.product_id] || null;
+        if (histDiff) {
+          // it's ugly but it's fast
+          if (histDatetimes[0] === null) {
+            histDatetimes[0] = new Date(histDiff.hist_3d_datetime);
+          }
+          if (histDatetimes[1] === null) {
+            histDatetimes[1] = new Date(histDiff.hist_7d_datetime);
+          }
+          if (histDatetimes[2] === null) {
+            histDatetimes[2] = new Date(histDiff.hist_15d_datetime);
+          }
+          if (histDatetimes[3] === null) {
+            histDatetimes[3] = new Date(histDiff.hist_30d_datetime);
+          }
+        }
+        return {
           product_key: row.product_key,
           beefy_id: row.beefy_id,
           investor_counts: [
@@ -243,7 +324,22 @@ export class BeefyPortfolioService {
             row.investor_count_more_than_1000000_usd,
             row.investor_count_more_than_10000000_usd,
           ],
-        })),
+          historical_counts: histDiff
+            ? [
+                histDiff.hist_3d_approx_investor_count,
+                histDiff.hist_7d_approx_investor_count,
+                histDiff.hist_15d_approx_investor_count,
+                histDiff.hist_30d_approx_investor_count,
+              ]
+            : [null, null, null, null],
+        };
+      });
+
+      return {
+        investor_count_columns: countCols,
+        investor_count_historical_columns: ["hist_3d", "hist_7d", "hist_15d", "hist_30d"],
+        historical_datetimes: histDatetimes,
+        items: productCounts,
       };
     });
   }

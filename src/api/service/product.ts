@@ -272,8 +272,8 @@ export class ProductService {
     items: { $ref: "Product" },
   };
 
-  async getAllProducts(includeEol = false, chain: Chain) {
-    const cacheKey = `api:product-service:all-products:${chain}:include-eol-${includeEol}`;
+  async getProductsForChain(includeEol = false, chain: Chain) {
+    const cacheKey = `api:product-service:products-for-chain:${chain}:include-eol-${includeEol}`;
     const ttl = 1000 * 60 * 60 * 24 * 1; // 1 day
     return this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query<DbProduct>(
@@ -311,6 +311,24 @@ export class ProductService {
           product_data->'boost'->>'contract_address'
         )) = %L`,
         [chain, contractAddress],
+        this.services.db,
+      ),
+    );
+  }
+
+  async getProducts(includeEol = false) {
+    const cacheKey = `api:product-service:all-products:include-eol-${includeEol}`;
+    const ttl = 1000 * 60 * 60 * 24 * 1; // 1 day
+    return this.services.cache.wrap(cacheKey, ttl, async () =>
+      db_query<DbProduct>(
+        `SELECT 
+          product_id as "productId",
+          product_key as "productKey",
+          chain, 
+          product_data as "productData" 
+        FROM product
+        WHERE (product_data->>'dashboardEol') in (%L)`,
+        [includeEol ? ["true", "false"] : ["false"]],
         this.services.db,
       ),
     );

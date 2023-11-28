@@ -69,7 +69,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
     instance.get<TRoute>("/product/:chain", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
       const { chain } = req.params;
       const { include_eol } = req.query;
-      const allProducts = await instance.diContainer.cradle.product.getAllProducts(include_eol, chain);
+      const allProducts = await instance.diContainer.cradle.product.getProductsForChain(include_eol, chain);
       return reply.send(allProducts);
     });
   }
