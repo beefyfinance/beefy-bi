@@ -21,6 +21,7 @@ interface RawBeefyVault {
   earnContractAddress: string;
   earnedToken: string;
   isGovVault?: boolean;
+  type?: "gov" | "standard";
   oracleId: string;
   status?: string;
   assets?: string[];
@@ -305,7 +306,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       protocol_product,
       want_price_feed_key: rawVault.oracleId,
       bridged_version_of: null,
-      ...(rawVault.isGovVault
+      ...(rawVault.isGovVault || rawVault.type === "gov"
         ? {
             is_gov_vault: true,
             gov_vault_reward_token_symbol: rawVault.earnedToken,
