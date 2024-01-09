@@ -16,6 +16,7 @@ export type Chain =
   | "heco"
   | "kava"
   | "linea"
+  | "mantle"
   | "metis"
   | "moonbeam"
   | "moonriver"
@@ -44,6 +45,7 @@ export const allChainIds: Chain[] = [
   "heco",
   "kava",
   "linea",
+  "mantle",
   "metis",
   "moonbeam",
   "moonriver",

@@ -1203,5 +1203,27 @@
         "eth_getTransactionReceipt": 500
       }
     }
+  },
+  "mantle": {
+    "https://rpc.ankr.com/mantle/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 104,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    }
   }
 }
