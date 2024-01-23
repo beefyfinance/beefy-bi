@@ -538,20 +538,20 @@
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": null,
-        "eth_call": 500,
+        "eth_call": 100,
         "eth_getBlockByNumber": null,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 8
+        "eth_blockNumber": 50,
+        "eth_getTransactionReceipt": 5
       }
     },
     "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
@@ -564,7 +564,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": null,
