@@ -1024,7 +1024,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 4,
@@ -1042,16 +1042,16 @@
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 50,
-        "eth_call": 64,
-        "eth_getBlockByNumber": 128,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 100
+        "eth_call": 50,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 50,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
