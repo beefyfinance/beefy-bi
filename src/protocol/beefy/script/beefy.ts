@@ -570,9 +570,6 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
 
       return cmdParams.includeEol;
     }),
-    Rx.toArray(),
-    Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
-    Rx.concatAll(),
     Rx.filter((product) => {
       const contractAddress = getProductContractAddress(product);
       let filter = cmdParams.filterContractAddress as string[] | null | string;
@@ -588,6 +585,9 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
       }
       return true; // just in case
     }),
+    Rx.toArray(),
+    Rx.tap((items) => logger.info({ msg: "Import filtered by product", data: { count: items.length, chain, includeEol: cmdParams.includeEol } })),
+    Rx.concatAll(),
   );
 }
 
