@@ -16,7 +16,7 @@ async function main() {
       default: "all",
       describe: "only import data for this chain",
     },
-    contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
+    contractAddress: { type: "string", array: true, demand: false, alias: "a", describe: "only import data for this contract address" },
     currentBlockNumber: { type: "number", demand: false, alias: "b", describe: "Force the current block number" },
     forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
     forceGetLogsBlockSpan: { type: "number", demand: false, alias: "s", describe: "force a specific block span for getLogs" },

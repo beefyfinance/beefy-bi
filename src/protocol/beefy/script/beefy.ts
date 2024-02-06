@@ -1,4 +1,4 @@
-import { cloneDeep, isNumber } from "lodash";
+import { cloneDeep, isArray, isNumber, isString } from "lodash";
 import * as Rx from "rxjs";
 import yargs from "yargs";
 import { Chain, allChainIds } from "../../../types/chain";
@@ -48,7 +48,7 @@ interface CmdParams {
   filterChains: Chain[];
   includeEol: boolean;
   forceConsideredBlockRange: Range<number> | null;
-  filterContractAddress: string | null;
+  filterContractAddress: string[] | null;
   productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
   loopEveryRandomizeRatio: number;
@@ -80,7 +80,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             alias: "t",
             describe: "what to run",
           },
-          contractAddress: { type: "string", demand: true, alias: "a", describe: "only import data for this contract address" },
+          contractAddress: { type: "string", array: true, demand: true, alias: "a", describe: "only import data for these contract addresses" },
           forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
           rpcCount: { type: "number", demand: false, alias: "r", describe: "how many RPCs to use" },
           fromBlock: { type: "number", demand: true, describe: "from block" },
@@ -141,7 +141,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             default: "all",
             describe: "only re-import data for these chain",
           },
-          contractAddress: { type: "string", demand: false, alias: "a", describe: "only reimport data for this contract address" },
+          contractAddress: { type: "string", array: true, demand: false, alias: "a", describe: "only reimport data for this contract address" },
           includeEol: { type: "boolean", demand: false, default: false, alias: "e", describe: "Include EOL products for some chain" },
           fromBlock: { type: "number", demand: true, describe: "from block" },
           toBlock: { type: "number", demand: false, describe: "to block, defaults to latest" },
@@ -167,7 +167,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               task: "historical",
               includeEol: argv.includeEol,
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
-              filterContractAddress: argv.contractAddress || null,
+              filterContractAddress: argv.contractAddress ?? null,
               forceConsideredBlockRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
@@ -189,7 +189,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
                 getInputs: async () =>
                   cmdParams.filterChains.map((chain) => ({
                     chain,
-                    onlyAddress: cmdParams.filterContractAddress ? [cmdParams.filterContractAddress] : null,
+                    onlyAddress: cmdParams.filterContractAddress ?? null,
                     reimport: { from: fromBlock, to: toBlock },
                   })),
                 client: cmdParams.client,
@@ -214,7 +214,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
             default: "all",
             describe: "only import data for this chain",
           },
-          contractAddress: { type: "string", demand: false, alias: "a", describe: "only import data for this contract address" },
+          contractAddress: { type: "string", array: true, demand: false, alias: "a", describe: "only import data for this contract address" },
           fromBlock: { type: "number", demand: false, describe: "only from this block" },
           toBlock: { type: "number", demand: false, describe: "to this block, defaults to latest" },
           forceRpcUrl: { type: "string", demand: false, alias: "f", describe: "force a specific RPC URL" },
@@ -575,7 +575,18 @@ function productFilter$(chain: Chain | null, cmdParams: CmdParams) {
     Rx.concatAll(),
     Rx.filter((product) => {
       const contractAddress = getProductContractAddress(product);
-      return cmdParams.filterContractAddress === null || contractAddress.toLocaleLowerCase() === cmdParams.filterContractAddress.toLocaleLowerCase();
+      let filter = cmdParams.filterContractAddress as string[] | null | string;
+      if (filter === null) {
+        return true;
+      }
+      if (isString(filter)) {
+        return contractAddress.toLocaleLowerCase() === filter.toLocaleLowerCase();
+      }
+      if (isArray(filter)) {
+        filter = filter.map((x) => x.toLocaleLowerCase());
+        return filter.includes(contractAddress.toLocaleLowerCase());
+      }
+      return true; // just in case
     }),
   );
 }
