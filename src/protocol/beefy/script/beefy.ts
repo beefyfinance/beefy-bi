@@ -75,7 +75,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           },
           task: {
             type: "string",
-            choices: ["historical", "recent"],
+            choices: ["historical", "recent", "historical-prices", "recent-prices"],
             demand: true,
             alias: "t",
             describe: "what to run",
