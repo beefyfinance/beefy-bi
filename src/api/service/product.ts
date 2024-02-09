@@ -301,6 +301,7 @@ export class ProductService {
     return this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query_one<DbProduct>(
         `SELECT 
+          product_id as "productId",
           product_key as "productKey",
           chain, 
           product_data as "productData" 
