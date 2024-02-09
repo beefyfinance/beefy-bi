@@ -1,6 +1,6 @@
 import { Chain } from "../../types/chain";
 import { SamplingPeriod } from "../../types/sampling";
-import { DbClient, db_query } from "../../utils/db";
+import { DbClient, db_query, db_query_one } from "../../utils/db";
 import { AsyncCache } from "./cache";
 
 export class BlockService {
@@ -61,6 +61,26 @@ export class BlockService {
       ORDER BY abs(diff_sec) ASC
       `,
       [...queryParams, ...queryParams],
+      this.services.db,
+    );
+  }
+
+  async getFirstBlockAboveOrEqualToNumber(chain: Chain, blockNumber: number) {
+    return db_query_one<{
+      datetime: Date;
+      block_number: number;
+    }>(
+      `
+      SELECT
+        datetime,
+        block_number
+      FROM block_ts
+      WHERE chain = %L
+        and block_number >= %L
+      ORDER BY datetime, block_number ASC
+      LIMIT 1
+      `,
+      [chain, blockNumber],
       this.services.db,
     );
   }

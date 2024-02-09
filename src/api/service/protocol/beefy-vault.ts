@@ -1,8 +1,13 @@
+import { getInvestmentsImportStateKey } from "../../../protocol/beefy/utils/import-state";
+import { isProductInvestmentImportState } from "../../../protocol/common/loader/import-state";
+import { DbProduct } from "../../../protocol/common/loader/product";
 import { DbClient, db_query } from "../../../utils/db";
+import { BlockService } from "../block";
+import { ImportStateService } from "../import-state";
 import { ProductService } from "../product";
 
 export class BeefyVaultService {
-  constructor(private services: { db: DbClient; product: ProductService }) {}
+  constructor(private services: { db: DbClient; product: ProductService; importState: ImportStateService; block: BlockService }) {}
 
   public static investorBalanceSchemaComponents = {
     InvestorBalanceRow: {
@@ -41,12 +46,27 @@ export class BeefyVaultService {
     items: { $ref: "InvestorBalanceRow" },
   };
 
-  async getBalancesAtBlock(productId: number, blockNumber: number) {
-    const res = await this.services.product.getSingleProductPriceFeedIds(productId);
+  async getBalancesAtBlock(product: DbProduct, blockNumber: number) {
+    const res = await this.services.product.getSingleProductPriceFeedIds(product.productId);
     if (res === null) {
       return [];
     }
     const { price_feed_1_id, price_feed_2_id } = res;
+
+    // we need the contract creation date to let timescaledb know when to stop looking
+    const importStateKey = getInvestmentsImportStateKey(product);
+    const importState = await this.services.importState.getImportStateByKey(importStateKey);
+    if (importState === null) {
+      return [];
+    }
+    if (!isProductInvestmentImportState(importState)) {
+      return [];
+    }
+    const contractCreationDate = importState.importData.contractCreationDate;
+
+    // optimize further by using the next block date if we have it
+    const nextBlock = await this.services.block.getFirstBlockAboveOrEqualToNumber(product.chain, blockNumber + 1);
+    const filterDate = nextBlock ? nextBlock.datetime : new Date();
 
     return db_query<{
       investor_address: string;
@@ -62,6 +82,7 @@ export class BeefyVaultService {
           from investment_balance_ts
           where 
               product_id = %L
+              and datetime between %L and %L
               and block_number <= %L
           group by investor_id
           having last(balance, datetime) > 0
@@ -72,6 +93,7 @@ export class BeefyVaultService {
           from price_ts
           where 
               price_feed_id = %L
+              and datetime between %L and %L
               and block_number <= %L
         ),
         price_2_at_last_balance as materialized (
@@ -80,6 +102,7 @@ export class BeefyVaultService {
           from price_ts
           where 
               price_feed_id = %L
+              and datetime between %L and %L
               and block_number <= %L
         )
         select 
@@ -96,7 +119,20 @@ export class BeefyVaultService {
         where
           ts.investor_id = i.investor_id
         `,
-      [productId, blockNumber, price_feed_1_id, blockNumber, price_feed_2_id, blockNumber],
+      [
+        product.productId,
+        contractCreationDate.toISOString(),
+        filterDate.toISOString(),
+        blockNumber,
+        price_feed_1_id,
+        contractCreationDate.toISOString(),
+        filterDate.toISOString(),
+        blockNumber,
+        price_feed_2_id,
+        contractCreationDate.toISOString(),
+        filterDate.toISOString(),
+        blockNumber,
+      ],
       this.services.db,
     );
   }

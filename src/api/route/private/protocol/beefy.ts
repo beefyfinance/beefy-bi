@@ -31,7 +31,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       }
 
       console.log(product);
-      const data = await instance.diContainer.cradle.beefyVault.getBalancesAtBlock(product.productId, req.params.block_number);
+      const data = await instance.diContainer.cradle.beefyVault.getBalancesAtBlock(product, req.params.block_number);
       return reply.send(data);
     });
   }
