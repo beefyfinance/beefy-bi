@@ -2,9 +2,12 @@ import { getInvestmentsImportStateKey } from "../../../protocol/beefy/utils/impo
 import { isProductInvestmentImportState } from "../../../protocol/common/loader/import-state";
 import { DbProduct } from "../../../protocol/common/loader/product";
 import { DbClient, db_query } from "../../../utils/db";
+import { rootLogger } from "../../../utils/logger";
 import { BlockService } from "../block";
 import { ImportStateService } from "../import-state";
 import { ProductService } from "../product";
+
+const logger = rootLogger.child({ module: "api-service", component: "beefy-vault" });
 
 export class BeefyVaultService {
   constructor(private services: { db: DbClient; product: ProductService; importState: ImportStateService; block: BlockService }) {}
@@ -46,7 +49,7 @@ export class BeefyVaultService {
     items: { $ref: "InvestorBalanceRow" },
   };
 
-  async getBalancesAtBlock(product: DbProduct, blockNumber: number) {
+  async getBalancesAtBlock(product: DbProduct, blockNumber: number, blockDatetime: Date) {
     const res = await this.services.product.getSingleProductPriceFeedIds(product.productId);
     if (res === null) {
       return [];
@@ -62,11 +65,9 @@ export class BeefyVaultService {
     if (!isProductInvestmentImportState(importState)) {
       return [];
     }
-    const contractCreationDate = importState.importData.contractCreationDate;
+    logger.debug({ importState }, "import state");
 
-    // optimize further by using the next block date if we have it
-    const nextBlock = await this.services.block.getFirstBlockAboveOrEqualToNumber(product.chain, blockNumber + 1);
-    const filterDate = nextBlock ? nextBlock.datetime : new Date();
+    const contractCreationDate = importState.importData.contractCreationDate;
 
     return db_query<{
       investor_address: string;
@@ -82,36 +83,34 @@ export class BeefyVaultService {
           from investment_balance_ts
           where 
               product_id = %L
-              and datetime between %L and %L
+              and datetime between %L and (%L::timestamptz + '1 day'::interval)
               and block_number <= %L
           group by investor_id
           having last(balance, datetime) > 0
         ),
         price_1_at_last_balance as materialized (
           select 
-              last(price, datetime) as last_price
-          from price_ts
+            price_avg as avg_price
+          from price_ts_cagg_1h
           where 
               price_feed_id = %L
-              and datetime between %L and %L
-              and block_number <= %L
+              and datetime = time_bucket('1h', %L::timestamptz)
         ),
         price_2_at_last_balance as materialized (
           select 
-              last(price, datetime) as last_price
-          from price_ts
+            price_avg as avg_price
+          from price_ts_cagg_1h
           where 
               price_feed_id = %L
-              and datetime between %L and %L
-              and block_number <= %L
+              and datetime = time_bucket('1h', %L::timestamptz)
         )
         select 
           bytea_to_hexstr(i.address) as investor_address,
-          p1.last_price as share_to_underlying_price,
-          p2.last_price as underlying_to_usd_price,
+          p1.avg_price as share_to_underlying_price,
+          p2.avg_price as underlying_to_usd_price,
           ts.last_balance as share_token_balance,
-          ts.last_balance * p1.last_price as underlying_balance,
-          p1.last_price * p2.last_price * ts.last_balance as usd_balance
+          ts.last_balance * p1.avg_price as underlying_balance,
+          p1.avg_price * p2.avg_price * ts.last_balance as usd_balance
         from investor_last_balance as ts,
           price_1_at_last_balance as p1,
           price_2_at_last_balance as p2,
@@ -122,16 +121,12 @@ export class BeefyVaultService {
       [
         product.productId,
         contractCreationDate.toISOString(),
-        filterDate.toISOString(),
+        blockDatetime.toISOString(),
         blockNumber,
         price_feed_1_id,
-        contractCreationDate.toISOString(),
-        filterDate.toISOString(),
-        blockNumber,
+        blockDatetime.toISOString(),
         price_feed_2_id,
-        contractCreationDate.toISOString(),
-        filterDate.toISOString(),
-        blockNumber,
+        blockDatetime.toISOString(),
       ],
       this.services.db,
     );

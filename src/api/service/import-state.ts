@@ -8,22 +8,22 @@ export class ImportStateService {
   async getImportStateByKey(importStateKey: string) {
     const cacheKey = `api:import-state:${importStateKey.toLocaleLowerCase()}`;
     const ttl = 1000 * 60 * 5; // 5 min ttl
-    return this.services.cache.wrap(cacheKey, ttl, async () => {
-      const res = await db_query_one<DbImportState>(
+    const res = await this.services.cache.wrap(cacheKey, ttl, async () =>
+      db_query_one<DbImportState>(
         `
-          SELECT 
-            import_key as "importKey",
-            import_data as "importData"
-          FROM import_state
-          WHERE import_key = %L
-          LIMIT 1`,
+        SELECT 
+          import_key as "importKey",
+          import_data as "importData"
+        FROM import_state
+        WHERE import_key = %L
+        LIMIT 1`,
         [importStateKey],
         this.services.db,
-      );
-      if (res !== null) {
-        hydrateImportStateRangesFromDb(res);
-      }
-      return res || null;
-    });
+      ),
+    );
+    if (res !== null) {
+      hydrateImportStateRangesFromDb(res);
+    }
+    return res || null;
   }
 }

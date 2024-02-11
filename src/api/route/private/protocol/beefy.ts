@@ -12,7 +12,16 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       params: S.object()
         .prop("chain", chainSchema.required().description("Only include products for this chain"))
         .prop("contract_address", addressSchema.required().description("The product contract address"))
-        .prop("block_number", S.number().required().description("The block number to fetch the balances at")),
+        .prop("block_number", S.number().required().description("The block number to fetch the balances at"))
+        .prop(
+          "block_datetime",
+          S.string()
+            .format("date-time")
+            .required()
+            .description(
+              "The block datetime, needs to be provided for performance reasons to narrow the search range of the investments and prices.",
+            ),
+        ),
       tags: ["beefy"],
       summary: "Fetch all investor balances for a specific product at a specific block",
       description: "This endpoint returns all investor balances for a specific product at a specific block",
@@ -20,19 +29,23 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
         200: BeefyVaultService.investorBalancesSchema,
       },
     };
-    type TRoute = { Params: { chain: Chain; contract_address: string; block_number: number } };
+    type TRoute = { Params: { chain: Chain; contract_address: string; block_number: number; block_datetime: string } };
 
-    instance.get<TRoute>("/product/:chain/:contract_address/balances_at/:block_number", merge({}, opts.routeOpts, { schema }), async (req, reply) => {
-      const { chain, contract_address } = req.params;
-      const product = await instance.diContainer.cradle.product.getProductByChainAndContractAddress(chain, contract_address);
+    instance.get<TRoute>(
+      "/product/:chain/:contract_address/balances_at/:block_number/:block_datetime",
+      merge({}, opts.routeOpts, { schema }),
+      async (req, reply) => {
+        const { chain, contract_address, block_number, block_datetime: block_datetime_str } = req.params;
+        const block_datetime = new Date(block_datetime_str);
+        const product = await instance.diContainer.cradle.product.getProductByChainAndContractAddress(chain, contract_address);
 
-      if (!product) {
-        return reply.code(404).send({ error: "Product not found" });
-      }
+        if (!product) {
+          return reply.code(404).send({ error: "Product not found" });
+        }
 
-      console.log(product);
-      const data = await instance.diContainer.cradle.beefyVault.getBalancesAtBlock(product, req.params.block_number);
-      return reply.send(data);
-    });
+        const data = await instance.diContainer.cradle.beefyVault.getBalancesAtBlock(product, block_number, block_datetime);
+        return reply.send(data);
+      },
+    );
   }
 }
