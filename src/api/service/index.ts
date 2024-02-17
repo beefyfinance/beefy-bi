@@ -15,6 +15,7 @@ import { ProductService } from "./product";
 import { BeefyPortfolioService } from "./protocol/beefy";
 import { BeefyApiService } from "./protocol/beefy-api";
 import { BeefyVaultService } from "./protocol/beefy-vault";
+import { RpcService } from "./rpc";
 
 const AbstractCache: any = require("abstract-cache"); // todo: add or install types
 
@@ -30,6 +31,7 @@ declare module "@fastify/awilix" {
     beefyApi: BeefyApiService;
     beefyVault: BeefyVaultService;
     abCache: AbstractCacheCompliantObject;
+    rpc: RpcService;
     cache: AsyncCache;
     redis: Redis;
   }
@@ -72,6 +74,7 @@ export async function registerDI(instance: FastifyInstance) {
     price: asClass(PriceService, { lifetime: Lifetime.SINGLETON }),
     block: asClass(BlockService, { lifetime: Lifetime.SINGLETON }),
     importState: asClass(ImportStateService, { lifetime: Lifetime.SINGLETON }),
+    rpc: asClass(RpcService, { lifetime: Lifetime.SINGLETON }),
     cache: asValue(cache),
     abCache: asValue(abCache),
     redis: asValue(redisClient),

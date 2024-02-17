@@ -6,11 +6,12 @@ import { rootLogger } from "../../../utils/logger";
 import { BlockService } from "../block";
 import { ImportStateService } from "../import-state";
 import { ProductService } from "../product";
+import { RpcService } from "../rpc";
 
 const logger = rootLogger.child({ module: "api-service", component: "beefy-vault" });
 
 export class BeefyVaultService {
-  constructor(private services: { db: DbClient; product: ProductService; importState: ImportStateService; block: BlockService }) {}
+  constructor(private services: { db: DbClient; product: ProductService; importState: ImportStateService; block: BlockService; rpc: RpcService }) {}
 
   public static investorBalanceSchemaComponents = {
     InvestorBalanceRow: {
@@ -49,10 +50,10 @@ export class BeefyVaultService {
     items: { $ref: "InvestorBalanceRow" },
   };
 
-  async getBalancesAtBlock(product: DbProduct, blockNumber: number, blockDatetime: Date) {
+  async getBalancesAtBlock(product: DbProduct, blockNumber: number, blockDatetime: Date | null) {
     const res = await this.services.product.getSingleProductPriceFeedIds(product.productId);
     if (res === null) {
-      return [];
+      throw new Error("Product not found");
     }
     const { price_feed_1_id, price_feed_2_id } = res;
 
@@ -60,14 +61,20 @@ export class BeefyVaultService {
     const importStateKey = getInvestmentsImportStateKey(product);
     const importState = await this.services.importState.getImportStateByKey(importStateKey);
     if (importState === null) {
-      return [];
+      throw new Error("Import state not found");
     }
     if (!isProductInvestmentImportState(importState)) {
-      return [];
+      throw new Error("Import state is not for product investments");
     }
     logger.debug({ importState }, "import state");
 
+    if (importState.importData.chainLatestBlockNumber < blockNumber) {
+      throw new Error("This block is not yet indexed. Please try again later. Last indexed block: " + importState.importData.chainLatestBlockNumber);
+    }
+
     const contractCreationDate = importState.importData.contractCreationDate;
+
+    const block_datetime = blockDatetime ?? (await this.services.rpc.getBlockDatetime(product.chain, blockNumber));
 
     return db_query<{
       investor_address: string;
@@ -121,12 +128,12 @@ export class BeefyVaultService {
       [
         product.productId,
         contractCreationDate.toISOString(),
-        blockDatetime.toISOString(),
+        block_datetime.toISOString(),
         blockNumber,
         price_feed_1_id,
-        blockDatetime.toISOString(),
+        block_datetime.toISOString(),
         price_feed_2_id,
-        blockDatetime.toISOString(),
+        block_datetime.toISOString(),
       ],
       this.services.db,
     );

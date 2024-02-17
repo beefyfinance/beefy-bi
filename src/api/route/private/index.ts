@@ -53,7 +53,7 @@ export default async function (instance: FastifyInstance) {
     })
     .register(fastifySwaggerUi, {
       uiConfig: {
-        docExpansion: "full",
+        docExpansion: "list",
         deepLinking: false,
       },
       staticCSP: API_DISABLE_HTTPS ? false : true,
