@@ -68,9 +68,20 @@ export class BeefyVaultService {
     }
     logger.debug({ importState }, "import state");
 
+    if (importState.importData.contractCreatedAtBlock > blockNumber) {
+      throw new Error("This block is before the contract creation.");
+    }
+
     if (importState.importData.chainLatestBlockNumber < blockNumber) {
       throw new Error("This block is not yet indexed. Please try again later. Last indexed block: " + importState.importData.chainLatestBlockNumber);
     }
+
+    // ensure all the blocks are indexed
+    importState.importData.ranges.toRetry.forEach((range) => {
+      if (range.from < blockNumber) {
+        throw new Error("Some previous block was not indexed. Please try again later.");
+      }
+    });
 
     const contractCreationDate = importState.importData.contractCreationDate;
 
