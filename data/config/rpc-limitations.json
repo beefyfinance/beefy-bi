@@ -625,6 +625,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -633,6 +634,66 @@
         "eth_getBlockByNumber": 300,
         "eth_blockNumber": 300,
         "eth_getTransactionReceipt": 232
+      }
+    },
+    "https://rpc.fantom.network": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    },
+    "https://rpc2.fantom.network": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 4,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    },
+    "https://rpc.ftm.tools": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
@@ -1092,6 +1153,26 @@
         "eth_getBlockByNumber": 50,
         "eth_blockNumber": 50,
         "eth_getTransactionReceipt": 50
+      }
+    },
+    "https://rpc.tornadoeth.cash/polygon": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
       }
     }
   },
