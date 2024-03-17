@@ -59,6 +59,46 @@
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
       }
+    },
+    "https://rpc.arb1.arbitrum.gateway.fm": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 10
+      }
+    },
+    "https://rpc.tornadoeth.cash/arbitrum": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 10
+      }
     }
   },
   "aurora": {
