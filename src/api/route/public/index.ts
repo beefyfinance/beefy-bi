@@ -8,6 +8,7 @@ import { allChainIds } from "../../../types/chain";
 import { ProductService } from "../../service/product";
 import { BeefyPortfolioService } from "../../service/protocol/beefy";
 import importStateRoutes from "./import-state";
+import partnerRoutes from "./partner/linea";
 import pricesRoutes from "./prices";
 import beefyRoutes from "./protocol/beefy";
 
@@ -45,5 +46,6 @@ export default async function (instance: FastifyInstance) {
     })
     .register(beefyRoutes, { prefix: "/beefy" })
     .register(pricesRoutes, { prefix: "/price" })
-    .register(importStateRoutes, { prefix: "/import-state" });
+    .register(importStateRoutes, { prefix: "/import-state" })
+    .register(partnerRoutes, { prefix: "/partner" });
 }

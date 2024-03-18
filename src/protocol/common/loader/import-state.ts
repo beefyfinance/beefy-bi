@@ -90,6 +90,7 @@ export type DbBlockNumberRangeImportState =
   | DbProductStatisticsImportState;
 export type DbDateRangeImportState = DbOraclePriceImportState;
 export type DbImportState = DbBlockNumberRangeImportState | DbDateRangeImportState;
+export type ImportStateTypes = DbImportState["importData"]["type"];
 
 export function isProductInvestmentImportState(o: DbImportState): o is DbProductInvestmentImportState {
   return o.importData.type === "product:investment";
