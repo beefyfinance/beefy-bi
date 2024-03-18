@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import S from "fluent-json-schema";
 import { merge } from "lodash";
+import { BeefyVaultService } from "../../../service/protocol/beefy-vault";
 
 export default async function (instance: FastifyInstance, opts: FastifyPluginOptions) {
   {
@@ -13,7 +14,7 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       summary: "Linea investor balances at block",
       description: "Fetches All Investor Balances for all Linea Products at a Specific Block.",
       response: {
-        200: { content: { "text/csv": {} } },
+        200: BeefyVaultService.lineaBalancesSchema,
       },
     };
     type TRoute = {
@@ -32,8 +33,6 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       const block_datetime = block_datetime_str ? new Date(block_datetime_str) : block_timestamp ? new Date(block_timestamp * 1000) : null;
 
       const data = await instance.diContainer.cradle.beefyVault.getLineaAllInvestorBalancesAtBlock(block_number, block_datetime);
-
-      reply.header("Content-Type", "text/csv");
       return reply.send(data);
     });
   }

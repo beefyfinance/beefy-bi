@@ -7,6 +7,7 @@ import { merge } from "lodash";
 import { allChainIds } from "../../../types/chain";
 import { ProductService } from "../../service/product";
 import { BeefyPortfolioService } from "../../service/protocol/beefy";
+import { BeefyVaultService } from "../../service/protocol/beefy-vault";
 import importStateRoutes from "./import-state";
 import partnerRoutes from "./partner/linea";
 import pricesRoutes from "./prices";
@@ -20,6 +21,7 @@ export default async function (instance: FastifyInstance) {
     ProductService.schemaComponents,
     BeefyPortfolioService.timelineSchemaComponents,
     BeefyPortfolioService.investorCountsSchemaComponents,
+    BeefyVaultService.lineaBalanceSchemaComponents,
   );
 
   for (const component of Object.values(mergedComponents)) {

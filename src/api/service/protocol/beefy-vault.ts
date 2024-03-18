@@ -1,7 +1,7 @@
 import { getInvestmentsImportStateKey } from "../../../protocol/beefy/utils/import-state";
 import { isProductInvestmentImportState } from "../../../protocol/common/loader/import-state";
 import { DbProduct } from "../../../protocol/common/loader/product";
-import { DbClient, db_query, db_query_one } from "../../../utils/db";
+import { DbClient, db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { BlockService } from "../block";
 import { ImportStateService } from "../import-state";
@@ -150,6 +150,46 @@ export class BeefyVaultService {
     );
   }
 
+  public static lineaBalanceSchemaComponents = {
+    LineaInvestorBalanceRow: {
+      $id: "LineaInvestorBalanceRow",
+      type: "object",
+      properties: {
+        beefy_vault_id: { type: "string", description: "The beefy vault id", example: "lynex-wsteth-weth" },
+        beefy_vault_address: { type: "string", description: "The beefy vault address", example: "0x1234567890123456789012345678901234567890" },
+        want_address: { type: "string", description: "The underlying LP token address", example: "0x1234567890123456789012345678901234567890" },
+        investor_address: { type: "string", description: "The investor address", example: "0x1234567890123456789012345678901234567890" },
+        share_to_underlying_price: {
+          type: "number",
+          description: "Exchange rate between share token and underlying token. Almost PPFS but not quite.",
+        },
+        underlying_to_usd_price: {
+          type: "number",
+          description: "LP token price in USD",
+        },
+        share_token_balance: {
+          type: "number",
+          description: "The investor share token balance",
+        },
+        underlying_balance: {
+          type: "number",
+          description: "The investor underlying token balance",
+        },
+        usd_balance: {
+          type: "number",
+          description: "The investor USD balance",
+        },
+      },
+      required: ["investor_address", "share_token_balance"],
+    },
+  };
+
+  public static lineaBalancesSchema = {
+    description: "The investor balances",
+    type: "array",
+    items: { $ref: "LineaInvestorBalanceRow" },
+  };
+
   /**
    * specific for the linea chain
    */
@@ -170,9 +210,18 @@ export class BeefyVaultService {
 
     const block_datetime = blockDatetime ?? (await this.services.rpc.getBlockDatetime("linea", blockNumber));
 
-    return db_query_one<string>(
+    return db_query<{
+      beefy_vault_id: string;
+      beefy_vault_address: string;
+      want_address: string;
+      investor_address: string;
+      share_to_underlying_price: number | null;
+      underlying_to_usd_price: number | null;
+      share_token_balance: number;
+      underlying_balance: number | null;
+      usd_balance: number | null;
+    }>(
       `
-      COPY (
         with product_scope as (
           select product_id, price_feed_1_id, price_feed_2_id
           from product
@@ -214,7 +263,7 @@ export class BeefyVaultService {
         select 
           p.product_data->'vault'->>'id' as beefy_vault_id,
           p.product_data->'vault'->>'contract_address' as beefy_vault_address,
-          p.product_data->'vault'->>'want_address' as pool_address,
+          p.product_data->'vault'->>'want_address' as want_address,
           bytea_to_hexstr(i.address) as investor_address,
           p1.avg_price as share_to_underlying_price,
           p2.avg_price as underlying_to_usd_price,
@@ -227,7 +276,6 @@ export class BeefyVaultService {
         join price_2_at_last_balance as p2 on ps.price_feed_2_id = p2.price_feed_id
         join investor as i on ts.investor_id = i.investor_id
         join product as p on ts.product_id = p.product_id
-    ) TO STDOUT DELIMITER ',' CSV HEADER;
         `,
       [block_datetime.toISOString(), blockNumber, block_datetime.toISOString(), block_datetime.toISOString()],
       this.services.db,
