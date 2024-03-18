@@ -32,6 +32,8 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
       const block_datetime = block_datetime_str ? new Date(block_datetime_str) : block_timestamp ? new Date(block_timestamp * 1000) : null;
 
       const data = await instance.diContainer.cradle.beefyVault.getLineaAllInvestorBalancesAtBlock(block_number, block_datetime);
+
+      reply.header("Content-Type", "text/csv");
       return reply.send(data);
     });
   }

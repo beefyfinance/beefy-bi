@@ -1,7 +1,7 @@
 import { getInvestmentsImportStateKey } from "../../../protocol/beefy/utils/import-state";
 import { isProductInvestmentImportState } from "../../../protocol/common/loader/import-state";
 import { DbProduct } from "../../../protocol/common/loader/product";
-import { DbClient, db_query } from "../../../utils/db";
+import { DbClient, db_query, db_query_one } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
 import { BlockService } from "../block";
 import { ImportStateService } from "../import-state";
@@ -170,7 +170,7 @@ export class BeefyVaultService {
 
     const block_datetime = blockDatetime ?? (await this.services.rpc.getBlockDatetime("linea", blockNumber));
 
-    return db_query<string>(
+    return db_query_one<string>(
       `
       COPY (
         with product_scope as (
