@@ -9,7 +9,8 @@ import { ProductService } from "../../service/product";
 import { BeefyPortfolioService } from "../../service/protocol/beefy";
 import { BeefyVaultService } from "../../service/protocol/beefy-vault";
 import importStateRoutes from "./import-state";
-import partnerRoutes from "./partner/linea";
+import lineaRoutes from "./partner/linea";
+import pointsRoutes from "./partner/points";
 import pricesRoutes from "./prices";
 import beefyRoutes from "./protocol/beefy";
 
@@ -22,6 +23,7 @@ export default async function (instance: FastifyInstance) {
     BeefyPortfolioService.timelineSchemaComponents,
     BeefyPortfolioService.investorCountsSchemaComponents,
     BeefyVaultService.lineaBalanceSchemaComponents,
+    BeefyVaultService.pointsBalanceSchemaComponents,
   );
 
   for (const component of Object.values(mergedComponents)) {
@@ -49,5 +51,6 @@ export default async function (instance: FastifyInstance) {
     .register(beefyRoutes, { prefix: "/beefy" })
     .register(pricesRoutes, { prefix: "/price" })
     .register(importStateRoutes, { prefix: "/import-state" })
-    .register(partnerRoutes, { prefix: "/partner" });
+    .register(lineaRoutes, { prefix: "/partner/linea" })
+    .register(pointsRoutes, { prefix: "/points" });
 }

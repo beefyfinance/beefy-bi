@@ -334,4 +334,23 @@ export class ProductService {
       ),
     );
   }
+
+  async getProductsEarningPoints(includeEol = false) {
+    const cacheKey = `api:product-service:all-products-earning-points:include-eol-${includeEol}`;
+    const ttl = 1000 * 60 * 60 * 24 * 1; // 1 day
+    return this.services.cache.wrap(cacheKey, ttl, async () =>
+      db_query<DbProduct>(
+        `SELECT 
+          product_id as "productId",
+          product_key as "productKey",
+          chain, 
+          product_data as "productData" 
+        FROM product
+        WHERE (product_data->>'dashboardEol') in (%L)
+        AND (p.product_data->'vault'->>'earning_eigenlayer_points') = 'true'`,
+        [includeEol ? ["true", "false"] : ["false"]],
+        this.services.db,
+      ),
+    );
+  }
 }
