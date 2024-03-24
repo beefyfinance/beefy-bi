@@ -345,8 +345,8 @@ export class ProductService {
           product_key as "productKey",
           chain, 
           product_data as "productData" 
-        FROM product
-        WHERE (product_data->>'dashboardEol') in (%L)
+        FROM product p
+        WHERE (p.product_data->>'dashboardEol') in (%L)
         AND (p.product_data->'vault'->>'earning_eigenlayer_points') = 'true'`,
         [includeEol ? ["true", "false"] : ["false"]],
         this.services.db,
