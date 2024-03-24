@@ -26,6 +26,8 @@ interface RawBeefyVault {
   status?: string;
   assets?: string[];
   bridged?: Record<Chain, string>; // { "optimism": "0xc55E93C62874D8100dBd2DfE307EDc1036ad5434" },
+  earningPoints?: boolean;
+  platformId?: string;
 }
 
 interface BeefyBaseVaultConfig {
@@ -42,6 +44,7 @@ interface BeefyBaseVaultConfig {
   protocol_product: string;
   assets: string[];
   want_price_feed_key: string;
+  platform_id?: string;
 }
 
 export interface BeefyGovVaultConfig extends BeefyBaseVaultConfig {
@@ -58,6 +61,7 @@ export interface BeefyStdVaultConfig extends BeefyBaseVaultConfig {
   gov_vault_reward_token_symbol: null;
   gov_vault_reward_token_address: null;
   gov_vault_reward_token_decimals: null;
+  earning_eigenlayer_points: boolean;
 }
 
 export interface BeefyBridgedVersionOfStdVault extends BeefyBaseVaultConfig {
@@ -306,6 +310,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
       protocol_product,
       want_price_feed_key: rawVault.oracleId,
       bridged_version_of: null,
+      platform_id: rawVault.platformId,
       ...(rawVault.isGovVault || rawVault.type === "gov"
         ? {
             is_gov_vault: true,
@@ -318,6 +323,7 @@ function rawVaultToBeefyVault(chain: Chain, rawVault: RawBeefyVault, eolDate: Da
             gov_vault_reward_token_symbol: null,
             gov_vault_reward_token_address: null,
             gov_vault_reward_token_decimals: null,
+            earning_eigenlayer_points: rawVault?.earningPoints === true,
           }),
     };
   } catch (error) {
