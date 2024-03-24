@@ -386,7 +386,7 @@ export class BeefyVaultService {
         with product_scope as (
           select product_id, price_feed_1_id, price_feed_2_id
           from product
-          where product_id in %L
+          where product_id in (%L)
         ),
         investor_last_balance as (
           select investor_id, product_id, last(balance, datetime) as last_balance
