@@ -10,6 +10,7 @@ export type Chain =
   | "emerald"
   | "ethereum"
   | "fantom"
+  | "fraxtal"
   | "fuse"
   | "gnosis"
   | "harmony"
@@ -39,6 +40,7 @@ export const allChainIds: Chain[] = [
   "emerald",
   "ethereum",
   "fantom",
+  "fraxtal",
   "fuse",
   "gnosis",
   "harmony",

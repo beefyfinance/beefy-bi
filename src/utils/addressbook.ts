@@ -16,9 +16,9 @@ function getAddressBookTokensConfig(chain: Chain) {
   if (addrBookChain in addressbook.addressBook) {
     // @ts-ignore
     return addressbook.addressBook[addrBookChain].tokens;
-  } else if (chain === "linea") {
+  } else if (chain === "fraxtal") {
     return {
-      WNATIVE: { address: "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f" },
+      WNATIVE: { address: "0xFC00000000000000000000000000000000000006" },
     };
   } else if (chain === "scroll") {
     return {
@@ -38,8 +38,8 @@ export function getChainNetworkId(chain: Chain): number {
   if (addrBookChain in addressbook.ChainId) {
     // @ts-ignore
     return addressbook.ChainId[addrBookChain];
-  } else if (chain === "linea") {
-    return 59144;
+  } else if (chain === "fraxtal") {
+    return 252;
   } else if (chain === "scroll") {
     return 534352;
   } else if (chain === "rollux") {
@@ -49,11 +49,17 @@ export function getChainNetworkId(chain: Chain): number {
 }
 
 export function getChainWNativeTokenAddress(chain: Chain): string {
+  if (chain === "fraxtal") {
+    return "0xFC00000000000000000000000000000000000006";
+  }
   const tokens = getAddressBookTokensConfig(chain);
   return normalizeAddressOrThrow(tokens.WNATIVE.address);
 }
 
 export function getChainWNativeTokenSymbol(chain: Chain): string {
+  if (chain === "fraxtal") {
+    return "wfrxETH";
+  }
   const tokens = getAddressBookTokensConfig(chain);
   return tokens.WNATIVE.symbol;
 }

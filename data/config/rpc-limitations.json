@@ -1366,5 +1366,27 @@
         "eth_getTransactionReceipt": 10
       }
     }
+  },
+  "fraxtal": {
+    "https://rpc.frax.com": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 100,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
+      }
+    }
   }
 }

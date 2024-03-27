@@ -181,6 +181,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       emerald: 7881,
       ethereum: 4719568,
       fantom: 640717,
+      fraxtal: 1, // wfrxETH created on genesis block
       fuse: 7216440,
       gnosis: 11173937,
       harmony: 5481181,
