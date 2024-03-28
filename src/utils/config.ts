@@ -74,7 +74,7 @@ export const EXPLORER_URLS: {
   harmony: { type: "harmony", url: "https://explorer.harmony.one/" },
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
   kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
-  linea: { type: "blockscout-json", url: "https://explorer.linea.build" },
+  linea: { type: "etherscan", url: "https://api.lineascan.build/api" },
   mantle: { type: "etherscan", url: "https://explorer.mantle.xyz/api" },
   metis: { type: "blockscout", url: "https://andromeda-explorer.metis.io/" },
   moonbeam: { type: "etherscan", url: "https://api-moonbeam.moonscan.io/api" },
