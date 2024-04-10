@@ -21,7 +21,7 @@ interface RawBeefyVault {
   earnContractAddress: string;
   earnedToken: string;
   isGovVault?: boolean;
-  type?: "gov" | "standard";
+  type?: "gov" | "standard" | "cowcentrated";
   oracleId: string;
   status?: string;
   assets?: string[];
@@ -232,6 +232,9 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       // just emit the vault
       Rx.map(({ vault, eolDate }) => ({ vault: rawVaultToBeefyVault(chain, vault, eolDate), rawVault: vault })),
     ),
+
+    // ignore cowcentrated vaults, those are covered by thegraph
+    Rx.filter(({ rawVault }) => rawVault.type !== "cowcentrated"),
 
     // add a virtual product of the bridged version of the vault
     Rx.map(({ vault, rawVault }) => {
