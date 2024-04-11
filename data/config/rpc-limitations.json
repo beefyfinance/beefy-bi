@@ -678,7 +678,7 @@
     },
     "https://rpc.ftm.tools": {
       "restrictToMode": null,
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 3000,
       "maxGetLogsAddressBatchSize": 500,
