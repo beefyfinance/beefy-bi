@@ -55,7 +55,7 @@ export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null
 export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
 
 export const EXPLORER_URLS: {
-  [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "harmony" | "routescan" | "zksync"; url: string };
+  [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync"; url: string };
 } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
@@ -75,8 +75,8 @@ export const EXPLORER_URLS: {
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
   kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
   linea: { type: "etherscan", url: "https://api.lineascan.build/api" },
-  mantle: { type: "etherscan", url: "https://explorer.mantle.xyz/api" },
-  metis: { type: "blockscout", url: "https://andromeda-explorer.metis.io/" },
+  mantle: { type: "blockscout-api-v2", url: "https://explorer.mantle.xyz/api/v2" },
+  metis: { type: "blockscout-json", url: "https://andromeda-explorer.metis.io/" },
   moonbeam: { type: "etherscan", url: "https://api-moonbeam.moonscan.io/api" },
   moonriver: { type: "etherscan", url: "https://api-moonriver.moonscan.io/api" },
   optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },

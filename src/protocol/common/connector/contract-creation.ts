@@ -62,6 +62,12 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await getBlockScoutJSONAPICreationInfo(ctx, contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "blockscout-api-v2") {
+    logger.trace({
+      msg: "BlockScout explorer detected for this chain, proceeding to scrape",
+      data: { contractAddress, chain },
+    });
+    return await blockscoutApiV2(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "routescan") {
     return await getRouteScanAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
@@ -243,6 +249,58 @@ async function getBlockScoutJSONAPICreationInfo(ctx: ImportCtx, contractAddress:
     const datetime = new Date(Date.parse(rawDateStr));
 
     logger.trace({ msg: "Fetched contract creation block", data: { chain, contractAddress, blockNumber, datetime } });
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function blockscoutApiV2(contractAddress: string, explorerUrl: string, chain: Chain) {
+  try {
+    // https://explorer.mantle.xyz/api/v2/addresses/0x784A2843984EDcC4740648dC91E5C7444254a397
+    // { ..., "creation_tx_hash": "0xa4b6d76d1d04f63e7f43c29b0885c9361af4ca3bda07f155e3f0ef8e78afa19f" }
+    // then
+    // https://explorer.mantle.xyz/api/v2/transactions/0xa4b6d76d1d04f63e7f43c29b0885c9361af4ca3bda07f155e3f0ef8e78afa19f
+    // { ..., "timestamp": "2024-04-09T13:54:50.000000Z", "block": 62270289 }
+
+    const addressUrl = new URL(explorerUrl);
+    addressUrl.pathname = `/api/v2/addresses/${contractAddress}`;
+    logger.trace({ msg: "Fetching contract details", data: { contractAddress, explorerUrl: addressUrl.href } });
+    const addressResp = await axios.get<{ creation_tx_hash: string }>(addressUrl.href);
+    const creationTxHash = addressResp.data?.creation_tx_hash;
+    if (!creationTxHash) {
+      logger.error({
+        msg: "Could not find a valid transaction hash",
+        data: { contractAddress, explorerUrl: addressUrl.href, data: addressResp.data },
+      });
+      throw new Error("Could not find a valid transaction hash");
+    }
+
+    // sleep a bit to avoid rate limiting
+    await sleep(3000);
+
+    const txUrl = new URL(explorerUrl);
+    txUrl.pathname = `/api/v2/transactions/${creationTxHash}`;
+    logger.trace({ msg: "Fetching transaction details", data: { contractAddress, explorerUrl: txUrl.href } });
+    const txResp = await axios.get<{ timestamp: string; block: number }>(txUrl.href);
+    const blockNumber = txResp.data?.block;
+    const timeStamp = txResp.data?.timestamp;
+    if (!blockNumber || !timeStamp) {
+      logger.error({
+        msg: "Could not find a valid block number or timestamp",
+        data: { contractAddress, explorerUrl: txUrl.href, data: txResp.data },
+      });
+      throw new Error("Could not find a valid block number or timestamp");
+    }
+
+    const datetime = new Date(timeStamp);
+    if (isNaN(datetime.getTime())) {
+      logger.error({ msg: "Could not parse timestamp", data: { contractAddress, explorerUrl: txUrl.href, data: txResp.data } });
+      throw new Error("Could not parse timestamp");
+    }
+
     return { blockNumber, datetime };
   } catch (error) {
     logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
