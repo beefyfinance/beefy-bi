@@ -1,11 +1,11 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { isArray, isString } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { samplingPeriodMs } from "../../../types/sampling";
 import { sleep } from "../../../utils/async";
-import { EXPLORER_URLS } from "../../../utils/config";
+import { ETHERSCAN_API_KEY, EXPLORER_URLS } from "../../../utils/config";
 import { MultiChainEtherscanProvider } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -82,7 +82,7 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
     if (!etherscanConfig) {
       throw new ProgrammerError("Etherscan is not configured for this chain");
     }
-    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url), {
+    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]), {
       chain,
       logInfos: { msg: "Fetching contract creation block", data: { contractAddress, chain } },
       maxTotalRetryMs: 10_000,
@@ -91,7 +91,7 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       noLockIfNoLimit: true, // etherscan have a rate limit so this has no effect
     });
   } else if (explorerType === "etherscan") {
-    return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url);
+    return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]);
   } else if (explorerType === "zksync") {
     return await getFromZksyncExplorerApi(contractAddress, EXPLORER_URLS[chain].url);
   } else {
@@ -133,8 +133,8 @@ async function getRouteScanAPICreationInfo(contractAddress: string, explorerUrl:
   }
 }
 
-async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string) {
-  const params = {
+async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string, apiKey: string | null = null) {
+  const rawParams = {
     module: "account",
     action: "txlist",
     address: contractAddress,
@@ -145,10 +145,16 @@ async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl
     sort: "asc",
     limit: 1,
   };
+  const params = apiKey ? { ...rawParams, apiKey } : rawParams;
   logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, explorerUrl, params } });
 
   try {
-    const resp = await axios.get(explorerUrl, { params });
+    const resp = await axios.get(explorerUrl, {
+      params,
+      headers: {
+        "User-Agent": "Mozilla/5.0", // basescan only works when the user agent is set
+      },
+    });
 
     if (!isArray(resp.data.result) || resp.data.result.length === 0) {
       logger.error({ msg: "No contract creation transaction found", data: { contractAddress, explorerUrl, params, data: resp.data } });
