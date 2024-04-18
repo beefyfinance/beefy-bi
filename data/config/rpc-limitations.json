@@ -103,7 +103,7 @@
     "https://multi-icy-spree.arbitrum-mainnet.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -111,7 +111,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 2,
+      "weight": 5,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 20,
