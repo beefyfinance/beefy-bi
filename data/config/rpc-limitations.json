@@ -717,9 +717,9 @@
       }
     },
     "https://wandering-quiet-diamond.fantom.quiknode.pro/<RPC_API_KEY_QUIKNODE_2>": {
-      "restrictToMode": null,
+      "restrictToMode": "historical",
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 300,
       "maxGetLogsBlockSpan": 5000,
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
@@ -730,7 +730,7 @@
       "weight": 5,
       "methods": {
         "eth_getLogs": 10,
-        "eth_call": 10,
+        "eth_call": 20,
         "eth_getBlockByNumber": null,
         "eth_blockNumber": 10,
         "eth_getTransactionReceipt": 5
