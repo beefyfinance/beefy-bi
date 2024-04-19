@@ -56,7 +56,11 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes(".infura.io/v3")) {
     publicRpcUrl += "/v3/<RPC_API_KEY_INFURA>";
   } else if (secretRpcUrl.includes(".quiknode.pro")) {
-    publicRpcUrl += "/<RPC_API_KEY_QUIKNODE>";
+    if (secretRpcUrl.includes("fantom")) {
+      publicRpcUrl += "/<RPC_API_KEY_QUIKNODE_2>";
+    } else {
+      publicRpcUrl += "/<RPC_API_KEY_QUIKNODE>";
+    }
   } else if (secretRpcUrl.includes("llamarpc.com")) {
     publicRpcUrl += "/rpc/<RPC_API_KEY_LLAMARPC>";
   } else if (secretRpcUrl.includes("kava") && secretRpcUrl.includes("beefy")) {
