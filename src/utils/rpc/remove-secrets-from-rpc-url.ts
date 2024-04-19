@@ -12,6 +12,7 @@ import {
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_QUIKNODE,
+  RPC_API_KEY_QUIKNODE_2,
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
   RPC_API_URL_KAVA_BEEFY,
@@ -100,6 +101,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_OPTIMISM", RPC_API_KEY_ALCHEMY_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_ARBITRUM", RPC_API_KEY_ALCHEMY_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE_2", RPC_API_KEY_QUIKNODE_2);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE", RPC_API_KEY_QUIKNODE);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_CHAINSTACK_CRONOS", RPC_API_URL_CHAINSTACK_CRONOS);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
