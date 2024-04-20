@@ -60,7 +60,7 @@ export const EXPLORER_URLS: {
 } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
-  avax: { type: "routescan", url: "https://api.routescan.io" },
+  avax: { type: "etherscan", url: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api" },
   base: { type: "etherscan", url: "https://api.basescan.org/api" },
   bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
   canto: { type: "blockscout-json", url: "https://tuber.build" },
