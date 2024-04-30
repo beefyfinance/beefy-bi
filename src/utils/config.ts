@@ -26,6 +26,7 @@ export const API_PRIVATE_TOKENS = process.env.API_PRIVATE_TOKEN?.split(" ") || [
 export const API_FRONTEND_URL = process.env.APP_FRONTEND_URL ? new RegExp(process.env.APP_FRONTEND_URL) : "http://localhost:3001";
 export const APP_PR_BUILDS_URL = process.env.APP_PR_BUILDS_URL ? new RegExp(process.env.APP_PR_BUILDS_URL) : "http://localhost:3000";
 export const APP_LOCAL_BUILDS_URL = process.env.APP_LOCAL_BUILDS_URL ? new RegExp(process.env.APP_LOCAL_BUILDS_URL) : "http://localhost:3001";
+export const APP_GALXE_URL = process.env.APP_GALXE_URL ? new RegExp(process.env.APP_GALXE_URL) : "http://localhost:3001";
 
 export const TIMESCALEDB_URL = process.env.TIMESCALEDB_URL || "psql://beefy:beefy@localhost:5432/beefy";
 
