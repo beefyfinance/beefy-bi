@@ -44,7 +44,7 @@ export async function buildPublicApi(options: ServerOptions = optionsDefaults) {
     .register(FastifyPostgres, { connectionString: TIMESCALEDB_URL, application_name: "api" })
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
-    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
+    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL, APP_GALXE_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     .register(FastifyCaching, {
       privacy: FastifyCaching.privacy.PUBLIC,
@@ -80,7 +80,7 @@ export async function buildPrivateApi(options: ServerOptions = optionsDefaults) 
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
     // cors and just helmet just in case these are ever exposed
-    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL, APP_GALXE_URL] })
+    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     // generous rate limit for private endpoints
     .register(FastifyRateLimit, {
