@@ -6,7 +6,7 @@ import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit, { RateLimitPluginOptions } from "@fastify/rate-limit";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify, { FastifyInstance } from "fastify";
-import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
+import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_URL, APP_GALXE_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import privateRoutes from "./route/private";
 import publicRoutes from "./route/public";
@@ -80,7 +80,7 @@ export async function buildPrivateApi(options: ServerOptions = optionsDefaults) 
     .register(FastifyDI.fastifyAwilixPlugin)
     .register(FastifyUnderPressure)
     // cors and just helmet just in case these are ever exposed
-    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL] })
+    .register(FastifyCors, { origin: [API_URL, API_FRONTEND_URL, APP_PR_BUILDS_URL, APP_LOCAL_BUILDS_URL, APP_GALXE_URL] })
     .register(FastifyHelmet, { contentSecurityPolicy: API_DISABLE_HTTPS ? false : true })
     // generous rate limit for private endpoints
     .register(FastifyRateLimit, {
