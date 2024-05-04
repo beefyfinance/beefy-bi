@@ -1,6 +1,6 @@
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
-import { SamplingPeriod } from "../../../types/sampling";
+import { SamplingPeriod, allSamplingPeriods } from "../../../types/sampling";
 import { DbClient } from "../../../utils/db";
 import { LogInfos } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -139,7 +139,11 @@ export const defaultImportBehaviour: ImportBehaviour = {
     price: process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES, 10) : 1000,
   },
   minDelayBetweenExplorerCalls: "10sec",
-  beefyPriceDataQueryRange: "3months",
+  beefyPriceDataQueryRange:
+    process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE &&
+    allSamplingPeriods.includes(process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
+      ? (process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
+      : "3months",
 };
 
 export interface BatchStreamConfig {
