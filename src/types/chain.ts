@@ -19,6 +19,7 @@ export type Chain =
   | "linea"
   | "mantle"
   | "metis"
+  | "mode"
   | "moonbeam"
   | "moonriver"
   | "optimism"
@@ -49,6 +50,7 @@ export const allChainIds: Chain[] = [
   "linea",
   "mantle",
   "metis",
+  "mode",
   "moonbeam",
   "moonriver",
   "optimism",
