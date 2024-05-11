@@ -1428,5 +1428,27 @@
         "eth_getTransactionReceipt": 100
       }
     }
+  },
+  "mode": {
+    "https://mainnet.mode.network": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 500,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 20,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 50,
+        "eth_getTransactionReceipt": 10
+      }
+    }
   }
 }
