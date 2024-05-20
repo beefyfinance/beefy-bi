@@ -165,7 +165,7 @@
     "<RPC_API_URL_QUIKNODE_AVAX>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -173,6 +173,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": null,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 20,
@@ -206,7 +207,7 @@
     "<RPC_API_URL_QUIKNODE_BASE>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -214,6 +215,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
+      "weight": null,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 20,
@@ -842,7 +844,7 @@
     "<RPC_API_URL_QUIKNODE_GNOSIS>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -1032,7 +1034,7 @@
     "<RPC_API_URL_QUIKNODE_MANTLE>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -1362,7 +1364,7 @@
     "<RPC_API_URL_QUIKNODE_POLYGON>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -1489,7 +1491,7 @@
     "<RPC_API_URL_QUIKNODE_ZKSYNC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -1551,7 +1553,7 @@
     "<RPC_API_URL_QUIKNODE_ZKEVM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
+      "minDelayBetweenCalls": 500,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
