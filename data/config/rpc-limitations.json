@@ -103,7 +103,7 @@
     "<RPC_API_URL_QUIKNODE_ARBITRUM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
