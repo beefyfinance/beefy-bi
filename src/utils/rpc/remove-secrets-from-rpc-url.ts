@@ -27,14 +27,19 @@ import {
 import { ProgrammerError } from "../programmer-error";
 
 export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): string {
-  const urlObj = new URL(secretRpcUrl);
+  let publicRpcUrl = "";
+  let pathParts: string[] = [];
 
-  // clean user and password from domain
-  let publicRpcUrl = urlObj.protocol + "//" + urlObj.hostname + (urlObj.port.length ? ":" + urlObj.port : "");
+  if (secretRpcUrl.startsWith("http")) {
+    const urlObj = new URL(secretRpcUrl);
 
-  // cleanup url params
-  let cleanedPath = urlObj.pathname.trim().replace(/^\//, "").replace(/\/$/, "");
-  const pathParts = cleanedPath.split("/").filter((part) => part.length);
+    // clean user and password from domain
+    publicRpcUrl = urlObj.protocol + "//" + urlObj.hostname + (urlObj.port.length ? ":" + urlObj.port : "");
+
+    // cleanup url params
+    let cleanedPath = urlObj.pathname.trim().replace(/^\//, "").replace(/\/$/, "");
+    pathParts = cleanedPath.split("/").filter((part) => part.length);
+  }
 
   if (secretRpcUrl.includes("mainnet.aurora.dev") && pathParts.length > 0) {
     publicRpcUrl += "/<RPC_API_KEY_AURORA>";
