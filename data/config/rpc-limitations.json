@@ -1502,7 +1502,7 @@
       "weight": 5,
       "methods": {
         "eth_getLogs": 10,
-        "eth_call": 10,
+        "eth_call": 5,
         "eth_getBlockByNumber": 20,
         "eth_blockNumber": 5,
         "eth_getTransactionReceipt": 10
