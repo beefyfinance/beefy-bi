@@ -103,7 +103,7 @@
     "<RPC_API_URL_QUIKNODE_ARBITRUM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 50,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
@@ -151,7 +151,7 @@
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -160,6 +160,26 @@
         "eth_getBlockByNumber": 300,
         "eth_blockNumber": 300,
         "eth_getTransactionReceipt": 200
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_AVAX>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -174,7 +194,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 16,
@@ -182,6 +202,26 @@
         "eth_getBlockByNumber": 300,
         "eth_blockNumber": 300,
         "eth_getTransactionReceipt": 200
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_BASE>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -224,26 +264,6 @@
         "eth_getBlockByNumber": 200,
         "eth_blockNumber": 200,
         "eth_getTransactionReceipt": 200
-      }
-    },
-    "https://compatible-greatest-wish.bsc.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 2,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": null,
-        "eth_getBlockByNumber": 34,
-        "eth_blockNumber": null,
-        "eth_getTransactionReceipt": 32
       }
     },
     "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
@@ -716,7 +736,7 @@
         "eth_getTransactionReceipt": 50
       }
     },
-    "https://wandering-quiet-diamond.fantom.quiknode.pro/<RPC_API_KEY_QUIKNODE_2>": {
+    "<RPC_API_URL_QUIKNODE_FANTOM>": {
       "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 300,
@@ -734,6 +754,28 @@
         "eth_getBlockByNumber": null,
         "eth_blockNumber": 10,
         "eth_getTransactionReceipt": 5
+      }
+    }
+  },
+  "fraxtal": {
+    "https://rpc.frax.com": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 100,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 100
       }
     }
   },
@@ -789,7 +831,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 48,
@@ -797,6 +839,26 @@
         "eth_getBlockByNumber": 100,
         "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 100
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_GNOSIS>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -928,6 +990,68 @@
       }
     }
   },
+  "mantle": {
+    "https://rpc.ankr.com/mantle/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": true,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": 104,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    },
+    "https://rpc.mantle.xyz": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 2,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 10,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 10
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_MANTLE>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
+      }
+    }
+  },
   "metis": {
     "https://andromeda.metis.io": {
       "restrictToMode": null,
@@ -946,6 +1070,28 @@
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 2,
         "eth_getTransactionReceipt": null
+      }
+    }
+  },
+  "mode": {
+    "https://mainnet.mode.network": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 500,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 20,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 50,
+        "eth_blockNumber": 50,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -1183,7 +1329,7 @@
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "weight": 1,
@@ -1205,7 +1351,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 1,
@@ -1213,6 +1359,26 @@
         "eth_getBlockByNumber": 100,
         "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 100
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_POLYGON>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -1312,7 +1478,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "methods": {
         "eth_getLogs": 16,
@@ -1320,6 +1486,26 @@
         "eth_getBlockByNumber": 100,
         "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 50
+      }
+    },
+    "<RPC_API_URL_QUIKNODE_ZKSYNC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 10,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
+        "eth_getTransactionReceipt": 10
       }
     }
   },
@@ -1354,7 +1540,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 144,
@@ -1363,90 +1549,24 @@
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
       }
-    }
-  },
-  "mantle": {
-    "https://rpc.ankr.com/mantle/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": false,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": 104,
-        "eth_call": 100,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 50
-      }
     },
-    "https://rpc.mantle.xyz": {
+    "<RPC_API_URL_QUIKNODE_ZKEVM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 100,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 2,
+      "weight": 5,
       "methods": {
         "eth_getLogs": 10,
-        "eth_call": 10,
-        "eth_getBlockByNumber": 10,
-        "eth_blockNumber": 10,
-        "eth_getTransactionReceipt": 10
-      }
-    }
-  },
-  "fraxtal": {
-    "https://rpc.frax.com": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
-      "methods": {
-        "eth_getLogs": 100,
-        "eth_call": 100,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
-      }
-    }
-  },
-  "mode": {
-    "https://mainnet.mode.network": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 500,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
-      "methods": {
-        "eth_getLogs": 20,
-        "eth_call": 50,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 50,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 20,
+        "eth_blockNumber": 5,
         "eth_getTransactionReceipt": 10
       }
     }

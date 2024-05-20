@@ -11,12 +11,18 @@ import {
   RPC_API_KEY_METIS_OWNER,
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
-  RPC_API_KEY_QUIKNODE,
-  RPC_API_KEY_QUIKNODE_2,
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
   RPC_API_URL_KAVA_BEEFY,
   RPC_API_URL_QUIKNODE_ARBITRUM,
+  RPC_API_URL_QUIKNODE_AVAX,
+  RPC_API_URL_QUIKNODE_BASE,
+  RPC_API_URL_QUIKNODE_FANTOM,
+  RPC_API_URL_QUIKNODE_GNOSIS,
+  RPC_API_URL_QUIKNODE_MANTLE,
+  RPC_API_URL_QUIKNODE_POLYGON,
+  RPC_API_URL_QUIKNODE_ZKEVM,
+  RPC_API_URL_QUIKNODE_ZKSYNC,
 } from "../config";
 import { ProgrammerError } from "../programmer-error";
 
@@ -34,7 +40,6 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
     publicRpcUrl += "/<RPC_API_KEY_AURORA>";
   } else if (secretRpcUrl.includes("ankr")) {
     const chain = pathParts[0];
-
     if (pathParts.length === 2) {
       publicRpcUrl += "/" + chain + "/<RPC_API_KEY_ANKR>";
     } else {
@@ -59,10 +64,22 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes(".quiknode.pro")) {
     if (secretRpcUrl.includes("arbitrum-mainnet.quiknode.pro")) {
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_ARBITRUM>";
-    } else if (secretRpcUrl.includes("fantom")) {
-      publicRpcUrl += "/<RPC_API_KEY_QUIKNODE_2>";
-    } else {
-      publicRpcUrl += "/<RPC_API_KEY_QUIKNODE>";
+    } else if (secretRpcUrl.includes("avalanche-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_AVAX>";
+    } else if (secretRpcUrl.includes("base-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_BASE>";
+    } else if (secretRpcUrl.includes("xdai.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_GNOSIS>";
+    } else if (secretRpcUrl.includes("mantle-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_MANTLE>";
+    } else if (secretRpcUrl.includes("matic.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_POLYGON>";
+    } else if (secretRpcUrl.includes("zksync-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_ZKSYNC>";
+    } else if (secretRpcUrl.includes("fantom.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_FANTOM>";
+    } else if (secretRpcUrl.includes("zkevm-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_ZKEVM>";
     }
   } else if (secretRpcUrl.includes("llamarpc.com")) {
     publicRpcUrl += "/rpc/<RPC_API_KEY_LLAMARPC>";
@@ -108,10 +125,16 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_OPTIMISM", RPC_API_KEY_ALCHEMY_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_ARBITRUM", RPC_API_KEY_ALCHEMY_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
-  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE_2", RPC_API_KEY_QUIKNODE_2);
-  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE", RPC_API_KEY_QUIKNODE);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_CHAINSTACK_CRONOS", RPC_API_URL_CHAINSTACK_CRONOS);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ARBITRUM", RPC_API_URL_QUIKNODE_ARBITRUM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_AVAX", RPC_API_URL_QUIKNODE_AVAX);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_BASE", RPC_API_URL_QUIKNODE_BASE);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_FANTOM", RPC_API_URL_QUIKNODE_FANTOM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_GNOSIS", RPC_API_URL_QUIKNODE_GNOSIS);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_MANTLE", RPC_API_URL_QUIKNODE_MANTLE);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_POLYGON", RPC_API_URL_QUIKNODE_POLYGON);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKEVM", RPC_API_URL_QUIKNODE_ZKEVM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKSYNC", RPC_API_URL_QUIKNODE_ZKSYNC);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_FUSE_BEEFY", RPC_API_URL_FUSE_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_LLAMARPC", RPC_API_KEY_LLAMARPC);

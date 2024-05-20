@@ -45,15 +45,36 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("arbitrum", "https://arbitrum-mainnet.infura.io/v3/XXXxxXXXXXxxxXXXXXXxxxxxx")).toBe(
       "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>",
     );
-    expect(removeSecretsFromRpcUrl("bsc", "https://some-rpc-name.bsc.discover.quiknode.pro/XXXxxXXXXXxxxXXXXXXxxxxxx/")).toBe(
-      "https://some-rpc-name.bsc.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>",
-    );
     expect(removeSecretsFromRpcUrl("cronos", "https://ab-000-000-000.p2pify.com/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
       "<RPC_API_URL_CHAINSTACK_CRONOS>",
     );
     expect(
       removeSecretsFromRpcUrl("arbitrum", "https://something-smth-s0mething.arbitrum-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX"),
     ).toBe("<RPC_API_URL_QUIKNODE_ARBITRUM>");
+    expect(removeSecretsFromRpcUrl("avax", "https://something-smth-s0mething.avalanche-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_AVAX>",
+    );
+    expect(removeSecretsFromRpcUrl("base", "https://something-smth-s0mething.base-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_BASE>",
+    );
+    expect(removeSecretsFromRpcUrl("fantom", "https:///something-smth-s0mething.fantom.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_FANTOM>",
+    );
+    expect(removeSecretsFromRpcUrl("gnosis", "https://something-smth-s0mething.xdai.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_GNOSIS>",
+    );
+    expect(removeSecretsFromRpcUrl("mantle", "https:///something-smth-s0mething.mantle-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_MANTLE>",
+    );
+    expect(removeSecretsFromRpcUrl("polygon", "https:///something-smth-s0mething.matic.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_POLYGON>",
+    );
+    expect(removeSecretsFromRpcUrl("zkevm", "https:///something-smth-s0mething.zkevm-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_ZKEVM>",
+    );
+    expect(removeSecretsFromRpcUrl("zksync", "https:///something-smth-s0mething.zksync-mainnet.quiknode.pro/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
+      "<RPC_API_URL_QUIKNODE_ZKSYNC>",
+    );
 
     expect(removeSecretsFromRpcUrl("ethereum", "https://eth.llamarpc.com/rpc/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
       "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>",
