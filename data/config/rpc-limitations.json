@@ -8,7 +8,7 @@
       "maxGetLogsAddressBatchSize": 18,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
@@ -100,11 +100,11 @@
         "eth_getTransactionReceipt": 10
       }
     },
-    "https://multi-icy-spree.arbitrum-mainnet.discover.quiknode.pro/<RPC_API_KEY_QUIKNODE>": {
+    "<RPC_API_URL_QUIKNODE_ARBITRUM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
-      "maxGetLogsBlockSpan": 5000,
+      "minDelayBetweenCalls": 50,
+      "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,

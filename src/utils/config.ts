@@ -53,6 +53,7 @@ export const RPC_API_KEY_QUIKNODE = process.env.RPC_API_KEY_QUIKNODE || null;
 export const RPC_API_KEY_QUIKNODE_2 = process.env.RPC_API_KEY_QUIKNODE_2 || null;
 export const RPC_API_KEY_LLAMARPC = process.env.RPC_API_KEY_LLAMARPC || null;
 export const RPC_API_URL_CHAINSTACK_CRONOS = process.env.RPC_API_URL_CHAINSTACK_CRONOS || null;
+export const RPC_API_URL_QUIKNODE_ARBITRUM = process.env.RPC_API_URL_QUIKNODE_ARBITRUM || null;
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
 export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
 

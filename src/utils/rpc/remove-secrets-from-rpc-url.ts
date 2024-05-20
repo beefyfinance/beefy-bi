@@ -16,6 +16,7 @@ import {
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
   RPC_API_URL_KAVA_BEEFY,
+  RPC_API_URL_QUIKNODE_ARBITRUM,
 } from "../config";
 import { ProgrammerError } from "../programmer-error";
 
@@ -56,7 +57,9 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes(".infura.io/v3")) {
     publicRpcUrl += "/v3/<RPC_API_KEY_INFURA>";
   } else if (secretRpcUrl.includes(".quiknode.pro")) {
-    if (secretRpcUrl.includes("fantom")) {
+    if (secretRpcUrl.includes("arbitrum-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_ARBITRUM>";
+    } else if (secretRpcUrl.includes("fantom")) {
       publicRpcUrl += "/<RPC_API_KEY_QUIKNODE_2>";
     } else {
       publicRpcUrl += "/<RPC_API_KEY_QUIKNODE>";
@@ -108,6 +111,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE_2", RPC_API_KEY_QUIKNODE_2);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_QUIKNODE", RPC_API_KEY_QUIKNODE);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_CHAINSTACK_CRONOS", RPC_API_URL_CHAINSTACK_CRONOS);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ARBITRUM", RPC_API_URL_QUIKNODE_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_FUSE_BEEFY", RPC_API_URL_FUSE_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_LLAMARPC", RPC_API_KEY_LLAMARPC);
