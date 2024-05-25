@@ -244,7 +244,7 @@ function eventsToTransfers(
 
 export function mergeErc20Transfers(allTransfers: ERC20Transfer[]) {
   // there could be incoming and outgoing transfers in the same block for the same user
-  // we want to merge those into a single transfer
+  // we want to merge those into a single transfer to only store "net transfers"
   const transfersByOwnerAndBlock = Object.values(
     groupBy(allTransfers, (transfer) => `${transfer.tokenAddress}-${transfer.ownerAddress}-${transfer.blockNumber}`),
   );
@@ -256,9 +256,13 @@ export function mergeErc20Transfers(allTransfers: ERC20Transfer[]) {
         totalDiff = totalDiff.add(transfer.amountTransferred);
       }
       // for the trx hash, we use the last transaction (order by logIndex)
-      const lastTrxHash = transfers.sort((a, b) => b.logIndex - a.logIndex)[0].transactionHash;
+      // but only considering the transfers that have a non-zero amount
+      const sortedTransfers = transfers.sort((a, b) => b.logIndex - a.logIndex);
+      const nonZeroTransfers = sortedTransfers.filter((transfer) => !transfer.amountTransferred.isZero());
+      const transactionHash =
+        nonZeroTransfers.length > 0 ? nonZeroTransfers[0].transactionHash : sortedTransfers.length > 0 ? sortedTransfers[0].transactionHash : "";
 
-      return { ...transfers[0], transactionHash: lastTrxHash, amountTransferred: totalDiff };
+      return { ...transfers[0], transactionHash, amountTransferred: totalDiff };
     })
     .filter((transfer) => !transfer.amountTransferred.isZero());
 }
