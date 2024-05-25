@@ -18,10 +18,12 @@ export function addHistoricalDateQuery$<TObj, TRes, TImport extends DbDateRangeI
       const latestDate = new Date();
 
       // this is the whole range we have to cover
-      let fullRange = {
-        from: options.getFirstDate(importState),
-        to: latestDate,
-      };
+      let fullRange = options.ctx.behaviour.forceConsideredDateRange
+        ? options.ctx.behaviour.forceConsideredDateRange
+        : {
+            from: options.getFirstDate(importState),
+            to: latestDate,
+          };
 
       let ranges = [fullRange];
 

@@ -6,7 +6,7 @@ import { addHistoricalDateQuery$, addLatestDateQuery$ } from "../../../common/co
 import { fetchProductCreationInfos$ } from "../../../common/loader/fetch-product-creation-infos";
 import { DbOraclePriceImportState } from "../../../common/loader/import-state";
 import { DbPriceFeed } from "../../../common/loader/price-feed";
-import { upsertPrice$ } from "../../../common/loader/prices";
+import { refreshPriceCachesIfRequested$, upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeQuery, ImportRangeResult } from "../../../common/types/import-query";
@@ -132,6 +132,16 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<UnderlyingPriceFeedI
           }),
         ),
       formatOutput: (item, prices) => ({ ...item, prices, success: true }),
+    }),
+
+    // refresh caches if needed
+    refreshPriceCachesIfRequested$({
+      ctx: options.ctx,
+      emitError: (obj, report) => options.emitError(obj, report),
+      getParams: (item) => ({
+        priceFeedId: item.target.priceFeed.priceFeedId,
+        range: item.range,
+      }),
     }),
 
     // format output

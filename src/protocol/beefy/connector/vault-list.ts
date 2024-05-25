@@ -74,7 +74,7 @@ export interface BeefyBridgedVersionOfStdVault extends BeefyBaseVaultConfig {
 
 export type BeefyVault = BeefyGovVaultConfig | BeefyStdVaultConfig | BeefyBridgedVersionOfStdVault;
 
-export function isBeefyStdVaultConfig(vault: BeefyVault): vault is BeefyStdVaultConfig {
+function isBeefyStdVaultConfig(vault: BeefyVault): vault is BeefyStdVaultConfig {
   return !vault.is_gov_vault && vault.bridged_version_of === null;
 }
 export function isBeefyGovVaultConfig(vault: BeefyVault): vault is BeefyGovVaultConfig {

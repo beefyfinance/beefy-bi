@@ -59,7 +59,7 @@ export interface DbBeefyBoostProduct extends DbBaseProduct {
 }
 export type DbBeefyProduct = DbBeefyStdVaultProduct | DbBeefyGovVaultProduct | DbBeefyBridgedVaultProduct | DbBeefyBoostProduct;
 export type DbProduct = DbBeefyProduct;
-export type DbProductType = DbProduct["productData"]["type"];
+type DbProductType = DbProduct["productData"]["type"];
 export const appProductTypes: DbProductType[] = ["beefy:vault", "beefy:gov-vault", "beefy:bridged-vault", "beefy:boost"];
 
 export function upsertProduct$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends Omit<DbProduct, "productId">>(options: {

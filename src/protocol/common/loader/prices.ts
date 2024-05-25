@@ -1,10 +1,11 @@
 import Decimal from "decimal.js";
-import { flatten, groupBy, keyBy, uniq, uniqBy } from "lodash";
+import { flatten, groupBy, keyBy, min, uniq, uniqBy } from "lodash";
 import * as Rx from "rxjs";
 import { SamplingPeriod } from "../../../types/sampling";
 import { Nullable } from "../../../types/ts";
 import { db_query } from "../../../utils/db";
 import { rootLogger } from "../../../utils/logger";
+import { Range } from "../../../utils/range";
 import { ErrorEmitter, ImportCtx } from "../types/import-context";
 import { dbBatchCall$ } from "../utils/db-batch";
 
@@ -236,6 +237,83 @@ export function interpolatePrice$<TObj, TErr extends ErrorEmitter<TObj>, TRes, T
         );
       },
       formatOutput: (item, price) => options.formatOutput(item.obj, price),
+    }),
+  );
+}
+
+export function refreshPriceCachesIfRequested$<
+  TObj,
+  TErr extends ErrorEmitter<TObj>,
+  TParams extends { priceFeedId: number; range: Range<Date> },
+>(options: { ctx: ImportCtx; emitError: TErr; getParams: (obj: TObj) => TParams }) {
+  if (options.ctx.behaviour.refreshPriceCaches === false) {
+    logger.debug({ msg: "skipping price cache refresh" });
+    return Rx.pipe();
+  }
+  logger.warn({ msg: "refreshing price cache enabled" });
+
+  return Rx.pipe(
+    dbBatchCall$({
+      ctx: options.ctx,
+      emitError: options.emitError,
+      formatOutput: (obj) => obj,
+      getData: options.getParams,
+      logInfos: { msg: "refresh price caches" },
+      processBatch: async (objAndData) => {
+        // get the first date of all price feeds
+        const midDate = min(objAndData.map(({ data }) => data.range.from)) as Date;
+        const maxDate = min(objAndData.map(({ data }) => data.range.to)) as Date;
+
+        // find all product ids matching the price feeds
+        const priceFeedIds = uniq(objAndData.map(({ data }) => data.priceFeedId));
+        const productIdsRes = await db_query<{ product_id: number }>(
+          `
+          select product_id from product where price_feed_1_id in (%L)
+          union all
+          select product_id from product where price_feed_2_id in (%L)
+          `,
+          [priceFeedIds, priceFeedIds],
+          options.ctx.client,
+        );
+        const productIds = uniq(productIdsRes.map((row) => row.product_id));
+
+        // refresh the continuous aggregate
+        await db_query(
+          `CALL refresh_continuous_aggregate('price_ts_cagg_1h', date_trunc('hour', %L::timestamptz), date_trunc('hour', %L::timestamptz) + interval '1 hour')`,
+          [midDate.toISOString(), maxDate.toISOString()],
+          options.ctx.client,
+        );
+        await db_query(
+          `CALL refresh_continuous_aggregate('price_ts_cagg_1d', date_trunc('day', %L::timestamptz), date_trunc('hour', %L::timestamptz) + interval '1 day')`,
+          [midDate.toISOString(), maxDate.toISOString()],
+          options.ctx.client,
+        );
+
+        if (productIds.length > 0) {
+          // remove all price info from investor rows
+          // these will be recalculated on the next price cache pass
+          await db_query(
+            `
+            UPDATE beefy_investor_timeline_cache_ts SET 
+              underlying_to_usd_price = null,
+              usd_balance = null,
+              usd_diff = null,
+              pending_rewards = null,
+              pending_rewards_diff = null,
+              pending_rewards_to_usd_price = null,
+              pending_rewards_usd_balance = null,
+              pending_rewards_usd_diff = null
+            WHERE 
+              datetime between %L::timestamptz and %L::timestamptz
+              and product_id in (%L)
+            `,
+            [midDate.toISOString(), maxDate.toISOString(), productIds],
+            options.ctx.client,
+          );
+        }
+
+        return new Map(objAndData.map(({ data }) => [data, data]));
+      },
     }),
   );
 }

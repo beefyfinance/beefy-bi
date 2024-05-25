@@ -35,6 +35,11 @@ export interface ImportBehaviour {
   // this is useful when we want to import a range of blocks that is not the latest blocks
   forceConsideredBlockRange: Range<number> | null;
 
+  // override the considered date range
+  // if null, we consider the whole time range
+  // this is useful when we want to import a range of dates that is not the whole time range
+  forceConsideredDateRange: Range<Date> | null;
+
   // override the RPC block span for the getLogs call
   // if null, we use the default value from the RPC config
   forceGetLogsBlockSpan: number | null;
@@ -110,6 +115,10 @@ export interface ImportBehaviour {
 
   // how large of a query range we can make to the beefy api for price data
   beefyPriceDataQueryRange: SamplingPeriod;
+
+  // if we should recalculate price caches after the import
+  // this is useful when we want to re-import a range of price blocks
+  refreshPriceCaches: boolean;
 }
 
 export const defaultImportBehaviour: ImportBehaviour = {
@@ -123,6 +132,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
   repeatAtMostEvery: null,
   repeatJitter: 0.05, // default to 5% jitter
   forceConsideredBlockRange: null,
+  forceConsideredDateRange: null,
   ignoreImportState: process.env.BEHAVIOUR_IGNORE_IMPORT_STATE === "true",
   skipRecentWindowWhenHistorical: "live", // by default, live products recent data is done by the recent import
   useDefaultLimitationsIfNotFound: process.env.BEHAVIOUR_USE_DEFAULT_LIMITATIONS_IF_NOT_FOUND === "true",
@@ -144,6 +154,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
     allSamplingPeriods.includes(process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
       ? (process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
       : "3months",
+  refreshPriceCaches: process.env.BEHAVIOUR_REFRESH_PRICE_CACHES === "true",
 };
 
 export interface BatchStreamConfig {

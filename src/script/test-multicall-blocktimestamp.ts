@@ -41,6 +41,9 @@ async function main() {
     generateQueryCount: null,
     skipRecentWindowWhenHistorical: "none" as const,
     waitForBlockPropagation: null,
+    forceConsideredDateRange: null,
+    refreshPriceCaches: false,
+    beefyPriceDataQueryRange: null,
   };
 
   const mcMap = MULTICALL3_ADDRESS_MAP[chain];

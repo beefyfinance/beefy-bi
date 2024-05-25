@@ -48,6 +48,7 @@ interface CmdParams {
   filterChains: Chain[];
   includeEol: boolean;
   forceConsideredBlockRange: Range<number> | null;
+  forceConsideredDateRange: Range<Date> | null;
   filterContractAddress: string[] | null;
   productRefreshInterval: SamplingPeriod | null;
   loopEvery: SamplingPeriod | null;
@@ -57,10 +58,81 @@ interface CmdParams {
   generateQueryCount: number | null;
   skipRecentWindowWhenHistorical: "all" | "none" | "live" | "eol";
   waitForBlockPropagation: number | null;
+  refreshPriceCaches: boolean;
+  beefyPriceDataQueryRange: SamplingPeriod | null;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
   return yargs
+
+    .command({
+      command: "beefy:reimport:prices",
+      describe: "Reimport prices for a product",
+      builder: (yargs) =>
+        yargs.options({
+          chain: {
+            choices: allChainIds,
+            alias: "c",
+            demand: true,
+            default: "all",
+            describe: "only import data for this chain",
+          },
+          contractAddress: { type: "string", array: true, demand: true, alias: "a", describe: "only import data for these contract addresses" },
+          fromDateTime: { type: "string", coerce: Date.parse, demand: true, describe: "from date (UTC)" },
+          toDateTime: { type: "string", coerce: Date.parse, demand: true, describe: "to date (UTC)" },
+          refreshPriceCaches: { type: "boolean", demand: false, default: false, describe: "refresh price caches" },
+          beefyPriceDataQueryRange: { choices: allSamplingPeriods, demand: false, default: "1day", describe: "large should the price data query be" },
+        }),
+      handler: (argv): Promise<any> =>
+        withDbClient(
+          async (client) => {
+            //await db_migrate();
+
+            logger.info("Starting import script", { argv });
+
+            const fromDate = new Date(argv.fromDateTime);
+            const toDate = new Date(argv.toDateTime);
+            if (fromDate > toDate) {
+              throw new ProgrammerError("fromDateTime > toDateTime");
+            }
+
+            // this is a dangerous command, we don't want to run it on a large time range
+            if (toDate.getTime() - fromDate.getTime() > 1000 * 60 * 60 * 24 * 7) {
+              throw new ProgrammerError("The time range is too large");
+            }
+
+            const cmdParams: CmdParams = {
+              client,
+              rpcCount: "all",
+              task: "historical-prices" as CmdParams["task"],
+              includeEol: true,
+              filterChains: [argv.chain] as Chain[],
+              filterContractAddress: argv.contractAddress || null,
+              forceConsideredBlockRange: null,
+              forceConsideredDateRange: { from: fromDate, to: toDate },
+              forceRpcUrl: null,
+              forceGetLogsBlockSpan: null,
+              productRefreshInterval: null,
+              loopEvery: null,
+              loopEveryRandomizeRatio: 0,
+              ignoreImportState: true,
+              disableWorkConcurrency: true,
+              generateQueryCount: null,
+              skipRecentWindowWhenHistorical: "none",
+              waitForBlockPropagation: 0,
+              refreshPriceCaches: argv.refreshPriceCaches,
+              beefyPriceDataQueryRange: argv.beefyPriceDataQueryRange || null,
+            };
+
+            _verifyCmdParams(cmdParams, argv);
+
+            const tasks = getTasksToRun(cmdParams);
+
+            return Promise.all(tasks.map((task) => task()));
+          },
+          { appName: "beefy:reimport:prices", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+        )(),
+    })
     .command({
       command: "beefy:reimport:now",
       describe: "Reimport a product range",
@@ -75,7 +147,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           },
           task: {
             type: "string",
-            choices: ["historical", "recent", "historical-prices", "recent-prices"],
+            choices: ["historical", "recent"],
             demand: true,
             alias: "t",
             describe: "what to run",
@@ -107,6 +179,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               filterChains: [argv.chain] as Chain[],
               filterContractAddress: argv.contractAddress || null,
               forceConsideredBlockRange: { from: fromBlock, to: argv.toBlock + 1 },
+              forceConsideredDateRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -117,6 +190,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               generateQueryCount: null,
               skipRecentWindowWhenHistorical: "none",
               waitForBlockPropagation: 0,
+              refreshPriceCaches: false,
+              beefyPriceDataQueryRange: null,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -125,7 +200,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
 
             return Promise.all(tasks.map((task) => task()));
           },
-          { appName: "beefy:reimport", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
+          { appName: "beefy:reimport:now", logInfos: { msg: "beefy script", data: { task: argv.task, chains: argv.chain } } },
         )(),
     })
     .command({
@@ -169,6 +244,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress ?? null,
               forceConsideredBlockRange: null,
+              forceConsideredDateRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -179,6 +255,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               generateQueryCount: argv.generateQueryCount || null,
               skipRecentWindowWhenHistorical: "none",
               waitForBlockPropagation: 0,
+              refreshPriceCaches: false,
+              beefyPriceDataQueryRange: null,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -303,6 +381,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               filterChains: argv.chain.includes("all") ? allChainIds : (argv.chain as Chain[]),
               filterContractAddress: argv.contractAddress || null,
               forceConsideredBlockRange: argv.toBlock ? { from: argv.fromBlock ? argv.fromBlock : 0, to: argv.toBlock } : null,
+              forceConsideredDateRange: null,
               forceRpcUrl: argv.forceRpcUrl ? addSecretsToRpcUrl(argv.forceRpcUrl) : null,
               forceGetLogsBlockSpan: argv.forceGetLogsBlockSpan || null,
               productRefreshInterval: (argv.productRefreshInterval as SamplingPeriod) || null,
@@ -313,6 +392,8 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               generateQueryCount: argv.generateQueryCount || null,
               skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as CmdParams["skipRecentWindowWhenHistorical"],
               waitForBlockPropagation: argv.waitForBlockPropagation || null,
+              refreshPriceCaches: false,
+              beefyPriceDataQueryRange: null,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -620,6 +701,9 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
   if (cmdParams.forceConsideredBlockRange !== null) {
     behaviour.forceConsideredBlockRange = cmdParams.forceConsideredBlockRange;
   }
+  if (cmdParams.forceConsideredDateRange !== null) {
+    behaviour.forceConsideredDateRange = cmdParams.forceConsideredDateRange;
+  }
   if (cmdParams.forceGetLogsBlockSpan !== null) {
     behaviour.forceGetLogsBlockSpan = cmdParams.forceGetLogsBlockSpan;
   }
@@ -644,9 +728,14 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
       snapshot: cmdParams.generateQueryCount,
     };
   }
-
   if (cmdParams.waitForBlockPropagation !== null) {
     behaviour.waitForBlockPropagation = cmdParams.waitForBlockPropagation;
+  }
+  if (cmdParams.refreshPriceCaches) {
+    behaviour.refreshPriceCaches = true;
+  }
+  if (cmdParams.beefyPriceDataQueryRange) {
+    behaviour.beefyPriceDataQueryRange = cmdParams.beefyPriceDataQueryRange;
   }
 
   return behaviour;

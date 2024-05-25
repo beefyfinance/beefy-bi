@@ -32,6 +32,9 @@ async function main() {
     generateQueryCount: null,
     skipRecentWindowWhenHistorical: "none" as const,
     waitForBlockPropagation: null,
+    forceConsideredDateRange: null,
+    refreshPriceCaches: false,
+    beefyPriceDataQueryRange: null,
   };
 
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);

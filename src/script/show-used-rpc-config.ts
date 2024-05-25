@@ -105,6 +105,9 @@ async function main() {
     generateQueryCount: argv.generateQueryCount || null,
     skipRecentWindowWhenHistorical: argv.skipRecentWindowWhenHistorical as any,
     waitForBlockPropagation: argv.waitForBlockPropagation || null,
+    forceConsideredDateRange: null,
+    refreshPriceCaches: false,
+    beefyPriceDataQueryRange: null,
   };
 
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);
