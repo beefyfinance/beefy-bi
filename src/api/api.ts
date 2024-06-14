@@ -6,11 +6,21 @@ import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit, { RateLimitPluginOptions } from "@fastify/rate-limit";
 import FastifyUnderPressure from "@fastify/under-pressure";
 import fastify, { FastifyInstance } from "fastify";
-import { API_DISABLE_HTTPS, API_FRONTEND_URL, API_URL, APP_GALXE_URL, APP_LOCAL_BUILDS_URL, APP_PR_BUILDS_URL, TIMESCALEDB_URL } from "../utils/config";
+import {
+  API_DISABLE_HTTPS,
+  API_FRONTEND_URL,
+  API_PUBLIC_TOKENS,
+  API_URL,
+  APP_GALXE_URL,
+  APP_LOCAL_BUILDS_URL,
+  APP_PR_BUILDS_URL,
+  TIMESCALEDB_URL,
+} from "../utils/config";
 import { rootLogger } from "../utils/logger";
 import privateRoutes from "./route/private";
 import publicRoutes from "./route/public";
-import { registerDI } from "./service"; // register DI services
+import { registerDI } from "./service";
+import { isValidBearerAuth } from "../utils/auth"; // register DI services
 
 const logger = rootLogger.child({ module: "api", component: "main" });
 
@@ -25,6 +35,7 @@ const optionsDefaults: ServerOptions = {
     continueExceeding: true,
     skipOnError: false,
     enableDraftSpec: true, // default false. Uses IEFT draft header standard
+    allowList: request => isValidBearerAuth(request.headers['authorization'], API_PUBLIC_TOKENS)
   },
 };
 
