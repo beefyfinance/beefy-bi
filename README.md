@@ -149,6 +149,7 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 - Run `npm run build` and solve any remainning typescript error
 - Run `npm run db:migrate` to apply db migrations
 - detect ms per block `LOG_LEVEL=trace npx ts-node ./src/script/show-estimated-ms-per-block.ts -c <chain>`
+- check contract creation block works `LOG_LEVEL=trace npx ts-node ./src/script/show-contract-creation-infos.ts -a 0xcA11bde05977b3631167028862bE2a173976CA11 -c <chain>`
 - Configure import scripts in `deploy/docker-compose.yml`
 
 ### Update a grafana dashboard
