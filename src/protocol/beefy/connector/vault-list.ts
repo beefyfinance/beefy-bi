@@ -14,6 +14,8 @@ const logger = rootLogger.child({ module: "beefy", component: "vault-list" });
 
 interface RawBeefyVault {
   id: string;
+  version?: number;
+  token?: string;
   tokenAddress?: string;
   tokenDecimals: number;
   earnedTokenAddress: string;
@@ -227,6 +229,19 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
             data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, vault, eolDate },
           });
         }
+      }),
+
+      // exclude CLM related products
+      Rx.filter(({ vault }) => {
+        const isClm = vault.type === "cowcentrated";
+        const isRewardPool =
+          vault.type === "gov" &&
+          vault.version &&
+          vault.version >= 2 &&
+          vault.token &&
+          vault.token.startsWith("cow") &&
+          vault.earnedToken.startsWith("rCow");
+        return !isRewardPool && !isClm;
       }),
 
       // just emit the vault
