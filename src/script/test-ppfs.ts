@@ -11,8 +11,8 @@ import { consumeObservable } from "../utils/rxjs/utils/consume-observable";
 async function main() {
   const options = {
     mode: "historical",
-    chain: "heco" as Chain,
-    contractAddress: "0x9be8485ff97257Aea98A3a9FcfFfD9799F76DeeE",
+    chain: "linea" as Chain,
+    contractAddress: "0x50fa947b08f879004220c42428524eaaf4ef9473",
     disableWorkConcurrency: true,
     rpcCount: "all",
     forceRpcUrl: null,
@@ -35,13 +35,13 @@ async function main() {
       vaultDecimals: 18,
       underlyingDecimals: 18,
       vaultAddress: options.contractAddress,
-      blockNumber: 25262658,
+      blockNumber: 6307204,
     },
     {
       vaultDecimals: 18,
       underlyingDecimals: 18,
-      vaultAddress: "0xD34A51815892368fE96D9730376b2CEdE99F83D8",
-      blockNumber: 25262658,
+      vaultAddress: "0x2fcbcf97891c70764c617c41395ccfced3edd06e",
+      blockNumber: 6307204,
     },
   ]).pipe(
     Rx.toArray(),
@@ -55,7 +55,19 @@ async function main() {
       getCallParams: (item) => ({ type: "fetch", ...item }),
       formatOutput: (obj, ppfs) => ({ obj, ppfs }),
     }),
-    Rx.tap((res) => console.dir({ obj: res.obj, ppfs: res.ppfs.toString() }, { depth: 10 })),
+    Rx.tap((res) =>
+      console.dir(
+        {
+          obj: res.obj,
+          ppfs: {
+            blockNumber: res.ppfs.blockNumber,
+            blockDatetime: res.ppfs.blockDatetime.toISOString(),
+            shareRate: res.ppfs.shareRate.toString(),
+          },
+        },
+        { depth: 10 },
+      ),
+    ),
   );
   await consumeObservable(pipeline$);
 }

@@ -50,6 +50,14 @@ export function fetchPriceFeedContractCreationInfos<TObj, TErr extends ErrorEmit
       const idMap = keyBy(
         results.map((res) => {
           res.contractCreationDate = new Date(res.contractCreationDate);
+
+          // fix for lynex-gamma-usdc-lynx
+          // https://github.com/beefyfinance/beefy-operations/issues/575
+          if (res.productId === 18463618) {
+            res.productId = 18463622;
+            res.contractCreatedAtBlock = 2493809;
+            res.contractCreationDate = new Date(1708833155 * 1000);
+          }
           return res;
         }),
         "priceFeedId",
