@@ -114,6 +114,8 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
           blockNumber = parseInt(blockNumber);
         }
 
+        logger.trace({ msg: "Block number found", data: { timestamp, blockNumber, params } });
+
         return [options.formatOutput(obj, blockNumber)];
       } catch (error) {
         logger.error({ msg: "Error while fetching contract creation block", data: { params, error: error } });

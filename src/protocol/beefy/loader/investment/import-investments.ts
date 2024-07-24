@@ -447,8 +447,10 @@ function fetchBeefyBridgedVaultShareRateIfNeeded<TInput extends { target: { prod
                   ctx,
                   emitError: options.emitError,
                   getBlockDate: (item) => item.blockDatetime,
-                  formatOutput: (item, shareRateBlockNumber) => ({ ...item, shareRateBlockNumber }),
+                  formatOutput: (item, shareRateBlockNumberOnOriginChain) => ({ ...item, shareRateBlockNumberOnOriginChain }),
                 }),
+
+                Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
 
                 // then we can fetch the share rate in the context of the origin chain
                 fetchBeefyTransferData$({
@@ -460,24 +462,25 @@ function fetchBeefyBridgedVaultShareRateIfNeeded<TInput extends { target: { prod
                       contractAddress: item.target.transfer.tokenAddress,
                       ownerAddress: item.target.transfer.ownerAddress,
                     };
-                    const blockNumber = item.shareRateBlockNumber;
+                    const blockNumber = item.shareRateBlockNumberOnOriginChain;
 
-                    if (isBeefyBridgedVault(item.target.product)) {
-                      const vault = item.target.product.productData.vault.bridged_version_of;
-                      return {
-                        shareRateParams: {
-                          vaultAddress: vault.contract_address,
-                          underlyingDecimals: vault.want_decimals,
-                          vaultDecimals: vault.token_decimals,
-                        },
-                        balance,
-                        blockNumber,
-                        fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
-                        fetchBalance: false,
-                      };
+                    if (!isBeefyBridgedVault(item.target.product)) {
+                      logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
+                      throw new ProgrammerError("Unsupported product type");
                     }
-                    logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
-                    throw new ProgrammerError("Unsupported product type");
+
+                    const vault = item.target.product.productData.vault.bridged_version_of;
+                    return {
+                      shareRateParams: {
+                        vaultAddress: vault.contract_address,
+                        underlyingDecimals: vault.want_decimals,
+                        vaultDecimals: vault.token_decimals,
+                      },
+                      balance,
+                      blockNumber,
+                      fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
+                      fetchBalance: false,
+                    };
                   },
                   formatOutput: (item, { blockDatetime, shareRate }) => ({
                     ...item,
