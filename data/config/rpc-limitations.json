@@ -1218,25 +1218,24 @@
     }
   },
   "optimism": {
-    "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
+    "<RPC_API_URL_QUIKNODE_OPTIMISM>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": 10000,
-      "disableBatching": false,
-      "disableRpc": true,
-      "comment": "Ankr do not work properly on optimism and is generating lots of \"missing trie node\" errors.",
-      "weight": 1,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
       "methods": {
-        "eth_getLogs": 400,
-        "eth_call": 120,
-        "eth_getBlockByNumber": 150,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 200
+        "eth_getLogs": 24,
+        "eth_call": 64,
+        "eth_getBlockByNumber": 64,
+        "eth_blockNumber": 64,
+        "eth_getTransactionReceipt": 64
       }
     },
     "https://opt-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_OPTIMISM>": {
@@ -1257,6 +1256,27 @@
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 64
+      }
+    },
+    "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
+      "restrictToMode": "recent",
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 3000,
+      "maxGetLogsAddressBatchSize": 100,
+      "internalTimeoutMs": 10000,
+      "disableBatching": false,
+      "disableRpc": true,
+      "comment": "Ankr do not work properly on optimism and is generating lots of \"missing trie node\" errors.",
+      "weight": 1,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "methods": {
+        "eth_getLogs": 400,
+        "eth_call": 120,
+        "eth_getBlockByNumber": 150,
+        "eth_blockNumber": 200,
+        "eth_getTransactionReceipt": 200
       }
     },
     "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {

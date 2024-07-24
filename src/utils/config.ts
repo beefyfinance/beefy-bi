@@ -58,6 +58,7 @@ export const RPC_API_URL_QUIKNODE_BASE = process.env.RPC_API_URL_QUIKNODE_BASE |
 export const RPC_API_URL_QUIKNODE_FANTOM = process.env.RPC_API_URL_QUIKNODE_FANTOM || null;
 export const RPC_API_URL_QUIKNODE_GNOSIS = process.env.RPC_API_URL_QUIKNODE_GNOSIS || null;
 export const RPC_API_URL_QUIKNODE_MANTLE = process.env.RPC_API_URL_QUIKNODE_MANTLE || null;
+export const RPC_API_URL_QUIKNODE_OPTIMISM = process.env.RPC_API_URL_QUIKNODE_OPTIMISM || null;
 export const RPC_API_URL_QUIKNODE_POLYGON = process.env.RPC_API_URL_QUIKNODE_POLYGON || null;
 export const RPC_API_URL_QUIKNODE_ZKEVM = process.env.RPC_API_URL_QUIKNODE_ZKEVM || null;
 export const RPC_API_URL_QUIKNODE_ZKSYNC = process.env.RPC_API_URL_QUIKNODE_ZKSYNC || null;

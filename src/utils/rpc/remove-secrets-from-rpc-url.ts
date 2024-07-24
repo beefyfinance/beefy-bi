@@ -20,6 +20,7 @@ import {
   RPC_API_URL_QUIKNODE_FANTOM,
   RPC_API_URL_QUIKNODE_GNOSIS,
   RPC_API_URL_QUIKNODE_MANTLE,
+  RPC_API_URL_QUIKNODE_OPTIMISM,
   RPC_API_URL_QUIKNODE_POLYGON,
   RPC_API_URL_QUIKNODE_ZKEVM,
   RPC_API_URL_QUIKNODE_ZKSYNC,
@@ -77,6 +78,8 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_GNOSIS>";
     } else if (secretRpcUrl.includes("mantle-mainnet.quiknode.pro")) {
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_MANTLE>";
+    } else if (secretRpcUrl.includes("optimism.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_OPTIMISM>";
     } else if (secretRpcUrl.includes("matic.quiknode.pro")) {
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_POLYGON>";
     } else if (secretRpcUrl.includes("zksync-mainnet.quiknode.pro")) {
@@ -137,6 +140,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_FANTOM", RPC_API_URL_QUIKNODE_FANTOM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_GNOSIS", RPC_API_URL_QUIKNODE_GNOSIS);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_MANTLE", RPC_API_URL_QUIKNODE_MANTLE);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_OPTIMISM", RPC_API_URL_QUIKNODE_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_POLYGON", RPC_API_URL_QUIKNODE_POLYGON);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKEVM", RPC_API_URL_QUIKNODE_ZKEVM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKSYNC", RPC_API_URL_QUIKNODE_ZKSYNC);
