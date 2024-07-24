@@ -114,7 +114,7 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
           blockNumber = parseInt(blockNumber);
         }
 
-        if (blockNumber === null) {
+        if (!blockNumber) {
           logger.error({ msg: "No block number found", data: { timestamp, params, data: resp.data } });
           throw new Error("No block number found");
         }
