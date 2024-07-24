@@ -2,7 +2,7 @@ import axios from "axios";
 import { isString } from "lodash";
 import * as Rx from "rxjs";
 import { samplingPeriodMs } from "../../../types/sampling";
-import { EXPLORER_URLS } from "../../../utils/config";
+import { ETHERSCAN_API_KEY, EXPLORER_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
@@ -96,7 +96,7 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
         closest: "before",
         apiKey: undefined as string | undefined,
       };
-      const apiKey = options.ctx.rpcConfig.etherscan?.provider?.apiKey;
+      const apiKey = ETHERSCAN_API_KEY[chain];
       if (apiKey) {
         params.apiKey = apiKey;
       }
@@ -112,6 +112,11 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
         let blockNumber: number | string = resp.data.result;
         if (isString(blockNumber)) {
           blockNumber = parseInt(blockNumber);
+        }
+
+        if (blockNumber === null) {
+          logger.error({ msg: "No block number found", data: { timestamp, params, data: resp.data } });
+          throw new Error("No block number found");
         }
 
         logger.trace({ msg: "Block number found", data: { timestamp, blockNumber, params } });
