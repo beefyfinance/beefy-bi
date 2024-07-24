@@ -84,7 +84,7 @@ export function fetchSingleBeefyProductShareRateAndDatetime$<TObj, TErr extends 
                     contractCall,
                     {
                       error: err,
-                      infos: { msg: "Unrecoverable error while fetching ppfs", data: { contractCall, chain: options.ctx.chain, err } },
+                      infos: { msg: "Unrecoverable error while fetching ppfs", data: { contractCall, chain: options.ctx.chain, stack: err?.stack } },
                     },
                   ] as ErrEntry,
                 };
