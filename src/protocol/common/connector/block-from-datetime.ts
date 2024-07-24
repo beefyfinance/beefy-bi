@@ -89,12 +89,17 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
     Rx.mergeMap(async (obj) => {
       // https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1695031435&closest=before
       const timestamp = options.getBlockDate(obj).getTime() / 1000;
-      const params = {
+      let params = {
         module: "block",
         action: "getblocknobytime",
         timestamp,
         closest: "before",
+        apiKey: undefined as string | undefined,
       };
+      const apiKey = options.ctx.rpcConfig.etherscan?.provider?.apiKey;
+      if (apiKey) {
+        params.apiKey = apiKey;
+      }
       logger.trace({ msg: "Fetching block from timestamp", data: { timestamp, params } });
 
       try {
