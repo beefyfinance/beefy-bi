@@ -196,6 +196,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       moonriver: 413534,
       optimism: 1, // weth created on genesis block
       polygon: 4931456,
+      real: 31054,
       rollux: 1, // wsys created on genesis block
       scroll: 1, // weth created on genesis block
       zkevm: 129,

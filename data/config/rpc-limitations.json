@@ -1612,5 +1612,27 @@
         "eth_getTransactionReceipt": 500
       }
     }
+  },
+  "real": {
+    "https://real.drpc.org": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 20,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": 1
+      }
+    }
   }
 }
