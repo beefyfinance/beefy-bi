@@ -16,10 +16,6 @@ function getAddressBookTokensConfig(chain: Chain) {
   if (addrBookChain in addressbook.addressBook) {
     // @ts-ignore
     return addressbook.addressBook[addrBookChain].tokens;
-  } else if (chain === "mode") {
-    return {
-      WNATIVE: { address: "0x4200000000000000000000000000000000000006" },
-    };
   } else if (chain === "scroll") {
     return {
       WNATIVE: { address: "0x5300000000000000000000000000000000000004" },
@@ -42,8 +38,6 @@ export function getChainNetworkId(chain: Chain): number {
     return 534352;
   } else if (chain === "rollux") {
     return 570;
-  } else if (chain === "mode") {
-    return 34443;
   }
   throw new Error(`Unknown chain ${chain}`);
 }

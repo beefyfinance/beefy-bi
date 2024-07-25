@@ -119,10 +119,17 @@ export function fetchMultipleProductStatistics$<
           const vaultContract = new ethers.Contract(contractCall.vaultAddress, BeefyVaultV6AbiInterface, provider);
           const underlyingContract = new ethers.Contract(contractCall.underlyingAddress, ERC20AbiInterface, provider);
 
+          const isErroringContractCall =
+            options.ctx.chain === "ethereum" &&
+            contractCall.vaultAddress.toLocaleLowerCase() === "0x5da90ba82bed0ab701e6762d2bf44e08634d9776" &&
+            contractCall.blockNumber === 19384744;
+
           const rawPromise = Promise.all([
             vaultContract.callStatic.getPricePerFullShare({ blockTag }) as Promise<[ethers.BigNumber]>,
             vaultContract.callStatic.totalSupply({ blockTag }) as Promise<[ethers.BigNumber]>,
-            vaultContract.callStatic.balance({ blockTag }) as Promise<[ethers.BigNumber]>,
+            isErroringContractCall
+              ? Promise.resolve([ethers.BigNumber.from(0)])
+              : (vaultContract.callStatic.balance({ blockTag }) as Promise<[ethers.BigNumber]>),
             underlyingContract.callStatic.totalSupply({ blockTag }) as Promise<[ethers.BigNumber]>,
           ]);
 
