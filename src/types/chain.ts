@@ -28,6 +28,7 @@ export type Chain =
   | "real"
   | "rollux"
   | "scroll"
+  | "sei"
   | "zkevm"
   | "zksync";
 
@@ -61,6 +62,7 @@ export const allChainIds: Chain[] = [
   "real",
   "rollux",
   "scroll",
+  "sei",
   "zkevm",
   "zksync",
 ];

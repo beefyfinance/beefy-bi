@@ -28,6 +28,7 @@ import {
   real,
   rollux,
   scroll,
+  sei,
   zkSync,
   type Chain as ViemChain,
 } from "viem/chains";
@@ -64,6 +65,7 @@ const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   real: real,
   rollux: rollux,
   scroll: scroll,
+  sei: sei,
   zkevm: polygonZkEvm,
   zksync: zkSync,
 };

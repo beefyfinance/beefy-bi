@@ -1634,5 +1634,27 @@
         "eth_getTransactionReceipt": 1
       }
     }
+  },
+  "sei": {
+    "https://evm-rpc.sei-apis.com": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 30,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 50,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 10
+      }
+    }
   }
 }

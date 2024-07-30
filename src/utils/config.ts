@@ -66,7 +66,10 @@ export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null
 export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
 
 export const EXPLORER_URLS: {
-  [chain in Chain]: { type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync"; url: string };
+  [chain in Chain]: {
+    type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync" | "seitrace";
+    url: string;
+  };
 } = {
   arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
@@ -97,6 +100,7 @@ export const EXPLORER_URLS: {
   real: { type: "blockscout-api-v2", url: "https://explorer.re.al/api/v2" },
   rollux: { type: "blockscout-json", url: "https://explorer.rollux.com" },
   scroll: { type: "etherscan", url: "https://scrollscan.com" },
+  sei: { type: "seitrace", url: "https://seitrace.com/" },
   zkevm: { type: "etherscan", url: "https://api-zkevm.polygonscan.com/api" },
   zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
 };
@@ -131,6 +135,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   real: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 695 },
   rollux: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 119222 },
   scroll: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14 },
+  sei: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 79351444 },
   zkevm: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 57746 },
   zksync: { multicallAddress: "0xF9cda624FBC7e059355ce98a31693d299FACd963", createdAtBlock: 324 },
 };
@@ -171,6 +176,7 @@ export const ETHERSCAN_API_KEY: {
   real: _getExplorerApiKey("real"),
   rollux: _getExplorerApiKey("rollux"),
   scroll: _getExplorerApiKey("scroll"),
+  sei: _getExplorerApiKey("sei"),
   zkevm: _getExplorerApiKey("zkevm"),
   zksync: _getExplorerApiKey("zksync"),
 };
@@ -209,6 +215,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   rollux: 2000,
   real: 7706,
   scroll: 4000,
+  sei: 400,
   zkevm: 1208,
   zksync: 1000,
 };

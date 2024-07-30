@@ -94,6 +94,8 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]);
   } else if (explorerType === "zksync") {
     return await getFromZksyncExplorerApi(contractAddress, EXPLORER_URLS[chain].url);
+  } else if (explorerType === "seitrace") {
+    return await getFromSeitraceExplorer(contractAddress, EXPLORER_URLS[chain].url);
   } else {
     throw new Error("Unsupported explorer type: " + explorerType);
   }
@@ -393,6 +395,30 @@ async function getFromZksyncExplorerApi(contractAddress: string, explorerUrl: st
     return { blockNumber, datetime };
   } catch (error) {
     logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, explorerUrl, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function getFromSeitraceExplorer(contractAddress: string, explorerUrl: string) {
+  var url = explorerUrl + `/pacific-1/gateway/api/v1/addresses/${contractAddress}`;
+
+  try {
+    logger.trace({ msg: "Fetching blockscout transaction link", data: { contractAddress, url } });
+    const resp = await axios.get(url);
+
+    const tx = resp.data.creation_tx_hash;
+    const trxUrl = `${explorerUrl}/pacific-1/gateway/api/v1/transactions/${tx}`;
+
+    const txResp = await axios.get(trxUrl);
+    const blockNumber = txResp.data.block;
+    const rawDateStr: string = txResp.data.timestamp;
+    const datetime = new Date(Date.parse(rawDateStr));
+
+    logger.trace({ msg: "Fetched contract creation block", data: { contractAddress, blockNumber, datetime } });
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, url, error: error } });
     logger.error(error);
     throw error;
   }
