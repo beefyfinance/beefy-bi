@@ -1635,6 +1635,28 @@
       }
     }
   },
+  "rootstock": {
+    "https://public-node.rsk.co": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 10,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 1
+      }
+    }
+  },
   "sei": {
     "https://evm-rpc.sei-apis.com": {
       "restrictToMode": null,

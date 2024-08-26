@@ -16,10 +16,6 @@ function getAddressBookTokensConfig(chain: Chain) {
   if (addrBookChain in addressbook.addressBook) {
     // @ts-ignore
     return addressbook.addressBook[addrBookChain].tokens;
-  } else if (chain === "sei") {
-    return {
-      WNATIVE: { address: "0xE30feDd158A2e3b13e9badaeABaFc5516e95e8C7", symbol: "SEI" },
-    };
   } else if (chain === "scroll") {
     return {
       WNATIVE: { address: "0x5300000000000000000000000000000000000004", symbol: "WETH" },
@@ -27,6 +23,10 @@ function getAddressBookTokensConfig(chain: Chain) {
   } else if (chain === "rollux") {
     return {
       WNATIVE: { address: "0x4200000000000000000000000000000000000006", symbol: "WSYS" },
+    };
+  } else if (chain === "rootstock") {
+    return {
+      WNATIVE: { address: "0x542fda317318ebf1d3deaf76e0b632741a7e677d", symbol: "WRBTC" },
     };
   }
 
@@ -38,12 +38,12 @@ export function getChainNetworkId(chain: Chain): number {
   if (addrBookChain in addressbook.ChainId) {
     // @ts-ignore
     return addressbook.ChainId[addrBookChain];
-  } else if (chain === "sei") {
-    return 1329;
   } else if (chain === "scroll") {
     return 534352;
   } else if (chain === "rollux") {
     return 570;
+  } else if (chain === "rootstock") {
+    return 30;
   }
   throw new Error(`Unknown chain ${chain}`);
 }

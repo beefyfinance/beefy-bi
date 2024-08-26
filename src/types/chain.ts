@@ -26,6 +26,7 @@ export type Chain =
   | "optimism"
   | "polygon"
   | "real"
+  | "rootstock"
   | "rollux"
   | "scroll"
   | "sei"
@@ -61,6 +62,7 @@ export const allChainIds: Chain[] = [
   "polygon",
   "real",
   "rollux",
+  "rootstock",
   "scroll",
   "sei",
   "zkevm",

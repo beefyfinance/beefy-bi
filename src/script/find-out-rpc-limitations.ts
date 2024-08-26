@@ -198,6 +198,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       polygon: 4931456,
       real: 31054,
       rollux: 1, // wsys created on genesis block
+      rootstock: 2_742_415,
       scroll: 1, // weth created on genesis block
       sei: 79351444, // looks like a precompile, but multicall only exists starting from 79351444
       zkevm: 129,
