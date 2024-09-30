@@ -24,10 +24,6 @@ function getAddressBookTokensConfig(chain: Chain) {
     return {
       WNATIVE: { address: "0x4200000000000000000000000000000000000006", symbol: "WSYS" },
     };
-  } else if (chain === "rootstock") {
-    return {
-      WNATIVE: { address: "0x542fda317318ebf1d3deaf76e0b632741a7e677d", symbol: "WRBTC" },
-    };
   }
 
   throw new Error(`Unknown chain ${chain}`);
@@ -42,8 +38,6 @@ export function getChainNetworkId(chain: Chain): number {
     return 534352;
   } else if (chain === "rollux") {
     return 570;
-  } else if (chain === "rootstock") {
-    return 30;
   }
   throw new Error(`Unknown chain ${chain}`);
 }
