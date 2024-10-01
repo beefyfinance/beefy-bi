@@ -3,7 +3,7 @@ import { Chain } from "../types/chain";
 import { normalizeAddressOrThrow } from "./ethers";
 
 export function getBridgedVaultTargetChains(): Chain[] {
-  return ["optimism"];
+  return ["optimism", "base"];
 }
 
 export function getBridgedVaultOriginChains(): Chain[] {
