@@ -85,32 +85,38 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
   return v2$.pipe(
     // process the vaults in chronolical order and mark the eol date if found
     Rx.reduce((acc, { fileVersion, boosts }) => {
-      // reset the foundInCurrentBatch flag
-      for (const boostAddress of Object.keys(acc)) {
-        acc[boostAddress].foundInCurrentBatch = false;
-      }
-
-      // add boosts to the accumulator
-      for (const boost of boosts) {
-        const boostAddress = normalizeAddressOrThrow(boost.earnContractAddress);
-        if (!acc[boostAddress]) {
-          const eolDate = boost.status === "closed" ? fileVersion.date : null;
-          acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
-        } else {
-          const eolDate = boost.status === "closed" ? acc[boostAddress].eolDate || fileVersion.date : null;
-          acc[boostAddress] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
+      try {
+        // reset the foundInCurrentBatch flag
+        for (const boostAddress of Object.keys(acc)) {
+          acc[boostAddress].foundInCurrentBatch = false;
         }
-      }
 
-      // mark all deleted vaults as eol if not already done
-      for (const boostAddress of Object.keys(acc)) {
-        if (!acc[boostAddress].foundInCurrentBatch) {
-          acc[boostAddress].boost.status = "closed";
-          acc[boostAddress].eolDate = acc[boostAddress].eolDate || fileVersion.date;
+        // add boosts to the accumulator
+        for (const boost of boosts) {
+          const boostAddress = normalizeAddressOrThrow(boost.earnContractAddress);
+          if (!acc[boostAddress]) {
+            const eolDate = boost.status === "closed" ? fileVersion.date : null;
+            acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
+          } else {
+            const eolDate = boost.status === "closed" ? acc[boostAddress].eolDate || fileVersion.date : null;
+            acc[boostAddress] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
+          }
         }
-      }
 
-      return acc;
+        // mark all deleted vaults as eol if not already done
+        for (const boostAddress of Object.keys(acc)) {
+          if (!acc[boostAddress].foundInCurrentBatch) {
+            acc[boostAddress].boost.status = "closed";
+            acc[boostAddress].eolDate = acc[boostAddress].eolDate || fileVersion.date;
+          }
+        }
+
+        return acc;
+      } catch (error) {
+        logger.error({ msg: "Could not process boost file", data: { fileVersion, boosts }, error });
+        logger.debug(error);
+        return acc;
+      }
     }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; boost: RawBeefyBoost }>),
 
     // flatten the accumulator

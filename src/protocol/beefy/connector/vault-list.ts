@@ -166,55 +166,65 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
     Rx.pipe(
       // process the vaults in chronolical order and mark the eol date if found
       Rx.reduce((acc, { fileVersion, vaults }) => {
-        // reset the foundInCurrentBatch flag
-        for (const vaultAddress of Object.keys(acc)) {
-          acc[vaultAddress].foundInCurrentBatch = false;
-        }
+        try {
+          // reset the foundInCurrentBatch flag
+          for (const vaultAddress of Object.keys(acc)) {
+            acc[vaultAddress].foundInCurrentBatch = false;
+          }
 
-        // add vaults to the accumulator
-        for (const vault of vaults) {
-          // ignore those without earned token address
-          if (!vault.earnedTokenAddress) {
-            const msg = { msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } };
-            if (vault?.id?.endsWith("-rp") || vault?.id === "bifi-pool") {
-              logger.debug(msg);
-            } else {
-              logger.error(msg);
+          // add vaults to the accumulator
+          for (const vault of vaults) {
+            // ignore those without earned token address
+            if (!vault.earnedTokenAddress) {
+              const msg = { msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } };
+              if (vault?.id?.endsWith("-rp") || vault?.id === "bifi-pool") {
+                logger.debug(msg);
+              } else {
+                logger.error(msg);
+              }
+              logger.trace(vault);
+              continue;
             }
-            logger.trace(vault);
-            continue;
+
+            // index by contract address since beefy's team changes ids when the vault is eol
+            if (!ethers.utils.isAddress(vault.earnContractAddress)) {
+              logger.error({
+                msg: "Vault earnContractAddress is invalid, ignoring",
+                data: { vaultId: vault.id, earnContractAddress: vault.earnContractAddress },
+              });
+              logger.trace(vault);
+              continue;
+            }
+            const vaultAddress = normalizeAddressOrThrow(vault.earnContractAddress);
+            if (!acc[vaultAddress]) {
+              const eolDate = vault.status === "eol" ? fileVersion.date : null;
+              acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
+            } else {
+              acc[vaultAddress].foundInCurrentBatch = true;
+
+              const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
+              acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
+            }
           }
 
-          // index by contract address since beefy's team changes ids when the vault is eol
-          if (!ethers.utils.isAddress(vault.earnContractAddress)) {
-            logger.error({
-              msg: "Vault earnContractAddress is invalid, ignoring",
-              data: { vaultId: vault.id, earnContractAddress: vault.earnContractAddress },
-            });
-            logger.trace(vault);
-            continue;
+          // mark all deleted vaults as eol if not already done
+          for (const vaultAddress of Object.keys(acc)) {
+            if (!acc[vaultAddress].foundInCurrentBatch) {
+              acc[vaultAddress].vault.status = "eol";
+              acc[vaultAddress].eolDate = acc[vaultAddress].eolDate || fileVersion.date;
+            }
           }
-          const vaultAddress = normalizeAddressOrThrow(vault.earnContractAddress);
-          if (!acc[vaultAddress]) {
-            const eolDate = vault.status === "eol" ? fileVersion.date : null;
-            acc[vaultAddress] = { fileVersion, eolDate, vault, foundInCurrentBatch: true };
-          } else {
-            acc[vaultAddress].foundInCurrentBatch = true;
 
-            const eolDate = vault.status === "eol" ? acc[vaultAddress].eolDate || fileVersion.date : null;
-            acc[vaultAddress] = { vault, eolDate, foundInCurrentBatch: true, fileVersion };
-          }
+          return acc;
+        } catch (error) {
+          logger.error({
+            msg: "Could not process vaults",
+            data: { fileVersion, vaults },
+            error,
+          });
+          logger.debug(error);
+          return acc;
         }
-
-        // mark all deleted vaults as eol if not already done
-        for (const vaultAddress of Object.keys(acc)) {
-          if (!acc[vaultAddress].foundInCurrentBatch) {
-            acc[vaultAddress].vault.status = "eol";
-            acc[vaultAddress].eolDate = acc[vaultAddress].eolDate || fileVersion.date;
-          }
-        }
-
-        return acc;
       }, {} as Record<string, { foundInCurrentBatch: boolean; fileVersion: GitFileVersion; eolDate: Date | null; vault: RawBeefyVault }>),
       // flatten the accumulator
       Rx.map((acc) => Object.values(acc)),
@@ -250,7 +260,15 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
       }),
 
       // just emit the vault
-      Rx.map(({ vault, eolDate }) => ({ vault: rawVaultToBeefyVault(chain, vault, eolDate), rawVault: vault })),
+      Rx.concatMap(({ vault, eolDate }) => {
+        try {
+          return Rx.of({ vault: rawVaultToBeefyVault(chain, vault, eolDate), rawVault: vault });
+        } catch (error) {
+          logger.error({ msg: "Could not map raw vault to expected format", data: { rawVault: vault }, error });
+          logger.debug(error);
+          return Rx.EMPTY;
+        }
+      }),
     ),
 
     // ignore cowcentrated vaults, those are covered by thegraph
