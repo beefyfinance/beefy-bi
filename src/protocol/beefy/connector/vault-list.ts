@@ -175,7 +175,12 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
         for (const vault of vaults) {
           // ignore those without earned token address
           if (!vault.earnedTokenAddress) {
-            logger.error({ msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } });
+            const msg = { msg: "Could not find vault earned token address for vault", data: { vaultId: vault.id } };
+            if (vault?.id?.endsWith("-rp") || vault?.id === "bifi-pool") {
+              logger.debug(msg);
+            } else {
+              logger.error(msg);
+            }
             logger.trace(vault);
             continue;
           }

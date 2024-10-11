@@ -140,7 +140,14 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
         logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: normalizeVaultId(boost.poolId) } });
         return Rx.EMPTY;
       }
-      return Rx.of(rawBoostToBeefyBoost(chain, boost, vault, eolDate));
+
+      try {
+        return Rx.of(rawBoostToBeefyBoost(chain, boost, vault, eolDate));
+      } catch (error) {
+        logger.error({ msg: "Could not map raw boost to expected format", data: { rawVault: boost }, error });
+        logger.debug(error);
+        return Rx.EMPTY;
+      }
     }),
 
     Rx.tap({
