@@ -100,7 +100,7 @@ export const EXPLORER_URLS: {
   real: { type: "blockscout-api-v2", url: "https://explorer.re.al/api/v2" },
   rollux: { type: "blockscout-json", url: "https://explorer.rollux.com" },
   rootstock: { type: "blockscout-api-v2", url: "https://rootstock.blockscout.com/api/v2" },
-  scroll: { type: "etherscan", url: "https://scrollscan.com" },
+  scroll: { type: "etherscan", url: "https://api.scrollscan.com/api" },
   sei: { type: "seitrace", url: "https://seitrace.com/" },
   zkevm: { type: "etherscan", url: "https://api-zkevm.polygonscan.com/api" },
   zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
