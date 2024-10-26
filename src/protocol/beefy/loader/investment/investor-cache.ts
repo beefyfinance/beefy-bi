@@ -281,8 +281,8 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                     const hasDefinitelyNoPrices = successRanges.some((range) => rangeInclude(range, shouldInclude));
                     if (!hasDefinitelyNoPrices) {
                       logger.warn({
-                        msg: "Found a cache entry without a first price but import state isn't green",
-                        data: { row, successRanges, contractCreation },
+                        msg: "Found a cache entry without a first price but import state isn't green (1)",
+                        data: { row, successRanges, contractCreation, shouldInclude },
                       });
                     }
                     return hasDefinitelyNoPrices;
@@ -306,8 +306,8 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                           const isDefinitelyBeforeFirstPrice = successRanges.some((range) => rangeInclude(range, shouldInclude));
                           if (!isDefinitelyBeforeFirstPrice) {
                             logger.warn({
-                              msg: "Found a cache entry with a trx before first price but import state isn't green",
-                              data: { row, successRanges, contractCreation },
+                              msg: "Found a cache entry with a trx before first price but import state isn't green (2)",
+                              data: { row, successRanges, firstPrice, contractCreation, shouldInclude },
                             });
                           }
                           return isDefinitelyBeforeFirstPrice;
@@ -346,7 +346,10 @@ export function addMissingInvestorCacheUsdInfos$(options: { ctx: ImportCtx }) {
                           const isDefinitelyInterpolated = successRanges.some((range) => rangeInclude(range, shouldInclude));
 
                           if (!isDefinitelyInterpolated) {
-                            logger.warn({ msg: "Found a price to interpolate but import state isn't green", data: { row, successRanges } });
+                            logger.warn({
+                              msg: "Found a price to interpolate but import state isn't green (3)",
+                              data: { row, successRanges, firstPrice, shouldInclude },
+                            });
                           }
                           return isDefinitelyInterpolated;
                         }),
