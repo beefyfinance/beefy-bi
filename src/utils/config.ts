@@ -213,7 +213,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   mode: 2000,
   moonbeam: 12200,
   moonriver: 13000,
-  optimism: 375,
+  optimism: 2000,
   polygon: 2170,
   rollux: 2000,
   real: 7706,
