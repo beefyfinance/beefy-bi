@@ -67,7 +67,7 @@ export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null
 
 export const EXPLORER_URLS: {
   [chain in Chain]: {
-    type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync" | "seitrace";
+    type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-json-v2" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync" | "seitrace";
     url: string;
   };
 } = {
@@ -89,6 +89,7 @@ export const EXPLORER_URLS: {
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
   kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
   linea: { type: "etherscan", url: "https://api.lineascan.build/api" },
+  lisk: { type: "blockscout-json-v2", url: "https://blockscout.lisk.com/api/v2" },
   manta: { type: "blockscout-api-v2", url: "https://pacific-explorer.manta.network/api/v2" },
   mantle: { type: "blockscout-api-v2", url: "https://explorer.mantle.xyz/api/v2" },
   metis: { type: "blockscout-json", url: "https://andromeda-explorer.metis.io/" },
@@ -125,6 +126,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   heco: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14413501 },
   kava: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 3661165 },
   linea: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 42 },
+  lisk: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 513427 }, // TODO: find the exact block
   manta: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 332890 },
   mantle: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 304717 },
   metis: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 2338552 },
@@ -167,6 +169,7 @@ export const ETHERSCAN_API_KEY: {
   heco: _getExplorerApiKey("heco"),
   kava: _getExplorerApiKey("kava"),
   linea: _getExplorerApiKey("linea"),
+  lisk: _getExplorerApiKey("lisk"),
   manta: _getExplorerApiKey("manta"),
   mantle: _getExplorerApiKey("mantle"),
   metis: _getExplorerApiKey("metis"),
@@ -207,6 +210,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   heco: 3000,
   kava: 6200,
   linea: 12000,
+  lisk: 2000,
   manta: 10800,
   mantle: 200,
   metis: 4000,

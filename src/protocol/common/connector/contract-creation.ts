@@ -62,6 +62,12 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await getBlockScoutJSONAPICreationInfo(ctx, contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "blockscout-json-v2") {
+    logger.trace({
+      msg: "BlockScout explorer detected for this chain, proceeding to scrape",
+      data: { contractAddress, chain },
+    });
+    return await getBlockScoutJSONAPICreationInfoV2(ctx, contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "blockscout-api-v2") {
     logger.trace({
       msg: "BlockScout explorer detected for this chain, proceeding to scrape",
@@ -309,6 +315,49 @@ async function blockscoutApiV2(contractAddress: string, explorerUrl: string, cha
       throw new Error("Could not parse timestamp");
     }
 
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+
+async function getBlockScoutJSONAPICreationInfoV2(ctx: ImportCtx, contractAddress: string, explorerUrl: string, chain: Chain) {
+  type TResp = { items: { block: number, timestamp: string }[]; next_page_params: { block_number: number; index: number; items_count: number; transaction_index: number } };
+  try {
+    let url = explorerUrl + `/addresses/${contractAddress}/internal-transactions?type=JSON`;
+    logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
+    const resp = await axios.get<TResp>(url);
+    let data = resp.data;
+    await sleep(samplingPeriodMs[ctx.behaviour.minDelayBetweenExplorerCalls]);
+    // sometimes, the internal transaction log is empty
+    if (data.items.length === 0) {
+      logger.info({ msg: "No internal transactions found, fetching from trx log", data: { contractAddress, explorerUrl } });
+      throw new Error("No internal transactions found");
+    }
+    
+    let nextPageParams = data.next_page_params;
+    while (nextPageParams && data.items.length >= nextPageParams.items_count) {
+      let url = explorerUrl + `/addresses/${contractAddress}/internal-transactions?type=JSON&block_number=${nextPageParams.block_number}&index=${nextPageParams.index}&items_count=${nextPageParams.items_count}&transaction_index=${nextPageParams.transaction_index}`;
+      logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
+      const resp = await axios.get<TResp>(url);
+
+      if (resp.data.items.length > 0) {
+        data = resp.data;
+      }
+      await sleep(samplingPeriodMs[ctx.behaviour.minDelayBetweenExplorerCalls]);
+    }
+    
+    logger.trace({ msg: "Found the first blockscout transaction", data: { contractAddress } });
+    const tx = data.items[data.items.length - 1];
+    const blockNumber = tx.block;
+
+    const rawDateStr: string = tx.timestamp;
+    const datetime = new Date(Date.parse(rawDateStr));
+
+    logger.trace({ msg: "Fetched contract creation block", data: { chain, contractAddress, blockNumber, datetime } });
     return { blockNumber, datetime };
   } catch (error) {
     logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
