@@ -31,6 +31,7 @@ import {
   rootstock,
   scroll,
   sei,
+  sonic,
   zkSync,
   type Chain as ViemChain,
 } from "viem/chains";
@@ -70,6 +71,7 @@ const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   rootstock: rootstock,
   scroll: scroll,
   sei: sei,
+  sonic: sonic,
   zkevm: polygonZkEvm,
   zksync: zkSync,
 };

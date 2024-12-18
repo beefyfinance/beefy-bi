@@ -3,7 +3,7 @@ import { Chain } from "../types/chain";
 import { normalizeAddressOrThrow } from "./ethers";
 
 export function getBridgedVaultTargetChains(): Chain[] {
-  return ["optimism", "base"];
+  return ["optimism", "base"/*, "sonic"*/];
 }
 
 export function getBridgedVaultOriginChains(): Chain[] {
@@ -16,13 +16,9 @@ function getAddressBookTokensConfig(chain: Chain) {
   if (addrBookChain in addressbook.addressBook) {
     // @ts-ignore
     return addressbook.addressBook[addrBookChain].tokens;
-  } else if (chain === "scroll") {
+  } else if (chain === "sonic") {
     return {
-      WNATIVE: { address: "0x5300000000000000000000000000000000000004", symbol: "WETH" },
-    };
-  } else if (chain === "rollux") {
-    return {
-      WNATIVE: { address: "0x4200000000000000000000000000000000000006", symbol: "WSYS" },
+      WNATIVE: { address: "0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38", symbol: "wS" },
     };
   }
 
@@ -34,10 +30,8 @@ export function getChainNetworkId(chain: Chain): number {
   if (addrBookChain in addressbook.ChainId) {
     // @ts-ignore
     return addressbook.ChainId[addrBookChain];
-  } else if (chain === "scroll") {
-    return 534352;
-  } else if (chain === "rollux") {
-    return 570;
+  } else if (chain === "sonic") {
+    return 146;
   }
   throw new Error(`Unknown chain ${chain}`);
 }
