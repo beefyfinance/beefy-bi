@@ -19,7 +19,7 @@ async function main() {
       default: "all",
       describe: "only import data for this chain",
     },
-    contractAddress: { type: "string", demand: true, alias: "a", describe: "only import data for this contract address" },
+    contractAddress: { type: "string", array: true, demand: true, alias: "a", describe: "only import data for this contract address" },
     disableWorkConcurrency: {
       type: "boolean",
       demand: false,
@@ -46,6 +46,10 @@ async function main() {
   };
 
   const pipeline$ = Rx.of(options).pipe(
+    Rx.mergeMap((item) => {
+      return Rx.of(...item.contractAddress.map((contractAddress) => ({ chain: item.chain, contractAddress })));
+    }),
+    
     fetchContractCreationInfos$({
       ctx,
       getCallParams: (item) => {
@@ -55,6 +59,10 @@ async function main() {
         };
       },
       formatOutput: (contractAddress, contractCreationInfos) => ({ contractAddress, contractCreationInfos }),
+    }),
+
+    Rx.tap((item) => {
+      console.dir(item, { depth: 10 });
     }),
   );
   const res = await consumeObservable(pipeline$);
