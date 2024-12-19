@@ -20,6 +20,10 @@ function getAddressBookTokensConfig(chain: Chain) {
     return {
       WNATIVE: { address: "0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38", symbol: "wS" },
     };
+  } else if (chain === "rollux") {
+    return {
+      WNATIVE: { address: "0x4200000000000000000000000000000000000006", symbol: "WSYS" },
+    };
   }
 
   throw new Error(`Unknown chain ${chain}`);
@@ -32,6 +36,8 @@ export function getChainNetworkId(chain: Chain): number {
     return addressbook.ChainId[addrBookChain];
   } else if (chain === "sonic") {
     return 146;
+  } else if (chain === "rollux") {
+    return 570;
   }
   throw new Error(`Unknown chain ${chain}`);
 }
