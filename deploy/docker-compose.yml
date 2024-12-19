@@ -256,152 +256,179 @@ services:
 
   # arbitrum avax base bsc canto cronos ethereum fantom fraxtal fuse kava linea mantle metis mode moonbeam moonriver optimism polygon rollux scroll zkevm zksync
 
-  importer-investment-recent-arbitrum-avax:
+  importer-investment-recent-1:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c arbitrum -c avax -l 1min"
 
-  importer-investment-recent-base-kava-linea-mantle-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-2:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c base -c kava -c linea -c lisk -c manta -c mantle -c metis -c mode -c moonbeam -c moonriver -c zksync -l 1min"
 
-  importer-investment-recent-bsc:
+  importer-investment-recent-3:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c bsc -l 1min"
 
-  importer-investment-recent-canto-cronos-fuse:
+  importer-investment-recent-4:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c canto -c cronos -c fuse -l 1min"
 
-  importer-investment-recent-ethereum-optimism:
+  importer-investment-recent-5:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c ethereum -c optimism -l 1min"
 
-  importer-investment-recent-fantom-gnosis-polygon-rollux-scroll-zkevm:
+  importer-investment-recent-6:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c fantom -c fraxtal -c gnosis -c polygon -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 1min"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c fantom -c fraxtal -c gnosis -c polygon  -l 1min"
+
+  importer-investment-recent-7:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 1min"
+
 
   # arbitrum avax base bsc canto cronos ethereum fantom fraxtal fuse kava linea mantle metis mode moonbeam moonriver optimism polygon rollux scroll zkevm zksync
 
-  importer-investment-historical-arbitrum-avax:
+  importer-investment-historical-1:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-base-kava-linea-mantle-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-2:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c base -c kava -c linea -c lisk -c manta -c mantle -c metis -c mode -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
-  importer-investment-historical-bsc:
+  importer-investment-historical-3:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c bsc -l 15min -S all"
 
-  importer-investment-historical-canto-cronos-fuse:
+  importer-investment-historical-4:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c canto -c cronos -c fuse -l 15min -S all"
 
-  importer-investment-historical-ethereum-optimism:
+  importer-investment-historical-5:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c ethereum -c optimism -l 15min -S all"
 
-  importer-investment-historical-fantom-gnosis-polygon-rollux-scroll-zkevm:
+  importer-investment-historical-6:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c fraxtal -c gnosis -c polygon -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c fantom -c fraxtal -c gnosis -c polygon -l 15min -S all"
+
+  importer-investment-historical-7:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 15min -S all"
+
 
   # arbitrum avax base bsc canto cronos ethereum fantom fraxtal fuse kava linea mantle metis mode moonbeam moonriver optimism polygon rollux scroll zkevm zksync
 
-  importer-investment-historical-share-rate-arbitrum-avax:
+  importer-investment-historical-share-rate-1:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c arbitrum -c avax -l 15min -S all"
 
-  importer-investment-historical-share-rate-base-kava-linea-mantle-metis-moonbeam-moonriver-zksync:
+  importer-investment-historical-share-rate-2:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c base -c kava -c linea -c lisk -c manta -c mantle -c metis -c mode -c moonbeam -c moonriver -c zksync -l 15min -S all"
 
-  importer-investment-historical-share-rate-bsc:
+  importer-investment-historical-share-rate-3:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c bsc -l 5min -S all"
 
-  importer-investment-historical-share-rate-canto-cronos-fuse:
+  importer-investment-historical-share-rate-4:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c canto -c cronos -c fuse -l 15min -S all"
 
-  importer-investment-historical-share-rate-ethereum-optimism:
+  importer-investment-historical-share-rate-5:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c ethereum -c optimism -l 1sec -S all"
 
-  importer-investment-historical-share-rate-fantom-gnosis-polygon-rollux-scroll-zkevm:
+  importer-investment-historical-share-rate-6:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c fantom -c fraxtal -c gnosis -c polygon -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c fantom -c fraxtal -c gnosis -c polygon -l 15min -S all"
+
+  importer-investment-historical-share-rate-7:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t historical-share-rate -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -l 15min -S all"
+
 
   # arbitrum avax base bsc canto cronos ethereum fantom fraxtal fuse kava linea mantle metis mode moonbeam moonriver optimism polygon rollux scroll zkevm zksync
 
-  importer-investment-recent-share-rate-arbitrum-avax:
+  importer-investment-recent-share-rate-1:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c arbitrum -c avax -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-base-kava-linea-mantle-metis-moonbeam-moonriver-zksync:
+  importer-investment-recent-share-rate-2:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c base -c kava -c linea -c lisk -c manta -c mantle -c metis -c mode -c moonbeam -c moonriver -c zksync -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-bsc:
+  importer-investment-recent-share-rate-3:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c bsc -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-canto-cronos-fuse:
+  importer-investment-recent-share-rate-4:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c canto -c cronos -c fuse -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-ethereum-optimism:
+  importer-investment-recent-share-rate-5:
     <<: *importer
     environment:
       <<: *importer-env
       WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c ethereum -c optimism -L 0 -l 15min -S all"
 
-  importer-investment-recent-share-rate-fantom-gnosis-polygon-rollux-scroll-zkevm:
+  importer-investment-recent-share-rate-6:
     <<: *importer
     environment:
       <<: *importer-env
-      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -c fraxtal -c gnosis -c polygon -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -L 0 -l 15min -S all"
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c fantom -c fraxtal -c gnosis -c polygon -l 15min -S all"
+
+  importer-investment-recent-share-rate-7:
+    <<: *importer
+    environment:
+      <<: *importer-env
+      WORK_CMD: "./dist/src/script/run.js beefy:run -e false -t recent-share-rate -c real -c rollux -c rootstock -c scroll -c sonic -c sei -c zkevm -L 0 -l 15min -S all"
