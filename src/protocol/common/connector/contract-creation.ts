@@ -323,9 +323,11 @@ async function blockscoutApiV2(contractAddress: string, explorerUrl: string, cha
   }
 }
 
-
 async function getBlockScoutJSONAPICreationInfoV2(ctx: ImportCtx, contractAddress: string, explorerUrl: string, chain: Chain) {
-  type TResp = { items: { block: number, timestamp: string }[]; next_page_params: { block_number: number; index: number; items_count: number; transaction_index: number } };
+  type TResp = {
+    items: { block: number; timestamp: string; block_number: number }[];
+    next_page_params: { block_number: number; index: number; items_count: number; transaction_index: number };
+  };
   try {
     let url = explorerUrl + `/addresses/${contractAddress}/internal-transactions?type=JSON`;
     logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
@@ -337,10 +339,12 @@ async function getBlockScoutJSONAPICreationInfoV2(ctx: ImportCtx, contractAddres
       logger.info({ msg: "No internal transactions found, fetching from trx log", data: { contractAddress, explorerUrl } });
       throw new Error("No internal transactions found");
     }
-    
+
     let nextPageParams = data.next_page_params;
     while (nextPageParams && data.items.length >= nextPageParams.items_count) {
-      let url = explorerUrl + `/addresses/${contractAddress}/internal-transactions?type=JSON&block_number=${nextPageParams.block_number}&index=${nextPageParams.index}&items_count=${nextPageParams.items_count}&transaction_index=${nextPageParams.transaction_index}`;
+      let url =
+        explorerUrl +
+        `/addresses/${contractAddress}/internal-transactions?type=JSON&block_number=${nextPageParams.block_number}&index=${nextPageParams.index}&items_count=${nextPageParams.items_count}&transaction_index=${nextPageParams.transaction_index}`;
       logger.trace({ msg: "Fetching blockscout internal transactions", data: { contractAddress, url } });
       const resp = await axios.get<TResp>(url);
 
@@ -349,10 +353,10 @@ async function getBlockScoutJSONAPICreationInfoV2(ctx: ImportCtx, contractAddres
       }
       await sleep(samplingPeriodMs[ctx.behaviour.minDelayBetweenExplorerCalls]);
     }
-    
+
     logger.trace({ msg: "Found the first blockscout transaction", data: { contractAddress } });
     const tx = data.items[data.items.length - 1];
-    const blockNumber = tx.block;
+    const blockNumber = tx.block ?? tx.block_number;
 
     const rawDateStr: string = tx.timestamp;
     const datetime = new Date(Date.parse(rawDateStr));
