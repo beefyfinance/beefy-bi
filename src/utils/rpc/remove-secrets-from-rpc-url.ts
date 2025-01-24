@@ -17,11 +17,16 @@ import {
   RPC_API_URL_QUIKNODE_ARBITRUM,
   RPC_API_URL_QUIKNODE_AVAX,
   RPC_API_URL_QUIKNODE_BASE,
+  RPC_API_URL_QUIKNODE_BSC,
+  RPC_API_URL_QUIKNODE_ETHEREUM,
   RPC_API_URL_QUIKNODE_FANTOM,
   RPC_API_URL_QUIKNODE_GNOSIS,
+  RPC_API_URL_QUIKNODE_LINEA,
   RPC_API_URL_QUIKNODE_MANTLE,
   RPC_API_URL_QUIKNODE_OPTIMISM,
   RPC_API_URL_QUIKNODE_POLYGON,
+  RPC_API_URL_QUIKNODE_SCROLL,
+  RPC_API_URL_QUIKNODE_SEI,
   RPC_API_URL_QUIKNODE_ZKEVM,
   RPC_API_URL_QUIKNODE_ZKSYNC,
 } from "../config";
@@ -88,6 +93,20 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_FANTOM>";
     } else if (secretRpcUrl.includes("zkevm-mainnet.quiknode.pro")) {
       publicRpcUrl = "<RPC_API_URL_QUIKNODE_ZKEVM>";
+    } else if (secretRpcUrl.includes("linea-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_LINEA>";
+    } else if (secretRpcUrl.includes("mantle-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_MANTLE>";
+    } else if (secretRpcUrl.includes("scroll-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_SCROLL>";
+    } else if (secretRpcUrl.includes("sei-pacific.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_SEI>";
+    } else if (secretRpcUrl.includes("cronos-mainnet.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_CRONOS>";
+    } else if (secretRpcUrl.includes("bsc.quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_BSC>";
+    } else if (secretRpcUrl.includes(".quiknode.pro")) {
+      publicRpcUrl = "<RPC_API_URL_QUIKNODE_ETHEREUM>";
     }
   } else if (secretRpcUrl.includes("llamarpc.com")) {
     publicRpcUrl += "/rpc/<RPC_API_KEY_LLAMARPC>";
@@ -144,6 +163,11 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_POLYGON", RPC_API_URL_QUIKNODE_POLYGON);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKEVM", RPC_API_URL_QUIKNODE_ZKEVM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ZKSYNC", RPC_API_URL_QUIKNODE_ZKSYNC);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_LINEA", RPC_API_URL_QUIKNODE_LINEA);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_SCROLL", RPC_API_URL_QUIKNODE_SCROLL);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_SEI", RPC_API_URL_QUIKNODE_SEI);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_BSC", RPC_API_URL_QUIKNODE_BSC);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_QUIKNODE_ETHEREUM", RPC_API_URL_QUIKNODE_ETHEREUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_FUSE_BEEFY", RPC_API_URL_FUSE_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_LLAMARPC", RPC_API_KEY_LLAMARPC);

@@ -54,12 +54,17 @@ export const RPC_API_KEY_LLAMARPC = process.env.RPC_API_KEY_LLAMARPC || null;
 export const RPC_API_URL_CHAINSTACK_CRONOS = process.env.RPC_API_URL_CHAINSTACK_CRONOS || null;
 export const RPC_API_URL_QUIKNODE_ARBITRUM = process.env.RPC_API_URL_QUIKNODE_ARBITRUM || null;
 export const RPC_API_URL_QUIKNODE_AVAX = process.env.RPC_API_URL_QUIKNODE_AVAX || null;
+export const RPC_API_URL_QUIKNODE_BSC = process.env.RPC_API_URL_QUIKNODE_BSC || null;
+export const RPC_API_URL_QUIKNODE_ETHEREUM = process.env.RPC_API_URL_QUIKNODE_ETHEREUM || null;
 export const RPC_API_URL_QUIKNODE_BASE = process.env.RPC_API_URL_QUIKNODE_BASE || null;
 export const RPC_API_URL_QUIKNODE_FANTOM = process.env.RPC_API_URL_QUIKNODE_FANTOM || null;
 export const RPC_API_URL_QUIKNODE_GNOSIS = process.env.RPC_API_URL_QUIKNODE_GNOSIS || null;
+export const RPC_API_URL_QUIKNODE_LINEA = process.env.RPC_API_URL_QUIKNODE_LINEA || null;
 export const RPC_API_URL_QUIKNODE_MANTLE = process.env.RPC_API_URL_QUIKNODE_MANTLE || null;
 export const RPC_API_URL_QUIKNODE_OPTIMISM = process.env.RPC_API_URL_QUIKNODE_OPTIMISM || null;
 export const RPC_API_URL_QUIKNODE_POLYGON = process.env.RPC_API_URL_QUIKNODE_POLYGON || null;
+export const RPC_API_URL_QUIKNODE_SCROLL = process.env.RPC_API_URL_QUIKNODE_SCROLL || null;
+export const RPC_API_URL_QUIKNODE_SEI = process.env.RPC_API_URL_QUIKNODE_SEI || null;
 export const RPC_API_URL_QUIKNODE_ZKEVM = process.env.RPC_API_URL_QUIKNODE_ZKEVM || null;
 export const RPC_API_URL_QUIKNODE_ZKSYNC = process.env.RPC_API_URL_QUIKNODE_ZKSYNC || null;
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
@@ -67,7 +72,16 @@ export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null
 
 export const EXPLORER_URLS: {
   [chain in Chain]: {
-    type: "etherscan" | "blockscout" | "blockscout-json" | "blockscout-json-v2" | "blockscout-api-v2" | "harmony" | "routescan" | "zksync" | "seitrace";
+    type:
+      | "etherscan"
+      | "blockscout"
+      | "blockscout-json"
+      | "blockscout-json-v2"
+      | "blockscout-api-v2"
+      | "harmony"
+      | "routescan"
+      | "zksync"
+      | "seitrace";
     url: string;
   };
 } = {
