@@ -1759,7 +1759,7 @@
   },
   "sei": {
     "https://evm-rpc.sei-apis.com": {
-      "restrictToMode": null,
+      "restrictToMode": "historical",
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
@@ -1780,7 +1780,7 @@
     },
     "<RPC_API_URL_QUIKNODE_SEI>": {
       "restrictToMode": null,
-      "isArchiveNode": true,
+      "isArchiveNode": false,
       "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 10000,
       "maxGetLogsAddressBatchSize": 200,
