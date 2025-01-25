@@ -683,7 +683,7 @@
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
+      "disableBatching": true,
       "disableRpc": false,
       "weight": 1,
       "methods": {
