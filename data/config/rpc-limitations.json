@@ -683,8 +683,8 @@
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
-      "disableBatching": true,
-      "disableRpc": false,
+      "disableBatching": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 2,
