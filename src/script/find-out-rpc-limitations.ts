@@ -174,6 +174,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       aurora: 51919680,
       avax: 820,
       base: 1, // weth created on genesis block
+      berachain: 1, // weth created on genesis block
       bsc: 149268,
       canto: 85395,
       celo: 2919,
@@ -202,7 +203,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       rootstock: 2_742_415,
       scroll: 1, // weth created on genesis block
       sei: 79351444, // looks like a precompile, but multicall only exists starting from 79351444
-      sonic: 275872,      
+      sonic: 275872,
       zkevm: 129,
       zksync: 9648,
     };
