@@ -16,10 +16,6 @@ function getAddressBookTokensConfig(chain: Chain) {
   if (addrBookChain in addressbook.addressBook) {
     // @ts-ignore
     return addressbook.addressBook[addrBookChain].tokens;
-  } else if (chain === "sonic") {
-    return {
-      WNATIVE: { address: "0x039e2fb66102314ce7b64ce5ce3e5183bc94ad38", symbol: "wS" },
-    };
   } else if (chain === "rollux") {
     return {
       WNATIVE: { address: "0x4200000000000000000000000000000000000006", symbol: "WSYS" },
@@ -34,8 +30,6 @@ export function getChainNetworkId(chain: Chain): number {
   if (addrBookChain in addressbook.ChainId) {
     // @ts-ignore
     return addressbook.ChainId[addrBookChain];
-  } else if (chain === "sonic") {
-    return 146;
   } else if (chain === "rollux") {
     return 570;
   }

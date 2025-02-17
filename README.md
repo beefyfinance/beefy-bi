@@ -148,8 +148,10 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
   - `npx ncu --upgrade viem` 
   - and `npm install` to get the wtoken address and latest viem chain config
 - Update the chain enum in the `src/types/chain.ts` file
+- Update the `src/utils/config.ts`
 - Run `npm run build` and solve any remainning typescript error
 - Add a new RPC using the above guide
+  - `LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w true -d true`
 - Run `npm run db:migrate` to apply db migrations
 - detect ms per block `LOG_LEVEL=trace npx ts-node ./src/script/show-estimated-ms-per-block.ts -c <chain>`
 - check contract creation block works `LOG_LEVEL=trace npx ts-node ./src/script/show-contract-creation-infos.ts -a 0xcA11bde05977b3631167028862bE2a173976CA11 -c <chain>`

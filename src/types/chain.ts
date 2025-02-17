@@ -33,6 +33,7 @@ export type Chain =
   | "scroll"
   | "sei"
   | "sonic"
+  | "unichain"
   | "zkevm"
   | "zksync";
 
@@ -71,6 +72,7 @@ export const allChainIds: Chain[] = [
   "scroll",
   "sei",
   "sonic",
+  "unichain",
   "zkevm",
   "zksync",
 ];

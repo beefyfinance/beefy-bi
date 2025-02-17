@@ -119,6 +119,7 @@ export const EXPLORER_URLS: {
   scroll: { type: "etherscan", url: "https://api.scrollscan.com/api" },
   sei: { type: "seitrace", url: "https://seitrace.com/" },
   sonic: { type: "etherscan", url: "https://api.sonicscan.org/api" },
+  unichain: { type: "etherscan", url: "https://api.uniscan.xyz/api" },
   zkevm: { type: "etherscan", url: "https://api-zkevm.polygonscan.com/api" },
   zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
 };
@@ -158,6 +159,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   scroll: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14 },
   sei: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 79351444 },
   sonic: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 60 },
+  unichain: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1 },
   zkevm: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 57746 },
   zksync: { multicallAddress: "0xF9cda624FBC7e059355ce98a31693d299FACd963", createdAtBlock: 324 },
 };
@@ -203,6 +205,7 @@ export const ETHERSCAN_API_KEY: {
   scroll: _getExplorerApiKey("scroll"),
   sei: _getExplorerApiKey("sei"),
   sonic: _getExplorerApiKey("sonic"),
+  unichain: _getExplorerApiKey("unichain"),
   zkevm: _getExplorerApiKey("zkevm"),
   zksync: _getExplorerApiKey("zksync"),
 };
@@ -246,6 +249,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   scroll: 4000,
   sei: 400,
   sonic: 300,
+  unichain: 1000,
   zkevm: 1208,
   zksync: 1000,
 };
