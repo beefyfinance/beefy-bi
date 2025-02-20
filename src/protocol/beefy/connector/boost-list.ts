@@ -11,21 +11,36 @@ import { BeefyVault } from "./vault-list";
 
 const logger = rootLogger.child({ module: "beefy", component: "boost-list" });
 
-interface RawBeefyBoost {
-  id: string;
-  poolId: string;
+ type RawTokenRewardConfig = {
+  type: 'token';
+  address: string;
+  symbol: string;
+  decimals: number;
+  oracleId: string;
+  oracle?: 'lps' | 'tokens';
+  chainId?: string;
+};
+
+/*type RawPointsRewardConfig = {
+  type: 'points';
   name: string;
-  assets?: string[] | null;
-  tokenAddress?: string | null;
-  earnedToken: string;
-  earnedTokenDecimals: number;
-  earnedTokenAddress: string;
-  earnContractAddress: string;
-  earnedOracle: string;
-  earnedOracleId: string;
-  partnership: boolean;
-  status: "active" | "closed";
+};*/
+
+export type RawRewardConfig = RawTokenRewardConfig /*| RawPointsRewardConfig*/;
+
+type RawBeefyBoost = {
+  id: string;
+  vaultId: string;
+  title: string;
+  status: 'active' | 'prestake' | 'inactive';
+
+  type: 'boost';
+  contractAddress: string;
+  version?: number;
+  rewards: RawRewardConfig[];
 }
+
+type RawBeefyPromo = RawBeefyBoost | {type: 'offchain'} | {type: 'pool'} | {type: 'airdrop'};
 
 export interface BeefyBoost {
   id: string;
@@ -58,7 +73,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
       ? `https://${GITHUB_RO_AUTH_TOKEN}@github.com/beefyfinance/beefy-v2.git`
       : "https://github.com/beefyfinance/beefy-v2.git",
     branch: "main",
-    filePath: `src/config/boost/${chain}.json`,
+    filePath: `src/config/promos/chain/${chain}.json`,
     workdir: path.join(GIT_WORK_DIRECTORY, "beefy-v2"),
     order: "old-to-recent",
     throwOnError: false,
@@ -69,13 +84,13 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
     // parse the file content
     Rx.map((fileVersion) => {
       try {
-        const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyBoost[];
+        const boosts = JSON.parse(fileVersion.fileContent) as RawBeefyPromo[];
         return { fileVersion, boosts };
       } catch (error) {
         logger.error({ msg: "Could not parse boost file", data: { fileVersion }, error });
         logger.debug(error);
       }
-      return { fileVersion, boosts: [] as RawBeefyBoost[] };
+      return { fileVersion, boosts: [] as RawBeefyPromo[] };
     }),
   );
 
@@ -93,12 +108,14 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
 
         // add boosts to the accumulator
         for (const boost of boosts) {
-          const boostAddress = normalizeAddressOrThrow(boost.earnContractAddress);
+          if(boost.type !== 'boost') continue;
+
+          const boostAddress = normalizeAddressOrThrow(boost.contractAddress);
           if (!acc[boostAddress]) {
-            const eolDate = boost.status === "closed" ? fileVersion.date : null;
+            const eolDate = boost.status === "inactive" ? fileVersion.date : null;
             acc[boostAddress] = { fileVersion, eolDate, boost, foundInCurrentBatch: true };
           } else {
-            const eolDate = boost.status === "closed" ? acc[boostAddress].eolDate || fileVersion.date : null;
+            const eolDate = boost.status === "inactive" ? acc[boostAddress].eolDate || fileVersion.date : null;
             acc[boostAddress] = { boost, eolDate, foundInCurrentBatch: true, fileVersion };
           }
         }
@@ -106,7 +123,7 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
         // mark all deleted vaults as eol if not already done
         for (const boostAddress of Object.keys(acc)) {
           if (!acc[boostAddress].foundInCurrentBatch) {
-            acc[boostAddress].boost.status = "closed";
+            acc[boostAddress].boost.status = "inactive";
             acc[boostAddress].eolDate = acc[boostAddress].eolDate || fileVersion.date;
           }
         }
@@ -126,12 +143,12 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
     Rx.tap(({ fileVersion, boost, eolDate }) =>
       logger.trace({
         msg: "Boost from git history",
-        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, boost, isEol: boost.status === "closed", eolDate },
+        data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, boost, isEol: boost.status === "inactive", eolDate },
       }),
     ),
 
     Rx.tap(({ fileVersion, boost, eolDate }) => {
-      if (boost.status === "closed" && !eolDate) {
+      if (boost.status === "inactive" && !eolDate) {
         logger.error({
           msg: "product marked as eol but no eol date found",
           data: { fileVersion: { ...fileVersion, fileContent: "<removed>" }, boost, eolDate },
@@ -141,9 +158,9 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
 
     // just emit the boost
     Rx.concatMap(({ boost, eolDate }) => {
-      const vault = vaultMap[normalizeVaultId(boost.poolId)];
+      const vault = vaultMap[normalizeVaultId(boost.vaultId)];
       if (!vault) {
-        logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: normalizeVaultId(boost.poolId) } });
+        logger.error({ msg: "Could not find vault for boost", data: { boostId: boost.id, vaultId: normalizeVaultId(boost.vaultId) } });
         return Rx.EMPTY;
       }
 
@@ -164,25 +181,26 @@ export function beefyBoostsFromGitHistory$(chain: Chain, allChainVaults: BeefyVa
 
 function rawBoostToBeefyBoost(chain: Chain, rawBoost: RawBeefyBoost, vault: BeefyVault, eolDate: Date | null): BeefyBoost {
   try {
+    const rewards = rawBoost.rewards.filter((reward): reward is RawTokenRewardConfig => reward.type === "token");
     return {
       id: rawBoost.id,
       chain,
 
-      vault_id: rawBoost.poolId,
-      name: rawBoost.name,
-      contract_address: normalizeAddressOrThrow(rawBoost.earnContractAddress),
+      vault_id: rawBoost.vaultId,
+      name: rawBoost.title,
+      contract_address: normalizeAddressOrThrow(rawBoost.contractAddress),
 
       staked_token_address: normalizeAddressOrThrow(vault.contract_address),
       staked_token_decimals: vault.token_decimals,
       vault_want_address: normalizeAddressOrThrow(vault.want_address),
       vault_want_decimals: vault.want_decimals,
 
-      reward_token_decimals: rawBoost.earnedTokenDecimals,
-      reward_token_symbol: rawBoost.earnedToken,
-      reward_token_address: normalizeAddressOrThrow(rawBoost.earnedTokenAddress),
-      reward_token_price_feed_key: rawBoost.earnedOracleId,
+      reward_token_decimals: rewards[0].decimals,
+      reward_token_symbol: rewards[0].symbol,
+      reward_token_address: normalizeAddressOrThrow(rewards[0].address),
+      reward_token_price_feed_key: rewards[0].oracleId,
 
-      eol: rawBoost.status === "closed",
+      eol: rawBoost.status === "inactive",
       eol_date: eolDate,
     };
   } catch (error) {
