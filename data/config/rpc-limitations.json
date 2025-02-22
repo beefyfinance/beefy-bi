@@ -1500,26 +1500,6 @@
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
       }
-    },
-    "https://enterprise.onerpc.com/sonic_mainnet?apikey=<RPC_API_KEY_ONE_RPC>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 200,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 500,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 2,
-      "methods": {
-        "eth_getLogs": 32,
-        "eth_call": 50,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 50
-      }
     }
   },
   "berachain": {
