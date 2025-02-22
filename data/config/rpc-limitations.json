@@ -1,105 +1,5 @@
 {
   "arbitrum": {
-    "https://rpc.ankr.com/arbitrum/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 18,
-      "internalTimeoutMs": 10000,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 5,
-        "eth_call": 10,
-        "eth_getBlockByNumber": 2,
-        "eth_blockNumber": 16,
-        "eth_getTransactionReceipt": 8
-      }
-    },
-    "https://arb-mainnet.g.alchemy.com/v2/<RPC_API_KEY_ALCHEMY_ARBITRUM>": {
-      "restrictToMode": "historical",
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 20,
-        "eth_call": 20,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 50,
-        "eth_getTransactionReceipt": 64
-      }
-    },
-    "https://arbitrum-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 18,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "https://rpc.arb1.arbitrum.gateway.fm": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": 10,
-        "eth_call": 50,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 10
-      }
-    },
-    "https://rpc.tornadoeth.cash/arbitrum": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": 10,
-        "eth_call": 50,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 10
-      }
-    },
     "<RPC_API_URL_QUIKNODE_ARBITRUM>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -110,7 +10,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 5,
       "methods": {
         "eth_getLogs": 10,
@@ -118,6 +18,26 @@
         "eth_getBlockByNumber": 20,
         "eth_blockNumber": 5,
         "eth_getTransactionReceipt": null
+      }
+    },
+    "https://enterprise.onerpc.com/arbitrum?apikey=<RPC_API_KEY_ONE_RPC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 5,
+      "methods": {
+        "eth_getLogs": 16,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
@@ -184,26 +104,6 @@
     }
   },
   "base": {
-    "https://rpc.ankr.com/base/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": 10000,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": null,
-      "methods": {
-        "eth_getLogs": 16,
-        "eth_call": 50,
-        "eth_getBlockByNumber": 300,
-        "eth_blockNumber": 300,
-        "eth_getTransactionReceipt": 200
-      }
-    },
     "<RPC_API_URL_QUIKNODE_BASE>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -214,7 +114,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "methods": {
         "eth_getLogs": 10,
@@ -223,230 +123,50 @@
         "eth_blockNumber": 5,
         "eth_getTransactionReceipt": 10
       }
+    },
+    "https://enterprise.onerpc.com/base?apikey=<RPC_API_KEY_ONE_RPC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
     }
   },
   "bsc": {
-    "https://bsc-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": "historical",
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 25000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 4,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 10,
-        "eth_getBlockByNumber": 100,
-        "eth_blockNumber": 100,
-        "eth_getTransactionReceipt": 100
-      }
-    },
-    "https://rpc.ankr.com/bsc/<RPC_API_KEY_ANKR>": {
+    "<RPC_API_URL_QUIKNODE_BSC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 6,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 200,
-        "eth_getBlockByNumber": 200,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 200
-      }
-    },
-    "https://bsc.getblock.io/<RPC_API_KEY_GETBLOCK>/mainnet": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 30,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
+      "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": 3,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 200,
-        "eth_getBlockByNumber": 200,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 200
-      }
-    },
-    "https://bsc-private-dataseed1.nariox.org": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
       "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
       "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 378,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 64
-      }
-    },
-    "https://bsc-dataseed1.ninicoin.io": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 8,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "https://bsc-dataseed.binance.org": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 2,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "https://bsc-dataseed1.defibit.io": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
+        "eth_getLogs": 4,
         "eth_call": 1,
         "eth_getBlockByNumber": 64,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 32
+        "eth_blockNumber": 64,
+        "eth_getTransactionReceipt": 20
       }
     },
-    "https://bsc-dataseed2.defibit.io": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 16,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "https://bsc-dataseed3.defibit.io": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 16,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 128
-      }
-    },
-    "https://bsc-dataseed4.defibit.io": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 128,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 64
-      }
-    },
-    "https://bsc-dataseed1.binance.org": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": 5000,
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 50,
-      "internalTimeoutMs": null,
-      "disableBatching": true,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 1,
-        "eth_call": 10,
-        "eth_getBlockByNumber": 128,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
-      }
-    },
-    "<RPC_API_URL_QUIKNODE_BSC>": {
+    "https://enterprise.onerpc.com/bsc?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
@@ -459,10 +179,10 @@
       "disableRpc": false,
       "weight": 1,
       "methods": {
-        "eth_getLogs": 4,
-        "eth_call": 1,
-        "eth_getBlockByNumber": 64,
-        "eth_blockNumber": 64,
+        "eth_getLogs": 1,
+        "eth_call": 20,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 20
       }
     }
@@ -654,27 +374,7 @@
         "eth_getTransactionReceipt": 5
       }
     },
-    "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>": {
-      "restrictToMode": null,
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": null,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "methods": {
-        "eth_getLogs": null,
-        "eth_call": 200,
-        "eth_getBlockByNumber": 200,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 10
-      }
-    },
-    "<RPC_API_URL_QUIKNODE_ETHEREUM>": {
+    "https://enterprise.onerpc.com/eth?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
@@ -684,14 +384,14 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 1,
       "methods": {
-        "eth_getLogs": 2,
-        "eth_call": 30,
-        "eth_getBlockByNumber": 50,
-        "eth_blockNumber": 50,
-        "eth_getTransactionReceipt": 10
+        "eth_getLogs": 4,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
@@ -1164,7 +864,7 @@
       "maxGetLogsAddressBatchSize": 50,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
@@ -1176,24 +876,24 @@
         "eth_getTransactionReceipt": 96
       }
     },
-    "https://1rpc.io/glmr": {
-      "restrictToMode": "historical",
+    "https://enterprise.onerpc.com/moonbeam?apikey=<RPC_API_KEY_ONE_RPC>": {
+      "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 100,
+      "minDelayBetweenCalls": 1000,
       "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
+      "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 2,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 2,
       "methods": {
-        "eth_getLogs": 10,
-        "eth_call": 28,
-        "eth_getBlockByNumber": 28,
-        "eth_blockNumber": 28,
-        "eth_getTransactionReceipt": 28
+        "eth_getLogs": 20,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
@@ -1288,7 +988,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 5,
       "methods": {
         "eth_getLogs": 24,
@@ -1306,7 +1006,7 @@
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
@@ -1318,65 +1018,24 @@
         "eth_getTransactionReceipt": 64
       }
     },
-    "https://rpc.ankr.com/optimism/<RPC_API_KEY_ANKR>": {
-      "restrictToMode": "recent",
-      "isArchiveNode": true,
-      "minDelayBetweenCalls": "no-limit",
-      "maxGetLogsBlockSpan": 3000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": 10000,
-      "disableBatching": false,
-      "disableRpc": true,
-      "comment": "Ankr do not work properly on optimism and is generating lots of \"missing trie node\" errors.",
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 400,
-        "eth_call": 120,
-        "eth_getBlockByNumber": 150,
-        "eth_blockNumber": 200,
-        "eth_getTransactionReceipt": 200
-      }
-    },
-    "https://opt-mainnet.nodereal.io/v1/<RPC_API_KEY_NODEREAL>": {
-      "restrictToMode": null,
-      "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 100,
-      "internalTimeoutMs": 10000,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
-      "stateChangeReadsOnSameBlock": true,
-      "canUseMulticallBlockTimestamp": true,
-      "methods": {
-        "eth_getLogs": 50,
-        "eth_call": null,
-        "eth_getBlockByNumber": 250,
-        "eth_blockNumber": 250,
-        "eth_getTransactionReceipt": 50
-      }
-    },
-    "https://optimism-mainnet.infura.io/v3/<RPC_API_KEY_INFURA>": {
+    "https://enterprise.onerpc.com/optimism?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
-      "minDelayBetweenCalls": 1000,
+      "minDelayBetweenCalls": 200,
       "maxGetLogsBlockSpan": 5000,
-      "maxGetLogsAddressBatchSize": 50,
+      "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
-      "disableBatching": false,
-      "disableRpc": true,
-      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
       "methods": {
-        "eth_getLogs": 84,
-        "eth_call": 500,
-        "eth_getBlockByNumber": 500,
-        "eth_blockNumber": 500,
-        "eth_getTransactionReceipt": 500
+        "eth_getLogs": 20,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },
@@ -1833,13 +1492,33 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 3,
       "methods": {
         "eth_getLogs": 18,
         "eth_call": 500,
         "eth_getBlockByNumber": 500,
         "eth_blockNumber": 500,
         "eth_getTransactionReceipt": 500
+      }
+    },
+    "https://enterprise.onerpc.com/sonic_mainnet?apikey=<RPC_API_KEY_ONE_RPC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 2,
+      "methods": {
+        "eth_getLogs": 32,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
       }
     }
   },

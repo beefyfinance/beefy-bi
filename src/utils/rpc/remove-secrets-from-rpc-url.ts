@@ -11,6 +11,7 @@ import {
   RPC_API_KEY_METIS_OWNER,
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
+  RPC_API_KEY_ONE_RPC,
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
   RPC_API_URL_KAVA_BEEFY,
@@ -49,6 +50,9 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
 
   if (secretRpcUrl.includes("mainnet.aurora.dev") && pathParts.length > 0) {
     publicRpcUrl += "/<RPC_API_KEY_AURORA>";
+  } else if (secretRpcUrl.includes("/enterprise.onerpc.com")) {
+    const chainName = secretRpcUrl.split("?")[0].split("/")[3];
+    publicRpcUrl += `/${chainName}?apikey=<RPC_API_KEY_ONE_RPC>`;
   } else if (secretRpcUrl.includes("ankr")) {
     const chain = pathParts[0];
     if (pathParts.length === 2) {
@@ -171,6 +175,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_KAVA_BEEFY", RPC_API_URL_KAVA_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_FUSE_BEEFY", RPC_API_URL_FUSE_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_LLAMARPC", RPC_API_KEY_LLAMARPC);
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ONE_RPC", RPC_API_KEY_ONE_RPC);
 
   return url;
 }

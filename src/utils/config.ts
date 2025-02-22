@@ -69,6 +69,7 @@ export const RPC_API_URL_QUIKNODE_ZKEVM = process.env.RPC_API_URL_QUIKNODE_ZKEVM
 export const RPC_API_URL_QUIKNODE_ZKSYNC = process.env.RPC_API_URL_QUIKNODE_ZKSYNC || null;
 export const RPC_API_URL_KAVA_BEEFY = process.env.RPC_API_URL_KAVA_BEEFY || null;
 export const RPC_API_URL_FUSE_BEEFY = process.env.RPC_API_URL_FUSE_BEEFY || null;
+export const RPC_API_KEY_ONE_RPC = process.env.RPC_API_KEY_ONE_RPC || null;
 
 export const EXPLORER_URLS: {
   [chain in Chain]: {
