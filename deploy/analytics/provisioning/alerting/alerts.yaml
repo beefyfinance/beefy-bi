@@ -20,7 +20,16 @@ groups:
                 intervalMs: 1000
                 maxDataPoints: 43200
                 rawQuery: true
-                rawSql: "select p.chain, count(*)\nfrom product p\nwhere p.product_id not in (\n  select (i.import_data->'productId')::integer \n  from import_state i\n  where i.import_data->>'type' = 'product:investment'\n)\nGROUP BY 1"
+                rawSql: |-
+                    select p.chain, count(*)
+                    from product p
+                    where not exists (
+                      select *
+                      from import_state i
+                      where import_key = 'product:investment:' || p.product_id::text
+                    )
+                    and p.product_data->>'eol' <> 'true'
+                    group by p.chain
                 refId: product_counts_without_import_state_by_chain
                 sql:
                     columns:
