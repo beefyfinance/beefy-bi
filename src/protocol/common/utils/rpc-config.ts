@@ -3,7 +3,6 @@ import { isEmpty } from "lodash";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { getChainNetworkId } from "../../../utils/addressbook";
-import { ETHERSCAN_API_KEY } from "../../../utils/config";
 import {
   addDebugLogsToProvider,
   JsonRpcProviderWithMultiAddressGetLogs,
@@ -15,7 +14,6 @@ import {
   monkeyPatchLayer2ReceiptFormat,
   monkeyPatchMissingEffectiveGasPriceReceiptFormat,
   monkeyPatchProviderToRetryUnderlyingNetworkChangedError,
-  MultiChainEtherscanProvider,
 } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -79,36 +77,6 @@ export function createRpcConfig(chain: Chain, behaviour: ImportBehaviour): RpcCo
     batchProvider: new ethers.providers.JsonRpcBatchProvider(rpcOptions, networkish),
     rpcLimitations: getRpcLimitations(chain, rpcOptions.url, behaviour),
   };
-
-  // instantiate etherscan provider
-  if (MultiChainEtherscanProvider.isChainSupported(chain)) {
-    const apiKey = ETHERSCAN_API_KEY[chain];
-    rpcConfig.etherscan = {
-      provider: new MultiChainEtherscanProvider(networkish, apiKey || undefined),
-      limitations: {
-        restrictToMode: null,
-        isArchiveNode: true, // all etherscan providers are archive nodes since they contain all data
-        maxGetLogsBlockSpan: 100_000, // unused value
-        maxGetLogsAddressBatchSize: null, // unused value
-        disableBatching: true, // etherscan doesn't support batching
-        internalTimeoutMs: null,
-        disableRpc: false,
-        weight: null,
-        stateChangeReadsOnSameBlock: true,
-        canUseMulticallBlockTimestamp: false, // unused value
-        methods: {
-          // no batching is supported
-          eth_blockNumber: null,
-          eth_getBlockByNumber: null,
-          eth_getLogs: null,
-          eth_call: null,
-          eth_getTransactionReceipt: null,
-        },
-        minDelayBetweenCalls: apiKey ? Math.ceil(1000.0 / 5.0) /* 5 rps with an api key */ : 5000 /* 1 call every 5s without an api key */,
-      },
-    };
-    addDebugLogsToProvider(rpcConfig.etherscan.provider, chain);
-  }
 
   monkeyPatchProvider(chain, rpcConfig.linearProvider, rpcConfig.rpcLimitations);
   monkeyPatchProvider(chain, rpcConfig.batchProvider, rpcConfig.rpcLimitations);

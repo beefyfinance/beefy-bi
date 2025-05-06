@@ -4,9 +4,9 @@ import * as Rx from "rxjs";
 import { Chain } from "../../../types/chain";
 import { RpcConfig } from "../../../types/rpc-config";
 import { samplingPeriodMs } from "../../../types/sampling";
+import { getChainNetworkId } from "../../../utils/addressbook";
 import { sleep } from "../../../utils/async";
 import { ETHERSCAN_API_KEY, EXPLORER_URLS } from "../../../utils/config";
-import { MultiChainEtherscanProvider } from "../../../utils/ethers";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
 import { rateLimit$ } from "../../../utils/rxjs/utils/rate-limit";
@@ -82,22 +82,10 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await getHarmonyRpcCreationInfos(ctx.rpcConfig, contractAddress, chain);
-  } else if (MultiChainEtherscanProvider.isChainSupported(chain)) {
-    // we also use explorers for other things so we want to globally rate limit them
-    const etherscanConfig = ctx.rpcConfig.etherscan;
-    if (!etherscanConfig) {
-      throw new ProgrammerError("Etherscan is not configured for this chain");
-    }
-    return callLockProtectedRpc(() => getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]), {
-      chain,
-      logInfos: { msg: "Fetching contract creation block", data: { contractAddress, chain } },
-      maxTotalRetryMs: 10_000,
-      rpcLimitations: etherscanConfig.limitations,
-      provider: etherscanConfig.provider,
-      noLockIfNoLimit: true, // etherscan have a rate limit so this has no effect
-    });
   } else if (explorerType === "etherscan") {
     return await getFromExplorerCreationInfos(contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]);
+  } else if (explorerType === "etherscan-v2") {
+    return await getFromEtherscanV2(chain, contractAddress, EXPLORER_URLS[chain].url, ETHERSCAN_API_KEY[chain]);
   } else if (explorerType === "zksync") {
     return await getFromZksyncExplorerApi(contractAddress, EXPLORER_URLS[chain].url);
   } else if (explorerType === "seitrace") {
@@ -143,6 +131,53 @@ async function getRouteScanAPICreationInfo(contractAddress: string, explorerUrl:
 
 async function getFromExplorerCreationInfos(contractAddress: string, explorerUrl: string, apiKey: string | null = null) {
   const rawParams = {
+    module: "account",
+    action: "txlist",
+    address: contractAddress,
+    startblock: 1,
+    endblock: 999999999,
+    page: 1,
+    offset: 1,
+    sort: "asc",
+    limit: 1,
+  };
+  const params = apiKey ? { ...rawParams, apiKey } : rawParams;
+  logger.trace({ msg: "Fetching contract creation block", data: { contractAddress, explorerUrl, params } });
+
+  try {
+    const resp = await axios.get(explorerUrl, {
+      params,
+      headers: {
+        "User-Agent": "Mozilla/5.0", // basescan only works when the user agent is set
+      },
+    });
+
+    if (!isArray(resp.data.result) || resp.data.result.length === 0) {
+      logger.error({ msg: "No contract creation transaction found", data: { contractAddress, explorerUrl, params, data: resp.data } });
+      throw new Error("No contract creation transaction found");
+    }
+    let blockNumber: number | string = resp.data.result[0].blockNumber;
+    if (isString(blockNumber)) {
+      blockNumber = parseInt(blockNumber);
+    }
+
+    let timeStamp: number | string = resp.data.result[0].timeStamp;
+    if (isString(timeStamp)) {
+      timeStamp = parseInt(timeStamp);
+    }
+    const datetime = new Date(timeStamp * 1000);
+
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, explorerUrl, params, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function getFromEtherscanV2(chain: Chain, contractAddress: string, explorerUrl: string, apiKey: string | null = null) {
+  const rawParams = {
+    chainId: getChainNetworkId(chain),
     module: "account",
     action: "txlist",
     address: contractAddress,

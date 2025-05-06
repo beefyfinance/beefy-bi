@@ -401,40 +401,6 @@ export function monkeyPatchProviderToRetryUnderlyingNetworkChangedError(
 }
 
 /**
- * Idk why but ethers has a hardcoded url for etherscan for eth mainnet only
- * This class adds support for other networks
- */
-export class MultiChainEtherscanProvider extends ethers.providers.EtherscanProvider {
-  static isChainSupported(chain: Chain) {
-    return ["bsc", "avax", "fantom", "ethereum", "polygon", "arbitrum", "optimism"].includes(chain);
-  }
-
-  override getBaseUrl(): string {
-    switch (this.network ? this.network.name : "invalid") {
-      case "bsc":
-        return "https://api.bscscan.com";
-      case "fantom":
-        return "https://api.ftmscan.com";
-      case "avax":
-        return "https://api.snowtrace.io";
-      case "homestead":
-      case "ethereum":
-        return "https://api.etherscan.io";
-      case "polygon":
-      case "matic":
-        return "https://api.polygonscan.com";
-      case "arbitrum":
-        return "https://api.arbiscan.io";
-      case "optimism":
-        return "https://api-optimistic.etherscan.io";
-      default:
-    }
-
-    return ethers.logger.throwArgumentError("unsupported network", "network", this.network.name);
-  }
-}
-
-/**
  * Ankr has issues with their RPC, sometimes it returns an error like "we can't execute this request"
  * It turns out it's just a timeout, so we just retry the request
  */

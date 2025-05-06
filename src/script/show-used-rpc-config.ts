@@ -124,7 +124,7 @@ async function main() {
     rpcConfigs.map((config) => ({
       rpcUrl: removeSecretsFromRpcUrl(options.chain, config.linearProvider.connection.url),
       rpcLimitations: config.rpcLimitations,
-      hasEtherScanProvider: !!config.etherscan,
+      hasEtherScanProvider: false,
     })),
     { depth: null },
   );

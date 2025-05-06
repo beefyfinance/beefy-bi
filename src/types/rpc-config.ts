@@ -10,11 +10,6 @@ export interface RpcConfig {
   linearProvider: JsonRpcProviderWithMultiAddressGetLogs;
   batchProvider: ethers.providers.JsonRpcBatchProvider;
   rpcLimitations: RpcLimitations;
-
-  etherscan?: {
-    provider: ethers.providers.EtherscanProvider;
-    limitations: RpcLimitations;
-  };
 }
 
 export type RpcCallMethod = "eth_getLogs" | "eth_call" | "eth_getBlockByNumber" | "eth_blockNumber" | "eth_getTransactionReceipt";

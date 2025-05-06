@@ -75,6 +75,7 @@ export const EXPLORER_URLS: {
   [chain in Chain]: {
     type:
       | "etherscan"
+      | "etherscan-v2"
       | "blockscout"
       | "blockscout-json"
       | "blockscout-json-v2"
@@ -86,43 +87,43 @@ export const EXPLORER_URLS: {
     url: string;
   };
 } = {
-  arbitrum: { type: "etherscan", url: "https://api.arbiscan.io/api" },
+  arbitrum: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
-  avax: { type: "etherscan", url: "https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api" },
-  base: { type: "etherscan", url: "https://api.basescan.org/api" },
-  berachain: { type: "etherscan", url: "https://api.berascan.com/api" },
-  bsc: { type: "etherscan", url: "https://api.bscscan.com/api" },
+  avax: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  base: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  berachain: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  bsc: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   canto: { type: "blockscout-json", url: "https://tuber.build" },
   celo: { type: "blockscout", url: "https://explorer.celo.org/" },
-  cronos: { type: "etherscan", url: "https://api.cronoscan.com/api" },
+  cronos: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   emerald: { type: "blockscout", url: "https://explorer.emerald.oasis.dev/" },
-  ethereum: { type: "etherscan", url: "https://api.etherscan.io/api" },
-  fantom: { type: "etherscan", url: "https://api.ftmscan.com/api" },
-  fraxtal: { type: "etherscan", url: "https://api.fraxscan.com/api" },
+  ethereum: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  fantom: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  fraxtal: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   fuse: { type: "blockscout", url: "https://explorer.fuse.io/" },
-  gnosis: { type: "etherscan", url: "https://api.gnosisscan.io/api" },
+  gnosis: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   harmony: { type: "harmony", url: "https://explorer.harmony.one/" },
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
   kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
-  linea: { type: "etherscan", url: "https://api.lineascan.build/api" },
+  linea: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   lisk: { type: "blockscout-json-v2", url: "https://blockscout.lisk.com/api/v2" },
   manta: { type: "blockscout-api-v2", url: "https://pacific-explorer.manta.network/api/v2" },
   mantle: { type: "blockscout-api-v2", url: "https://explorer.mantle.xyz/api/v2" },
   metis: { type: "blockscout-json", url: "https://andromeda-explorer.metis.io/" },
   mode: { type: "etherscan", url: "https://api.routescan.io/v2/network/mainnet/evm/34443/etherscan/api" },
-  moonbeam: { type: "etherscan", url: "https://api-moonbeam.moonscan.io/api" },
-  moonriver: { type: "etherscan", url: "https://api-moonriver.moonscan.io/api" },
-  optimism: { type: "etherscan", url: "https://api-optimistic.etherscan.io/api" },
-  polygon: { type: "etherscan", url: "https://api.polygonscan.com/api" },
+  moonbeam: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  moonriver: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  optimism: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  polygon: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   real: { type: "blockscout-api-v2", url: "https://explorer.re.al/api/v2" },
   rollux: { type: "blockscout-json", url: "https://explorer.rollux.com" },
   rootstock: { type: "blockscout-api-v2", url: "https://rootstock.blockscout.com/api/v2" },
-  scroll: { type: "etherscan", url: "https://api.scrollscan.com/api" },
+  scroll: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   sei: { type: "seitrace", url: "https://seitrace.com/" },
-  sonic: { type: "etherscan", url: "https://api.sonicscan.org/api" },
-  unichain: { type: "etherscan", url: "https://api.uniscan.xyz/api" },
-  zkevm: { type: "etherscan", url: "https://api-zkevm.polygonscan.com/api" },
-  zksync: { type: "zksync", url: "https://block-explorer-api.mainnet.zksync.io" },
+  sonic: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  unichain: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  zkevm: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  zksync: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
 };
 
 export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
@@ -166,6 +167,15 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
 };
 
 function _getExplorerApiKey(chain: Chain) {
+  const type = EXPLORER_URLS[chain].type;
+  if (type === "etherscan-v2") {
+    const apiKey = process.env[`ETHERSCAN_API_KEY_V2`];
+    if (apiKey) {
+      return apiKey;
+    } else {
+      return null;
+    }
+  }
   const apiKey = process.env[`ETHERSCAN_API_KEY_${chain.toLocaleUpperCase()}`];
   return apiKey || null;
 }

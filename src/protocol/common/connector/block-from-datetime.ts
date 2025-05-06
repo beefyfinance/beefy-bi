@@ -2,6 +2,7 @@ import axios from "axios";
 import { isString } from "lodash";
 import * as Rx from "rxjs";
 import { samplingPeriodMs } from "../../../types/sampling";
+import { getChainNetworkId } from "../../../utils/addressbook";
 import { ETHERSCAN_API_KEY, EXPLORER_URLS } from "../../../utils/config";
 import { rootLogger } from "../../../utils/logger";
 import { ProgrammerError } from "../../../utils/programmer-error";
@@ -18,12 +19,8 @@ export function fetchBlockFromDatetime$<TObj, TErr extends ErrorEmitter<TObj>, T
 }): Rx.OperatorFunction<TObj, TRes> {
   const chain = options.ctx.chain;
 
-  if (!options.ctx.rpcConfig.etherscan) {
-    throw new ProgrammerError(`etherscan config is missing`);
-  }
-
   const explorerConfig = EXPLORER_URLS[chain];
-  if (explorerConfig.type !== "etherscan") {
+  if (explorerConfig.type !== "etherscan" && explorerConfig.type !== "etherscan-v2") {
     throw new ProgrammerError(`etherscan config is missing`);
   }
 
@@ -73,12 +70,8 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
 }): Rx.OperatorFunction<TObj, TRes> {
   const chain = options.ctx.chain;
 
-  if (!options.ctx.rpcConfig.etherscan) {
-    throw new ProgrammerError(`etherscan config is missing`);
-  }
-
   const explorerConfig = EXPLORER_URLS[chain];
-  if (explorerConfig.type !== "etherscan") {
+  if (explorerConfig.type !== "etherscan" && explorerConfig.type !== "etherscan-v2") {
     throw new ProgrammerError(`etherscan config is missing`);
   }
   return Rx.pipe(
@@ -88,8 +81,10 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
 
     Rx.mergeMap(async (obj) => {
       // https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1695031435&closest=before
+      // https://api.etherscan.io/v2/api?chainId=1&module=block&action=getblocknobytime&timestamp=1695031435&closest=before
       const timestamp = options.getBlockDate(obj).getTime() / 1000;
       let params = {
+        chainId: getChainNetworkId(chain), // for etherscan v2 api endpoints
         module: "block",
         action: "getblocknobytime",
         timestamp,
