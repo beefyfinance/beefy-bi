@@ -108,6 +108,7 @@ async function main() {
     forceConsideredDateRange: null,
     refreshPriceCaches: false,
     beefyPriceDataQueryRange: null,
+    beefyPriceDataCacheBusting: false,
   };
 
   const behaviour = _createImportBehaviourFromCmdParams(cmdParams);

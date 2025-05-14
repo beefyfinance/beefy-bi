@@ -119,6 +119,9 @@ export interface ImportBehaviour {
   // if we should recalculate price caches after the import
   // this is useful when we want to re-import a range of price blocks
   refreshPriceCaches: boolean;
+
+  // if we should cache bust the beefy api price data
+  beefyPriceDataCacheBusting: boolean;
 }
 
 export const defaultImportBehaviour: ImportBehaviour = {
@@ -155,6 +158,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
       ? (process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
       : "3months",
   refreshPriceCaches: process.env.BEHAVIOUR_REFRESH_PRICE_CACHES === "true",
+  beefyPriceDataCacheBusting: process.env.BEHAVIOUR_BEEFY_PRICE_DATA_CACHE_BUSTING === "true",
 };
 
 export interface BatchStreamConfig {

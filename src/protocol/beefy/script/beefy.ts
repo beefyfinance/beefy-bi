@@ -60,6 +60,7 @@ interface CmdParams {
   waitForBlockPropagation: number | null;
   refreshPriceCaches: boolean;
   beefyPriceDataQueryRange: SamplingPeriod | null;
+  beefyPriceDataCacheBusting: boolean;
 }
 
 export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
@@ -122,6 +123,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               waitForBlockPropagation: 0,
               refreshPriceCaches: argv.refreshPriceCaches,
               beefyPriceDataQueryRange: argv.beefyPriceDataQueryRange || null,
+              beefyPriceDataCacheBusting: true,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -192,6 +194,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               waitForBlockPropagation: 0,
               refreshPriceCaches: false,
               beefyPriceDataQueryRange: null,
+              beefyPriceDataCacheBusting: true,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -257,6 +260,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               waitForBlockPropagation: 0,
               refreshPriceCaches: false,
               beefyPriceDataQueryRange: null,
+              beefyPriceDataCacheBusting: false,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -394,6 +398,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
               waitForBlockPropagation: argv.waitForBlockPropagation || null,
               refreshPriceCaches: false,
               beefyPriceDataQueryRange: null,
+              beefyPriceDataCacheBusting: false,
             };
 
             _verifyCmdParams(cmdParams, argv);
@@ -737,7 +742,9 @@ export function _createImportBehaviourFromCmdParams(cmdParams: CmdParams, forceM
   if (cmdParams.beefyPriceDataQueryRange) {
     behaviour.beefyPriceDataQueryRange = cmdParams.beefyPriceDataQueryRange;
   }
-
+  if (cmdParams.beefyPriceDataCacheBusting) {
+    behaviour.beefyPriceDataCacheBusting = cmdParams.beefyPriceDataCacheBusting;
+  }
   return behaviour;
 }
 

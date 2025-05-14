@@ -44,6 +44,7 @@ async function main() {
     forceConsideredDateRange: null,
     refreshPriceCaches: false,
     beefyPriceDataQueryRange: null,
+    beefyPriceDataCacheBusting: false,
   };
 
   const mcMap = MULTICALL3_ADDRESS_MAP[chain];

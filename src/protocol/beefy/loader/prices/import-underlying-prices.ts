@@ -108,6 +108,7 @@ function insertPricePipeline$<TObj extends ImportRangeQuery<UnderlyingPriceFeedI
         oracleId: item.target.priceFeed.priceFeedData.externalId,
         samplingPeriod: "15min",
         range: item.range,
+        cacheBusting: options.ctx.behaviour.beefyPriceDataCacheBusting,
       }),
       formatOutput: (item, prices) => ({ ...item, prices }),
     }),

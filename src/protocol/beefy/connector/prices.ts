@@ -18,6 +18,7 @@ interface BeefyPriceCallParams {
   oracleId: string;
   samplingPeriod: SamplingPeriod;
   range: Range<Date>;
+  cacheBusting?: boolean;
 }
 
 export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends BeefyPriceCallParams>(options: {
@@ -39,6 +40,7 @@ export function fetchBeefyDataPrices$<TObj, TErr extends ErrorEmitter<TObj>, TRe
         const prices = await fetchBeefyPrices(params.samplingPeriod, params.oracleId, {
           startDate: params.range.from,
           endDate: params.range.to,
+          cacheBusting: params.cacheBusting,
         });
         logger.debug({ msg: "got prices", data: { ...params, priceCount: prices.length } });
 
@@ -61,6 +63,7 @@ async function fetchBeefyPrices(
   options?: {
     startDate?: Date;
     endDate?: Date;
+    cacheBusting?: boolean;
   },
 ) {
   if (samplingPeriod !== "15min") {
@@ -74,6 +77,7 @@ async function fetchBeefyPrices(
     from: Math.floor(startDate.getTime() / 1000),
     to: Math.ceil(endDate.getTime() / 1000),
     key: BEEFY_DATA_KEY,
+    rng: options?.cacheBusting ? Math.floor(Math.random() * 10000000000) : undefined,
   };
   logger.debug({ msg: "Fetching prices", data: { params } });
 
