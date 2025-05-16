@@ -74,6 +74,12 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await blockscoutApiV2(contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "blockscout-api-v2-find-initialized-log") {
+    logger.trace({
+      msg: "BlockScout explorer detected for this chain, proceeding to scrape",
+      data: { contractAddress, chain },
+    });
+    return await blockscoutApiV2FindInitializedLog(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "routescan") {
     return await getRouteScanAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
@@ -347,6 +353,58 @@ async function blockscoutApiV2(contractAddress: string, explorerUrl: string, cha
     const datetime = new Date(timeStamp);
     if (isNaN(datetime.getTime())) {
       logger.error({ msg: "Could not parse timestamp", data: { contractAddress, explorerUrl: txUrl.href, data: txResp.data } });
+      throw new Error("Could not parse timestamp");
+    }
+
+    return { blockNumber, datetime };
+  } catch (error) {
+    logger.error({ msg: "Error while fetching contract creation block", data: { contractAddress, chain, error: error } });
+    logger.error(error);
+    throw error;
+  }
+}
+
+async function blockscoutApiV2FindInitializedLog(contractAddress: string, explorerUrl: string, chain: Chain) {
+  try {
+    // https://api-sagaevm-5464-1.sagaexplorer.io/api/v2/addresses/0xbf01ad2186814086Ec50203f231FDb09FFcA13A6/logs?topic=0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498
+    // { ..., "items": [{"block_number": 1234123123, ...}, ...] }
+    // then
+    // https://api-sagaevm-5464-1.sagaexplorer.io/api/v2/blocks/2547246
+    // { ..., "timestamp": "2024-04-09T13:54:50.000000Z", ... }
+
+    const addressUrl = new URL(explorerUrl);
+    addressUrl.pathname = `/api/v2/addresses/${contractAddress}/logs`;
+    addressUrl.searchParams.set("topic", "0x7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb3847402498");
+    logger.trace({ msg: "Fetching contract details", data: { contractAddress, explorerUrl: addressUrl.href } });
+    const addressResp = await axios.get<{ items: { block_number: number }[] }>(addressUrl.href);
+    const blockNumber = addressResp.data?.items[0]?.block_number;
+    if (!blockNumber) {
+      logger.error({
+        msg: "Could not find a valid block number",
+        data: { contractAddress, explorerUrl: addressUrl.href, data: addressResp.data },
+      });
+      throw new Error("Could not find a valid block number");
+    }
+
+    // sleep a bit to avoid rate limiting
+    await sleep(3000);
+
+    const blockUrl = new URL(explorerUrl);
+    blockUrl.pathname = `/api/v2/blocks/${blockNumber}`;
+    logger.trace({ msg: "Fetching block details", data: { contractAddress, explorerUrl: blockUrl.href } });
+    const blockResp = await axios.get<{ timestamp: string }>(blockUrl.href);
+    const timeStamp = blockResp.data?.timestamp;
+    if (!timeStamp) {
+      logger.error({
+        msg: "Could not find a valid timestamp",
+        data: { contractAddress, explorerUrl: blockUrl.href, data: blockResp.data },
+      });
+      throw new Error("Could not find a valid block number or timestamp");
+    }
+
+    const datetime = new Date(timeStamp);
+    if (isNaN(datetime.getTime())) {
+      logger.error({ msg: "Could not parse timestamp", data: { contractAddress, explorerUrl: blockUrl.href, data: blockResp.data } });
       throw new Error("Could not parse timestamp");
     }
 

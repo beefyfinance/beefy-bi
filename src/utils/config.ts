@@ -80,6 +80,7 @@ export const EXPLORER_URLS: {
       | "blockscout-json"
       | "blockscout-json-v2"
       | "blockscout-api-v2"
+      | "blockscout-api-v2-find-initialized-log"
       | "harmony"
       | "routescan"
       | "zksync"
@@ -118,6 +119,7 @@ export const EXPLORER_URLS: {
   real: { type: "blockscout-api-v2", url: "https://explorer.re.al/api/v2" },
   rollux: { type: "blockscout-json", url: "https://explorer.rollux.com" },
   rootstock: { type: "blockscout-api-v2", url: "https://rootstock.blockscout.com/api/v2" },
+  saga: { type: "blockscout-api-v2-find-initialized-log", url: "https://api-sagaevm-5464-1.sagaexplorer.io/api/v2" },
   scroll: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   sei: { type: "seitrace", url: "https://seitrace.com/" },
   sonic: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
@@ -158,6 +160,7 @@ export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: str
   real: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 695 },
   rollux: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 119222 },
   rootstock: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 6_572_448 },
+  saga: null,
   scroll: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 14 },
   sei: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 79351444 },
   sonic: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 60 },
@@ -213,6 +216,7 @@ export const ETHERSCAN_API_KEY: {
   real: _getExplorerApiKey("real"),
   rollux: _getExplorerApiKey("rollux"),
   rootstock: _getExplorerApiKey("rootstock"),
+  saga: _getExplorerApiKey("saga"),
   scroll: _getExplorerApiKey("scroll"),
   sei: _getExplorerApiKey("sei"),
   sonic: _getExplorerApiKey("sonic"),
@@ -257,6 +261,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   rollux: 2000,
   real: 7706,
   rootstock: 30_000,
+  saga: 5000,
   scroll: 4000,
   sei: 400,
   sonic: 300,

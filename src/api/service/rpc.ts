@@ -30,11 +30,12 @@ import {
   real,
   rollux,
   rootstock,
+  saga,
   scroll,
   sei,
   sonic,
   unichain,
-  zkSync,
+  zksync,
   type Chain as ViemChain,
 } from "viem/chains";
 import { type Chain as BeefyChain } from "../../types/chain";
@@ -72,12 +73,13 @@ const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   real: real,
   rollux: rollux,
   rootstock: rootstock,
+  saga: saga,
   scroll: scroll,
   sei: sei,
   sonic: sonic,
   unichain: unichain,
   zkevm: polygonZkEvm,
-  zksync: zkSync,
+  zksync: zksync,
 };
 
 export class RpcService {

@@ -835,6 +835,28 @@
       }
     }
   },
+  "saga": {
+    "https://sagaevm.jsonrpc.sagarpc.io": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsAddressBatchSize": 1,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": false,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 5,
+        "eth_call": 10,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 10
+      }
+    }
+  },
   "sei": {
     "https://evm-rpc.sei-apis.com": {
       "restrictToMode": "historical",

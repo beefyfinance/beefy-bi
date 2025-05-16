@@ -30,6 +30,7 @@ export type Chain =
   | "real"
   | "rootstock"
   | "rollux"
+  | "saga"
   | "scroll"
   | "sei"
   | "sonic"
@@ -69,6 +70,7 @@ export const allChainIds: Chain[] = [
   "real",
   "rollux",
   "rootstock",
+  "saga",
   "scroll",
   "sei",
   "sonic",
