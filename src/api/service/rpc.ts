@@ -1,4 +1,4 @@
-import { PublicClient, createPublicClient, http } from "viem";
+import { PublicClient, createPublicClient, defineChain, http } from "viem";
 import {
   arbitrum,
   aurora,
@@ -41,6 +41,31 @@ import {
 import { type Chain as BeefyChain } from "../../types/chain";
 import { AsyncCache } from "./cache";
 
+const hyperevm = defineChain({
+  id: 999,
+  name: "HyperEVM",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Hyperliquid",
+    symbol: "HYPE",
+  },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.hyperliquid.xyz/evm"],
+      webSocket: ["wss://rpc.hyperliquid.xyz/evm"],
+    },
+  },
+  blockExplorers: {
+    default: { name: "Explorer", url: '"https://www.hyperscan.com' },
+  },
+  contracts: {
+    multicall3: {
+      address: "0xcA11bde05977b3631167028862bE2a173976CA11",
+      blockCreated: 13051,
+    },
+  },
+});
+
 const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   arbitrum: arbitrum,
   aurora: aurora,
@@ -59,6 +84,7 @@ const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   gnosis: gnosis,
   harmony: harmonyOne,
   heco: null,
+  hyperevm: hyperevm,
   kava: kava,
   linea: linea,
   lisk: lisk,

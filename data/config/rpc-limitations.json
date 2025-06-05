@@ -408,6 +408,28 @@
       }
     }
   },
+  "hyperevm": {
+    "https://rpc.hyperliquid.xyz/evm": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 1000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": false,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 2,
+        "eth_call": 1,
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": 2,
+        "eth_getTransactionReceipt": 2
+      }
+    }
+  },
   "kava": {
     "https://evm.kava.io": {
       "comment": "DO NOT ENABLE, sending out-of-sync data",

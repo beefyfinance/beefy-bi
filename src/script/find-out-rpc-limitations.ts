@@ -187,6 +187,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       gnosis: 11173937,
       harmony: 5481181,
       heco: 404035,
+      hyperevm: 1,
       kava: 393,
       linea: 624,
       lisk: 513427, // todo find the exact wtoken creation block
