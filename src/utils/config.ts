@@ -81,6 +81,7 @@ export const EXPLORER_URLS: {
       | "blockscout-json-v2"
       | "blockscout-api-v2"
       | "blockscout-api-v2-find-initialized-log"
+      | "blockscout-api-transactions"
       | "harmony"
       | "routescan"
       | "zksync"
@@ -105,7 +106,7 @@ export const EXPLORER_URLS: {
   gnosis: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   harmony: { type: "harmony", url: "https://explorer.harmony.one/" },
   heco: { type: "etherscan", url: "https://api.hecoinfo.com/api" },
-  hyperevm: { type: "blockscout-json-v2", url: "https://www.hyperscan.com/api/v2" },
+  hyperevm: { type: "blockscout-api-transactions", url: "https://www.hyperscan.com/api/v2" },
   kava: { type: "blockscout-json", url: "https://explorer.kava.io" },
   linea: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   lisk: { type: "blockscout-json-v2", url: "https://blockscout.lisk.com/api/v2" },

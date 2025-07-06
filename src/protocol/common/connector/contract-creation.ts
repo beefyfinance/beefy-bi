@@ -80,6 +80,12 @@ async function getContractCreationInfos(ctx: ImportCtx, contractAddress: string,
       data: { contractAddress, chain },
     });
     return await blockscoutApiV2FindInitializedLog(contractAddress, EXPLORER_URLS[chain].url, chain);
+  } else if (explorerType === "blockscout-api-transactions") {
+    logger.trace({
+      msg: "BlockScout explorer detected for this chain, proceeding to scrape",
+      data: { contractAddress, chain },
+    });
+    return await getBlockScoutAPITransactionsCreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "routescan") {
     return await getRouteScanAPICreationInfo(contractAddress, EXPLORER_URLS[chain].url, chain);
   } else if (explorerType === "harmony") {
@@ -414,6 +420,47 @@ async function blockscoutApiV2FindInitializedLog(contractAddress: string, explor
     logger.error(error);
     throw error;
   }
+}
+
+async function getBlockScoutAPITransactionsCreationInfo(contractAddress: string, explorerUrl: string, chain: Chain) {
+  let data: {
+    items: { block_number: number; timestamp: string }[];
+    next_page_params: Record<string, string> | null;
+  } = { items: [], next_page_params: null };
+
+  let maxTries = 10;
+  let next_page_params: Record<string, string> | null = {};
+  while (next_page_params !== null && maxTries > 0) {
+    const url = new URL(explorerUrl);
+    url.pathname = `/api/v2/addresses/${contractAddress}/transactions`;
+    for (const [key, value] of Object.entries(next_page_params ?? {})) {
+      url.searchParams.set(key, String(value));
+    }
+
+    await sleep(3000); // be nice to the server
+
+    const res = await axios.get(url.href);
+    if (res.status !== 200) {
+      logger.error({
+        msg: "Error while fetching transactions",
+        data: { contractAddress, url: url.href, status: res.status, statusText: res.statusText },
+      });
+      throw new Error("Error while fetching transactions");
+    }
+    data = res.data;
+    logger.trace({ msg: "Fetched transactions", data: { contractAddress, url: url.href, length: data.items.length } });
+    next_page_params = data.next_page_params;
+    maxTries--;
+  }
+
+  const sortedTrxs = data.items.sort((a, b) => a.block_number - b.block_number);
+  if (sortedTrxs.length === 0) {
+    logger.error({ msg: "No transactions found", data: { contractAddress, explorerUrl } });
+    throw new Error("No transactions found");
+  }
+  const initTrx = sortedTrxs[0];
+
+  return { blockNumber: initTrx.block_number, datetime: new Date(initTrx.timestamp) };
 }
 
 async function getBlockScoutJSONAPICreationInfoV2(ctx: ImportCtx, contractAddress: string, explorerUrl: string, chain: Chain) {
