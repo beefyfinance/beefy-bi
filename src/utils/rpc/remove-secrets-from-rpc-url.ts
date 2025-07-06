@@ -4,6 +4,7 @@ import {
   RPC_API_KEY_ALCHEMY_OPTIMISM,
   RPC_API_KEY_ANKR,
   RPC_API_KEY_AURORA,
+  RPC_API_KEY_BLOCKPI,
   RPC_API_KEY_FIGMENT,
   RPC_API_KEY_GETBLOCK,
   RPC_API_KEY_INFURA,
@@ -74,6 +75,8 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
     publicRpcUrl += "/apikey/<RPC_API_KEY_FIGMENT>";
   } else if (secretRpcUrl.includes(".getblock.io")) {
     publicRpcUrl += "/<RPC_API_KEY_GETBLOCK>/mainnet";
+  } else if (secretRpcUrl.includes("blockpi.network")) {
+    publicRpcUrl += "/v1/rpc/<RPC_API_KEY_BLOCKPI>";
   } else if (secretRpcUrl.includes(".infura.io/v3")) {
     publicRpcUrl += "/v3/<RPC_API_KEY_INFURA>";
   } else if (secretRpcUrl.includes(".quiknode.pro")) {
@@ -176,6 +179,6 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_FUSE_BEEFY", RPC_API_URL_FUSE_BEEFY);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_LLAMARPC", RPC_API_KEY_LLAMARPC);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ONE_RPC", RPC_API_KEY_ONE_RPC);
-
+  url = replaceFromConfigOrThrow(url, "RPC_API_KEY_BLOCKPI", RPC_API_KEY_BLOCKPI);
   return url;
 }

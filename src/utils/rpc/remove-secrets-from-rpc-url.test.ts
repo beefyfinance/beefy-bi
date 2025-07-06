@@ -79,5 +79,9 @@ describe("test we remove secrets from rpc urls", () => {
     expect(removeSecretsFromRpcUrl("ethereum", "https://eth.llamarpc.com/rpc/xxxxxxxxxxxxxXXxXXXXXxXXXxxxXXXX")).toBe(
       "https://eth.llamarpc.com/rpc/<RPC_API_KEY_LLAMARPC>",
     );
+
+    expect(removeSecretsFromRpcUrl("cronos", "https://cronos.blockpi.network/v1/rpc/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBe(
+      "https://cronos.blockpi.network/v1/rpc/<RPC_API_KEY_BLOCKPI>",
+    );
   });
 });
