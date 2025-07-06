@@ -235,7 +235,7 @@
         "eth_getTransactionReceipt": 100
       }
     },
-    "https://cronos.blockpi.network/v1/rpc/<BLOCKPI_API_KEY>": {
+    "https://cronos.blockpi.network/v1/rpc/<RPC_API_KEY_BLOCKPI>": {
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
