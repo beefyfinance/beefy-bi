@@ -246,7 +246,8 @@ export class ProductService {
   }
 
   async getProductByProductKey(productKey: string) {
-    const cacheKey = `api:product-service:product:${productKey}`;
+    const lowerCaseProductKey = productKey.toLowerCase();
+    const cacheKey = `api:product-service:product:${lowerCaseProductKey}`;
     const ttl = 1000 * 60 * 60 * 24 * 1; // 1 day
     return this.services.cache.wrap(cacheKey, ttl, async () =>
       db_query_one<DbProduct>(
@@ -260,7 +261,7 @@ export class ProductService {
           product_data as "productData" 
         FROM product 
         where product_key = %L`,
-        [productKey],
+        [lowerCaseProductKey],
         this.services.db,
       ),
     );
