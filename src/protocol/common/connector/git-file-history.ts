@@ -1,4 +1,3 @@
-import { sortBy } from "lodash";
 import * as path from "path";
 import { simpleGit, SimpleGit, SimpleGitOptions } from "simple-git";
 import { GIT_WORK_DIRECTORY } from "../../../utils/config";
