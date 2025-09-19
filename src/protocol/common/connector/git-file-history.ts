@@ -79,10 +79,9 @@ export async function* gitStreamFileVersions(options: {
 
   let latestVersionIndex = 0;
   if (options.order === "old-to-recent") {
-    logs = sortBy(logs, (log) => log.date);
+    logs = logs.reverse();
     latestVersionIndex = logs.length - 1;
   } else if (options.order === "recent-to-old") {
-    logs = sortBy(logs, (log) => log.date).reverse();
     latestVersionIndex = 0;
   }
 
