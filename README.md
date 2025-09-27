@@ -146,9 +146,9 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 - Run 
   - `npx ncu --upgrade blockchain-addressbook` 
   - `npx ncu --upgrade viem` 
-  - and `npm install` to get the wtoken address and latest viem chain config
-- Update the chain enum in the `src/types/chain.ts` file
-- Update the `src/utils/config.ts`
+  - `npm install`
+- Update `src/types/chain.ts`
+- Update `src/utils/config.ts`
 - Run `npm run build` and solve any remainning typescript error
 - Add a new RPC using the above guide
   - `LOG_LEVEL=debug node -r ts-node/register -r dotenv/config ./src/script/find-out-rpc-limitations.ts -c optimism -r https://optimism-mainnet.infura.io/v3/xxxxxx -w true -d true`

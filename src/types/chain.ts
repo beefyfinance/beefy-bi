@@ -27,6 +27,7 @@ export type Chain =
   | "moonbeam"
   | "moonriver"
   | "optimism"
+  | "plasma"
   | "polygon"
   | "real"
   | "rootstock"
@@ -68,6 +69,7 @@ export const allChainIds: Chain[] = [
   "moonbeam",
   "moonriver",
   "optimism",
+  "plasma",
   "polygon",
   "real",
   "rollux",
