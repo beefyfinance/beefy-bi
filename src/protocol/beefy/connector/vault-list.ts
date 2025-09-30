@@ -117,8 +117,18 @@ export function beefyVaultsFromGitHistory$(chain: Chain): Rx.Observable<BeefyVau
   const v2$ = Rx.from(fileContentStreamV2).pipe(
     // parse the file content
     Rx.map((fileVersion) => {
-      const vaults = JSON.parse(fileVersion.fileContent) as RawBeefyVault[];
-      return { fileVersion, vaults, error: false };
+      try {
+        const vaults = JSON.parse(fileVersion.fileContent) as RawBeefyVault[];
+        return { fileVersion, vaults, error: false };
+      } catch (error) {
+        logger.error({
+          msg: "Could not parse vault list for v2 hash",
+          data: { chain, commitHash: fileVersion.commitHash, date: fileVersion.date },
+          error,
+        });
+        logger.debug(error);
+        return { fileVersion, vaults: [], error: true };
+      }
     }),
   );
 
