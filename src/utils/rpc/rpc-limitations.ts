@@ -224,7 +224,7 @@ export function getAllRpcUrlsForChain(chain: Chain, behaviour: ImportBehaviour):
 }
 
 export function getBestRpcUrlsForChain(chain: Chain, behaviour: ImportBehaviour): string[] {
-  const chainRpcs = getFindings()[chain];
+  const chainRpcs = getFindings()[chain] ?? {};
   if (!chainRpcs && !behaviour.useDefaultLimitationsIfNotFound) {
     throw new ProgrammerError({ msg: "No rpcs found for chain", data: { chain } });
   }

@@ -645,6 +645,28 @@
       }
     }
   },
+  "monad": {
+    "https://rpc.monad.xyz": {
+      "restrictToMode": null,
+      "isArchiveNode": false,
+      "minDelayBetweenCalls": 1000,
+      "maxGetLogsBlockSpan": 100,
+      "maxGetLogsAddressBatchSize": 500,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 16,
+        "eth_call": 16,
+        "eth_getBlockByNumber": 16,
+        "eth_blockNumber": 16,
+        "eth_getTransactionReceipt": 16
+      }
+    }
+  },
   "moonbeam": {
     "https://enterprise.onerpc.com/moonbeam?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,

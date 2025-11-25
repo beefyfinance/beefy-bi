@@ -195,6 +195,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       mantle: 2832,
       metis: 1400, // couldn't find the exact wtoken creation block
       mode: 113110,
+      monad: 22875386,
       moonbeam: 171210,
       moonriver: 413534,
       optimism: 1, // weth created on genesis block
