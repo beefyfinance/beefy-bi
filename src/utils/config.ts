@@ -118,7 +118,7 @@ export const EXPLORER_URLS: {
   monad: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   moonbeam: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   moonriver: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
-  optimism: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  optimism: { type: "blockscout-api-v2", url: "https://optimism.blockscout.com/api/v2" },
   plasma: { type: "etherscan", url: "https://api.routescan.io/v2/network/mainnet/evm/9745/etherscan/api" },
   polygon: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   real: { type: "blockscout-api-v2", url: "https://explorer.re.al/api/v2" },

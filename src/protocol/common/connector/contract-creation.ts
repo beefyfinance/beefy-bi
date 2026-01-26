@@ -329,8 +329,8 @@ async function blockscoutApiV2(contractAddress: string, explorerUrl: string, cha
     const addressUrl = new URL(explorerUrl);
     addressUrl.pathname = `/api/v2/addresses/${contractAddress}`;
     logger.trace({ msg: "Fetching contract details", data: { contractAddress, explorerUrl: addressUrl.href } });
-    const addressResp = await axios.get<{ creation_tx_hash: string }>(addressUrl.href);
-    const creationTxHash = addressResp.data?.creation_tx_hash;
+    const addressResp = await axios.get<{ creation_tx_hash?: string; creation_transaction_hash?: string }>(addressUrl.href);
+    const creationTxHash = addressResp.data?.creation_tx_hash ?? addressResp.data?.creation_transaction_hash ?? null;
     if (!creationTxHash) {
       logger.error({
         msg: "Could not find a valid transaction hash",
@@ -345,8 +345,8 @@ async function blockscoutApiV2(contractAddress: string, explorerUrl: string, cha
     const txUrl = new URL(explorerUrl);
     txUrl.pathname = `/api/v2/transactions/${creationTxHash}`;
     logger.trace({ msg: "Fetching transaction details", data: { contractAddress, explorerUrl: txUrl.href } });
-    const txResp = await axios.get<{ timestamp: string; block: number }>(txUrl.href);
-    const blockNumber = txResp.data?.block;
+    const txResp = await axios.get<{ timestamp: string; block?: number; block_number?: number }>(txUrl.href);
+    const blockNumber = txResp.data?.block ?? txResp.data?.block_number ?? null;
     const timeStamp = txResp.data?.timestamp;
     if (!blockNumber || !timeStamp) {
       logger.error({
