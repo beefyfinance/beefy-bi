@@ -794,7 +794,7 @@
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 1000,
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
@@ -805,9 +805,9 @@
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 10,
-        "eth_getBlockByNumber": 10,
-        "eth_blockNumber": 10,
-        "eth_getTransactionReceipt": 10
+        "eth_getBlockByNumber": 1,
+        "eth_blockNumber": 1,
+        "eth_getTransactionReceipt": 1
       }
     },
     "https://optimism.drpc.org": {
