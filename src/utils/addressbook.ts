@@ -1,4 +1,4 @@
-import * as addressbook from "blockchain-addressbook";
+import * as addressbook from "@beefyfinance/blockchain-addressbook";
 import { Chain } from "../types/chain";
 import { normalizeAddressOrThrow } from "./ethers";
 

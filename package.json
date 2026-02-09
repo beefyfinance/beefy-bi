@@ -15,7 +15,7 @@
     "test:unused-exports": "ts-unused-exports ./tsconfig.json",
     "test:all": "npm run build && npm run test && npm run test:unused-exports",
     "test:ts": "tsc --noEmit",
-    "update:addressbook": "npx ncu --upgrade blockchain-addressbook viem && npm install"
+    "update:addressbook": "npx ncu --upgrade @beefyfinance/blockchain-addressbook viem && npm install"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.2.0",
@@ -39,6 +39,7 @@
     "typescript": "^5.0.2"
   },
   "dependencies": {
+    "@beefyfinance/blockchain-addressbook": "^0.54.168",
     "@fastify/auth": "^4.3.0",
     "@fastify/awilix": "^3.0.1",
     "@fastify/bearer-auth": "^9.0.0",
@@ -55,7 +56,6 @@
     "abstract-cache-redis": "^2.0.0",
     "async-lock": "^1.4.0",
     "axios": "^1.3.4",
-    "blockchain-addressbook": "^0.54.100",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.0.3",
     "ethereum-multicall": "^2.16.1",
@@ -78,7 +78,7 @@
     "rxjs": "^7.8.0",
     "simple-git": "^3.17.0",
     "uuid": "^9.0.0",
-    "viem": "^2.40.2",
+    "viem": "^2.45.2",
     "yargs": "^17.7.1"
   }
 }

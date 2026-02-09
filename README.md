@@ -143,10 +143,7 @@ You might also want to update the `src/utils/rpc/remove-secrets-from-rpc-url.ts`
 
 ### How to add a new chain?
 
-- Run 
-  - `npx ncu --upgrade blockchain-addressbook` 
-  - `npx ncu --upgrade viem` 
-  - `npm install`
+- Run `npm run update:addressbook` 
 - Update `src/types/chain.ts`
 - Update `src/utils/config.ts`
 - Run `npm run build` and solve any remainning typescript error
