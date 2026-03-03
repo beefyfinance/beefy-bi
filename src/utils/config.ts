@@ -93,7 +93,7 @@ export const EXPLORER_URLS: {
   arbitrum: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
   avax: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
-  base: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  base: { type: "blockscout-api-v2-find-initialized-log", url: "https://base.blockscout.com/api/v2" },
   berachain: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   bsc: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   canto: { type: "blockscout-json", url: "https://tuber.build" },
