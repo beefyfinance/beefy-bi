@@ -841,7 +841,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 100,
