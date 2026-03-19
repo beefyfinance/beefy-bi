@@ -780,7 +780,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 5,
       "methods": {
         "eth_getLogs": 20,
@@ -800,7 +800,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "methods": {
         "eth_getLogs": 1,
@@ -820,7 +820,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": null,
@@ -828,6 +828,26 @@
         "eth_getBlockByNumber": 2,
         "eth_blockNumber": 2,
         "eth_getTransactionReceipt": 2
+      }
+    },
+    "<RPC_API_URL_BEEFY_OPTIMISM>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 1000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
       }
     }
   },
