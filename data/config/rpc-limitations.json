@@ -780,7 +780,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 5,
       "methods": {
         "eth_getLogs": 20,
@@ -800,7 +800,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 2,
       "methods": {
         "eth_getLogs": 1,
@@ -820,7 +820,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": true,
+      "disableRpc": false,
       "weight": 1,
       "methods": {
         "eth_getLogs": null,
@@ -841,7 +841,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 1,
+      "weight": 7,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 100,
