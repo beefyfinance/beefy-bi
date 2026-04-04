@@ -774,7 +774,7 @@
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 200,
-      "maxGetLogsBlockSpan": 5000,
+      "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": 500,
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
