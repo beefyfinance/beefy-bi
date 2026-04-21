@@ -171,16 +171,23 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
       // https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=1695031435&closest=before
       // https://api.etherscan.io/v2/api?chainId=1&module=block&action=getblocknobytime&timestamp=1695031435&closest=before
       const timestamp = options.getBlockDate(obj).getTime() / 1000;
-      let params = {
-        chainId: getChainNetworkId(chain), // for etherscan v2 api endpoints
+      const params: Record<string, string | number> = {
         module: "block",
         action: "getblocknobytime",
         timestamp,
         closest: "before",
-        apiKey: undefined as string | undefined,
       };
+
       const apiKey = ETHERSCAN_API_KEY[chain];
+      if (explorerConfig.type === "etherscan-v2") {
+        // Some explorers accept `chainid`, others `chainId`, so we send both.
+        const chainId = getChainNetworkId(chain);
+        params.chainid = chainId;
+        params.chainId = chainId;
+      }
       if (apiKey) {
+        // Some explorers accept `apikey`, others `apiKey`, so we send both.
+        params.apikey = apiKey;
         params.apiKey = apiKey;
       }
       logger.trace({ msg: "Fetching block from timestamp", data: { timestamp, params } });
