@@ -13,6 +13,7 @@ import {
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_ONE_RPC,
+  RPC_API_URL_BEEFY_ETHEREUM,
   RPC_API_URL_BEEFY_OPTIMISM,
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
@@ -55,8 +56,10 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes("/enterprise.onerpc.com")) {
     const chainName = secretRpcUrl.split("?")[0].split("/")[3];
     publicRpcUrl += `/${chainName}?apikey=<RPC_API_KEY_ONE_RPC>`;
-  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?")) {
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?") && secretRpcUrl.includes("optimism")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_OPTIMISM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?") && secretRpcUrl.includes("ethereum")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ETHEREUM>";
   } else if (secretRpcUrl.includes("ankr")) {
     const chain = pathParts[0];
     if (pathParts.length === 2) {
@@ -160,6 +163,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_OPTIMISM", RPC_API_URL_BEEFY_OPTIMISM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ETHEREUM", RPC_API_URL_BEEFY_ETHEREUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_OPTIMISM", RPC_API_KEY_ALCHEMY_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_ARBITRUM", RPC_API_KEY_ALCHEMY_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
