@@ -1,5 +1,6 @@
 export type SamplingPeriod =
   | "1sec"
+  | "5sec"
   | "10sec"
   | "15sec"
   | "30sec"
@@ -19,6 +20,7 @@ export type SamplingPeriod =
   | "100year";
 export const allSamplingPeriods: SamplingPeriod[] = [
   "1sec",
+  "5sec",
   "10sec",
   "15sec",
   "30sec",
@@ -39,6 +41,7 @@ export const allSamplingPeriods: SamplingPeriod[] = [
 ];
 export const samplingPeriodMs: { [period in SamplingPeriod]: number } = {
   "1sec": 1000,
+  "5sec": 5 * 1000,
   "10sec": 10 * 1000,
   "15sec": 15 * 1000,
   "30sec": 30 * 1000,

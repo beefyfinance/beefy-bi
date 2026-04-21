@@ -151,7 +151,7 @@ export const defaultImportBehaviour: ImportBehaviour = {
     snapshot: process.env.BEHAVIOUR_LIMIT_SNAPSHOT_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_SNAPSHOT_QUERIES, 10) : 1000,
     price: process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES ? parseInt(process.env.BEHAVIOUR_LIMIT_PRICE_QUERIES, 10) : 1000,
   },
-  minDelayBetweenExplorerCalls: "1sec",
+  minDelayBetweenExplorerCalls: "5sec",
   beefyPriceDataQueryRange:
     process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE &&
       allSamplingPeriods.includes(process.env.BEHAVIOUR_BEEFY_PRICE_DATA_QUERY_RANGE as SamplingPeriod)
