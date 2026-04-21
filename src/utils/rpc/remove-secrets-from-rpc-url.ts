@@ -56,9 +56,9 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes("/enterprise.onerpc.com")) {
     const chainName = secretRpcUrl.split("?")[0].split("/")[3];
     publicRpcUrl += `/${chainName}?apikey=<RPC_API_KEY_ONE_RPC>`;
-  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?") && secretRpcUrl.includes("optimism")) {
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_OPTIMISM>";
-  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?") && secretRpcUrl.includes("ethereum")) {
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_ETHEREUM>";
   } else if (secretRpcUrl.includes("ankr")) {
     const chain = pathParts[0];
