@@ -112,7 +112,10 @@ function fetchBlockFromDatetimeUsingDb$<TObj, TErr extends ErrorEmitter<TObj>, T
       const rows = await db_query<{ dtMs: number; blockNumber: number | null }>(
         `
         WITH req(datetime, dt_ms) AS (
-          VALUES %L
+          SELECT
+            v.datetime::timestamptz,
+            v.dt_ms::bigint
+          FROM (VALUES %L) as v(datetime, dt_ms)
         )
         SELECT
           req.dt_ms as "dtMs",
