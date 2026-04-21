@@ -29,7 +29,7 @@ export function fetchBlockFromDatetime$<TObj, TErr extends ErrorEmitter<TObj>, T
 
   return Rx.pipe(
     // add TS typings
-    Rx.tap((_: TObj) => {}),
+    Rx.tap((_: TObj) => { }),
 
     // DB-first lookup: if we already have a block within ±120s, reuse it
     fetchBlockFromDatetimeUsingDb$({
@@ -180,14 +180,10 @@ function fetchBlockFromDatetimeUsingExplorerAPI$<TObj, TErr extends ErrorEmitter
 
       const apiKey = ETHERSCAN_API_KEY[chain];
       if (explorerConfig.type === "etherscan-v2") {
-        // Some explorers accept `chainid`, others `chainId`, so we send both.
         const chainId = getChainNetworkId(chain);
-        params.chainid = chainId;
         params.chainId = chainId;
       }
       if (apiKey) {
-        // Some explorers accept `apikey`, others `apiKey`, so we send both.
-        params.apikey = apiKey;
         params.apiKey = apiKey;
       }
       logger.trace({ msg: "Fetching block from timestamp", data: { timestamp, params } });
