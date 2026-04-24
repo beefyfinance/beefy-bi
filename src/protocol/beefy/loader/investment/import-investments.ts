@@ -1,12 +1,14 @@
+import Decimal from "decimal.js";
 import { groupBy } from "lodash";
 import * as Rx from "rxjs";
 import { Chain } from "../../../../types/chain";
 import { getBridgedVaultOriginChains, getBridgedVaultTargetChains } from "../../../../utils/addressbook";
 import { MS_PER_BLOCK_ESTIMATE } from "../../../../utils/config";
+import { db_query } from "../../../../utils/db";
 import { mergeLogsInfos, rootLogger } from "../../../../utils/logger";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range, isValidRange, rangeExcludeMany } from "../../../../utils/range";
-import { excludeNullFields$ } from "../../../../utils/rxjs/utils/exclude-null-field";
+import { excludeNullFields$, forkOnNullableField$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockFromDatetime$ } from "../../../common/connector/block-from-datetime";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
@@ -20,6 +22,7 @@ import { upsertPrice$ } from "../../../common/loader/prices";
 import { DbBeefyProduct } from "../../../common/loader/product";
 import { ErrorEmitter, ImportCtx } from "../../../common/types/import-context";
 import { ImportRangeResult } from "../../../common/types/import-query";
+import { dbBatchCall$ } from "../../../common/utils/db-batch";
 import { isProductDashboardEOL } from "../../../common/utils/eol";
 import { executeSubPipeline$ } from "../../../common/utils/execute-sub-pipeline";
 import { createImportStateUpdaterRunner } from "../../../common/utils/import-state-updater-runner";
@@ -412,10 +415,15 @@ function loadTransfers$<TObj, TInput extends { parent: TObj; target: TransferToL
   );
 }
 
-function fetchBeefyBridgedVaultShareRateIfNeeded<TInput extends { target: { product: DbBeefyProduct } }>(options: {
-  ctx: ImportCtx;
-  emitError: ErrorEmitter<any>;
-}): Rx.OperatorFunction<TInput, TInput> {
+function fetchBeefyBridgedVaultShareRateIfNeeded<
+  TInput extends {
+    target: { product: DbBeefyProduct; transfer: ERC20Transfer };
+    blockDatetime: Date;
+    shareRate: Decimal;
+    shareRateDatetime: Date;
+    shareRateBlockNumber: number;
+  },
+>(options: { ctx: ImportCtx; emitError: ErrorEmitter<any> }): Rx.OperatorFunction<TInput, TInput> {
   if (!getBridgedVaultTargetChains().includes(options.ctx.chain)) {
     return Rx.pipe();
   }
@@ -429,70 +437,167 @@ function fetchBeefyBridgedVaultShareRateIfNeeded<TInput extends { target: { prod
       ...getBridgedVaultOriginChains().map((originChain) =>
         items$.pipe(
           Rx.filter(
-            (item): item is any =>
-              isBeefyBridgedVault(item.target.product) && item.target.product.productData.vault.bridged_version_of.chain === originChain,
+            (item) => isBeefyBridgedVault(item.target.product) && item.target.product.productData.vault.bridged_version_of.chain === originChain,
           ),
-          createChainPipeline(
-            {
-              chain: originChain,
-              client: options.ctx.client,
-              behaviour: options.ctx.behaviour,
-            },
-            (ctx) =>
-              Rx.pipe(
-                Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
 
-                // first we need to map the vault transfer block in the bridged chain to a block in the origin chain
-                fetchBlockFromDatetime$({
-                  ctx,
-                  emitError: options.emitError,
-                  getBlockDate: (item) => item.blockDatetime,
-                  formatOutput: (item, shareRateBlockNumberOnOriginChain) => ({ ...item, shareRateBlockNumberOnOriginChain }),
-                }),
+          // try and fetch by share rate directly
+          findClosestShareRateByDatetime$({
+            ctx: options.ctx,
+            emitError: options.emitError,
+            getDatetime: (item) => item.blockDatetime,
+            getPriceFeedId: (item) => item.target.product.priceFeedId1,
+            formatOutput: (item, closest) => ({
+              ...item,
+              closest,
+            }),
+            maxDeltaMinutes: 10,
+          }),
 
-                Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
+          forkOnNullableField$<
+            TInput & { closest: DbClosestShareRate | null },
+            "closest",
+            TInput
+          >({
+            key: "closest",
+            handleNonNulls$: Rx.pipe(
+              Rx.tap((item) => logger.trace({ msg: "found share rate by datetime in priceFeed1 ts", data: { chain: options.ctx.chain, item } })),
+              Rx.map((item) => ({
+                ...item,
+                shareRate: item.closest.shareRate,
+                shareRateBlockNumber: item.closest.blockNumber,
+                shareRateDatetime: item.closest.datetime,
+              }) as TInput),
+            ),
+            handleNulls$: createChainPipeline(
+              {
+                chain: originChain,
+                client: options.ctx.client,
+                behaviour: options.ctx.behaviour,
+              },
+              (ctx) =>
+                Rx.pipe(
+                  // narrow the input type for the downstream operators
+                  Rx.map((item) => item as unknown as TInput),
+                  Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
 
-                // then we can fetch the share rate in the context of the origin chain
-                fetchBeefyTransferData$({
-                  ctx,
-                  emitError: options.emitError,
-                  getCallParams: (item) => {
-                    const balance = {
-                      decimals: item.target.transfer.tokenDecimals,
-                      contractAddress: item.target.transfer.tokenAddress,
-                      ownerAddress: item.target.transfer.ownerAddress,
-                    };
-                    const blockNumber = item.shareRateBlockNumberOnOriginChain;
-
-                    if (!isBeefyBridgedVault(item.target.product)) {
-                      logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
-                      throw new ProgrammerError("Unsupported product type");
-                    }
-
-                    const vault = item.target.product.productData.vault.bridged_version_of;
-                    return {
-                      shareRateParams: {
-                        vaultAddress: vault.contract_address,
-                        underlyingDecimals: vault.want_decimals,
-                        vaultDecimals: vault.token_decimals,
-                      },
-                      balance,
-                      blockNumber,
-                      fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
-                      fetchBalance: false,
-                    };
-                  },
-                  formatOutput: (item, { blockDatetime, shareRate }) => ({
-                    ...item,
-                    shareRate,
-                    shareRateBlockNumber: item.shareRateBlockNumber,
-                    shareRateDatetime: blockDatetime,
+                  // first we need to map the vault transfer block in the bridged chain to a block in the origin chain
+                  fetchBlockFromDatetime$({
+                    ctx,
+                    emitError: options.emitError,
+                    getBlockDate: (item) => item.blockDatetime,
+                    formatOutput: (item, shareRateBlockNumberOnOriginChain) => ({ ...item, shareRateBlockNumberOnOriginChain }),
                   }),
-                }),
-              ),
-          ),
+
+                  Rx.tap((item) => logger.trace({ msg: "loading share rate", data: { chain: ctx.chain, transferData: item } })),
+
+                  // then we can fetch the share rate in the context of the origin chain
+                  fetchBeefyTransferData$({
+                    ctx,
+                    emitError: options.emitError,
+                    getCallParams: (item) => {
+                      const balance = {
+                        decimals: item.target.transfer.tokenDecimals,
+                        contractAddress: item.target.transfer.tokenAddress,
+                        ownerAddress: item.target.transfer.ownerAddress,
+                      };
+                      const blockNumber = item.shareRateBlockNumberOnOriginChain;
+
+                      if (!isBeefyBridgedVault(item.target.product)) {
+                        logger.error({ msg: "Unsupported product type", data: { product: item.target.product } });
+                        throw new ProgrammerError("Unsupported product type");
+                      }
+
+                      const vault = item.target.product.productData.vault.bridged_version_of;
+                      return {
+                        shareRateParams: {
+                          vaultAddress: vault.contract_address,
+                          underlyingDecimals: vault.want_decimals,
+                          vaultDecimals: vault.token_decimals,
+                        },
+                        balance,
+                        blockNumber,
+                        fetchShareRate: true, // we don't have a share rate on the same chain for bridged vaults
+                        fetchBalance: false,
+                      };
+                    },
+                    formatOutput: (item, { blockDatetime, shareRate }) =>
+                      ({
+                        ...item,
+                        shareRate,
+                        shareRateBlockNumber: item.shareRateBlockNumberOnOriginChain,
+                        shareRateDatetime: blockDatetime,
+                      }) as unknown as TInput,
+                  }),
+                ),
+            ),
+          }),
         ),
       ),
     ),
   );
+}
+
+type DbClosestShareRate = { datetime: Date; blockNumber: number; shareRate: Decimal };
+function findClosestShareRateByDatetime$<TObj, TErr extends ErrorEmitter<TObj>, TRes>(options: {
+  ctx: ImportCtx;
+  emitError: TErr;
+  getDatetime: (obj: TObj) => Date;
+  getPriceFeedId: (obj: TObj) => number;
+  maxDeltaMinutes: number;
+  formatOutput: (obj: TObj, closest: DbClosestShareRate | null) => TRes;
+}): Rx.OperatorFunction<TObj, TRes> {
+  return dbBatchCall$({
+    ctx: options.ctx,
+    emitError: options.emitError,
+    getData: (obj) => ({
+      dtMs: options.getDatetime(obj).getTime(),
+      datetime: options.getDatetime(obj).toISOString(),
+      priceFeedId: options.getPriceFeedId(obj),
+    }),
+    logInfos: { msg: "findClosestShareRateByDatetime" },
+    formatOutput: options.formatOutput,
+    processBatch: async (objAndData) => {
+      const rows = await db_query<{ id: number; datetime: Date | null; blockNumber: number | null; shareRate: string | null }>(
+        `
+          WITH req(id, datetime, price_feed_id) AS (
+            SELECT
+              v.id::integer,
+              v.datetime::timestamptz,
+              v.price_feed_id::integer
+            FROM (VALUES %L) as v(id, datetime, price_feed_id)
+          )
+          SELECT
+            req.id as id,
+            p.datetime as "datetime",
+            p.block_number as "blockNumber",
+            p.price as "shareRate"
+          FROM req
+          LEFT JOIN LATERAL (
+            SELECT
+              datetime,
+              block_number,
+              price
+            FROM price_ts
+            WHERE price_feed_id = req.price_feed_id
+              AND datetime BETWEEN req.datetime - (%L::integer * interval '1 minute') AND req.datetime + (%L::integer * interval '1 minute')
+            ORDER BY abs(extract(epoch from (datetime - req.datetime))) ASC
+            LIMIT 1
+          ) p ON TRUE
+        `,
+        [objAndData.map(({ data }, id) => [id, data.datetime, data.priceFeedId]), options.maxDeltaMinutes, options.maxDeltaMinutes],
+        options.ctx.client,
+      );
+
+      const closestById = new Map<number, DbClosestShareRate | null>();
+      for (const row of rows) {
+        if (row.datetime && row.blockNumber && row.shareRate) {
+          closestById.set(row.id, { datetime: row.datetime, blockNumber: row.blockNumber, shareRate: new Decimal(row.shareRate) });
+        } else {
+          closestById.set(row.id, null);
+        }
+      }
+
+      return new Map(objAndData.map((_, id) => [objAndData[id].data, closestById.get(id) ?? null]));
+    },
+  });
 }

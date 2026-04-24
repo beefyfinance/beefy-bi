@@ -126,7 +126,7 @@ function fetchBlockFromDatetimeUsingDb$<TObj, TErr extends ErrorEmitter<TObj>, T
             block_number
           FROM block_ts
           WHERE chain = %L
-            and datetime between req.datetime - interval '10 minutes' and req.datetime + interval '10 minutes'
+            and datetime between req.datetime - interval '1 hour' and req.datetime + interval '1 hour'
           ORDER BY abs(extract(epoch from (datetime - req.datetime))) ASC
           LIMIT 1
         ) b ON TRUE
