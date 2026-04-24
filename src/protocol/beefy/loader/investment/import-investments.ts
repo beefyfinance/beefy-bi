@@ -557,17 +557,41 @@ function findClosestShareRateByDatetime$<TObj, TErr extends ErrorEmitter<TObj>, 
     logInfos: { msg: "findClosestShareRateByDatetime" },
     formatOutput: options.formatOutput,
     processBatch: async (objAndData) => {
-      const rows = await db_query<{ id: number; datetime: Date | null; blockNumber: number | null; shareRate: string | null }>(
+      // Dedupe by (priceFeedId, datetime) so we only query unique requests.
+      // Keep mapping back to the original `data` objects (dbBatchCall$ contract).
+      const uniqKeyByData = new Map<
+        { dtMs: number; datetime: string; priceFeedId: number },
+        string
+      >();
+      const uniqReqByKey = new Map<string, { dtMs: number; datetime: string; priceFeedId: number }>();
+
+      for (const { data } of objAndData) {
+        const key = `${data.priceFeedId}:${data.dtMs}`; // dtMs is derived from datetime, stable + fast
+        uniqKeyByData.set(data, key);
+        if (!uniqReqByKey.has(key)) {
+          uniqReqByKey.set(key, { dtMs: data.dtMs, datetime: data.datetime, priceFeedId: data.priceFeedId });
+        }
+      }
+
+      const uniqReqs = Array.from(uniqReqByKey.values());
+      const rows = await db_query<{
+        dtMs: string | number;
+        priceFeedId: number;
+        datetime: Date | null;
+        blockNumber: number | null;
+        shareRate: string | null;
+      }>(
         `
-          WITH req(id, datetime, price_feed_id) AS (
+          WITH req(dt_ms, datetime, price_feed_id) AS (
             SELECT
-              v.id::integer,
+              v.dt_ms::bigint,
               v.datetime::timestamptz,
               v.price_feed_id::integer
-            FROM (VALUES %L) as v(id, datetime, price_feed_id)
+            FROM (VALUES %L) as v(dt_ms, datetime, price_feed_id)
           )
           SELECT
-            req.id as id,
+            req.dt_ms as "dtMs",
+            req.price_feed_id as "priceFeedId",
             p.datetime as "datetime",
             p.block_number as "blockNumber",
             p.price as "shareRate"
@@ -584,20 +608,27 @@ function findClosestShareRateByDatetime$<TObj, TErr extends ErrorEmitter<TObj>, 
             LIMIT 1
           ) p ON TRUE
         `,
-        [objAndData.map(({ data }, id) => [id, data.datetime, data.priceFeedId]), options.maxDeltaMinutes, options.maxDeltaMinutes],
+        [uniqReqs.map((req) => [req.dtMs, req.datetime, req.priceFeedId]), options.maxDeltaMinutes, options.maxDeltaMinutes],
         options.ctx.client,
       );
 
-      const closestById = new Map<number, DbClosestShareRate | null>();
+      const closestByKey = new Map<string, DbClosestShareRate | null>();
       for (const row of rows) {
+        const dtMs = typeof row.dtMs === "string" ? parseInt(row.dtMs) : row.dtMs;
+        const key = `${row.priceFeedId}:${dtMs}`;
         if (row.datetime && row.blockNumber && row.shareRate) {
-          closestById.set(row.id, { datetime: row.datetime, blockNumber: row.blockNumber, shareRate: new Decimal(row.shareRate) });
+          closestByKey.set(key, { datetime: row.datetime, blockNumber: row.blockNumber, shareRate: new Decimal(row.shareRate) });
         } else {
-          closestById.set(row.id, null);
+          closestByKey.set(key, null);
         }
       }
 
-      return new Map(objAndData.map((_, id) => [objAndData[id].data, closestById.get(id) ?? null]));
+      return new Map(
+        objAndData.map(({ data }) => {
+          const key = uniqKeyByData.get(data) ?? `${data.priceFeedId}:${data.dtMs}`;
+          return [data, closestByKey.get(key) ?? null] as const;
+        }),
+      );
     },
   });
 }
