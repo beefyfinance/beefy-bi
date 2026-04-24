@@ -135,17 +135,12 @@ function fetchBlockFromDatetimeUsingDb$<TObj, TErr extends ErrorEmitter<TObj>, T
         options.ctx.client,
       );
 
-      const rowByDtMs = new Map<number, number | null>();
+      const blockByDtMs = new Map<number, number | null>();
       for (const row of rows) {
-        rowByDtMs.set(row.dtMs, row.blockNumber);
-      }
-      for (const dtMs of uniqDtMs) {
-        if (!rowByDtMs.has(dtMs)) {
-          rowByDtMs.set(dtMs, null);
-        }
+        blockByDtMs.set(row.dtMs, row.blockNumber);
       }
 
-      return new Map(dtMsList.map((dtMs) => [dtMs, rowByDtMs.get(dtMs) ?? null]));
+      return new Map(objAndData.map(({ data }) => [data, blockByDtMs.get(data) ?? null]));
     },
   });
 }
