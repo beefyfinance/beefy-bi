@@ -29,7 +29,7 @@ export function fetchBlockFromDatetime$<TObj, TErr extends ErrorEmitter<TObj>, T
 
   return Rx.pipe(
     // add TS typings
-    Rx.tap((_: TObj) => { }),
+    Rx.tap((_: TObj) => {}),
 
     // DB-first lookup: if we already have a block within ±120s, reuse it
     fetchBlockFromDatetimeUsingDb$({
@@ -126,7 +126,7 @@ function fetchBlockFromDatetimeUsingDb$<TObj, TErr extends ErrorEmitter<TObj>, T
             block_number
           FROM block_ts
           WHERE chain = %L
-            and datetime between req.datetime - interval '120 seconds' and req.datetime + interval '120 seconds'
+            and datetime between req.datetime - interval '10 minutes' and req.datetime + interval '10 minutes'
           ORDER BY abs(extract(epoch from (datetime - req.datetime))) ASC
           LIMIT 1
         ) b ON TRUE
