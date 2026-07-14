@@ -32,6 +32,7 @@ export type Chain =
   | "plasma"
   | "polygon"
   | "real"
+  | "robinhood"
   | "rootstock"
   | "rollux"
   | "saga"
@@ -76,6 +77,7 @@ export const allChainIds: Chain[] = [
   "plasma",
   "polygon",
   "real",
+  "robinhood",
   "rollux",
   "rootstock",
   "saga",

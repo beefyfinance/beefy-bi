@@ -203,6 +203,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
       plasma: 3363,
       polygon: 4931456,
       real: 31054,
+      robinhood: 1, // weth created on genesis block
       rollux: 1, // wsys created on genesis block
       rootstock: 2_742_415,
       saga: 1682001,
