@@ -1,5 +1,6 @@
 export type Chain =
   | "arbitrum"
+  | "arc"
   | "aurora"
   | "avax"
   | "base"
@@ -45,6 +46,7 @@ export type Chain =
 
 export const allChainIds: Chain[] = [
   "arbitrum",
+  "arc",
   "aurora",
   "avax",
   "base",

@@ -171,6 +171,7 @@ async function testRpcLimits(chain: Chain, behaviour: ImportBehaviour, tests: Rp
     let attempts = MAX_RPC_ARCHIVE_NODE_RETRY_ATTEMPTS;
     const wNativeCreationBlock: { [chain in Chain]: number } = {
       arbitrum: 55,
+      arc: 1, // USDC created on genesis block
       aurora: 51919680,
       avax: 820,
       base: 1, // weth created on genesis block

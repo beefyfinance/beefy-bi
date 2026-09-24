@@ -41,6 +41,7 @@ export const BEEFY_DATA_URL = process.env.BEEFY_DATA_URL || "https://data.beefy.
 export const BEEFY_DATA_KEY = process.env.BEEFY_DATA_KEY || null;
 
 export const RPC_API_KEY_AURORA = process.env.RPC_API_KEY_AURORA || null;
+export const RPC_API_KEY_ARC = process.env.RPC_API_KEY_ARC || null;
 export const RPC_API_KEY_ANKR = process.env.RPC_API_KEY_ANKR || null;
 export const RPC_API_KEY_METIS_OWNER = process.env.RPC_API_KEY_METIS_OWNER || null;
 export const RPC_API_KEY_ALCHEMY_OPTIMISM = process.env.RPC_API_KEY_ALCHEMY_OPTIMISM || null;
@@ -95,6 +96,7 @@ export const EXPLORER_URLS: {
   };
 } = {
   arbitrum: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
+  arc: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   aurora: { type: "etherscan", url: "https://api.aurorascan.dev/api" },
   avax: { type: "etherscan-v2", url: "https://api.etherscan.io/v2/api" },
   base: { type: "blockscout-api-v2-find-initialized-log", url: "https://base.blockscout.com/api/v2" },
@@ -141,6 +143,7 @@ export const EXPLORER_URLS: {
 
 export const MULTICALL3_ADDRESS_MAP: { [chain in Chain]: { multicallAddress: string; createdAtBlock: number } | null } = {
   arbitrum: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 7654707 },
+  arc: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 1 },
   aurora: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 62907816 },
   avax: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 11907934 },
   base: { multicallAddress: "0xcA11bde05977b3631167028862bE2a173976CA11", createdAtBlock: 5022 },
@@ -202,6 +205,7 @@ export const ETHERSCAN_API_KEY: {
   [chain in Chain]: string | null;
 } = {
   arbitrum: _getExplorerApiKey("arbitrum"),
+  arc: _getExplorerApiKey("arc"),
   aurora: _getExplorerApiKey("aurora"),
   avax: _getExplorerApiKey("avax"),
   base: _getExplorerApiKey("base"),
@@ -252,6 +256,7 @@ export const ETHERSCAN_API_KEY: {
  */
 export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   arbitrum: 250,
+  arc: 500,
   aurora: 1000,
   avax: 2000,
   base: 2000,

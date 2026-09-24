@@ -1,6 +1,7 @@
 import { PublicClient, createPublicClient, defineChain, http } from "viem";
 import {
   arbitrum,
+  arc,
   aurora,
   avalanche,
   base,
@@ -95,6 +96,7 @@ const hyperevm = defineChain({
 
 const VIEM_CHAINS: Record<BeefyChain, ViemChain | null> = {
   arbitrum: arbitrum,
+  arc: arc,
   aurora: aurora,
   avax: avalanche,
   base: base,
