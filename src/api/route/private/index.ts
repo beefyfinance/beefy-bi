@@ -8,6 +8,7 @@ import { allChainIds } from "../../../types/chain";
 import { API_DISABLE_HTTPS, API_PRIVATE_TOKENS } from "../../../utils/config";
 import { BeefyVaultService } from "../../service/protocol/beefy-vault";
 import blockRoutes from "./blocks";
+import exportRoutes from "./export";
 import priceRoutes from "./prices";
 import beefyRoutes from "./protocol/beefy";
 
@@ -40,6 +41,7 @@ export default async function (instance: FastifyInstance) {
         tags: [
           { name: "price", description: "Price related end-points" },
           { name: "block", description: "Block related end-points" },
+          { name: "export", description: "Paginated bulk data end-points" },
         ],
         components: {
           securitySchemes: {
@@ -68,5 +70,6 @@ export default async function (instance: FastifyInstance) {
   await instance
     .register(blockRoutes, { prefix: "/block", routeOpts })
     .register(priceRoutes, { prefix: "/price", routeOpts })
-    .register(beefyRoutes, { prefix: "/beefy", routeOpts });
+    .register(beefyRoutes, { prefix: "/beefy", routeOpts })
+    .register(exportRoutes, { prefix: "/export", routeOpts });
 }
