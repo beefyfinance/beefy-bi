@@ -7,7 +7,7 @@ import { mergeLogsInfos, rootLogger } from "../../../utils/logger";
 import { isValidRange } from "../../../utils/range";
 import { excludeNullFields$ } from "../../../utils/rxjs/utils/exclude-null-field";
 import { latestBlockNumber$ } from "../../common/connector/latest-block-number";
-import { upsertBeefyVaultStats$ } from "../../common/loader/beefy-vault-stats";
+import { getUnderlyingCapturePercentage, upsertBeefyVaultStats$ } from "../../common/loader/beefy-vault-stats";
 import { fetchChainBlockList$ } from "../../common/loader/chain-block-list";
 import { fetchProductCreationInfos$ } from "../../common/loader/fetch-product-creation-infos";
 import { DbProductStatisticsImportState, addMissingImportState$, fetchImportState$ } from "../../common/loader/import-state";
@@ -211,7 +211,7 @@ export function createBeefyProductStatisticsRunner(options: { chain: Chain; runn
             vaultTotalSupply: item.vaultTotalSupply,
             stakedUnderlying: item.stakedUnderlying,
             underlyingTotalSupply: item.underlyingTotalSupply,
-            underlyingCapturePercentage: item.stakedUnderlying.dividedBy(item.underlyingTotalSupply).toNumber(),
+            underlyingCapturePercentage: getUnderlyingCapturePercentage(item.stakedUnderlying, item.underlyingTotalSupply),
           }),
           formatOutput: (item, _) => item,
         }),

@@ -172,6 +172,14 @@ function selectColumn({ name, type, sql }: ExportColumn) {
   if (type === "hex") {
     return pgf(`'0x' || encode(t.%I::bytea, 'hex') as %I`, name, name);
   }
+  if (type === "double") {
+    // a double precision can store these but json can't represent them, and NaN makes the serialization of the whole page fail
+    return pgf(
+      `NULLIF(NULLIF(NULLIF(t.%I, 'NaN'::double precision), 'Infinity'::double precision), '-Infinity'::double precision) as %I`,
+      name,
+      name,
+    );
+  }
   return sql ? pgf(`${sql} as %I`, name) : pgf("t.%I", name);
 }
 

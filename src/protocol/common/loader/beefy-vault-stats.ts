@@ -11,7 +11,12 @@ interface DbBeefyVaultStats {
   shareToUnderlyingPrice: Decimal;
   stakedUnderlying: Decimal;
   underlyingTotalSupply: Decimal;
-  underlyingCapturePercentage: number;
+  underlyingCapturePercentage: number | null;
+}
+
+export function getUnderlyingCapturePercentage(stakedUnderlying: Decimal, underlyingTotalSupply: Decimal) {
+  // decimal.js gives NaN or Infinity on a zero division and postgres would store them as is
+  return underlyingTotalSupply.isZero() ? null : stakedUnderlying.dividedBy(underlyingTotalSupply).toNumber();
 }
 
 export function upsertBeefyVaultStats$<TObj, TErr extends ErrorEmitter<TObj>, TRes, TParams extends DbBeefyVaultStats>(options: {
@@ -35,7 +40,7 @@ export function upsertBeefyVaultStats$<TObj, TErr extends ErrorEmitter<TObj>, TR
         share_to_underlying_price: string;
         staked_underlying: string;
         underlying_total_supply: string;
-        underlying_capture_percentage: number;
+        underlying_capture_percentage: number | null;
       }>(
         `INSERT INTO beefy_vault_stats_ts (
             product_id,

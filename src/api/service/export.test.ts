@@ -30,6 +30,21 @@ describe("Export service", () => {
     expect(sql).toContain(`'0x' || encode(t.transaction_hash::bytea, 'hex') as transaction_hash`);
   });
 
+  it("should select non finite doubles as null, on every dataset", async () => {
+    for (const [name, dataset] of Object.entries(exportDatasets)) {
+      const { query, service } = buildService();
+      await service.getPage(name as keyof typeof exportDatasets, { limit: 10, ...window });
+      const sql = query.mock.calls[0][0];
+
+      for (const col of (dataset.columns as { name: string; type: string; nullable?: boolean }[]).filter((col) => col.type === "double")) {
+        expect(col.nullable).toBe(true);
+        expect(sql).toContain(
+          `NULLIF(NULLIF(NULLIF(t.${col.name}, 'NaN'::double precision), 'Infinity'::double precision), '-Infinity'::double precision) as ${col.name}`,
+        );
+      }
+    }
+  });
+
   it("should give a cursor on full pages only, and resume after it", async () => {
     const row = { datetime: "2023-01-01T00:00:00.123456Z", product_id: 1, block_number: 2 };
 

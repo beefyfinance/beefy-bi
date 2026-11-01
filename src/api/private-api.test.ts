@@ -152,6 +152,26 @@ describe("Private api tests", () => {
       expect(getPage.mock.calls[0][1].limit).toBe(1000);
     });
 
+    it("should serialize a null capture percentage, the export of a stored NaN", async () => {
+      const { app, getPage } = await buildMocks();
+      const row = {
+        datetime: "2024-07-31T18:42:06.000000Z",
+        product_id: 1,
+        block_number: 2,
+        vault_total_supply: "0",
+        share_to_underlying_price: "1",
+        staked_underlying: "0",
+        underlying_total_supply: "0",
+        underlying_capture_percentage: null,
+      };
+      getPage.mockReturnValueOnce(Promise.resolve({ data: [row], next_cursor: null }));
+
+      const response = await app.inject({ method: "GET", url, headers });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ data: [row], next_cursor: null });
+    });
+
     it.each([
       ["inverted", "from=2023-01-02T00:00:00Z&to=2023-01-01T00:00:00Z"],
       ["empty", "from=2023-01-01T00:00:00Z&to=2023-01-01T00:00:00Z"],
@@ -187,6 +207,7 @@ describe("Private api tests", () => {
       const page = spec.paths[url.split("?")[0]].get.responses["200"].content["application/json"].schema;
       expect(page.properties.next_cursor.nullable).toBe(true);
       expect(page.properties.data.items.properties.vault_total_supply).toMatchObject({ type: "string", nullable: true });
+      expect(page.properties.data.items.properties.underlying_capture_percentage).toMatchObject({ type: "number", nullable: true });
     });
   });
 });
