@@ -172,6 +172,27 @@ describe("Private api tests", () => {
       expect(response.json()).toEqual({ data: [row], next_cursor: null });
     });
 
+    it("should serialize import states with their nested ranges", async () => {
+      const { app, getPage } = await buildMocks();
+      const row = {
+        import_key: "product:investment:12",
+        import_data: {
+          type: "product:investment",
+          productId: 12,
+          chain: "bsc",
+          chainLatestBlockNumber: 100,
+          ranges: { lastImportDate: "2023-01-01T00:00:00.000Z", coveredRanges: [{ from: 1, to: 50 }], toRetry: [] },
+        },
+      };
+      getPage.mockReturnValueOnce(Promise.resolve({ data: [row], next_cursor: null }));
+
+      const response = await app.inject({ method: "GET", url: "/api/v1/export/import-states", headers });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ data: [row], next_cursor: null });
+      expect(getPage.mock.calls[0][0]).toBe("importStates");
+    });
+
     it.each([
       ["inverted", "from=2023-01-02T00:00:00Z&to=2023-01-01T00:00:00Z"],
       ["empty", "from=2023-01-01T00:00:00Z&to=2023-01-01T00:00:00Z"],
@@ -202,7 +223,7 @@ describe("Private api tests", () => {
       const { app } = await buildMocks();
       const spec = (await app.inject({ method: "GET", url: "/api/v1/openapi.json" })).json();
       const paths = Object.keys(spec.paths).filter((path) => path.startsWith("/api/v1/export/"));
-      expect(paths).toHaveLength(9);
+      expect(paths).toHaveLength(10);
 
       const page = spec.paths[url.split("?")[0]].get.responses["200"].content["application/json"].schema;
       expect(page.properties.next_cursor.nullable).toBe(true);

@@ -61,6 +61,29 @@ describe("Export service", () => {
     );
   });
 
+  it("should paginate import states on their string key", async () => {
+    const row = { import_key: "product:investment:12", import_data: { type: "product:investment" } };
+    const fullPage = await buildService([row]).service.getPage("importStates", { limit: 1 });
+    expect(fullPage.next_cursor).not.toBeNull();
+
+    const { query, service } = buildService();
+    await service.getPage("importStates", { limit: 1, cursor: fullPage.next_cursor as string });
+    const sql = query.mock.calls[0][0];
+    expect(sql).toContain("FROM import_state t");
+    expect(sql).toContain("ORDER BY t.import_key");
+    expect(sql).toContain("(t.import_key) > ('product:investment:12'::text)");
+  });
+
+  it("should escape a string cursor and reject a number in its place", async () => {
+    const { query, service } = buildService();
+    const cursor = Buffer.from(JSON.stringify(["a'; drop table import_state; --"])).toString("base64url");
+    await service.getPage("importStates", { limit: 1, cursor });
+    expect(query.mock.calls[0][0]).toContain("'a''; drop table import_state; --'::text");
+
+    const numberCursor = Buffer.from(JSON.stringify([1])).toString("base64url");
+    await expect(service.getPage("importStates", { limit: 1, cursor: numberCursor })).rejects.toThrow(InvalidExportCursorError);
+  });
+
   it.each([
     ["not base64 json", "nope"],
     ["the wrong size", Buffer.from(JSON.stringify([1, 2])).toString("base64url")],

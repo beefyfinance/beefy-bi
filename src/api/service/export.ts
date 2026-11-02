@@ -126,6 +126,11 @@ export const exportDatasets = {
       nullable("pending_rewards_usd_diff", "double"),
     ],
   },
+  importStates: {
+    table: "import_state",
+    key: ["import_key"],
+    columns: [column("import_key", "string"), column("import_data", "json")],
+  },
 } satisfies Record<string, ExportDataset>;
 
 export type ExportDatasetName = keyof typeof exportDatasets;
@@ -199,11 +204,20 @@ function decodeCursor(cursor: string, keyColumns: ExportColumn[]): (string | num
   if (!Array.isArray(values) || values.length !== keyColumns.length) {
     return null;
   }
-  const valid = keyColumns.every((col, i) =>
-    col.type === "datetime" ? typeof values[i] === "string" && CURSOR_DATETIME_REGEX.test(values[i]) : Number.isSafeInteger(values[i]),
-  );
+  const valid = keyColumns.every((col, i) => {
+    if (col.type === "datetime") {
+      return typeof values[i] === "string" && CURSOR_DATETIME_REGEX.test(values[i]);
+    }
+    return col.type === "string" ? typeof values[i] === "string" : Number.isSafeInteger(values[i]);
+  });
   return valid ? values : null;
 }
+
+const cursorPlaceholders: { [key in ExportColumnType]?: string } = {
+  datetime: "%L::timestamptz",
+  integer: "%L::integer",
+  string: "%L::text",
+};
 
 export class InvalidExportCursorError extends Error {}
 
@@ -226,7 +240,7 @@ export class ExportService {
       if (!values) {
         throw new InvalidExportCursorError("Invalid cursor");
       }
-      const placeholders = keyColumns.map((col) => (col.type === "datetime" ? "%L::timestamptz" : "%L::integer"));
+      const placeholders = keyColumns.map((col) => cursorPlaceholders[col.type]);
       conditions.push(`(${keySql}) > (${placeholders.join(", ")})`);
       params.push(...values);
     }

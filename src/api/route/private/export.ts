@@ -50,4 +50,5 @@ export default async function (instance: FastifyInstance, opts: FastifyPluginOpt
   addRoute("/investors", "investors", "List investors, this is what resolves investor_id", { timeWindow: false });
   addRoute("/investor-counts", "investorCounts", "List the daily approximate investor counts per vault", { timeWindow: true });
   addRoute("/investor-timeline", "investorTimeline", "List investor balance changes", { timeWindow: true });
+  addRoute("/import-states", "importStates", "List import states, this is what tells which ranges were imported", { timeWindow: false });
 }
