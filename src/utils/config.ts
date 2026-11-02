@@ -21,6 +21,8 @@ if (timezone !== "UTC") {
 export const API_PORT = parseInt(process.env.API_PORT || "8080", 10);
 export const API_LISTEN = process.env.API_LISTEN || "127.0.0.1";
 export const API_DISABLE_HTTPS = process.env.API_DISABLE_HTTPS === "true";
+// cloudflare -> traefik -> api: anything further left in X-Forwarded-For is client controlled
+export const API_TRUSTED_PROXY_HOPS = parseInt(process.env.API_TRUSTED_PROXY_HOPS || "2", 10);
 export const API_URL = process.env.API_URL || "http://localhost:8080";
 export const API_PRIVATE_TOKENS = process.env.API_PRIVATE_TOKEN?.split(" ") || [Math.random().toFixed(30)];
 export const API_PUBLIC_TOKENS = process.env.API_PUBLIC_TOKEN?.trim()?.split(" ") || [];

@@ -10,7 +10,7 @@
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:8.10.3-alpine
     command: redis-server --save "" --appendonly no --maxmemory 50mb --replicaof no one
     ports:
       - "6379:6379"
@@ -41,7 +41,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:10.1.4
+    image: grafana/grafana:12.4.14
     ports:
       - "3000:3000"
     env_file: ../.env-grafana

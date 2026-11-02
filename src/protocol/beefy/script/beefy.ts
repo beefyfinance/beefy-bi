@@ -89,7 +89,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           async (client) => {
             //await db_migrate();
 
-            logger.info("Starting import script", { argv });
+            logger.info({ msg: "Starting import script", data: { argv } });
 
             const fromDate = new Date(argv.fromDateTime);
             const toDate = new Date(argv.toDateTime);
@@ -165,7 +165,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           async (client) => {
             //await db_migrate();
 
-            logger.info("Starting import script", { argv });
+            logger.info({ msg: "Starting import script", data: { argv } });
 
             const fromBlock = argv.fromBlock;
             const toBlock = argv.toBlock;
@@ -229,7 +229,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           async (client) => {
             //await db_migrate();
 
-            logger.info("Starting import script", { argv });
+            logger.info({ msg: "Starting import script", data: { argv } });
 
             const fromBlock: number = argv.fromBlock;
             const toBlock: number | null = argv.toBlock || null;
@@ -375,7 +375,7 @@ export function addBeefyCommands<TOptsBefore>(yargs: yargs.Argv<TOptsBefore>) {
           async (client) => {
             //await db_migrate();
 
-            logger.info("Starting import script", { argv });
+            logger.info({ msg: "Starting import script", data: { argv } });
 
             const cmdParams: CmdParams = {
               client,

@@ -5,11 +5,12 @@ import FastifyHelmet from "@fastify/helmet";
 import FastifyPostgres from "@fastify/postgres";
 import FastifyRateLimit, { RateLimitPluginOptions } from "@fastify/rate-limit";
 import FastifyUnderPressure from "@fastify/under-pressure";
-import fastify, { FastifyInstance } from "fastify";
+import fastify, { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
   API_DISABLE_HTTPS,
   API_FRONTEND_URL,
   API_PUBLIC_TOKENS,
+  API_TRUSTED_PROXY_HOPS,
   API_URL,
   APP_GALXE_URL,
   APP_LOCAL_BUILDS_URL,
@@ -22,7 +23,7 @@ import publicRoutes from "./route/public";
 import { registerDI } from "./service";
 import { isValidBearerAuth } from "../utils/auth"; // register DI services
 
-const logger = rootLogger.child({ module: "api", component: "main" });
+const logger: FastifyBaseLogger = rootLogger.child({ module: "api", component: "main" });
 
 type ServerOptions = { registerDI: (instance: FastifyInstance) => Promise<void>; rateLimit: RateLimitPluginOptions };
 const optionsDefaults: ServerOptions = {
@@ -46,7 +47,7 @@ const optionsDefaults: ServerOptions = {
 export async function buildPublicApi(options: ServerOptions = optionsDefaults) {
   const server = fastify({
     logger,
-    trustProxy: true, // cloudflare or nginx http termination
+    trustProxy: API_TRUSTED_PROXY_HOPS,
   });
 
   await options.registerDI(server);
@@ -82,7 +83,7 @@ export async function buildPublicApi(options: ServerOptions = optionsDefaults) {
 export async function buildPrivateApi(options: ServerOptions = optionsDefaults) {
   const server = fastify({
     logger,
-    trustProxy: true, // cloudflare or nginx http termination
+    trustProxy: API_TRUSTED_PROXY_HOPS,
   });
 
   await options.registerDI(server);

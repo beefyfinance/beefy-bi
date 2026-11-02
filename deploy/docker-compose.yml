@@ -75,7 +75,7 @@ networks:
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:8.10.3-alpine
     restart: always
     command: redis-server --save "" --appendonly no --replicaof no one
     stop_signal: SIGINT
@@ -114,7 +114,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:10.1.4
+    image: grafana/grafana:12.4.14
     env_file: ../.env-grafana
     expose:
       - "3000"
@@ -137,10 +137,11 @@ services:
       PORT: 3000
       GRAFANA_WEBAPP_DOMAIN_NAME: dm-control.beefy.com
       GF_INSTALL_PLUGINS: marcusolsson-json-datasource
-      LETSENCRYPT_HOST: dm-control.beefy.com
-      VIRTUAL_HOST: dm-control.beefy.com
-      VIRTUAL_PORT: 3000
-      TRUST_DOWNSTREAM_PROXY: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`dm-control.beefy.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     logging:
       driver: "local"
       options:
@@ -172,10 +173,11 @@ services:
       TIMESCALEDB_URL: postgres://api_ro:api_ro@timescaledb:5432/beefy
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/public-server.js"
-      LETSENCRYPT_HOST: databarn.beefy.com,databarn.beefy.finance
-      VIRTUAL_HOST: databarn.beefy.com,databarn.beefy.finance
-      VIRTUAL_PORT: 8080
-      TRUST_DOWNSTREAM_PROXY: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.public-api.rule=Host(`databarn.beefy.com`) || Host(`databarn.beefy.finance`)"
+      - "traefik.http.routers.public-api.entrypoints=websecure"
+      - "traefik.http.services.public-api.loadbalancer.server.port=8080"
     logging:
       driver: "local"
       options:
@@ -202,10 +204,11 @@ services:
       API_PORT: 8081
       API_LISTEN: "::" # listen on all interfaces inside the container
       WORK_CMD: "./dist/src/api/private-server.js"
-      LETSENCRYPT_HOST: db-core.beefy.com
-      VIRTUAL_HOST: db-core.beefy.com
-      VIRTUAL_PORT: 8081
-      TRUST_DOWNSTREAM_PROXY: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.private-api.rule=Host(`db-core.beefy.com`)"
+      - "traefik.http.routers.private-api.entrypoints=websecure"
+      - "traefik.http.services.private-api.loadbalancer.server.port=8081"
     logging:
       driver: "local"
       options:

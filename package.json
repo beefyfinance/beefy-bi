@@ -70,15 +70,18 @@
     "pg": "^8.10.0",
     "pg-connection-string": "^2.5.0",
     "pg-format": "^1.0.4",
-    "pino": "^8.11.0",
+    "pino": "^9.14.0",
     "prettier": "^2.8.7",
     "read-last-lines": "^1.8.0",
     "redis": "^4.6.5",
     "redlock": "^5.0.0-beta.2",
     "rxjs": "^7.8.0",
-    "simple-git": "^3.17.0",
+    "simple-git": "^4.0.2",
     "uuid": "^9.0.0",
-    "viem": "^2.56.8",
+    "viem": "^2.57.14",
     "yargs": "^17.7.1"
+  },
+  "overrides": {
+    "ws": "8.22.1"
   }
 }
