@@ -161,7 +161,7 @@
       "maxGetLogsAddressBatchSize": 100,
       "internalTimeoutMs": null,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": null,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
@@ -415,7 +415,7 @@
       "maxGetLogsAddressBatchSize": 50,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -1202,7 +1202,7 @@
       "maxGetLogsAddressBatchSize": 50,
       "internalTimeoutMs": 10000,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
