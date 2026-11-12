@@ -324,7 +324,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "select product_id, product_key, price_feed_1_id, price_feed_2_id, jsonb_pretty(product_data)\nfrom product\nwhere \n  chain in ($chains)\n  and product_key in ($product_keys)",
+          "rawSql": "select product_id, product_key, price_feed_1_id, price_feed_2_id, jsonb_pretty(product_data)\nfrom product\nwhere \n  chain in (${chains:singlequote})\n  and product_key in (${product_keys:singlequote})",
           "refId": "A",
           "sql": {
             "columns": [
@@ -394,13 +394,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_key from product where chain in ($chains)",
+        "definition": "select product_key from product where chain in (${chains:singlequote})",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "product_keys",
         "options": [],
-        "query": "select product_key from product where chain in ($chains)",
+        "query": "select product_key from product where chain in (${chains:singlequote})",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

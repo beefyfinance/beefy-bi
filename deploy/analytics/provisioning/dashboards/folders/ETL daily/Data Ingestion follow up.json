@@ -2244,7 +2244,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\ngroup by 1 \norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in (${chain:singlequote})\n)\nselect \n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\ngroup by 1 \norder by 1;",
               "refId": "A",
               "select": [
                 [
@@ -2323,7 +2323,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in (${chain:singlequote})\n)\nselect \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere product_id in ($_product_ids)\norder by 1;",
               "refId": "A",
               "select": [
                 [
@@ -2431,7 +2431,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  time_bucket('$__interval', datetime) as time,\n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere $__timeFilter(datetime)\ngroup by 1, 2\norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in (${chain:singlequote})\n)\nselect \n  time_bucket('$__interval', datetime) as time,\n  c.chain as value, \n  count(*) filter(where b.balance is not null) as metric \nfrom all_chains c \n  left join investment_balance_ts b on (investment_data->>'chain')::chain_enum = c.chain\nwhere $__timeFilter(datetime)\ngroup by 1, 2\norder by 1;",
               "refId": "A",
               "select": [
                 [
@@ -4041,7 +4041,7 @@
               "group": [],
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in ($chain)\n)\nselect \n  time_bucket('$__interval', datetime) as time,\n  p.chain as value, \n  count(*) as metric \nfrom product p\n  left join price_ts pr on pr.price_feed_id = p.price_feed_1_id\nwhere $__timeFilter(datetime)\n  and product_id in ($_product_ids)\n  and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\ngroup by 1, 2\norder by 1;",
+              "rawSql": "with all_chains as (\n  select distinct chain from product\n  where chain in (${chain:singlequote})\n)\nselect \n  time_bucket('$__interval', datetime) as time,\n  p.chain as value, \n  count(*) as metric \nfrom product p\n  left join price_ts pr on pr.price_feed_id = p.price_feed_1_id\nwhere $__timeFilter(datetime)\n  and product_id in ($_product_ids)\n  and p.product_data->>'type' not in ('beefy:boost', 'beefy:gov-vault')\ngroup by 1, 2\norder by 1;",
               "refId": "A",
               "select": [
                 [
@@ -4481,13 +4481,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
+        "definition": "select product_id\nfrom product\nwhere chain in (${chain:singlequote})\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select product_id\nfrom product\nwhere chain in ($chain)\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
+        "query": "select product_id\nfrom product\nwhere chain in (${chain:singlequote})\n and  CASE \n         WHEN '$include_eol' = 'yes' THEN true\n         ELSE coalesce(product_data->>'dashboardEol')::text = 'false'\n    END",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

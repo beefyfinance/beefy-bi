@@ -114,7 +114,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with \ninvestment_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    investor_id,\n    locf(last(balance::numeric, datetime)) as balance\n  FROM\n    investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in (\n      select product_id from product where product_key in ($product_keys)\n    )\n  GROUP BY\n    1, 2\n),\ninvestment_ts as (\n  select * from investment_gf_ts where balance is not null and balance > 0\n)\nselect \n  $__time(datetime),\n  count(distinct investor_id) as investor_count\nfrom investment_ts\nGROUP by 1\n",
+          "rawSql": "with \ninvestment_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    investor_id,\n    locf(last(balance::numeric, datetime)) as balance\n  FROM\n    investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in (\n      select product_id from product where product_key in (${product_keys:singlequote})\n    )\n  GROUP BY\n    1, 2\n),\ninvestment_ts as (\n  select * from investment_gf_ts where balance is not null and balance > 0\n)\nselect \n  $__time(datetime),\n  count(distinct investor_id) as investor_count\nfrom investment_ts\nGROUP by 1\n",
           "refId": "A",
           "select": [
             [
@@ -240,7 +240,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with \ninvestment_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    investor_id,\n    locf(last(balance::numeric, datetime)) as balance\n  FROM\n    investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in (\n      select product_id from product where product_key in ($product_keys)\n    )\n  GROUP BY\n    1, 2\n),\ninvestment_ts as (\n  select * from investment_gf_ts where balance is not null and balance > 0\n)\nselect \n  $__time(datetime),\n  count(distinct investor_id) as investor_count\nfrom investment_ts\nGROUP by 1\n",
+          "rawSql": "with \ninvestment_gf_ts as (\n  SELECT\n    time_bucket_gapfill('$interval', datetime) as datetime,\n    investor_id,\n    locf(last(balance::numeric, datetime)) as balance\n  FROM\n    investment_balance_ts\n  WHERE\n    $__timeFilter(datetime)\n    and product_id in (\n      select product_id from product where product_key in (${product_keys:singlequote})\n    )\n  GROUP BY\n    1, 2\n),\ninvestment_ts as (\n  select * from investment_gf_ts where balance is not null and balance > 0\n)\nselect \n  $__time(datetime),\n  count(distinct investor_id) as investor_count\nfrom investment_ts\nGROUP by 1\n",
           "refId": "A",
           "select": [
             [
@@ -377,13 +377,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_key from product where chain in ($chains) and case when '$include_eol' = 'yes' then true else coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false' END",
+        "definition": "select product_key from product where chain in (${chains:singlequote}) and case when '$include_eol' = 'yes' then true else coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false' END",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "product_keys",
         "options": [],
-        "query": "select product_key from product where chain in ($chains) and case when '$include_eol' = 'yes' then true else coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false' END",
+        "query": "select product_key from product where chain in (${chains:singlequote}) and case when '$include_eol' = 'yes' then true else coalesce(product_data->'vault'->>'eol', product_data->'boost'->>'eol')::text = 'false' END",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,

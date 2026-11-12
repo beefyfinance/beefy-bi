@@ -114,7 +114,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('$interval', datetime) AS \"time\",\n  chain,\n  count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  time_bucket('$interval', datetime) AS \"time\",\n  chain,\n  count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in (${chains:singlequote})\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "A",
           "select": [
             [
@@ -200,7 +200,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT chain, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\ngroup by chain",
+          "rawSql": "SELECT chain, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in (${chains:singlequote})\ngroup by chain",
           "refId": "A",
           "select": [
             [
@@ -284,7 +284,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT chain, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\ngroup by chain",
+          "rawSql": "SELECT chain, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in (${chains:singlequote})\ngroup by chain",
           "refId": "A",
           "select": [
             [
@@ -368,7 +368,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT rpc_url, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\ngroup by rpc_url",
+          "rawSql": "SELECT rpc_url, count(*) as error_count\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in (${chains:singlequote})\ngroup by rpc_url",
           "refId": "A",
           "select": [
             [
@@ -455,7 +455,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT *\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in ($chains)\nORDER BY datetime desc\nlimit 500",
+          "rawSql": "SELECT *\nFROM rpc_error_ts\nWHERE\n  $__timeFilter(datetime)\n  and chain in (${chains:singlequote})\nORDER BY datetime desc\nlimit 500",
           "refId": "A",
           "select": [
             [

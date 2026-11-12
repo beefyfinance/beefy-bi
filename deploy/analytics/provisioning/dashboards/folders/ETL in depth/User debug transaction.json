@@ -198,7 +198,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select now() - min(\"lastImportDate\"::timestamptz) as last_import_at,\n  coalesce(bool_or(is_in_retry_queue), false) as is_in_retry_queue,\n  coalesce(bool_or(is_covered), false) as is_covered\nfrom (\n  select import_key, \"lastImportDate\", \n    \"toRetry\", $block_number between (\"toRetry\"->>'from')::integer and (\"toRetry\"->>'to')::integer as is_in_retry_queue,\n    \"coveredRanges\", $block_number between (\"coveredRanges\"->>'from')::integer and (\"coveredRanges\"->>'to')::integer as is_covered,\n    import_data \n  from (\n    select import_key, \n    import_data->'ranges'->>'lastImportDate' as \"lastImportDate\",  \n    jsonb_array_elements(import_data->'ranges'->'toRetry') as \"toRetry\",\n    jsonb_array_elements(import_data->'ranges'->'coveredRanges') as \"coveredRanges\", \n    import_data\n    from import_state\n    where import_key in ($_import_state_keys)\n  ) as t\n) as t\ngroup by import_key",
+          "rawSql": "select now() - min(\"lastImportDate\"::timestamptz) as last_import_at,\n  coalesce(bool_or(is_in_retry_queue), false) as is_in_retry_queue,\n  coalesce(bool_or(is_covered), false) as is_covered\nfrom (\n  select import_key, \"lastImportDate\", \n    \"toRetry\", $block_number between (\"toRetry\"->>'from')::integer and (\"toRetry\"->>'to')::integer as is_in_retry_queue,\n    \"coveredRanges\", $block_number between (\"coveredRanges\"->>'from')::integer and (\"coveredRanges\"->>'to')::integer as is_covered,\n    import_data \n  from (\n    select import_key, \n    import_data->'ranges'->>'lastImportDate' as \"lastImportDate\",  \n    jsonb_array_elements(import_data->'ranges'->'toRetry') as \"toRetry\",\n    jsonb_array_elements(import_data->'ranges'->'coveredRanges') as \"coveredRanges\", \n    import_data\n    from import_state\n    where import_key in (${_import_state_keys:singlequote})\n  ) as t\n) as t\ngroup by import_key",
           "refId": "A",
           "select": [
             [
@@ -750,7 +750,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "select import_key, \"lastImportDate\", \n  \"toRetry\", $block_number between (\"toRetry\"->>'from')::integer and (\"toRetry\"->>'to')::integer as is_in_retry_queue,\n  \"coveredRanges\", $block_number between (\"coveredRanges\"->>'from')::integer and (\"coveredRanges\"->>'to')::integer as is_covered,\n  import_data \nfrom (\n  select import_key, \n  import_data->'ranges'->'lastImportDate' as \"lastImportDate\",  \n  jsonb_array_elements(import_data->'ranges'->'toRetry') as \"toRetry\",\n  jsonb_array_elements(import_data->'ranges'->'coveredRanges') as \"coveredRanges\", \n  import_data\n  from import_state\n  where import_key in ($_import_state_keys)\n) as t;",
+          "rawSql": "select import_key, \"lastImportDate\", \n  \"toRetry\", $block_number between (\"toRetry\"->>'from')::integer and (\"toRetry\"->>'to')::integer as is_in_retry_queue,\n  \"coveredRanges\", $block_number between (\"coveredRanges\"->>'from')::integer and (\"coveredRanges\"->>'to')::integer as is_covered,\n  import_data \nfrom (\n  select import_key, \n  import_data->'ranges'->'lastImportDate' as \"lastImportDate\",  \n  jsonb_array_elements(import_data->'ranges'->'toRetry') as \"toRetry\",\n  jsonb_array_elements(import_data->'ranges'->'coveredRanges') as \"coveredRanges\", \n  import_data\n  from import_state\n  where import_key in (${_import_state_keys:singlequote})\n) as t;",
           "refId": "A",
           "select": [
             [
@@ -909,13 +909,13 @@
           "type": "postgres",
           "uid": "P1A7A05C63CAD1F73"
         },
-        "definition": "select product_id\nfrom product\nwhere product_key in ($product_keys)\nand chain = '$chain'",
+        "definition": "select product_id\nfrom product\nwhere product_key in (${product_keys:singlequote})\nand chain = '$chain'",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "_product_ids",
         "options": [],
-        "query": "select product_id\nfrom product\nwhere product_key in ($product_keys)\nand chain = '$chain'",
+        "query": "select product_id\nfrom product\nwhere product_key in (${product_keys:singlequote})\nand chain = '$chain'",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
