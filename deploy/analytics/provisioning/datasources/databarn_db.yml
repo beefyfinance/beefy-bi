@@ -10,9 +10,9 @@ datasources:
     access: proxy
     url: ${POSTGRES_HOST}:${POSTGRES_PORT}
     user: ${POSTGRES_USER}
-    database: ${POSTGRES_DB}
     isDefault: true
     jsonData:
+      database: ${POSTGRES_DB}
       postgresVersion: 1200
       sslmode: "disable"
       timeInterval: "15m"
