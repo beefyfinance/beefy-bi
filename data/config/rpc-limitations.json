@@ -65,6 +65,26 @@
     }
   },
   "base": {
+    "<RPC_API_URL_QUIKNODE_BASE>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": 200,
+      "maxGetLogsBlockSpan": 10000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": null,
+      "methods": {
+        "eth_getLogs": 1,
+        "eth_call": 50,
+        "eth_getBlockByNumber": 100,
+        "eth_blockNumber": 100,
+        "eth_getTransactionReceipt": 50
+      }
+    },
     "https://enterprise.onerpc.com/base?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,

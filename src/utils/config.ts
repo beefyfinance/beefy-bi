@@ -261,7 +261,7 @@ export const MS_PER_BLOCK_ESTIMATE: { [chain in Chain]: number } = {
   arc: 500,
   aurora: 1000,
   avax: 2000,
-  base: 2000,
+  base: 200,
   berachain: 2000,
   bsc: 3000,
   canto: 6000,
