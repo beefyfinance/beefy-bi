@@ -13,6 +13,7 @@ import {
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_ONE_RPC,
+  RPC_API_URL_BEEFY_BASE,
   RPC_API_URL_BEEFY_ETHEREUM,
   RPC_API_URL_BEEFY_LINEA,
   RPC_API_URL_BEEFY_OPTIMISM,
@@ -60,6 +61,8 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
     publicRpcUrl += `/${chainName}?apikey=<RPC_API_KEY_ONE_RPC>`;
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_ETHEREUM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/8453?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_BASE>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/59144?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_LINEA>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?")) {
@@ -168,6 +171,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_BASE", RPC_API_URL_BEEFY_BASE);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ETHEREUM", RPC_API_URL_BEEFY_ETHEREUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_LINEA", RPC_API_URL_BEEFY_LINEA);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_OPTIMISM", RPC_API_URL_BEEFY_OPTIMISM);

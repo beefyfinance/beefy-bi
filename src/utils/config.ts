@@ -54,6 +54,7 @@ export const RPC_API_KEY_FIGMENT = process.env.RPC_API_KEY_FIGMENT || null;
 export const RPC_API_KEY_GETBLOCK = process.env.RPC_API_KEY_GETBLOCK || null;
 export const RPC_API_KEY_INFURA = process.env.RPC_API_KEY_INFURA || null;
 export const RPC_API_KEY_LLAMARPC = process.env.RPC_API_KEY_LLAMARPC || null;
+export const RPC_API_URL_BEEFY_BASE = process.env.RPC_API_URL_BEEFY_BASE || null;
 export const RPC_API_URL_BEEFY_ETHEREUM = process.env.RPC_API_URL_BEEFY_ETHEREUM || null;
 export const RPC_API_URL_BEEFY_LINEA = process.env.RPC_API_URL_BEEFY_LINEA || null;
 export const RPC_API_URL_BEEFY_OPTIMISM = process.env.RPC_API_URL_BEEFY_OPTIMISM || null;
