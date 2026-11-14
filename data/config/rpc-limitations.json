@@ -136,7 +136,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "methods": {
         "eth_getLogs": 1,
