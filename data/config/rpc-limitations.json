@@ -43,6 +43,7 @@
   },
   "aurora": {
     "https://mainnet.aurora.dev/<RPC_API_KEY_AURORA>": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
@@ -358,6 +359,7 @@
   },
   "emerald": {
     "https://emerald.oasis.dev": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
@@ -465,6 +467,7 @@
   },
   "fuse": {
     "https://explorer-node.fuse.io": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
@@ -528,6 +531,7 @@
   },
   "harmony": {
     "https://rpc.ankr.com/harmony/<RPC_API_KEY_ANKR>": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": "no-limit",
@@ -549,6 +553,7 @@
   },
   "heco": {
     "https://http-mainnet.hecochain.com": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": 300,
@@ -826,6 +831,7 @@
   },
   "metis": {
     "https://andromeda.metis.io": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": true,
       "minDelayBetweenCalls": 1000,
@@ -943,6 +949,7 @@
       "disableRpc": false,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": null,
@@ -962,6 +969,7 @@
       "disableRpc": false,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 2,
@@ -1435,6 +1443,7 @@
   },
   "syscoin": {
     "https://rpc.ankr.com/syscoin/<RPC_API_KEY_ANKR>": {
+      "weight": 1,
       "restrictToMode": null,
       "isArchiveNode": false,
       "minDelayBetweenCalls": "no-limit",
