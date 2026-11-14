@@ -1,5 +1,25 @@
 {
   "arbitrum": {
+    "<RPC_API_URL_BEEFY_ARBITRUM>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/arbitrum?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -10,8 +30,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": 5,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 16,
         "eth_call": 50,
@@ -43,6 +63,26 @@
     }
   },
   "avax": {
+    "<RPC_API_URL_BEEFY_AVAX>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/avalanche?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -53,8 +93,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 50,
@@ -76,7 +116,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": 5,
+      "weight": 10,
       "methods": {
         "eth_getLogs": null,
         "eth_call": 100,
@@ -115,7 +155,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 1,
@@ -138,7 +178,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 28,
         "eth_call": 500,
@@ -149,6 +189,26 @@
     }
   },
   "bsc": {
+    "<RPC_API_URL_BEEFY_BSC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/bsc?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -159,7 +219,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 1,
@@ -180,7 +240,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": false,
       "methods": {
@@ -202,7 +262,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -224,7 +284,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": false,
       "methods": {
@@ -244,7 +304,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": false,
       "methods": {
@@ -264,7 +324,7 @@
       "internalTimeoutMs": 10000,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": false,
       "methods": {
@@ -286,7 +346,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": 4,
@@ -393,7 +453,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 100,
         "eth_call": 100,
@@ -425,6 +485,26 @@
     }
   },
   "gnosis": {
+    "<RPC_API_URL_BEEFY_GNOSIS>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/gnosis?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -435,8 +515,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 32,
         "eth_call": 50,
@@ -500,7 +580,7 @@
       "canUseMulticallBlockTimestamp": false,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 2,
         "eth_call": 1,
@@ -563,7 +643,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 10,
@@ -571,6 +651,26 @@
         "eth_getBlockByNumber": 100,
         "eth_blockNumber": 100,
         "eth_getTransactionReceipt": 50
+      }
+    },
+    "<RPC_API_URL_BEEFY_KAVA>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
       }
     }
   },
@@ -585,7 +685,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 1,
       "methods": {
         "eth_getLogs": 40,
@@ -628,7 +728,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 100,
@@ -650,7 +750,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 14,
         "eth_call": 128,
@@ -661,6 +761,26 @@
     }
   },
   "mantle": {
+    "<RPC_API_URL_BEEFY_MANTLE>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/mantle?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -671,8 +791,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 50,
@@ -694,7 +814,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 44,
         "eth_call": 100,
@@ -737,7 +857,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 50,
@@ -759,7 +879,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 16,
         "eth_call": 16,
@@ -770,6 +890,26 @@
     }
   },
   "moonbeam": {
+    "<RPC_API_URL_BEEFY_MOONBEAM>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/moonbeam?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -780,7 +920,7 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
+      "disableRpc": true,
       "weight": 2,
       "methods": {
         "eth_getLogs": 20,
@@ -839,7 +979,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -859,7 +999,7 @@
       "internalTimeoutMs": null,
       "disableBatching": false,
       "disableRpc": true,
-      "weight": null,
+      "weight": 1,
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "methods": {
@@ -965,7 +1105,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 10,
@@ -976,6 +1116,26 @@
     }
   },
   "polygon": {
+    "<RPC_API_URL_BEEFY_POLYGON>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/polygon?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -986,8 +1146,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 24,
         "eth_call": 50,
@@ -1009,7 +1169,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 1,
@@ -1031,7 +1191,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 8,
         "eth_call": 32,
@@ -1042,6 +1202,26 @@
     }
   },
   "rollux": {
+    "<RPC_API_URL_BEEFY_ROLLUX>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/rollux?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -1052,8 +1232,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 20,
         "eth_call": 50,
@@ -1137,7 +1317,7 @@
       "canUseMulticallBlockTimestamp": false,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 5,
         "eth_call": 10,
@@ -1190,6 +1370,26 @@
     }
   },
   "scroll": {
+    "<RPC_API_URL_BEEFY_SCROLL>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/scroll?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -1200,8 +1400,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 50,
         "eth_call": 50,
@@ -1266,7 +1466,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 10,
         "eth_call": 10,
@@ -1277,6 +1477,26 @@
     }
   },
   "zksync": {
+    "<RPC_API_URL_BEEFY_ZKSYNC>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/zksync_era?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -1287,8 +1507,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 100,
         "eth_call": 50,
@@ -1299,6 +1519,26 @@
     }
   },
   "zkevm": {
+    "<RPC_API_URL_BEEFY_ZKEVM>": {
+      "restrictToMode": null,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
+      "maxGetLogsAddressBatchSize": null,
+      "internalTimeoutMs": null,
+      "stateChangeReadsOnSameBlock": true,
+      "canUseMulticallBlockTimestamp": true,
+      "disableBatching": false,
+      "disableRpc": false,
+      "weight": 1,
+      "methods": {
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
+      }
+    },
     "https://enterprise.onerpc.com/polygon_zkevm?apikey=<RPC_API_KEY_ONE_RPC>": {
       "restrictToMode": null,
       "isArchiveNode": true,
@@ -1309,8 +1549,8 @@
       "stateChangeReadsOnSameBlock": true,
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
-      "disableRpc": false,
-      "weight": null,
+      "disableRpc": true,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 100,
         "eth_call": 50,
@@ -1332,7 +1572,7 @@
       "canUseMulticallBlockTimestamp": true,
       "disableBatching": false,
       "disableRpc": false,
-      "weight": null,
+      "weight": 1,
       "methods": {
         "eth_getLogs": 1,
         "eth_call": 3,

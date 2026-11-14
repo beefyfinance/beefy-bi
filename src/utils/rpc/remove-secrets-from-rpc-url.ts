@@ -13,11 +13,23 @@ import {
   RPC_API_KEY_NODEREAL,
   RPC_API_KEY_NODEREAL_2,
   RPC_API_KEY_ONE_RPC,
+  RPC_API_URL_BEEFY_ARBITRUM,
+  RPC_API_URL_BEEFY_AVAX,
   RPC_API_URL_BEEFY_BASE,
+  RPC_API_URL_BEEFY_BSC,
   RPC_API_URL_BEEFY_ETHEREUM,
+  RPC_API_URL_BEEFY_GNOSIS,
+  RPC_API_URL_BEEFY_KAVA,
   RPC_API_URL_BEEFY_LINEA,
+  RPC_API_URL_BEEFY_MANTLE,
+  RPC_API_URL_BEEFY_MOONBEAM,
   RPC_API_URL_BEEFY_OPTIMISM,
+  RPC_API_URL_BEEFY_POLYGON,
+  RPC_API_URL_BEEFY_ROLLUX,
   RPC_API_URL_BEEFY_ROOTSTOCK,
+  RPC_API_URL_BEEFY_SCROLL,
+  RPC_API_URL_BEEFY_ZKSYNC,
+  RPC_API_URL_BEEFY_ZKEVM,
   RPC_API_URL_CHAINSTACK_CRONOS,
   RPC_API_URL_FUSE_BEEFY,
   RPC_API_URL_KAVA_BEEFY,
@@ -59,16 +71,40 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
   } else if (secretRpcUrl.includes("/enterprise.onerpc.com")) {
     const chainName = secretRpcUrl.split("?")[0].split("/")[3];
     publicRpcUrl += `/${chainName}?apikey=<RPC_API_KEY_ONE_RPC>`;
-  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?")) {
-    publicRpcUrl = "<RPC_API_URL_BEEFY_ETHEREUM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/42161?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ARBITRUM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/43114?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_AVAX>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/8453?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_BASE>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/56?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_BSC>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ETHEREUM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/100?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_GNOSIS>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/2222?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_KAVA>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/59144?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_LINEA>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/5000?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_MANTLE>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1284?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_MOONBEAM>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/10?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_OPTIMISM>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/137?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_POLYGON>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/570?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ROLLUX>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/30?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_ROOTSTOCK>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/534352?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_SCROLL>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/324?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ZKSYNC>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/1101?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ZKEVM>";
   } else if (secretRpcUrl.includes("ankr")) {
     const chain = pathParts[0];
     if (pathParts.length === 2) {
@@ -171,11 +207,23 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_NODEREAL", RPC_API_KEY_NODEREAL);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_FIGMENT", RPC_API_KEY_FIGMENT);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_GETBLOCK", RPC_API_KEY_GETBLOCK);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ARBITRUM", RPC_API_URL_BEEFY_ARBITRUM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_AVAX", RPC_API_URL_BEEFY_AVAX);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_BASE", RPC_API_URL_BEEFY_BASE);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_BSC", RPC_API_URL_BEEFY_BSC);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ETHEREUM", RPC_API_URL_BEEFY_ETHEREUM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_GNOSIS", RPC_API_URL_BEEFY_GNOSIS);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_KAVA", RPC_API_URL_BEEFY_KAVA);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_LINEA", RPC_API_URL_BEEFY_LINEA);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_MANTLE", RPC_API_URL_BEEFY_MANTLE);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_MOONBEAM", RPC_API_URL_BEEFY_MOONBEAM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_OPTIMISM", RPC_API_URL_BEEFY_OPTIMISM);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_POLYGON", RPC_API_URL_BEEFY_POLYGON);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ROLLUX", RPC_API_URL_BEEFY_ROLLUX);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ROOTSTOCK", RPC_API_URL_BEEFY_ROOTSTOCK);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_SCROLL", RPC_API_URL_BEEFY_SCROLL);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ZKSYNC", RPC_API_URL_BEEFY_ZKSYNC);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ZKEVM", RPC_API_URL_BEEFY_ZKEVM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_OPTIMISM", RPC_API_KEY_ALCHEMY_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_ALCHEMY_ARBITRUM", RPC_API_KEY_ALCHEMY_ARBITRUM);
   url = replaceFromConfigOrThrow(url, "RPC_API_KEY_INFURA", RPC_API_KEY_INFURA);
