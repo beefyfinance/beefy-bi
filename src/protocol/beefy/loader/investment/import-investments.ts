@@ -33,6 +33,7 @@ import { extractObjsAndRangeFromOptimizerOutput } from "../../../common/utils/qu
 import { ChainRunnerConfig, createChainPipeline } from "../../../common/utils/rpc-chain-runner";
 import { extractProductTransfersFromOutputAndTransfers, fetchProductEvents$ } from "../../connector/product-events";
 import { fetchBeefyTransferData$ } from "../../connector/transfer-data";
+import { getVaultFallbackCreationInfos } from "../../connector/vault-created-at";
 import { getProductContractAddress } from "../../utils/contract-accessors";
 import { getInvestmentsImportStateKey } from "../../utils/import-state";
 import { isBeefyBoost, isBeefyBridgedVault, isBeefyGovVault, isBeefyStandardVault } from "../../utils/type-guard";
@@ -74,6 +75,19 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                   }),
                   formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
                 }),
+
+                // if the explorer could not find the creation, fall back on the beefy api createdAt minus a buffer
+                // concurrency 1 to keep the rpc load low
+                Rx.mergeMap(async (item) => {
+                  if (item.contractCreationInfo) {
+                    return item;
+                  }
+                  const contractCreationInfo = await getVaultFallbackCreationInfos(ctx, getProductContractAddress(item.obj)).catch((error) => {
+                    logger.error({ msg: "Failed to get fallback creation infos", data: { productId: item.obj.productId, error } });
+                    return null;
+                  });
+                  return { ...item, contractCreationInfo };
+                }, 1),
 
                 // drop those without a creation info
                 excludeNullFields$("contractCreationInfo"),
