@@ -3,6 +3,7 @@ import * as Rx from "rxjs";
 import yargs from "yargs";
 import { getVaultFallbackCreationInfos, VAULT_CREATED_AT_BUFFER_SECONDS } from "../protocol/beefy/connector/vault-created-at";
 import { fetchContractCreationInfos$ } from "../protocol/common/connector/contract-creation";
+import { getContractDeploymentInfos } from "../protocol/common/connector/contract-deployment";
 import { createBatchStreamConfig, defaultImportBehaviour, ImportBehaviour, ImportCtx } from "../protocol/common/types/import-context";
 import { getMultipleRpcConfigsForChain } from "../protocol/common/utils/rpc-config";
 import { allChainIds, Chain } from "../types/chain";
@@ -41,6 +42,11 @@ async function main() {
       default: true,
       describe: "also query the explorer to compare the creation blocks",
     },
+    onchain: {
+      type: "boolean",
+      default: false,
+      describe: "test the on-chain deployment block search instead of the api createdAt fallback (boosts, vaults missing from the api)",
+    },
   }).argv;
 
   const chain = argv.chain as Chain;
@@ -75,11 +81,16 @@ async function main() {
   for (const contractAddress of addresses) {
     const row: Record<string, unknown> = { contract: contractAddress };
     try {
-      const fallback = await getVaultFallbackCreationInfos(ctx, contractAddress, bufferSeconds);
+      const fallback = argv.onchain
+        ? await getContractDeploymentInfos(ctx, contractAddress)
+        : await getVaultFallbackCreationInfos(ctx, contractAddress, bufferSeconds);
       if (!fallback) {
         row.result = "no fallback (vault not in beefy api or no block found)";
       } else {
-        row.createdAt = new Date(fallback.createdAt * 1000).toISOString();
+        const createdAt = (fallback as { createdAt?: number }).createdAt;
+        if (createdAt !== undefined) {
+          row.createdAt = new Date(createdAt * 1000).toISOString();
+        }
         row.startFrom = fallback.datetime.toISOString();
         row.fallbackBlock = fallback.blockNumber;
       }

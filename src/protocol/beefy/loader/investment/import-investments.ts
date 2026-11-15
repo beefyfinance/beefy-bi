@@ -11,6 +11,7 @@ import { Range, isValidRange, rangeExcludeMany } from "../../../../utils/range";
 import { excludeNullFields$, forkOnNullableField$ } from "../../../../utils/rxjs/utils/exclude-null-field";
 import { fetchBlockFromDatetime$ } from "../../../common/connector/block-from-datetime";
 import { fetchContractCreationInfos$ } from "../../../common/connector/contract-creation";
+import { getContractDeploymentInfos } from "../../../common/connector/contract-deployment";
 import { ERC20Transfer } from "../../../common/connector/erc20-transfers";
 import { latestBlockNumber$ } from "../../../common/connector/latest-block-number";
 import { upsertBlock$ } from "../../../common/loader/blocks";
@@ -76,16 +77,25 @@ export function createBeefyInvestmentImportRunner(options: { chain: Chain; runne
                   formatOutput: (obj, contractCreationInfo) => ({ obj, contractCreationInfo }),
                 }),
 
-                // if the explorer could not find the creation, fall back on the beefy api createdAt minus a buffer
+                // if the explorer could not find the creation:
+                // 1. vaults in the beefy api: use their createdAt minus a buffer
+                // 2. otherwise (boosts, vaults missing from the api): find the deployment block on chain
                 // concurrency 1 to keep the rpc load low
                 Rx.mergeMap(async (item) => {
                   if (item.contractCreationInfo) {
                     return item;
                   }
-                  const contractCreationInfo = await getVaultFallbackCreationInfos(ctx, getProductContractAddress(item.obj)).catch((error) => {
-                    logger.error({ msg: "Failed to get fallback creation infos", data: { productId: item.obj.productId, error } });
+                  const contractAddress = getProductContractAddress(item.obj);
+                  const fromApi = await getVaultFallbackCreationInfos(ctx, contractAddress).catch((error) => {
+                    logger.error({ msg: "Failed to get fallback creation infos from api", data: { productId: item.obj.productId, error } });
                     return null;
                   });
+                  const contractCreationInfo =
+                    fromApi ??
+                    (await getContractDeploymentInfos(ctx, contractAddress).catch((error) => {
+                      logger.error({ msg: "Failed to get deployment block from chain", data: { productId: item.obj.productId, error } });
+                      return null;
+                    }));
                   return { ...item, contractCreationInfo };
                 }, 1),
 
