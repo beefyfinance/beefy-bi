@@ -25,6 +25,7 @@ import {
   RPC_API_URL_BEEFY_MOONBEAM,
   RPC_API_URL_BEEFY_OPTIMISM,
   RPC_API_URL_BEEFY_POLYGON,
+  RPC_API_URL_BEEFY_ROBINHOOD,
   RPC_API_URL_BEEFY_ROLLUX,
   RPC_API_URL_BEEFY_ROOTSTOCK,
   RPC_API_URL_BEEFY_SCROLL,
@@ -95,6 +96,8 @@ export function removeSecretsFromRpcUrl(chain: Chain, secretRpcUrl: string): str
     publicRpcUrl = "<RPC_API_URL_BEEFY_OPTIMISM>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/137?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_POLYGON>";
+  } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/4663?")) {
+    publicRpcUrl = "<RPC_API_URL_BEEFY_ROBINHOOD>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/570?")) {
     publicRpcUrl = "<RPC_API_URL_BEEFY_ROLLUX>";
   } else if (secretRpcUrl.includes("beefy") && secretRpcUrl.includes("evm/30?")) {
@@ -219,6 +222,7 @@ export function addSecretsToRpcUrl(publicRpcUrl: string): string {
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_MOONBEAM", RPC_API_URL_BEEFY_MOONBEAM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_OPTIMISM", RPC_API_URL_BEEFY_OPTIMISM);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_POLYGON", RPC_API_URL_BEEFY_POLYGON);
+  url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ROBINHOOD", RPC_API_URL_BEEFY_ROBINHOOD);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ROLLUX", RPC_API_URL_BEEFY_ROLLUX);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_ROOTSTOCK", RPC_API_URL_BEEFY_ROOTSTOCK);
   url = replaceFromConfigOrThrow(url, "RPC_API_URL_BEEFY_SCROLL", RPC_API_URL_BEEFY_SCROLL);

@@ -66,6 +66,7 @@ export const RPC_API_URL_BEEFY_MANTLE = process.env.RPC_API_URL_BEEFY_MANTLE || 
 export const RPC_API_URL_BEEFY_MOONBEAM = process.env.RPC_API_URL_BEEFY_MOONBEAM || null;
 export const RPC_API_URL_BEEFY_OPTIMISM = process.env.RPC_API_URL_BEEFY_OPTIMISM || null;
 export const RPC_API_URL_BEEFY_POLYGON = process.env.RPC_API_URL_BEEFY_POLYGON || null;
+export const RPC_API_URL_BEEFY_ROBINHOOD = process.env.RPC_API_URL_BEEFY_ROBINHOOD || null;
 export const RPC_API_URL_BEEFY_ROLLUX = process.env.RPC_API_URL_BEEFY_ROLLUX || null;
 export const RPC_API_URL_BEEFY_ROOTSTOCK = process.env.RPC_API_URL_BEEFY_ROOTSTOCK || null;
 export const RPC_API_URL_BEEFY_SCROLL = process.env.RPC_API_URL_BEEFY_SCROLL || null;

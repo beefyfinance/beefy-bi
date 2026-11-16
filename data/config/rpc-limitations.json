@@ -1188,11 +1188,11 @@
     }
   },
   "robinhood": {
-    "https://rpc.mainnet.chain.robinhood.com": {
+    "<RPC_API_URL_BEEFY_ROBINHOOD>": {
       "restrictToMode": null,
-      "isArchiveNode": false,
-      "minDelayBetweenCalls": 1000,
-      "maxGetLogsBlockSpan": 5000,
+      "isArchiveNode": true,
+      "minDelayBetweenCalls": "no-limit",
+      "maxGetLogsBlockSpan": 2000,
       "maxGetLogsAddressBatchSize": null,
       "internalTimeoutMs": null,
       "stateChangeReadsOnSameBlock": true,
@@ -1201,11 +1201,11 @@
       "disableRpc": false,
       "weight": 1,
       "methods": {
-        "eth_getLogs": 8,
-        "eth_call": 32,
-        "eth_getBlockByNumber": 64,
-        "eth_blockNumber": 128,
-        "eth_getTransactionReceipt": 64
+        "eth_getLogs": null,
+        "eth_call": 100,
+        "eth_getBlockByNumber": 10,
+        "eth_blockNumber": 10,
+        "eth_getTransactionReceipt": 5
       }
     }
   },
