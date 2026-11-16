@@ -13,8 +13,11 @@ import { RPCBatchCallResult, batchRpcCalls$ } from "../../../common/utils/batch-
 import {
   BeefyShareRateBatchCallResult,
   BeefyShareRateCallParams,
+  decodePpfsMulticallResult,
   extractRawPpfsFromFunctionResult,
   getBlockTag,
+  hasNoCodeAt,
+  isEmptyReturnDataCallError,
   isEmptyVaultPPFSError,
   ppfsToVaultSharesRate,
 } from "./share-rate-utils";
@@ -74,8 +77,14 @@ export function fetchSingleBeefyProductShareRateAndDatetime$<TObj, TErr extends 
               }),
             )
             // empty vaults WILL throw an error
-            .catch((err): CallResult<PPFSEntry> => {
+            // vaults without code (not deployed yet at this block) revert with empty data
+            .catch(async (err): Promise<CallResult<PPFSEntry>> => {
               if (isEmptyVaultPPFSError(err)) {
+                return { type: "success", data: [contractCall, ethers.BigNumber.from(0)] as PPFSEntry };
+              } else if (
+                isEmptyReturnDataCallError(err) &&
+                (await hasNoCodeAt(provider, contractCall.vaultAddress, getBlockTag(options.ctx, contractCall.blockNumber)))
+              ) {
                 return { type: "success", data: [contractCall, ethers.BigNumber.from(0)] as PPFSEntry };
               } else {
                 return {
@@ -184,11 +193,10 @@ export function fetchSingleBeefyProductShareRateAndDatetime$<TObj, TErr extends 
 
             const ppfsData = r[rIdx++];
             // if the call failed, we immediately know it was an empty vault, we don't get the error back anyway
+            // if there is no code at the block, the ppfs is 0
             let shareRate = new Decimal("1");
-            if (ppfsData.success) {
-              const rawPpfs = extractRawPpfsFromFunctionResult(
-                BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", ppfsData.returnData),
-              ) as ethers.BigNumber;
+            const rawPpfs = decodePpfsMulticallResult(ppfsData);
+            if (rawPpfs !== null) {
               shareRate = ppfsToVaultSharesRate(param.vaultDecimals, param.underlyingDecimals, rawPpfs);
             }
 

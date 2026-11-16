@@ -15,7 +15,15 @@ import { ErrorEmitter, ErrorReport, ImportCtx, Throwable } from "../../common/ty
 import { batchRpcCalls$ } from "../../common/utils/batch-rpc-calls";
 import { extractObjsAndRangeFromOptimizerOutput, isAddressBatchQueries, isJsonRpcBatchQueries } from "../../common/utils/query/optimizer-utils";
 import { AddressBatchOutput, JsonRpcBatchOutput, QueryOptimizerOutput } from "../../common/utils/query/query-types";
-import { extractRawPpfsFromFunctionResult, getBlockTag, ppfsToVaultSharesRate, rangeToBlockNumber } from "./share-rate/share-rate-utils";
+import {
+  decodePpfsMulticallResult,
+  extractRawPpfsFromFunctionResult,
+  getBlockTag,
+  hasNoCodeAt,
+  isEmptyReturnDataCallError,
+  ppfsToVaultSharesRate,
+  rangeToBlockNumber,
+} from "./share-rate/share-rate-utils";
 
 const logger = rootLogger.child({ module: "beefy", component: "product-statistics-snapshots" });
 
@@ -124,8 +132,18 @@ export function fetchMultipleProductStatistics$<
             contractCall.vaultAddress.toLocaleLowerCase() === "0x5da90ba82bed0ab701e6762d2bf44e08634d9776" &&
             contractCall.blockNumber === 19384744;
 
+          // vaults without code at this block (not deployed yet) revert with empty data: their ppfs is 0
+          const ppfsPromise = (vaultContract.callStatic.getPricePerFullShare({ blockTag }) as Promise<[ethers.BigNumber]>).catch(
+            async (err): Promise<[ethers.BigNumber]> => {
+              if (isEmptyReturnDataCallError(err) && (await hasNoCodeAt(provider, contractCall.vaultAddress, blockTag))) {
+                return [ethers.BigNumber.from(0)];
+              }
+              throw err;
+            },
+          );
+
           const rawPromise = Promise.all([
-            vaultContract.callStatic.getPricePerFullShare({ blockTag }) as Promise<[ethers.BigNumber]>,
+            ppfsPromise,
             vaultContract.callStatic.totalSupply({ blockTag }) as Promise<[ethers.BigNumber]>,
             isErroringContractCall
               ? Promise.resolve([ethers.BigNumber.from(0)])
@@ -284,11 +302,10 @@ export function fetchMultipleProductStatistics$<
           const param = getCallParamsFromProductAndRange(product, item.query.range);
           const ppfsData = multicallResults[rIdx++];
           // if the call failed, we immediately know it was an empty vault, we don't get the error back anyway
+          // if there is no code at the block, the ppfs is 0
           let vaultShareRate = new Decimal("1");
-          if (ppfsData.success) {
-            const rawPpfs = extractRawPpfsFromFunctionResult(
-              BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", ppfsData.returnData),
-            ) as ethers.BigNumber;
+          const rawPpfs = decodePpfsMulticallResult(ppfsData);
+          if (rawPpfs !== null) {
             vaultShareRate = ppfsToVaultSharesRate(param.vaultDecimals, param.underlyingDecimals, rawPpfs);
           }
 

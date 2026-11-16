@@ -17,7 +17,7 @@ import { AddressBatchOutput, JsonRpcBatchOutput, QueryOptimizerOutput } from "..
 import { fetchSingleBeefyProductShareRateAndDatetime$ } from "./share-rate-multi-block";
 import {
   BeefyShareRateBatchCallResult,
-  extractRawPpfsFromFunctionResult,
+  decodePpfsMulticallResult,
   getBlockTag,
   getCallParamsFromProductAndRange,
   ppfsToVaultSharesRate,
@@ -132,11 +132,10 @@ export function fetchMultipleShareRate$<
           const param = getCallParamsFromProductAndRange(product, item.query.range);
           const ppfsData = multicallResults[rIdx];
           // if the call failed, we immediately know it was an empty vault, we don't get the error back anyway
+          // if there is no code at the block, the ppfs is 0
           let shareRate = new Decimal("1");
-          if (ppfsData.success) {
-            const rawPpfs = extractRawPpfsFromFunctionResult(
-              BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", ppfsData.returnData),
-            ) as ethers.BigNumber;
+          const rawPpfs = decodePpfsMulticallResult(ppfsData);
+          if (rawPpfs !== null) {
             shareRate = ppfsToVaultSharesRate(param.vaultDecimals, param.underlyingDecimals, rawPpfs);
           }
 

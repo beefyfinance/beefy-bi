@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { ethers } from "ethers";
 import { get, isArray } from "lodash";
+import { BeefyVaultV6AbiInterface } from "../../../../utils/abi";
 import { ProgrammerError } from "../../../../utils/programmer-error";
 import { Range, isInRange } from "../../../../utils/range";
 import { DbBeefyStdVaultProduct } from "../../../common/loader/product";
@@ -53,6 +54,37 @@ export function isEmptyVaultPPFSError(err: any) {
   }
   const errorMessage = get(err, ["error", "message"]) || get(err, "message") || "";
   return errorMessage.includes("SafeMath: division by zero");
+}
+
+// a call to an address without code (before the vault is deployed, or a wrong address) does not revert:
+// a multicall sub-call succeeds with empty return data, and a direct call reverts with empty data
+// in that case there is no ppfs, so we use 0 (same as an empty vault)
+export function isNoCodeReturnData(returnData: string): boolean {
+  return returnData === "0x";
+}
+
+export function isEmptyReturnDataCallError(err: any): boolean {
+  return get(err, "code") === "CALL_EXCEPTION" && (get(err, "data") === "0x" || get(err, ["error", "data"]) === "0x");
+}
+
+export async function hasNoCodeAt(provider: ethers.providers.Provider, address: string, blockTag: number): Promise<boolean> {
+  return isNoCodeReturnData(await provider.getCode(address, blockTag));
+}
+
+/**
+ * Decodes the ppfs of a multicall sub-call (allowFailure: true)
+ * returns null if the call failed (the caller decides the default), 0 if there is no code, the ppfs otherwise
+ */
+export function decodePpfsMulticallResult(ppfsData: { success: boolean; returnData: string }): ethers.BigNumber | null {
+  if (!ppfsData.success) {
+    return null;
+  }
+  if (isNoCodeReturnData(ppfsData.returnData)) {
+    return ethers.BigNumber.from(0);
+  }
+  return extractRawPpfsFromFunctionResult(
+    BeefyVaultV6AbiInterface.decodeFunctionResult("getPricePerFullShare", ppfsData.returnData),
+  ) as ethers.BigNumber;
 }
 
 export function extractRawPpfsFromFunctionResult<T>(returnData: [T] | T): T {
